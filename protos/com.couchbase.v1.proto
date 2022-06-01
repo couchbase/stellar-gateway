@@ -1,0 +1,294 @@
+syntax = "proto3";
+
+option go_package = "github.com/couchbase/stellar-nebula/protos";
+
+package com.couchbase.v1;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/duration.proto";
+
+service Couchbase {
+  rpc FetchRouting(FetchRoutingRequest) returns (FetchRoutingResponse) {}
+
+  rpc Get(GetRequest) returns (GetResponse) {}
+  rpc GetAndTouch(GetAndTouchRequest) returns (GetResponse) {}
+  rpc GetAndLock(GetAndLockRequest) returns (GetResponse) {}
+  rpc Unlock(UnlockRequest) returns (UnlockResponse) {}
+  rpc GetReplica(GetReplicaRequest) returns (GetResponse) {}
+  rpc Touch(TouchRequest) returns (TouchResponse) {}
+  rpc Exists(ExistsRequest) returns (ExistsResponse) {}
+
+  rpc Insert(InsertRequest) returns (InsertResponse) {}
+  rpc Upsert(UpsertRequest) returns (UpsertResponse) {}
+  rpc Replace(ReplaceRequest) returns (ReplaceResponse) {}
+  rpc Remove(RemoveRequest) returns (RemoveResponse) {}
+  rpc LookupIn(LookupInRequest) returns (LookupInResponse) {}
+  rpc MutateIn(MutateInRequest) returns (MutateInResponse) {}
+
+  rpc Query(QueryRequest) returns (stream QueryResponse) {}
+  rpc SearchQuery(SearchQueryRequest) returns (stream SearchQueryResponse) {}
+  rpc AnalyticsQuery(AnalyticsQueryRequest)
+      returns (stream AnalyticsQueryResponse) {}
+}
+
+message FetchRoutingRequest {}
+
+message KetamaRouting { repeated string endpoints = 1; }
+
+message VbucketMapVbucket { repeated int32 endpoint_idx = 1; }
+
+message VbucketMapRouting {
+  repeated string endpoint = 1;
+  repeated VbucketMapVbucket vbucket = 2;
+}
+
+message FetchRoutingResponse {
+  oneof routing {
+    KetamaRouting ketama_routing = 1;
+    VbucketMapRouting vbucket_routing = 2;
+  }
+}
+
+message Cas { uint64 Value = 1; }
+
+enum DurabilityLevel {
+  MAJORITY = 0;
+  MAJORITY_AND_PERSIST_TO_ACTIVE = 1;
+  PERSIST_TO_MAJORITY = 2;
+}
+
+message GetRequest {
+  string bucket_name = 1;
+  string scope_name = 2;
+  string collection_name = 3;
+  string key = 4;
+}
+
+message GetAndTouchRequest {
+  string bucket_name = 1;
+  string scope_name = 2;
+  string collection_name = 3;
+  string key = 4;
+  google.protobuf.Timestamp expiry = 5;
+}
+
+message GetAndLockRequest {
+  string bucket_name = 1;
+  string scope_name = 2;
+  string collection_name = 3;
+  string key = 4;
+}
+
+message GetReplicaRequest {
+  string bucket_name = 1;
+  string scope_name = 2;
+  string collection_name = 3;
+  string key = 4;
+  uint32 replica_index = 5;
+}
+
+message GetResponse {
+  bytes content = 1;
+  Cas cas = 2;
+  optional google.protobuf.Timestamp expiry = 3;
+}
+
+message UnlockRequest {
+  string bucket_name = 1;
+  string scope_name = 2;
+  string collection_name = 3;
+  string key = 4;
+  Cas cas = 5;
+}
+
+message UnlockResponse {}
+
+message TouchRequest {
+  string bucket_name = 1;
+  string scope_name = 2;
+  string collection_name = 3;
+  string key = 4;
+  google.protobuf.Timestamp expiry = 5;
+}
+
+message TouchResponse {}
+
+message ExistsRequest {
+  string bucket_name = 1;
+  string scope_name = 2;
+  string collection_name = 3;
+  string key = 4;
+}
+
+message ExistsResponse { bool result = 1; }
+
+message InsertRequest {
+  string bucket_name = 1;
+  string scope_name = 2;
+  string collection_name = 3;
+  string key = 4;
+  bytes content = 5;
+  optional google.protobuf.Timestamp expiry = 6;
+  optional DurabilityLevel durability_level = 7;
+}
+
+message InsertResponse { Cas Cas = 2; }
+
+message UpsertRequest {
+  string bucket_name = 1;
+  string scope_name = 2;
+  string collection_name = 3;
+  string key = 4;
+  bytes content = 5;
+  optional Cas cas = 6;
+  optional google.protobuf.Timestamp expiry = 7;
+  optional DurabilityLevel durability_level = 8;
+}
+
+message UpsertResponse { Cas cas = 2; }
+
+message ReplaceRequest {
+  string bucket_name = 1;
+  string scope_name = 2;
+  string collection_name = 3;
+  string key = 4;
+  bytes content = 5;
+  optional Cas cas = 6;
+  optional google.protobuf.Timestamp expiry = 7;
+  optional DurabilityLevel durability_level = 8;
+}
+
+message ReplaceResponse { Cas cas = 2; }
+
+message RemoveRequest {
+  string bucket_name = 1;
+  string scope_name = 2;
+  string collection_name = 3;
+  string key = 4;
+  optional Cas cas = 5;
+  optional DurabilityLevel durability_level = 6;
+}
+
+message RemoveResponse {}
+
+message LookupInRequest {
+  message Spec {
+    string path = 1;
+
+    message Flags { optional bool xattr = 1; }
+    optional Flags flags = 2;
+  }
+
+  repeated Spec spec = 1;
+
+  message Flags { optional bool access_deleted = 1; }
+  optional Flags flags = 2;
+}
+
+message LookupInResponse {
+  message Spec { bytes content = 1; }
+  repeated Spec spec = 1;
+
+  Cas cas = 2;
+}
+
+message MutateInRequest {
+  message Spec {
+    string path = 1;
+    bytes content = 2;
+
+    message Flags {
+      optional bool create_parents = 1;
+      optional bool expand_macros = 2;
+    }
+    optional Flags flags = 3;
+  }
+
+  repeated Spec spec = 1;
+
+  enum StoreSemantic {
+    REPLACE = 0;
+    UPSERT = 1;
+    INSERT = 2;
+  }
+  optional StoreSemantic store_semantic = 2;
+
+  optional DurabilityLevel durability_level = 3;
+
+  optional Cas cas = 4;
+
+  message Flags { optional bool access_deleted = 1; }
+  optional Flags flags = 5;
+}
+
+message MutateInResponse {
+  message Spec { optional bytes content = 1; }
+  repeated Spec spec = 1;
+
+  Cas cas = 2;
+}
+
+message QueryRequest {
+  string statement = 1;
+
+  optional bool read_only = 2;
+  optional bool prepared = 3;
+
+  message TuningOptions {
+    optional uint32 max_parallelism = 1;
+    optional uint32 pipeline_batch = 2;
+    optional uint32 pipeline_cap = 3;
+    optional google.protobuf.Duration scan_wait = 4;
+    optional uint32 scan_cap = 5;
+  }
+  optional TuningOptions tuning_options = 4;
+
+  optional string client_context_id = 5;
+}
+
+message QueryResponse {
+  repeated bytes Rows = 1;
+
+  message MetaData {
+    string request_id = 1;
+    string client_context_id = 2;
+  }
+  optional MetaData meta_data = 2;
+}
+
+message SearchQueryRequest {
+  string index_name = 1;
+  // stuff
+}
+
+message SearchQueryResponse {
+  // stuff
+}
+
+message AnalyticsQueryRequest {
+  string statement = 1;
+
+  optional bool read_only = 2;
+  optional bool prepared = 3;
+
+  message TuningOptions {
+    optional uint32 max_parallelism = 1;
+    optional uint32 pipeline_batch = 2;
+    optional uint32 pipeline_cap = 3;
+    optional google.protobuf.Duration scan_wait = 4;
+    optional uint32 scan_cap = 5;
+  }
+  optional TuningOptions tuning_options = 4;
+
+  optional string client_context_id = 5;
+}
+
+message AnalyticsQueryResponse {
+  repeated bytes Rows = 1;
+
+  message MetaData {
+    string request_id = 1;
+    string client_context_id = 2;
+  }
+  optional MetaData meta_data = 2;
+}
