@@ -163,7 +163,7 @@ message InsertRequest {
   optional DurabilityLevel durability_level = 8;
 }
 
-message InsertResponse { Cas Cas = 2; }
+message InsertResponse { Cas Cas = 1; }
 
 message UpsertRequest {
   string bucket_name = 1;
@@ -172,12 +172,11 @@ message UpsertRequest {
   string key = 4;
   bytes content = 5;
   DocumentContentType content_type = 6;
-  optional Cas cas = 7;
-  optional google.protobuf.Timestamp expiry = 8;
-  optional DurabilityLevel durability_level = 9;
+  optional google.protobuf.Timestamp expiry = 7;
+  optional DurabilityLevel durability_level = 8;
 }
 
-message UpsertResponse { Cas cas = 2; }
+message UpsertResponse { Cas cas = 1; }
 
 message ReplaceRequest {
   string bucket_name = 1;
@@ -191,7 +190,7 @@ message ReplaceRequest {
   optional DurabilityLevel durability_level = 9;
 }
 
-message ReplaceResponse { Cas cas = 2; }
+message ReplaceResponse { Cas cas = 1; }
 
 message RemoveRequest {
   string bucket_name = 1;
@@ -202,7 +201,7 @@ message RemoveRequest {
   optional DurabilityLevel durability_level = 6;
 }
 
-message RemoveResponse {}
+message RemoveResponse { Cas cas = 1; }
 
 message LookupInRequest {
   message Spec {

@@ -53,7 +53,12 @@ func main() {
 	}
 	log.Printf("Get Response: %+v", getResp)
 
-	missingGetResp, err := c.Get(ctx, &protos.GetRequest{
+	cancelCtx, cancel := context.WithCancel(ctx)
+	go func() {
+		time.Sleep(1 * time.Millisecond)
+		cancel()
+	}()
+	missingGetResp, err := c.Get(cancelCtx, &protos.GetRequest{
 		BucketName:     "default",
 		ScopeName:      "_default",
 		CollectionName: "_default",

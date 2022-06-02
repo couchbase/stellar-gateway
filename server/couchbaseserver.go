@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"errors"
+	"log"
 	"time"
 
 	"github.com/couchbase/gocb/v2"
@@ -19,11 +20,41 @@ func casToPs(cas gocb.Cas) *protos.Cas {
 	}
 }
 
-func durationToPs(when time.Time) *timestamppb.Timestamp {
+func casFromPs(cas *protos.Cas) gocb.Cas {
+	return gocb.Cas(cas.Value)
+}
+
+func timeToPs(when time.Time) *timestamppb.Timestamp {
+	if when.IsZero() {
+		return nil
+	}
 	return timestamppb.New(when)
 }
 
+func timeFromPs(ts *timestamppb.Timestamp) time.Time {
+	return ts.AsTime()
+}
+
+func durabilityLevelFromPs(dl *protos.DurabilityLevel) (gocb.DurabilityLevel, *status.Status) {
+	if dl == nil {
+		return gocb.DurabilityLevelNone, nil
+	}
+
+	switch *dl {
+	case protos.DurabilityLevel_MAJORITY:
+		return gocb.DurabilityLevelMajority, nil
+	case protos.DurabilityLevel_MAJORITY_AND_PERSIST_TO_ACTIVE:
+		return gocb.DurabilityLevelMajorityAndPersistOnMaster, nil
+	case protos.DurabilityLevel_PERSIST_TO_MAJORITY:
+		return gocb.DurabilityLevelPersistToMajority, nil
+	}
+
+	return gocb.DurabilityLevelNone, status.New(codes.InvalidArgument, "invalid durability level options specified")
+}
+
 func cbErrToPs(err error) error {
+	log.Printf("handling error: %+v", err)
+
 	var errorDetails protoiface.MessageV1
 
 	var keyValueContext *gocb.KeyValueError
@@ -42,8 +73,16 @@ func cbErrToPs(err error) error {
 
 	makeError := func(c codes.Code, msg string) error {
 		st := status.New(c, msg)
-		st, _ = st.WithDetails(errorDetails)
+		if errorDetails != nil {
+			st, _ = st.WithDetails(errorDetails)
+		}
 		return st.Err()
+	}
+
+	// this never actually makes it back to the GRPC client, but we
+	// do the translation here anyways...
+	if errors.Is(err, context.Canceled) {
+		return makeError(codes.Canceled, "request canceled")
 	}
 
 	// TODO(brett19): Need to provide translation for more errors
@@ -75,7 +114,6 @@ func (s *couchbaseServer) Get(ctx context.Context, in *protos.GetRequest) (*prot
 
 	var opts gocb.GetOptions
 	opts.WithExpiry = true
-	//opts.Internal.User = "someone"
 	opts.Transcoder = customTranscoder{}
 	opts.Context = ctx
 	result, err := coll.Get(in.Key, &opts)
@@ -93,7 +131,38 @@ func (s *couchbaseServer) Get(ctx context.Context, in *protos.GetRequest) (*prot
 		Content:     contentData.ContentBytes,
 		ContentType: contentData.ContentType,
 		Cas:         casToPs(result.Cas()),
-		Expiry:      durationToPs(result.ExpiryTime()),
+		Expiry:      timeToPs(result.ExpiryTime()),
+	}, nil
+}
+
+func (s *couchbaseServer) Insert(ctx context.Context, in *protos.InsertRequest) (*protos.InsertResponse, error) {
+	coll := s.getCollection(ctx, in.BucketName, in.ScopeName, in.CollectionName)
+
+	var contentData psTranscodeData
+	contentData.ContentBytes = in.Content
+	contentData.ContentType = in.ContentType
+
+	var opts gocb.InsertOptions
+	opts.Transcoder = customTranscoder{}
+	opts.Context = ctx
+
+	if in.Expiry != nil {
+		opts.Expiry = time.Until(timeFromPs(in.Expiry))
+	}
+
+	dl, errSt := durabilityLevelFromPs(in.DurabilityLevel)
+	if errSt != nil {
+		return nil, errSt.Err()
+	}
+	opts.DurabilityLevel = dl
+
+	result, err := coll.Insert(in.Key, contentData, &opts)
+	if err != nil {
+		return nil, cbErrToPs(err)
+	}
+
+	return &protos.InsertResponse{
+		Cas: casToPs(result.Cas()),
 	}, nil
 }
 
@@ -105,15 +174,90 @@ func (s *couchbaseServer) Upsert(ctx context.Context, in *protos.UpsertRequest) 
 	contentData.ContentType = in.ContentType
 
 	var opts gocb.UpsertOptions
-	//opts.Internal.User = "someone"
 	opts.Transcoder = customTranscoder{}
 	opts.Context = ctx
+
+	if in.Expiry == nil {
+		opts.PreserveExpiry = true
+	} else {
+		opts.Expiry = time.Until(timeFromPs(in.Expiry))
+	}
+
+	dl, errSt := durabilityLevelFromPs(in.DurabilityLevel)
+	if errSt != nil {
+		return nil, errSt.Err()
+	}
+	opts.DurabilityLevel = dl
+
 	result, err := coll.Upsert(in.Key, contentData, &opts)
 	if err != nil {
 		return nil, cbErrToPs(err)
 	}
 
 	return &protos.UpsertResponse{
+		Cas: casToPs(result.Cas()),
+	}, nil
+}
+
+func (s *couchbaseServer) Replace(ctx context.Context, in *protos.ReplaceRequest) (*protos.ReplaceResponse, error) {
+	coll := s.getCollection(ctx, in.BucketName, in.ScopeName, in.CollectionName)
+
+	var contentData psTranscodeData
+	contentData.ContentBytes = in.Content
+	contentData.ContentType = in.ContentType
+
+	var opts gocb.ReplaceOptions
+	opts.Transcoder = customTranscoder{}
+	opts.Context = ctx
+
+	if in.Cas != nil {
+		opts.Cas = casFromPs(in.Cas)
+	}
+
+	if in.Expiry == nil {
+		opts.PreserveExpiry = true
+	} else {
+		opts.Expiry = time.Until(timeFromPs(in.Expiry))
+	}
+
+	dl, errSt := durabilityLevelFromPs(in.DurabilityLevel)
+	if errSt != nil {
+		return nil, errSt.Err()
+	}
+	opts.DurabilityLevel = dl
+
+	result, err := coll.Replace(in.Key, contentData, &opts)
+	if err != nil {
+		return nil, cbErrToPs(err)
+	}
+
+	return &protos.ReplaceResponse{
+		Cas: casToPs(result.Cas()),
+	}, nil
+}
+
+func (s *couchbaseServer) Remove(ctx context.Context, in *protos.RemoveRequest) (*protos.RemoveResponse, error) {
+	coll := s.getCollection(ctx, in.BucketName, in.ScopeName, in.CollectionName)
+
+	var opts gocb.RemoveOptions
+	opts.Context = ctx
+
+	if in.Cas != nil {
+		opts.Cas = casFromPs(in.Cas)
+	}
+
+	dl, errSt := durabilityLevelFromPs(in.DurabilityLevel)
+	if errSt != nil {
+		return nil, errSt.Err()
+	}
+	opts.DurabilityLevel = dl
+
+	result, err := coll.Remove(in.Key, &opts)
+	if err != nil {
+		return nil, cbErrToPs(err)
+	}
+
+	return &protos.RemoveResponse{
 		Cas: casToPs(result.Cas()),
 	}, nil
 }
