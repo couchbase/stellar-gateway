@@ -7,8 +7,15 @@ package com.couchbase.v1;
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/duration.proto";
 
+// This is a placeholder for some additional error details, ideally we will
+// likely have a few different blocks of error data depending on the error type.
+message ErrorInfo {
+  string reason = 1;
+  map<string, string> metadata = 2;
+}
+
 service Couchbase {
-  rpc FetchRouting(FetchRoutingRequest) returns (FetchRoutingResponse) {}
+  rpc FetchRouting(WatchRoutingRequest) returns (stream WatchRoutingResponse) {}
 
   rpc Get(GetRequest) returns (GetResponse) {}
   rpc GetAndTouch(GetAndTouchRequest) returns (GetResponse) {}
@@ -31,8 +38,6 @@ service Couchbase {
       returns (stream AnalyticsQueryResponse) {}
 }
 
-message FetchRoutingRequest {}
-
 message KetamaRouting { repeated string endpoints = 1; }
 
 message VbucketMapVbucket { repeated int32 endpoint_idx = 1; }
@@ -42,11 +47,24 @@ message VbucketMapRouting {
   repeated VbucketMapVbucket vbucket = 2;
 }
 
-message FetchRoutingResponse {
-  oneof routing {
-    KetamaRouting ketama_routing = 1;
-    VbucketMapRouting vbucket_routing = 2;
+message ManagementRouting { repeated string endpoint = 1; }
+message QueryRouting { repeated string endpoint = 1; }
+message SearchQueryRouting { repeated string endpoint = 1; }
+message AnalyticsQueryRouting { repeated string endpoint = 1; }
+
+message WatchRoutingRequest {}
+
+message WatchRoutingResponse {
+  ManagementRouting management_routing = 1;
+
+  oneof kv_routing {
+    KetamaRouting ketama_routing = 2;
+    VbucketMapRouting vbucket_routing = 3;
   }
+
+  QueryRouting query_routing = 4;
+  SearchQueryRouting searchquery_routing = 5;
+  AnalyticsQueryRouting analyticsquery_routing = 6;
 }
 
 message Cas { uint64 Value = 1; }
@@ -55,6 +73,17 @@ enum DurabilityLevel {
   MAJORITY = 0;
   MAJORITY_AND_PERSIST_TO_ACTIVE = 1;
   PERSIST_TO_MAJORITY = 2;
+}
+
+enum DocumentContentType {
+  // Indicates that we are not able to determine the document content type.
+  UNKNOWN = 0;
+
+  // Indicates that the content is raw binary data.
+  BINARY = 1;
+
+  // Indicates that the content is JSON
+  JSON = 2;
 }
 
 message GetRequest {
@@ -89,8 +118,9 @@ message GetReplicaRequest {
 
 message GetResponse {
   bytes content = 1;
-  Cas cas = 2;
-  optional google.protobuf.Timestamp expiry = 3;
+  DocumentContentType content_type = 2;
+  Cas cas = 3;
+  optional google.protobuf.Timestamp expiry = 4;
 }
 
 message UnlockRequest {
@@ -128,8 +158,9 @@ message InsertRequest {
   string collection_name = 3;
   string key = 4;
   bytes content = 5;
-  optional google.protobuf.Timestamp expiry = 6;
-  optional DurabilityLevel durability_level = 7;
+  DocumentContentType content_type = 6;
+  optional google.protobuf.Timestamp expiry = 7;
+  optional DurabilityLevel durability_level = 8;
 }
 
 message InsertResponse { Cas Cas = 2; }
@@ -140,9 +171,10 @@ message UpsertRequest {
   string collection_name = 3;
   string key = 4;
   bytes content = 5;
-  optional Cas cas = 6;
-  optional google.protobuf.Timestamp expiry = 7;
-  optional DurabilityLevel durability_level = 8;
+  DocumentContentType content_type = 6;
+  optional Cas cas = 7;
+  optional google.protobuf.Timestamp expiry = 8;
+  optional DurabilityLevel durability_level = 9;
 }
 
 message UpsertResponse { Cas cas = 2; }
@@ -153,9 +185,10 @@ message ReplaceRequest {
   string collection_name = 3;
   string key = 4;
   bytes content = 5;
-  optional Cas cas = 6;
-  optional google.protobuf.Timestamp expiry = 7;
-  optional DurabilityLevel durability_level = 8;
+  DocumentContentType content_type = 6;
+  optional Cas cas = 7;
+  optional google.protobuf.Timestamp expiry = 8;
+  optional DurabilityLevel durability_level = 9;
 }
 
 message ReplaceResponse { Cas cas = 2; }
