@@ -224,6 +224,9 @@ func (s *couchbaseServer) Remove(ctx context.Context, in *protos.RemoveRequest) 
 func (s *couchbaseServer) Query(in *protos.QueryRequest, out protos.Couchbase_QueryServer) error {
 	var opts gocb.QueryOptions
 
+	// metrics are included by default
+	opts.Metrics = true
+
 	if in.ReadOnly != nil {
 		opts.Readonly = *in.ReadOnly
 	}
@@ -247,6 +250,9 @@ func (s *couchbaseServer) Query(in *protos.QueryRequest, out protos.Couchbase_Qu
 		}
 		if in.TuningOptions.ScanCap != nil {
 			opts.ScanCap = *in.TuningOptions.ScanCap
+		}
+		if in.TuningOptions.DisableMetrics != nil {
+			opts.Metrics = !*in.TuningOptions.DisableMetrics
 		}
 	}
 
@@ -287,9 +293,24 @@ func (s *couchbaseServer) Query(in *protos.QueryRequest, out protos.Couchbase_Qu
 
 	metaData, err := result.MetaData()
 	if err == nil {
+		var psMetrics *protos.QueryResponse_MetaData_Metrics
+		if opts.Metrics {
+			psMetrics = &protos.QueryResponse_MetaData_Metrics{
+				ElapsedTime:   durationToPs(metaData.Metrics.ElapsedTime),
+				ExecutionTime: durationToPs(metaData.Metrics.ExecutionTime),
+				ResultCount:   metaData.Metrics.ResultCount,
+				ResultSize:    metaData.Metrics.ResultSize,
+				MutationCount: metaData.Metrics.MutationCount,
+				SortCount:     metaData.Metrics.SortCount,
+				ErrorCount:    metaData.Metrics.ErrorCount,
+				WarningCount:  metaData.Metrics.WarningCount,
+			}
+		}
+
 		psMetaData = &protos.QueryResponse_MetaData{
 			RequestId:       metaData.RequestID,
 			ClientContextId: metaData.ClientContextID,
+			Metrics:         psMetrics,
 		}
 	}
 

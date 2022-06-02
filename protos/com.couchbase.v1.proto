@@ -272,6 +272,7 @@ message QueryRequest {
     optional uint32 pipeline_cap = 3;
     optional google.protobuf.Duration scan_wait = 4;
     optional uint32 scan_cap = 5;
+    optional bool disable_metrics = 6;
   }
   optional TuningOptions tuning_options = 4;
 
@@ -284,6 +285,18 @@ message QueryResponse {
   message MetaData {
     string request_id = 1;
     string client_context_id = 2;
+
+    message Metrics {
+      google.protobuf.Duration elapsed_time = 1;
+      google.protobuf.Duration execution_time = 2;
+      uint64 result_count = 3;
+      uint64 ResultSize = 4;
+      uint64 MutationCount = 5;
+      uint64 SortCount = 6;
+      uint64 ErrorCount = 7;
+      uint64 WarningCount = 8;
+    }
+    optional Metrics metrics = 3;
   }
   optional MetaData meta_data = 2;
 }
