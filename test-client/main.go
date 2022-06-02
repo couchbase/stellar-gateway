@@ -26,8 +26,25 @@ func main() {
 	c := protos.NewCouchbaseClient(conn)
 
 	// Contact the server and print out its response.
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
+
+	wr, err := c.WatchRouting(ctx, &protos.WatchRoutingRequest{})
+	if err != nil {
+		log.Fatalf("failed to watch routing: %s", err)
+	}
+	go func() {
+		log.Printf("starting to watch routing")
+		for {
+			routes, err := wr.Recv()
+			if err != nil {
+				log.Printf("watch routing failed: %s", err)
+				break
+			}
+
+			log.Printf("got routing: %+v", routes)
+		}
+	}()
 
 	upsertResp, err := c.Upsert(ctx, &protos.UpsertRequest{
 		BucketName:     "default",

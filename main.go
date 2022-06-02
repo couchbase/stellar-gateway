@@ -16,6 +16,7 @@ import (
 var remoteHost = flag.String("host", "couchbase://127.0.0.1", "the remote host to link to")
 var remoteUser = flag.String("user", "Administrator", "the username to use for the remote host")
 var remotePass = flag.String("pass", "password", "the password to use for the remote host")
+var localHostname = flag.String("local-hostname", "127.0.0.1", "the local hostname for this service")
 var port = flag.Uint64("port", 18098, "the port to listen on")
 
 func main() {
@@ -38,13 +39,18 @@ func main() {
 		return
 	}
 
+	topologyManager := server.NewTopologyManager(server.TopologyManagerConfig{
+		LocalHostname: *localHostname,
+		LocalPort:     int(*port),
+	})
+
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", *port))
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
 	s := grpc.NewServer()
 
-	protos.RegisterCouchbaseServer(s, server.NewCouchbaseServer(client))
+	protos.RegisterCouchbaseServer(s, server.NewCouchbaseServer(topologyManager, client))
 
 	log.Printf("server listening at %v", lis.Addr())
 	if err := s.Serve(lis); err != nil {

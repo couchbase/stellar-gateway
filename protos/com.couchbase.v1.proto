@@ -15,7 +15,7 @@ message ErrorInfo {
 }
 
 service Couchbase {
-  rpc FetchRouting(WatchRoutingRequest) returns (stream WatchRoutingResponse) {}
+  rpc WatchRouting(WatchRoutingRequest) returns (stream WatchRoutingResponse) {}
 
   rpc Get(GetRequest) returns (GetResponse) {}
   rpc GetAndTouch(GetAndTouchRequest) returns (GetResponse) {}
@@ -40,22 +40,22 @@ service Couchbase {
 
 message KetamaRouting { repeated string endpoints = 1; }
 
-message VbucketMapVbucket { repeated int32 endpoint_idx = 1; }
+message VbucketMapVbucket { repeated int32 endpoint_idxs = 1; }
 
 message VbucketMapRouting {
-  repeated string endpoint = 1;
-  repeated VbucketMapVbucket vbucket = 2;
+  repeated string endpoints = 1;
+  repeated VbucketMapVbucket vbuckets = 2;
 }
 
-message ManagementRouting { repeated string endpoint = 1; }
-message QueryRouting { repeated string endpoint = 1; }
-message SearchQueryRouting { repeated string endpoint = 1; }
-message AnalyticsQueryRouting { repeated string endpoint = 1; }
+message ManagementRouting { repeated string endpoints = 1; }
+message QueryRouting { repeated string endpoints = 1; }
+message SearchQueryRouting { repeated string endpoints = 1; }
+message AnalyticsQueryRouting { repeated string endpoints = 1; }
 
 message WatchRoutingRequest {}
 
 message WatchRoutingResponse {
-  ManagementRouting management_routing = 1;
+  repeated string endpoints = 1;
 
   oneof kv_routing {
     KetamaRouting ketama_routing = 2;
@@ -63,8 +63,8 @@ message WatchRoutingResponse {
   }
 
   QueryRouting query_routing = 4;
-  SearchQueryRouting searchquery_routing = 5;
-  AnalyticsQueryRouting analyticsquery_routing = 6;
+  SearchQueryRouting search_query_routing = 5;
+  AnalyticsQueryRouting analytics_query_routing = 6;
 }
 
 message Cas { uint64 Value = 1; }
@@ -211,7 +211,7 @@ message LookupInRequest {
     optional Flags flags = 2;
   }
 
-  repeated Spec spec = 1;
+  repeated Spec specs = 1;
 
   message Flags { optional bool access_deleted = 1; }
   optional Flags flags = 2;
@@ -219,7 +219,7 @@ message LookupInRequest {
 
 message LookupInResponse {
   message Spec { bytes content = 1; }
-  repeated Spec spec = 1;
+  repeated Spec specs = 1;
 
   Cas cas = 2;
 }
@@ -236,7 +236,7 @@ message MutateInRequest {
     optional Flags flags = 3;
   }
 
-  repeated Spec spec = 1;
+  repeated Spec specs = 1;
 
   enum StoreSemantic {
     REPLACE = 0;
@@ -255,7 +255,7 @@ message MutateInRequest {
 
 message MutateInResponse {
   message Spec { optional bytes content = 1; }
-  repeated Spec spec = 1;
+  repeated Spec specs = 1;
 
   Cas cas = 2;
 }
@@ -279,7 +279,7 @@ message QueryRequest {
 }
 
 message QueryResponse {
-  repeated bytes Rows = 1;
+  repeated bytes rows = 1;
 
   message MetaData {
     string request_id = 1;
@@ -316,7 +316,7 @@ message AnalyticsQueryRequest {
 }
 
 message AnalyticsQueryResponse {
-  repeated bytes Rows = 1;
+  repeated bytes rows = 1;
 
   message MetaData {
     string request_id = 1;

@@ -98,7 +98,8 @@ func cbErrToPs(err error) error {
 type couchbaseServer struct {
 	protos.UnimplementedCouchbaseServer
 
-	cbClient *gocb.Cluster
+	topologyManager *TopologyManager
+	cbClient        *gocb.Cluster
 }
 
 func (s *couchbaseServer) getCollection(ctx context.Context, bucketName, scopeName, collectionName string) *gocb.Collection {
@@ -107,6 +108,49 @@ func (s *couchbaseServer) getCollection(ctx context.Context, bucketName, scopeNa
 	scope := bucket.Scope(scopeName)
 	collection := scope.Collection(collectionName)
 	return collection
+}
+
+func (s *couchbaseServer) WatchRouting(in *protos.WatchRoutingRequest, out protos.Couchbase_WatchRoutingServer) error {
+	// TODO(brett19): Implement proper topology updates...
+	// For now we just fill out the entiry topology such that all the endpoints
+	// point back to this singular node which can handle all request types.  Note
+	// that we do not generate a vbucket map at the moment.
+
+topologyLoop:
+	for {
+		topology := s.topologyManager.GetTopology()
+
+		err := out.Send(&protos.WatchRoutingResponse{
+			Endpoints: topology.Endpoints,
+			KvRouting: &protos.WatchRoutingResponse_VbucketRouting{
+				VbucketRouting: &protos.VbucketMapRouting{
+					Endpoints: topology.Endpoints,
+					Vbuckets:  nil,
+				},
+			},
+			QueryRouting: &protos.QueryRouting{
+				Endpoints: topology.Endpoints,
+			},
+			SearchQueryRouting: &protos.SearchQueryRouting{
+				Endpoints: topology.Endpoints,
+			},
+			AnalyticsQueryRouting: &protos.AnalyticsQueryRouting{
+				Endpoints: topology.Endpoints,
+			},
+		})
+		if err != nil {
+			log.Printf("failed to send topology update: %s", err)
+		}
+
+		select {
+		case <-time.After(15 * time.Second):
+			// we send toplogy updates every 15 seconds for demo purposes
+		case <-out.Context().Done():
+			break topologyLoop
+		}
+	}
+
+	return nil
 }
 
 func (s *couchbaseServer) Get(ctx context.Context, in *protos.GetRequest) (*protos.GetResponse, error) {
@@ -262,8 +306,9 @@ func (s *couchbaseServer) Remove(ctx context.Context, in *protos.RemoveRequest) 
 	}, nil
 }
 
-func NewCouchbaseServer(cbClient *gocb.Cluster) *couchbaseServer {
+func NewCouchbaseServer(topologyManager *TopologyManager, cbClient *gocb.Cluster) *couchbaseServer {
 	return &couchbaseServer{
-		cbClient: cbClient,
+		topologyManager: topologyManager,
+		cbClient:        cbClient,
 	}
 }
