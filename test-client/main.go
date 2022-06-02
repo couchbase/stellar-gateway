@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"io"
 	"log"
 	"time"
 
@@ -95,4 +96,23 @@ func main() {
 	} else {
 		log.Printf("Get Response: %+v", missingGetResp)
 	}
+
+	queryResp, err := c.Query(ctx, &protos.QueryRequest{
+		Statement: "SELECT 1",
+	})
+	if err != nil {
+		log.Fatalf("could not query: %v", err)
+	}
+
+	for {
+		queryData, err := queryResp.Recv()
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			log.Printf("failed to recv query rows: %s", err)
+		}
+
+		log.Printf("got some query rows: %+v", queryData)
+	}
+	log.Printf("done streaming query data")
 }

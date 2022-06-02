@@ -2,98 +2,13 @@ package server
 
 import (
 	"context"
-	"errors"
+	"encoding/json"
 	"log"
 	"time"
 
 	"github.com/couchbase/gocb/v2"
 	"github.com/couchbase/stellar-nebula/protos"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/runtime/protoiface"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
-
-func casToPs(cas gocb.Cas) *protos.Cas {
-	return &protos.Cas{
-		Value: uint64(cas),
-	}
-}
-
-func casFromPs(cas *protos.Cas) gocb.Cas {
-	return gocb.Cas(cas.Value)
-}
-
-func timeToPs(when time.Time) *timestamppb.Timestamp {
-	if when.IsZero() {
-		return nil
-	}
-	return timestamppb.New(when)
-}
-
-func timeFromPs(ts *timestamppb.Timestamp) time.Time {
-	return ts.AsTime()
-}
-
-func durabilityLevelFromPs(dl *protos.DurabilityLevel) (gocb.DurabilityLevel, *status.Status) {
-	if dl == nil {
-		return gocb.DurabilityLevelNone, nil
-	}
-
-	switch *dl {
-	case protos.DurabilityLevel_MAJORITY:
-		return gocb.DurabilityLevelMajority, nil
-	case protos.DurabilityLevel_MAJORITY_AND_PERSIST_TO_ACTIVE:
-		return gocb.DurabilityLevelMajorityAndPersistOnMaster, nil
-	case protos.DurabilityLevel_PERSIST_TO_MAJORITY:
-		return gocb.DurabilityLevelPersistToMajority, nil
-	}
-
-	return gocb.DurabilityLevelNone, status.New(codes.InvalidArgument, "invalid durability level options specified")
-}
-
-func cbErrToPs(err error) error {
-	log.Printf("handling error: %+v", err)
-
-	var errorDetails protoiface.MessageV1
-
-	var keyValueContext *gocb.KeyValueError
-	if errors.As(err, &keyValueContext) {
-		// TODO(bret19): Need to include more error context here
-		errorDetails = &protos.ErrorInfo{
-			Reason: keyValueContext.ErrorName,
-			Metadata: map[string]string{
-				"bucket":     keyValueContext.BucketName,
-				"scope":      keyValueContext.ScopeName,
-				"collection": keyValueContext.CollectionName,
-				"key":        keyValueContext.DocumentID,
-			},
-		}
-	}
-
-	makeError := func(c codes.Code, msg string) error {
-		st := status.New(c, msg)
-		if errorDetails != nil {
-			st, _ = st.WithDetails(errorDetails)
-		}
-		return st.Err()
-	}
-
-	// this never actually makes it back to the GRPC client, but we
-	// do the translation here anyways...
-	if errors.Is(err, context.Canceled) {
-		return makeError(codes.Canceled, "request canceled")
-	}
-
-	// TODO(brett19): Need to provide translation for more errors
-	if errors.Is(err, gocb.ErrDocumentNotFound) {
-		return makeError(codes.NotFound, "document not found")
-	} else if errors.Is(err, gocb.ErrDocumentExists) {
-		return makeError(codes.AlreadyExists, "document already exists")
-	}
-
-	return makeError(codes.Internal, "an unknown error occurred")
-}
 
 type couchbaseServer struct {
 	protos.UnimplementedCouchbaseServer
@@ -304,6 +219,99 @@ func (s *couchbaseServer) Remove(ctx context.Context, in *protos.RemoveRequest) 
 	return &protos.RemoveResponse{
 		Cas: casToPs(result.Cas()),
 	}, nil
+}
+
+func (s *couchbaseServer) Query(in *protos.QueryRequest, out protos.Couchbase_QueryServer) error {
+	var opts gocb.QueryOptions
+
+	if in.ReadOnly != nil {
+		opts.Readonly = *in.ReadOnly
+	}
+
+	if in.Prepared != nil {
+		opts.Adhoc = !*in.Prepared
+	}
+
+	if in.TuningOptions != nil {
+		if in.TuningOptions.MaxParallelism != nil {
+			opts.MaxParallelism = *in.TuningOptions.MaxParallelism
+		}
+		if in.TuningOptions.PipelineBatch != nil {
+			opts.PipelineBatch = *in.TuningOptions.PipelineBatch
+		}
+		if in.TuningOptions.PipelineCap != nil {
+			opts.PipelineCap = *in.TuningOptions.PipelineCap
+		}
+		if in.TuningOptions.ScanWait != nil {
+			opts.ScanWait = durationFromPs(in.TuningOptions.ScanWait)
+		}
+		if in.TuningOptions.ScanCap != nil {
+			opts.ScanCap = *in.TuningOptions.ScanCap
+		}
+	}
+
+	if in.ClientContextId != nil {
+		opts.ClientContextID = *in.ClientContextId
+	}
+
+	result, err := s.cbClient.Query(in.Statement, &opts)
+	if err != nil {
+		return cbErrToPs(err)
+	}
+
+	var rowCache [][]byte
+	var rowCacheNumBytes int = 0
+	const MAX_ROW_BYTES = 1024
+
+	for result.Next() {
+		var rowBytes json.RawMessage
+		result.Row(&rowBytes)
+		rowNumBytes := len(rowBytes)
+
+		if rowCacheNumBytes+rowNumBytes > MAX_ROW_BYTES {
+			// adding this row to the cache would exceed its maximum number of
+			// bytes, so we need to evict all these rows...
+			out.Send(&protos.QueryResponse{
+				Rows:     rowCache,
+				MetaData: nil,
+			})
+			rowCache = nil
+			rowCacheNumBytes = 0
+		}
+
+		rowCache = append(rowCache, rowBytes)
+		rowCacheNumBytes += rowNumBytes
+	}
+
+	var psMetaData *protos.QueryResponse_MetaData
+
+	metaData, err := result.MetaData()
+	if err == nil {
+		psMetaData = &protos.QueryResponse_MetaData{
+			RequestId:       metaData.RequestID,
+			ClientContextId: metaData.ClientContextID,
+		}
+	}
+
+	// if we have any rows or meta-data left to stream, we send that first
+	// before we process any errors that occurred.
+	if rowCache != nil || psMetaData != nil {
+		out.Send(&protos.QueryResponse{
+			Rows:     rowCache,
+			MetaData: psMetaData,
+		})
+
+		rowCache = nil
+		rowCacheNumBytes = 0
+		psMetaData = nil
+	}
+
+	err = result.Err()
+	if err != nil {
+		return cbErrToPs(err)
+	}
+
+	return nil
 }
 
 func NewCouchbaseServer(topologyManager *TopologyManager, cbClient *gocb.Cluster) *couchbaseServer {
