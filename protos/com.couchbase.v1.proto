@@ -4,6 +4,7 @@ option go_package = "github.com/couchbase/stellar-nebula/protos";
 
 package com.couchbase.v1;
 
+import "protos/google/rpc/status.proto";
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/duration.proto";
 
@@ -204,53 +205,82 @@ message RemoveRequest {
 message RemoveResponse { Cas cas = 1; }
 
 message LookupInRequest {
+  string bucket_name = 1;
+  string scope_name = 2;
+  string collection_name = 3;
+  string key = 4;
+
   message Spec {
-    string path = 1;
+    enum Operation {
+      GET = 0;
+      EXISTS = 1;
+      COUNT = 2;
+    }
+    Operation operation = 1;
+
+    string path = 2;
 
     message Flags { optional bool xattr = 1; }
-    optional Flags flags = 2;
+    optional Flags flags = 3;
   }
 
-  repeated Spec specs = 1;
+  repeated Spec specs = 5;
 
   message Flags { optional bool access_deleted = 1; }
-  optional Flags flags = 2;
+  optional Flags flags = 6;
 }
 
 message LookupInResponse {
-  message Spec { bytes content = 1; }
+  message Spec {
+    google.rpc.Status status = 1;
+    bytes content = 2;
+  }
   repeated Spec specs = 1;
 
   Cas cas = 2;
 }
 
 message MutateInRequest {
+  string bucket_name = 1;
+  string scope_name = 2;
+  string collection_name = 3;
+  string key = 4;
+
   message Spec {
-    string path = 1;
-    bytes content = 2;
+    enum Operation {
+      INSERT = 0;
+      UPSERT = 1;
+      REPLACE = 2;
+      REMOVE = 3;
+      // TODO(brett19): Implement remaining subdoc mutation specs.
+    }
+    Operation operation = 1;
+
+    string path = 2;
+    bytes content = 3;
 
     message Flags {
-      optional bool create_parents = 1;
-      optional bool expand_macros = 2;
+      optional bool create_path = 1;
+      optional bool xattr = 2;
     }
-    optional Flags flags = 3;
+    optional Flags flags = 4;
   }
 
-  repeated Spec specs = 1;
+  repeated Spec specs = 5;
 
   enum StoreSemantic {
     REPLACE = 0;
     UPSERT = 1;
     INSERT = 2;
   }
-  optional StoreSemantic store_semantic = 2;
+  optional StoreSemantic store_semantic = 6;
 
-  optional DurabilityLevel durability_level = 3;
+  optional DurabilityLevel durability_level = 7;
 
-  optional Cas cas = 4;
+  optional Cas cas = 8;
 
   message Flags { optional bool access_deleted = 1; }
-  optional Flags flags = 5;
+  optional Flags flags = 9;
 }
 
 message MutateInResponse {

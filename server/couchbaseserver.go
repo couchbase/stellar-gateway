@@ -8,6 +8,8 @@ import (
 
 	"github.com/couchbase/gocb/v2"
 	"github.com/couchbase/stellar-nebula/protos"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type couchbaseServer struct {
@@ -218,6 +220,165 @@ func (s *couchbaseServer) Remove(ctx context.Context, in *protos.RemoveRequest) 
 
 	return &protos.RemoveResponse{
 		Cas: casToPs(result.Cas()),
+	}, nil
+}
+
+func (s *couchbaseServer) LookupIn(ctx context.Context, in *protos.LookupInRequest) (*protos.LookupInResponse, error) {
+	coll := s.getCollection(ctx, in.BucketName, in.ScopeName, in.CollectionName)
+
+	var opts gocb.LookupInOptions
+	opts.Context = ctx
+
+	var specs []gocb.LookupInSpec
+	for _, spec := range in.Specs {
+		switch spec.Operation {
+		case protos.LookupInRequest_Spec_GET:
+			specOpts := gocb.GetSpecOptions{}
+			if spec.Flags != nil {
+				if spec.Flags.Xattr != nil {
+					specOpts.IsXattr = *spec.Flags.Xattr
+				}
+			}
+			specs = append(specs, gocb.GetSpec(spec.Path, &specOpts))
+		case protos.LookupInRequest_Spec_EXISTS:
+			specOpts := gocb.ExistsSpecOptions{}
+			if spec.Flags != nil {
+				if spec.Flags.Xattr != nil {
+					specOpts.IsXattr = *spec.Flags.Xattr
+				}
+			}
+			specs = append(specs, gocb.ExistsSpec(spec.Path, &specOpts))
+		case protos.LookupInRequest_Spec_COUNT:
+			specOpts := gocb.CountSpecOptions{}
+			if spec.Flags != nil {
+				if spec.Flags.Xattr != nil {
+					specOpts.IsXattr = *spec.Flags.Xattr
+				}
+			}
+			specs = append(specs, gocb.CountSpec(spec.Path, &specOpts))
+		}
+	}
+
+	result, err := coll.LookupIn(in.Key, specs, &opts)
+	if err != nil {
+		return nil, cbErrToPs(err)
+	}
+
+	var respSpecs []*protos.LookupInResponse_Spec
+
+	for specIdx := range specs {
+		var contentBytes json.RawMessage
+		err := result.ContentAt(uint(specIdx), &contentBytes)
+		if err != nil {
+			respSpecs = append(respSpecs, &protos.LookupInResponse_Spec{
+				Status:  cbErrToPsStatus(err),
+				Content: nil,
+			})
+			continue
+		}
+
+		respSpecs = append(respSpecs, &protos.LookupInResponse_Spec{
+			Content: []byte(contentBytes),
+		})
+	}
+
+	return &protos.LookupInResponse{
+		Specs: respSpecs,
+		Cas:   casToPs(result.Cas()),
+	}, nil
+}
+
+func (s *couchbaseServer) MutateIn(ctx context.Context, in *protos.MutateInRequest) (*protos.MutateInResponse, error) {
+	coll := s.getCollection(ctx, in.BucketName, in.ScopeName, in.CollectionName)
+
+	var opts gocb.MutateInOptions
+	opts.Context = ctx
+
+	var specs []gocb.MutateInSpec
+	for _, spec := range in.Specs {
+		switch spec.Operation {
+		case protos.MutateInRequest_Spec_INSERT:
+			specOpts := gocb.InsertSpecOptions{}
+			if spec.Flags != nil {
+				if spec.Flags.CreatePath != nil {
+					specOpts.CreatePath = *spec.Flags.CreatePath
+				}
+				if spec.Flags.Xattr != nil {
+					specOpts.IsXattr = *spec.Flags.Xattr
+				}
+			}
+			specs = append(specs, gocb.InsertSpec(spec.Path, json.RawMessage(spec.Content), &specOpts))
+		case protos.MutateInRequest_Spec_UPSERT:
+			specOpts := gocb.UpsertSpecOptions{}
+			if spec.Flags != nil {
+				if spec.Flags.CreatePath != nil {
+					specOpts.CreatePath = *spec.Flags.CreatePath
+				}
+				if spec.Flags.Xattr != nil {
+					specOpts.IsXattr = *spec.Flags.Xattr
+				}
+			}
+			specs = append(specs, gocb.UpsertSpec(spec.Path, json.RawMessage(spec.Content), &specOpts))
+		case protos.MutateInRequest_Spec_REPLACE:
+			specOpts := gocb.ReplaceSpecOptions{}
+			if spec.Flags != nil {
+				if spec.Flags.Xattr != nil {
+					specOpts.IsXattr = *spec.Flags.Xattr
+				}
+			}
+			specs = append(specs, gocb.ReplaceSpec(spec.Path, json.RawMessage(spec.Content), &specOpts))
+		case protos.MutateInRequest_Spec_REMOVE:
+			if spec.Content != nil {
+				return nil, status.New(codes.InvalidArgument, "cannot specify content for remove spec").Err()
+			}
+
+			specOpts := gocb.RemoveSpecOptions{}
+			if spec.Flags != nil {
+				if spec.Flags.Xattr != nil {
+					specOpts.IsXattr = *spec.Flags.Xattr
+				}
+			}
+			specs = append(specs, gocb.RemoveSpec(spec.Path, &specOpts))
+		}
+	}
+
+	if in.Cas != nil {
+		opts.Cas = casFromPs(in.Cas)
+	}
+
+	dl, errSt := durabilityLevelFromPs(in.DurabilityLevel)
+	if errSt != nil {
+		return nil, errSt.Err()
+	}
+	opts.DurabilityLevel = dl
+
+	result, err := coll.MutateIn(in.Key, specs, &opts)
+	if err != nil {
+		return nil, cbErrToPs(err)
+	}
+
+	var respSpecs []*protos.MutateInResponse_Spec
+
+	for specIdx := range specs {
+		var contentBytes json.RawMessage
+		err := result.ContentAt(uint(specIdx), &contentBytes)
+		if err != nil {
+			// if we get an error, we just put nil bytes
+			// TODO(brett19): check if we need to handle mutatein spec errors
+			respSpecs = append(respSpecs, &protos.MutateInResponse_Spec{
+				Content: nil,
+			})
+			continue
+		}
+
+		respSpecs = append(respSpecs, &protos.MutateInResponse_Spec{
+			Content: []byte(contentBytes),
+		})
+	}
+
+	return &protos.MutateInResponse{
+		Specs: respSpecs,
+		Cas:   casToPs(result.Cas()),
 	}, nil
 }
 

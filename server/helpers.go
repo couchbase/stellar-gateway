@@ -61,7 +61,7 @@ func durabilityLevelFromPs(dl *protos.DurabilityLevel) (gocb.DurabilityLevel, *s
 	return gocb.DurabilityLevelNone, status.New(codes.InvalidArgument, "invalid durability level options specified")
 }
 
-func cbErrToPs(err error) error {
+func cbErrToPsStatus(err error) *status.Status {
 	log.Printf("handling error: %+v", err)
 
 	var errorDetails protoiface.MessageV1
@@ -80,12 +80,12 @@ func cbErrToPs(err error) error {
 		}
 	}
 
-	makeError := func(c codes.Code, msg string) error {
+	makeError := func(c codes.Code, msg string) *status.Status {
 		st := status.New(c, msg)
 		if errorDetails != nil {
 			st, _ = st.WithDetails(errorDetails)
 		}
-		return st.Err()
+		return st
 	}
 
 	// this never actually makes it back to the GRPC client, but we
@@ -102,4 +102,8 @@ func cbErrToPs(err error) error {
 	}
 
 	return makeError(codes.Internal, "an unknown error occurred")
+}
+
+func cbErrToPs(err error) error {
+	return cbErrToPsStatus(err).Err()
 }
