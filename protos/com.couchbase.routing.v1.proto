@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+option go_package = "github.com/couchbase/stellar-nebula/protos";
+
+package com.couchbase.routing.v1;
+
+service CouchbaseRouting {
+  rpc WatchRouting(WatchRoutingRequest) returns (stream WatchRoutingResponse) {}
+}
+
+message KetamaRouting { repeated string endpoints = 1; }
+
+message VbucketMapVbucket { repeated int32 endpoint_idxs = 1; }
+
+message VbucketMapRouting {
+  repeated string endpoints = 1;
+  repeated VbucketMapVbucket vbuckets = 2;
+}
+
+message QueryRouting { repeated string endpoints = 1; }
+message SearchQueryRouting { repeated string endpoints = 1; }
+message AnalyticsQueryRouting { repeated string endpoints = 1; }
+
+message WatchRoutingRequest {}
+
+message WatchRoutingResponse {
+  repeated string endpoints = 1;
+
+  oneof kv_routing {
+    KetamaRouting ketama_routing = 2;
+    VbucketMapRouting vbucket_routing = 3;
+  }
+
+  QueryRouting query_routing = 4;
+  SearchQueryRouting search_query_routing = 5;
+  AnalyticsQueryRouting analytics_query_routing = 6;
+}

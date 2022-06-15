@@ -39,6 +39,8 @@ func main() {
 		return
 	}
 
+	log.Printf("connected to remote host")
+
 	topologyManager := server.NewTopologyManager(server.TopologyManagerConfig{
 		LocalHostname: *localHostname,
 		LocalPort:     int(*port),
@@ -50,7 +52,8 @@ func main() {
 	}
 	s := grpc.NewServer()
 
-	protos.RegisterCouchbaseServer(s, server.NewCouchbaseServer(topologyManager, client))
+	protos.RegisterCouchbaseRoutingServer(s, server.NewCouchbaseRoutingServer(topologyManager))
+	protos.RegisterCouchbaseServer(s, server.NewCouchbaseServer(client))
 
 	log.Printf("server listening at %v", lis.Addr())
 	if err := s.Serve(lis); err != nil {
