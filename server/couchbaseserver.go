@@ -226,7 +226,7 @@ func (s *couchbaseServer) LookupIn(ctx context.Context, in *protos.LookupInReque
 		err := result.ContentAt(uint(specIdx), &contentBytes)
 		if err != nil {
 			respSpecs = append(respSpecs, &protos.LookupInResponse_Spec{
-				Status:  cbErrToPsStatus(err),
+				// Status:  cbErrToPsStatus(err),
 				Content: nil,
 			})
 			continue
