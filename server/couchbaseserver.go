@@ -25,6 +25,10 @@ func (s *couchbaseServer) getCollection(ctx context.Context, bucketName, scopeNa
 	return collection
 }
 
+func (s *couchbaseServer) Hello(ctx context.Context, in *protos.HelloRequest) (*protos.HelloResponse, error) {
+	return &protos.HelloResponse{}, nil
+}
+
 func (s *couchbaseServer) Get(ctx context.Context, in *protos.GetRequest) (*protos.GetResponse, error) {
 	coll := s.getCollection(ctx, in.BucketName, in.ScopeName, in.CollectionName)
 
