@@ -54,6 +54,7 @@ func main() {
 
 	protos.RegisterRoutingServer(s, server.NewRoutingServer(topologyManager))
 	protos.RegisterCouchbaseServer(s, server.NewCouchbaseServer(client))
+	protos.RegisterBucketAdminServer(s, server.NewBucketAdminServer(client))
 
 	log.Printf("server listening at %v", lis.Addr())
 	if err := s.Serve(lis); err != nil {
