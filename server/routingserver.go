@@ -7,13 +7,13 @@ import (
 	"github.com/couchbase/stellar-nebula/protos"
 )
 
-type couchbaseRoutingServer struct {
-	protos.UnimplementedCouchbaseRoutingServer
+type routingServer struct {
+	protos.UnimplementedRoutingServer
 
 	topologyManager *TopologyManager
 }
 
-func (s *couchbaseRoutingServer) WatchRouting(in *protos.WatchRoutingRequest, out protos.CouchbaseRouting_WatchRoutingServer) error {
+func (s *routingServer) WatchRouting(in *protos.WatchRoutingRequest, out protos.Routing_WatchRoutingServer) error {
 	// TODO(brett19): Implement proper topology updates...
 	// For now we just fill out the entiry topology such that all the endpoints
 	// point back to this singular node which can handle all request types.  Note
@@ -56,8 +56,8 @@ topologyLoop:
 	return nil
 }
 
-func NewCouchbaseRoutingServer(topologyManager *TopologyManager) *couchbaseRoutingServer {
-	return &couchbaseRoutingServer{
+func NewRoutingServer(topologyManager *TopologyManager) *routingServer {
+	return &routingServer{
 		topologyManager: topologyManager,
 	}
 }

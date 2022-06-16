@@ -52,7 +52,7 @@ func main() {
 	}
 	s := grpc.NewServer()
 
-	protos.RegisterCouchbaseRoutingServer(s, server.NewCouchbaseRoutingServer(topologyManager))
+	protos.RegisterRoutingServer(s, server.NewRoutingServer(topologyManager))
 	protos.RegisterCouchbaseServer(s, server.NewCouchbaseServer(client))
 
 	log.Printf("server listening at %v", lis.Addr())

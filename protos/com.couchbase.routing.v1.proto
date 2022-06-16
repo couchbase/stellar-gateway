@@ -4,7 +4,7 @@ option go_package = "github.com/couchbase/stellar-nebula/protos";
 
 package com.couchbase.routing.v1;
 
-service CouchbaseRouting {
+service Routing {
   rpc WatchRouting(WatchRoutingRequest) returns (stream WatchRoutingResponse) {}
 }
 
