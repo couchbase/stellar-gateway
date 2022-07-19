@@ -111,7 +111,11 @@ func main() {
 	realTotalOpTime := tetime.Sub(tstime)
 
 	totalOpTime := time.Duration(totalOpTimeInt)
+	opsPerSec := float64(numOps) / float64(realTotalOpTime/time.Second)
 
 	avgOpTime := time.Duration(int64(totalOpTime) / numOps)
-	log.Printf("performing %d operations took %v, with an average of %v per op", numOps, realTotalOpTime, avgOpTime)
+	log.Printf("performing %d operations", numOps)
+	log.Printf("  took %v", realTotalOpTime)
+	log.Printf("  average of %v per op", avgOpTime)
+	log.Printf("  %.2f ops per sec", opsPerSec)
 }
