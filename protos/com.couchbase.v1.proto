@@ -55,6 +55,11 @@ enum DurabilityLevel {
   PERSIST_TO_MAJORITY = 2;
 }
 
+message LegacyDurabilitySpec {
+  uint32 num_replicated = 1;
+  uint32 num_persisted = 2;
+}
+
 enum DocumentContentType {
   // Indicates that we are not able to determine the document content type.
   UNKNOWN = 0;
@@ -150,7 +155,10 @@ message InsertRequest {
   bytes content = 5;
   DocumentContentType content_type = 6;
   optional google.protobuf.Timestamp expiry = 7;
-  optional DurabilityLevel durability_level = 8;
+  oneof durability_spec {
+    LegacyDurabilitySpec legacy_durability_spec = 8;
+    DurabilityLevel durability_level = 9;
+  }
 }
 
 message InsertResponse { Cas Cas = 1; }
@@ -163,7 +171,10 @@ message UpsertRequest {
   bytes content = 5;
   DocumentContentType content_type = 6;
   optional google.protobuf.Timestamp expiry = 7;
-  optional DurabilityLevel durability_level = 8;
+  oneof durability_spec {
+    LegacyDurabilitySpec legacy_durability_spec = 8;
+    DurabilityLevel durability_level = 9;
+  }
 }
 
 message UpsertResponse { Cas cas = 1; }
@@ -177,7 +188,10 @@ message ReplaceRequest {
   DocumentContentType content_type = 6;
   optional Cas cas = 7;
   optional google.protobuf.Timestamp expiry = 8;
-  optional DurabilityLevel durability_level = 9;
+  oneof durability_spec {
+    LegacyDurabilitySpec legacy_durability_spec = 9;
+    DurabilityLevel durability_level = 10;
+  }
 }
 
 message ReplaceResponse { Cas cas = 1; }
@@ -188,7 +202,10 @@ message RemoveRequest {
   string collection_name = 3;
   string key = 4;
   optional Cas cas = 5;
-  optional DurabilityLevel durability_level = 6;
+  oneof durability_spec {
+    LegacyDurabilitySpec legacy_durability_spec = 6;
+    DurabilityLevel durability_level = 7;
+  }
 }
 
 message RemoveResponse { Cas cas = 1; }
@@ -264,12 +281,15 @@ message MutateInRequest {
   }
   optional StoreSemantic store_semantic = 6;
 
-  optional DurabilityLevel durability_level = 7;
+  oneof durability_spec {
+    LegacyDurabilitySpec legacy_durability_spec = 7;
+    DurabilityLevel durability_level = 8;
+  }
 
-  optional Cas cas = 8;
+  optional Cas cas = 9;
 
   message Flags { optional bool access_deleted = 1; }
-  optional Flags flags = 9;
+  optional Flags flags = 10;
 }
 
 message MutateInResponse {

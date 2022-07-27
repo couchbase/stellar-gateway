@@ -70,11 +70,19 @@ func (s *couchbaseServer) Insert(ctx context.Context, in *protos.InsertRequest) 
 		opts.Expiry = time.Until(timeFromPs(in.Expiry))
 	}
 
-	dl, errSt := durabilityLevelFromPs(in.DurabilityLevel)
-	if errSt != nil {
-		return nil, errSt.Err()
+	if in.DurabilitySpec != nil {
+		if legacySpec, ok := in.DurabilitySpec.(*protos.InsertRequest_LegacyDurabilitySpec); ok {
+			opts.PersistTo = uint(legacySpec.LegacyDurabilitySpec.NumPersisted)
+			opts.ReplicateTo = uint(legacySpec.LegacyDurabilitySpec.NumReplicated)
+		}
+		if levelSpec, ok := in.DurabilitySpec.(*protos.InsertRequest_DurabilityLevel); ok {
+			dl, errSt := durabilityLevelFromPs(&levelSpec.DurabilityLevel)
+			if errSt != nil {
+				return nil, errSt.Err()
+			}
+			opts.DurabilityLevel = dl
+		}
 	}
-	opts.DurabilityLevel = dl
 
 	result, err := coll.Insert(in.Key, contentData, &opts)
 	if err != nil {
@@ -103,11 +111,19 @@ func (s *couchbaseServer) Upsert(ctx context.Context, in *protos.UpsertRequest) 
 		opts.Expiry = time.Until(timeFromPs(in.Expiry))
 	}
 
-	dl, errSt := durabilityLevelFromPs(in.DurabilityLevel)
-	if errSt != nil {
-		return nil, errSt.Err()
+	if in.DurabilitySpec != nil {
+		if legacySpec, ok := in.DurabilitySpec.(*protos.UpsertRequest_LegacyDurabilitySpec); ok {
+			opts.PersistTo = uint(legacySpec.LegacyDurabilitySpec.NumPersisted)
+			opts.ReplicateTo = uint(legacySpec.LegacyDurabilitySpec.NumReplicated)
+		}
+		if levelSpec, ok := in.DurabilitySpec.(*protos.UpsertRequest_DurabilityLevel); ok {
+			dl, errSt := durabilityLevelFromPs(&levelSpec.DurabilityLevel)
+			if errSt != nil {
+				return nil, errSt.Err()
+			}
+			opts.DurabilityLevel = dl
+		}
 	}
-	opts.DurabilityLevel = dl
 
 	result, err := coll.Upsert(in.Key, contentData, &opts)
 	if err != nil {
@@ -140,11 +156,19 @@ func (s *couchbaseServer) Replace(ctx context.Context, in *protos.ReplaceRequest
 		opts.Expiry = time.Until(timeFromPs(in.Expiry))
 	}
 
-	dl, errSt := durabilityLevelFromPs(in.DurabilityLevel)
-	if errSt != nil {
-		return nil, errSt.Err()
+	if in.DurabilitySpec != nil {
+		if legacySpec, ok := in.DurabilitySpec.(*protos.ReplaceRequest_LegacyDurabilitySpec); ok {
+			opts.PersistTo = uint(legacySpec.LegacyDurabilitySpec.NumPersisted)
+			opts.ReplicateTo = uint(legacySpec.LegacyDurabilitySpec.NumReplicated)
+		}
+		if levelSpec, ok := in.DurabilitySpec.(*protos.ReplaceRequest_DurabilityLevel); ok {
+			dl, errSt := durabilityLevelFromPs(&levelSpec.DurabilityLevel)
+			if errSt != nil {
+				return nil, errSt.Err()
+			}
+			opts.DurabilityLevel = dl
+		}
 	}
-	opts.DurabilityLevel = dl
 
 	result, err := coll.Replace(in.Key, contentData, &opts)
 	if err != nil {
@@ -166,11 +190,19 @@ func (s *couchbaseServer) Remove(ctx context.Context, in *protos.RemoveRequest) 
 		opts.Cas = casFromPs(in.Cas)
 	}
 
-	dl, errSt := durabilityLevelFromPs(in.DurabilityLevel)
-	if errSt != nil {
-		return nil, errSt.Err()
+	if in.DurabilitySpec != nil {
+		if legacySpec, ok := in.DurabilitySpec.(*protos.RemoveRequest_LegacyDurabilitySpec); ok {
+			opts.PersistTo = uint(legacySpec.LegacyDurabilitySpec.NumPersisted)
+			opts.ReplicateTo = uint(legacySpec.LegacyDurabilitySpec.NumReplicated)
+		}
+		if levelSpec, ok := in.DurabilitySpec.(*protos.RemoveRequest_DurabilityLevel); ok {
+			dl, errSt := durabilityLevelFromPs(&levelSpec.DurabilityLevel)
+			if errSt != nil {
+				return nil, errSt.Err()
+			}
+			opts.DurabilityLevel = dl
+		}
 	}
-	opts.DurabilityLevel = dl
 
 	result, err := coll.Remove(in.Key, &opts)
 	if err != nil {
@@ -305,11 +337,19 @@ func (s *couchbaseServer) MutateIn(ctx context.Context, in *protos.MutateInReque
 		opts.Cas = casFromPs(in.Cas)
 	}
 
-	dl, errSt := durabilityLevelFromPs(in.DurabilityLevel)
-	if errSt != nil {
-		return nil, errSt.Err()
+	if in.DurabilitySpec != nil {
+		if legacySpec, ok := in.DurabilitySpec.(*protos.MutateInRequest_LegacyDurabilitySpec); ok {
+			opts.PersistTo = uint(legacySpec.LegacyDurabilitySpec.NumPersisted)
+			opts.ReplicateTo = uint(legacySpec.LegacyDurabilitySpec.NumReplicated)
+		}
+		if levelSpec, ok := in.DurabilitySpec.(*protos.MutateInRequest_DurabilityLevel); ok {
+			dl, errSt := durabilityLevelFromPs(&levelSpec.DurabilityLevel)
+			if errSt != nil {
+				return nil, errSt.Err()
+			}
+			opts.DurabilityLevel = dl
+		}
 	}
-	opts.DurabilityLevel = dl
 
 	result, err := coll.MutateIn(in.Key, specs, &opts)
 	if err != nil {
@@ -419,7 +459,7 @@ func (s *couchbaseServer) Query(in *protos.QueryRequest, out protos.Couchbase_Qu
 				ElapsedTime:   durationToPs(metaData.Metrics.ElapsedTime),
 				ExecutionTime: durationToPs(metaData.Metrics.ExecutionTime),
 				ResultCount:   metaData.Metrics.ResultCount,
-				ResultsSize:   metaData.Metrics.ResultSize,
+				ResultSize:    metaData.Metrics.ResultSize,
 				MutationCount: metaData.Metrics.MutationCount,
 				SortCount:     metaData.Metrics.SortCount,
 				ErrorCount:    metaData.Metrics.ErrorCount,

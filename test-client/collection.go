@@ -2,9 +2,10 @@ package gocbps
 
 import (
 	"context"
+	"time"
+
 	"github.com/couchbase/stellar-nebula/protos"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	"time"
 )
 
 type Collection struct {
@@ -33,12 +34,14 @@ func (c *Collection) Get(ctx context.Context, id string, opts *GetOptions) (*Get
 	}
 	client, bucketName, scopeName, collName := c.getClient()
 
-	resp, err := client.couchbaseClient.Get(ctx, &protos.GetRequest{
+	req := &protos.GetRequest{
 		BucketName:     bucketName,
 		ScopeName:      scopeName,
 		CollectionName: collName,
 		Key:            id,
-	})
+	}
+
+	resp, err := client.couchbaseClient.Get(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -63,12 +66,14 @@ func (c *Collection) Exists(ctx context.Context, id string, opts *ExistsOptions)
 	}
 	client, bucketName, scopeName, collName := c.getClient()
 
-	resp, err := client.couchbaseClient.Exists(ctx, &protos.ExistsRequest{
+	req := &protos.ExistsRequest{
 		BucketName:     bucketName,
 		ScopeName:      scopeName,
 		CollectionName: collName,
 		Key:            id,
-	})
+	}
+
+	resp, err := client.couchbaseClient.Exists(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -88,13 +93,15 @@ func (c *Collection) GetAndTouch(ctx context.Context, id string, expiry time.Tim
 	}
 	client, bucketName, scopeName, collName := c.getClient()
 
-	resp, err := client.couchbaseClient.GetAndTouch(ctx, &protos.GetAndTouchRequest{
+	req := &protos.GetAndTouchRequest{
 		BucketName:     bucketName,
 		ScopeName:      scopeName,
 		CollectionName: collName,
 		Key:            id,
 		Expiry:         timestamppb.New(expiry),
-	})
+	}
+
+	resp, err := client.couchbaseClient.GetAndTouch(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -114,13 +121,15 @@ func (c *Collection) GetAndLock(ctx context.Context, id string, lockTime time.Du
 	}
 	client, bucketName, scopeName, collName := c.getClient()
 
-	resp, err := client.couchbaseClient.GetAndLock(ctx, &protos.GetAndLockRequest{
+	req := &protos.GetAndLockRequest{
 		BucketName:     bucketName,
 		ScopeName:      scopeName,
 		CollectionName: collName,
 		Key:            id,
 		LockTime:       uint32(lockTime / time.Second),
-	})
+	}
+
+	resp, err := client.couchbaseClient.GetAndLock(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -140,13 +149,15 @@ func (c *Collection) Unlock(ctx context.Context, id string, cas Cas, opts *Unloc
 	}
 	client, bucketName, scopeName, collName := c.getClient()
 
-	_, err := client.couchbaseClient.Unlock(ctx, &protos.UnlockRequest{
+	req := &protos.UnlockRequest{
 		BucketName:     bucketName,
 		ScopeName:      scopeName,
 		CollectionName: collName,
 		Key:            id,
 		Cas:            cas.toProto(),
-	})
+	}
+
+	_, err := client.couchbaseClient.Unlock(ctx, req)
 	if err != nil {
 		return err
 	}
@@ -168,15 +179,22 @@ func (c *Collection) Upsert(ctx context.Context, id string, content []byte, opts
 	}
 	client, bucketName, scopeName, collName := c.getClient()
 
-	resp, err := client.couchbaseClient.Upsert(ctx, &protos.UpsertRequest{
-		BucketName:      bucketName,
-		ScopeName:       scopeName,
-		CollectionName:  collName,
-		Key:             id,
-		Content:         content,
-		ContentType:     protos.DocumentContentType_JSON,
-		DurabilityLevel: opts.DurabilityLevel.toProto(),
-	})
+	req := &protos.UpsertRequest{
+		BucketName:     bucketName,
+		ScopeName:      scopeName,
+		CollectionName: collName,
+		Key:            id,
+		Content:        content,
+		ContentType:    protos.DocumentContentType_JSON,
+	}
+
+	if opts.DurabilityLevel != DurabilityLevelUnknown {
+		req.DurabilitySpec = &protos.UpsertRequest_DurabilityLevel{
+			DurabilityLevel: *opts.DurabilityLevel.toProto(),
+		}
+	}
+
+	resp, err := client.couchbaseClient.Upsert(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -196,15 +214,22 @@ func (c *Collection) Insert(ctx context.Context, id string, content []byte, opts
 	}
 	client, bucketName, scopeName, collName := c.getClient()
 
-	resp, err := client.couchbaseClient.Insert(ctx, &protos.InsertRequest{
-		BucketName:      bucketName,
-		ScopeName:       scopeName,
-		CollectionName:  collName,
-		Key:             id,
-		Content:         content,
-		ContentType:     protos.DocumentContentType_JSON,
-		DurabilityLevel: opts.DurabilityLevel.toProto(),
-	})
+	req := &protos.InsertRequest{
+		BucketName:     bucketName,
+		ScopeName:      scopeName,
+		CollectionName: collName,
+		Key:            id,
+		Content:        content,
+		ContentType:    protos.DocumentContentType_JSON,
+	}
+
+	if opts.DurabilityLevel != DurabilityLevelUnknown {
+		req.DurabilitySpec = &protos.InsertRequest_DurabilityLevel{
+			DurabilityLevel: *opts.DurabilityLevel.toProto(),
+		}
+	}
+
+	resp, err := client.couchbaseClient.Insert(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -224,15 +249,22 @@ func (c *Collection) Replace(ctx context.Context, id string, content []byte, opt
 	}
 	client, bucketName, scopeName, collName := c.getClient()
 
-	resp, err := client.couchbaseClient.Replace(ctx, &protos.ReplaceRequest{
-		BucketName:      bucketName,
-		ScopeName:       scopeName,
-		CollectionName:  collName,
-		Key:             id,
-		Content:         content,
-		ContentType:     protos.DocumentContentType_JSON,
-		DurabilityLevel: opts.DurabilityLevel.toProto(),
-	})
+	req := &protos.ReplaceRequest{
+		BucketName:     bucketName,
+		ScopeName:      scopeName,
+		CollectionName: collName,
+		Key:            id,
+		Content:        content,
+		ContentType:    protos.DocumentContentType_JSON,
+	}
+
+	if opts.DurabilityLevel != DurabilityLevelUnknown {
+		req.DurabilitySpec = &protos.ReplaceRequest_DurabilityLevel{
+			DurabilityLevel: *opts.DurabilityLevel.toProto(),
+		}
+	}
+
+	resp, err := client.couchbaseClient.Replace(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -252,13 +284,20 @@ func (c *Collection) Remove(ctx context.Context, id string, opts *RemoveOptions)
 	}
 	client, bucketName, scopeName, collName := c.getClient()
 
-	resp, err := client.couchbaseClient.Remove(ctx, &protos.RemoveRequest{
-		BucketName:      bucketName,
-		ScopeName:       scopeName,
-		CollectionName:  collName,
-		Key:             id,
-		DurabilityLevel: opts.DurabilityLevel.toProto(),
-	})
+	req := &protos.RemoveRequest{
+		BucketName:     bucketName,
+		ScopeName:      scopeName,
+		CollectionName: collName,
+		Key:            id,
+	}
+
+	if opts.DurabilityLevel != DurabilityLevelUnknown {
+		req.DurabilitySpec = &protos.RemoveRequest_DurabilityLevel{
+			DurabilityLevel: *opts.DurabilityLevel.toProto(),
+		}
+	}
+
+	resp, err := client.couchbaseClient.Remove(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -277,13 +316,15 @@ func (c *Collection) Touch(ctx context.Context, id string, expiry time.Time, opt
 	}
 	client, bucketName, scopeName, collName := c.getClient()
 
-	resp, err := client.couchbaseClient.Touch(ctx, &protos.TouchRequest{
+	req := &protos.TouchRequest{
 		BucketName:     bucketName,
 		ScopeName:      scopeName,
 		CollectionName: collName,
 		Key:            id,
 		Expiry:         timestamppb.New(expiry),
-	})
+	}
+
+	resp, err := client.couchbaseClient.Touch(ctx, req)
 	if err != nil {
 		return nil, err
 	}
