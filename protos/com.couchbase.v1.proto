@@ -309,7 +309,7 @@ message QueryResponse {
       google.protobuf.Duration elapsed_time = 1;
       google.protobuf.Duration execution_time = 2;
       uint64 result_count = 3;
-      uint64 results_size = 4;
+      uint64 result_size = 4;
       uint64 mutation_count = 5;
       uint64 sort_count = 6;
       uint64 error_count = 7;
