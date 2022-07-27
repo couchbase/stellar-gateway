@@ -419,7 +419,7 @@ func (s *couchbaseServer) Query(in *protos.QueryRequest, out protos.Couchbase_Qu
 				ElapsedTime:   durationToPs(metaData.Metrics.ElapsedTime),
 				ExecutionTime: durationToPs(metaData.Metrics.ExecutionTime),
 				ResultCount:   metaData.Metrics.ResultCount,
-				ResultSize:    metaData.Metrics.ResultSize,
+				ResultsSize:   metaData.Metrics.ResultSize,
 				MutationCount: metaData.Metrics.MutationCount,
 				SortCount:     metaData.Metrics.SortCount,
 				ErrorCount:    metaData.Metrics.ErrorCount,
