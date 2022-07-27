@@ -53,7 +53,12 @@ func Connect(connStr string, opts *ConnectOptions) (*Client, error) {
 		connStr = strings.Join(connStrPieces, ":")
 	}
 
-	conn, err := grpc.Dial(connStr, transportDialOpt, perRpcDialOpt)
+	dialOpts := []grpc.DialOption{transportDialOpt}
+	if perRpcDialOpt != nil {
+		dialOpts = append(dialOpts, perRpcDialOpt)
+	}
+
+	conn, err := grpc.Dial(connStr, dialOpts...)
 	if err != nil {
 		return nil, err
 	}
