@@ -167,6 +167,8 @@ func (c *Collection) Unlock(ctx context.Context, id string, cas Cas, opts *Unloc
 
 type UpsertOptions struct {
 	DurabilityLevel DurabilityLevel
+	PersistTo       uint32
+	ReplicateTo     uint32
 }
 
 type MutationResult struct {
@@ -193,6 +195,14 @@ func (c *Collection) Upsert(ctx context.Context, id string, content []byte, opts
 			DurabilityLevel: *opts.DurabilityLevel.toProto(),
 		}
 	}
+	if opts.ReplicateTo > 0 || opts.PersistTo > 0 {
+		req.DurabilitySpec = &protos.UpsertRequest_LegacyDurabilitySpec{
+			LegacyDurabilitySpec: &protos.LegacyDurabilitySpec{
+				NumPersisted:  opts.PersistTo,
+				NumReplicated: opts.ReplicateTo,
+			},
+		}
+	}
 
 	resp, err := client.couchbaseClient.Upsert(ctx, req)
 	if err != nil {
@@ -206,6 +216,8 @@ func (c *Collection) Upsert(ctx context.Context, id string, content []byte, opts
 
 type InsertOptions struct {
 	DurabilityLevel DurabilityLevel
+	PersistTo       uint32
+	ReplicateTo     uint32
 }
 
 func (c *Collection) Insert(ctx context.Context, id string, content []byte, opts *InsertOptions) (*MutationResult, error) {
@@ -228,6 +240,14 @@ func (c *Collection) Insert(ctx context.Context, id string, content []byte, opts
 			DurabilityLevel: *opts.DurabilityLevel.toProto(),
 		}
 	}
+	if opts.ReplicateTo > 0 || opts.PersistTo > 0 {
+		req.DurabilitySpec = &protos.InsertRequest_LegacyDurabilitySpec{
+			LegacyDurabilitySpec: &protos.LegacyDurabilitySpec{
+				NumPersisted:  opts.PersistTo,
+				NumReplicated: opts.ReplicateTo,
+			},
+		}
+	}
 
 	resp, err := client.couchbaseClient.Insert(ctx, req)
 	if err != nil {
@@ -241,6 +261,8 @@ func (c *Collection) Insert(ctx context.Context, id string, content []byte, opts
 
 type ReplaceOptions struct {
 	DurabilityLevel DurabilityLevel
+	PersistTo       uint32
+	ReplicateTo     uint32
 }
 
 func (c *Collection) Replace(ctx context.Context, id string, content []byte, opts *ReplaceOptions) (*MutationResult, error) {
@@ -263,6 +285,14 @@ func (c *Collection) Replace(ctx context.Context, id string, content []byte, opt
 			DurabilityLevel: *opts.DurabilityLevel.toProto(),
 		}
 	}
+	if opts.ReplicateTo > 0 || opts.PersistTo > 0 {
+		req.DurabilitySpec = &protos.ReplaceRequest_LegacyDurabilitySpec{
+			LegacyDurabilitySpec: &protos.LegacyDurabilitySpec{
+				NumPersisted:  opts.PersistTo,
+				NumReplicated: opts.ReplicateTo,
+			},
+		}
+	}
 
 	resp, err := client.couchbaseClient.Replace(ctx, req)
 	if err != nil {
@@ -276,6 +306,8 @@ func (c *Collection) Replace(ctx context.Context, id string, content []byte, opt
 
 type RemoveOptions struct {
 	DurabilityLevel DurabilityLevel
+	PersistTo       uint32
+	ReplicateTo     uint32
 }
 
 func (c *Collection) Remove(ctx context.Context, id string, opts *RemoveOptions) (*MutationResult, error) {
@@ -294,6 +326,14 @@ func (c *Collection) Remove(ctx context.Context, id string, opts *RemoveOptions)
 	if opts.DurabilityLevel != DurabilityLevelUnknown {
 		req.DurabilitySpec = &protos.RemoveRequest_DurabilityLevel{
 			DurabilityLevel: *opts.DurabilityLevel.toProto(),
+		}
+	}
+	if opts.ReplicateTo > 0 || opts.PersistTo > 0 {
+		req.DurabilitySpec = &protos.RemoveRequest_LegacyDurabilitySpec{
+			LegacyDurabilitySpec: &protos.LegacyDurabilitySpec{
+				NumPersisted:  opts.PersistTo,
+				NumReplicated: opts.ReplicateTo,
+			},
 		}
 	}
 
