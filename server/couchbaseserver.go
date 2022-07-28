@@ -330,6 +330,66 @@ func (s *couchbaseServer) MutateIn(ctx context.Context, in *protos.MutateInReque
 				}
 			}
 			specs = append(specs, gocb.RemoveSpec(spec.Path, &specOpts))
+		case protos.MutateInRequest_Spec_ARRAY_APPEND:
+			specOpts := gocb.ArrayAppendSpecOptions{}
+			if spec.Flags != nil {
+				if spec.Flags.CreatePath != nil {
+					specOpts.CreatePath = *spec.Flags.CreatePath
+				}
+				if spec.Flags.Xattr != nil {
+					specOpts.IsXattr = *spec.Flags.Xattr
+				}
+			}
+			specs = append(specs, gocb.ArrayAppendSpec(spec.Path, json.RawMessage(spec.Content), &specOpts))
+		case protos.MutateInRequest_Spec_ARRAY_PREPEND:
+			specOpts := gocb.ArrayPrependSpecOptions{}
+			if spec.Flags != nil {
+				if spec.Flags.CreatePath != nil {
+					specOpts.CreatePath = *spec.Flags.CreatePath
+				}
+				if spec.Flags.Xattr != nil {
+					specOpts.IsXattr = *spec.Flags.Xattr
+				}
+			}
+			specs = append(specs, gocb.ArrayPrependSpec(spec.Path, json.RawMessage(spec.Content), &specOpts))
+		case protos.MutateInRequest_Spec_ARRAY_INSERT:
+			specOpts := gocb.ArrayInsertSpecOptions{}
+			if spec.Flags != nil {
+				if spec.Flags.CreatePath != nil {
+					specOpts.CreatePath = *spec.Flags.CreatePath
+				}
+				if spec.Flags.Xattr != nil {
+					specOpts.IsXattr = *spec.Flags.Xattr
+				}
+			}
+			specs = append(specs, gocb.ArrayInsertSpec(spec.Path, json.RawMessage(spec.Content), &specOpts))
+		case protos.MutateInRequest_Spec_ARRAY_ADD_UNIQUE:
+			specOpts := gocb.ArrayAddUniqueSpecOptions{}
+			if spec.Flags != nil {
+				if spec.Flags.CreatePath != nil {
+					specOpts.CreatePath = *spec.Flags.CreatePath
+				}
+				if spec.Flags.Xattr != nil {
+					specOpts.IsXattr = *spec.Flags.Xattr
+				}
+			}
+			specs = append(specs, gocb.ArrayAddUniqueSpec(spec.Path, json.RawMessage(spec.Content), &specOpts))
+		case protos.MutateInRequest_Spec_COUNTER:
+			specOpts := gocb.CounterSpecOptions{}
+			if spec.Flags != nil {
+				if spec.Flags.CreatePath != nil {
+					specOpts.CreatePath = *spec.Flags.CreatePath
+				}
+				if spec.Flags.Xattr != nil {
+					specOpts.IsXattr = *spec.Flags.Xattr
+				}
+			}
+
+			var count int64
+			if err := json.Unmarshal(spec.Content, &count); err != nil {
+				return nil, cbErrToPs(err)
+			}
+			specs = append(specs, gocb.IncrementSpec(spec.Path, count, &specOpts))
 		}
 	}
 

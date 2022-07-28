@@ -258,7 +258,11 @@ message MutateInRequest {
       UPSERT = 1;
       REPLACE = 2;
       REMOVE = 3;
-      // TODO(brett19): Implement remaining subdoc mutation specs.
+      ARRAY_APPEND = 4;
+      ARRAY_PREPEND = 5;
+      ARRAY_INSERT = 6;
+      ARRAY_ADD_UNIQUE = 7;
+      COUNTER = 8;
     }
     Operation operation = 1;
 
