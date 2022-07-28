@@ -87,7 +87,7 @@ func (c *Collection) Exists(ctx context.Context, id string, opts *ExistsOptions)
 type GetAndTouchOptions struct {
 }
 
-func (c *Collection) GetAndTouch(ctx context.Context, id string, expiry time.Time, opts *GetAndTouchOptions) (*GetResult, error) {
+func (c *Collection) GetAndTouch(ctx context.Context, id string, expiry time.Duration, opts *GetAndTouchOptions) (*GetResult, error) {
 	if opts == nil {
 		opts = &GetAndTouchOptions{}
 	}
@@ -98,7 +98,7 @@ func (c *Collection) GetAndTouch(ctx context.Context, id string, expiry time.Tim
 		ScopeName:      scopeName,
 		CollectionName: collName,
 		Key:            id,
-		Expiry:         timestamppb.New(expiry),
+		Expiry:         durationToTimestamp(expiry),
 	}
 
 	resp, err := client.couchbaseClient.GetAndTouch(ctx, req)
@@ -169,6 +169,7 @@ type UpsertOptions struct {
 	DurabilityLevel DurabilityLevel
 	PersistTo       uint32
 	ReplicateTo     uint32
+	Expiry          time.Duration
 }
 
 type MutationResult struct {
@@ -188,6 +189,7 @@ func (c *Collection) Upsert(ctx context.Context, id string, content []byte, opts
 		Key:            id,
 		Content:        content,
 		ContentType:    protos.DocumentContentType_JSON,
+		Expiry:         durationToTimestamp(opts.Expiry),
 	}
 
 	if opts.DurabilityLevel != DurabilityLevelUnknown {
@@ -203,7 +205,6 @@ func (c *Collection) Upsert(ctx context.Context, id string, content []byte, opts
 			},
 		}
 	}
-
 	resp, err := client.couchbaseClient.Upsert(ctx, req)
 	if err != nil {
 		return nil, err
@@ -218,6 +219,7 @@ type InsertOptions struct {
 	DurabilityLevel DurabilityLevel
 	PersistTo       uint32
 	ReplicateTo     uint32
+	Expiry          time.Duration
 }
 
 func (c *Collection) Insert(ctx context.Context, id string, content []byte, opts *InsertOptions) (*MutationResult, error) {
@@ -233,6 +235,7 @@ func (c *Collection) Insert(ctx context.Context, id string, content []byte, opts
 		Key:            id,
 		Content:        content,
 		ContentType:    protos.DocumentContentType_JSON,
+		Expiry:         durationToTimestamp(opts.Expiry),
 	}
 
 	if opts.DurabilityLevel != DurabilityLevelUnknown {
@@ -263,6 +266,7 @@ type ReplaceOptions struct {
 	DurabilityLevel DurabilityLevel
 	PersistTo       uint32
 	ReplicateTo     uint32
+	Expiry          time.Duration
 }
 
 func (c *Collection) Replace(ctx context.Context, id string, content []byte, opts *ReplaceOptions) (*MutationResult, error) {
@@ -278,6 +282,7 @@ func (c *Collection) Replace(ctx context.Context, id string, content []byte, opt
 		Key:            id,
 		Content:        content,
 		ContentType:    protos.DocumentContentType_JSON,
+		Expiry:         durationToTimestamp(opts.Expiry),
 	}
 
 	if opts.DurabilityLevel != DurabilityLevelUnknown {
@@ -350,7 +355,7 @@ func (c *Collection) Remove(ctx context.Context, id string, opts *RemoveOptions)
 type TouchOptions struct {
 }
 
-func (c *Collection) Touch(ctx context.Context, id string, expiry time.Time, opts *TouchOptions) (*MutationResult, error) {
+func (c *Collection) Touch(ctx context.Context, id string, expiry time.Duration, opts *TouchOptions) (*MutationResult, error) {
 	if opts == nil {
 		opts = &TouchOptions{}
 	}
@@ -361,7 +366,7 @@ func (c *Collection) Touch(ctx context.Context, id string, expiry time.Time, opt
 		ScopeName:      scopeName,
 		CollectionName: collName,
 		Key:            id,
-		Expiry:         timestamppb.New(expiry),
+		Expiry:         durationToTimestamp(expiry),
 	}
 
 	resp, err := client.couchbaseClient.Touch(ctx, req)
@@ -372,4 +377,26 @@ func (c *Collection) Touch(ctx context.Context, id string, expiry time.Time, opt
 	return &MutationResult{
 		Cas: Cas(resp.Cas.Value),
 	}, nil
+}
+
+// Do we actually need this?
+func durationToTimestamp(dura time.Duration) *timestamppb.Timestamp {
+	// If the duration is 0, that indicates never-expires
+	if dura == 0 {
+		return nil
+	}
+
+	now := time.Now()
+	// If the duration is less than one second, we must force the
+	// value to 1 to avoid accidentally making it never expire.
+	if dura < 1*time.Second {
+		return timestamppb.New(now.Add(1 * time.Second))
+	}
+
+	if dura < 30*24*time.Hour {
+		return timestamppb.New(now.Add(dura))
+	}
+
+	// Send the duration as a unix timestamp of now plus duration.
+	return timestamppb.New(time.Now().Add(dura))
 }
