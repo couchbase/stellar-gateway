@@ -75,6 +75,12 @@ enum DocumentContentType {
   JSON = 2;
 }
 
+enum DocumentCompressionType {
+  NONE = 0;
+
+  SNAPPY = 1;
+}
+
 message HelloRequest {}
 
 message HelloResponse {}
@@ -113,6 +119,7 @@ message GetReplicaRequest {
 message GetResponse {
   bytes content = 1;
   DocumentContentType content_type = 2;
+  DocumentCompressionType compression_type = 5;
   Cas cas = 3;
   optional google.protobuf.Timestamp expiry = 4;
 }
