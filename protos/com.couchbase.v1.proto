@@ -546,3 +546,51 @@ message AnalyticsQueryResponse {
   }
   optional MetaData meta_data = 2;
 }
+
+message RangeScanRequest {
+  string bucket_name = 1;
+  string scope_name = 2;
+  string collection_name = 3;
+
+  bool key_only = 9;
+
+  message Range {
+    string start_key = 1;
+    string end_key = 2;
+    bool inclusive_start = 3;
+    bool inclusive_end = 4;
+  }
+  Range range = 7;
+
+  message Sampling {
+    int64 seed = 1;
+    int64 samples = 2;
+  }
+  Sampling sampling = 8;
+
+  message SnapshotRequirements {
+    uint64 vb_uuid = 1;
+    uint64 seqno = 2;
+    bool check_seqno_exists = 3;
+  }
+  SnapshotRequirements snapshot_requirements = 6;
+}
+
+message RangeScanResponse {
+  message Document {
+    message MetaData {
+      uint32 flags = 1;
+      optional google.protobuf.Timestamp expiry = 2;
+      uint64 seqno = 3;
+      uint64 cas = 4;
+      DocumentContentType content_type = 5;
+      DocumentCompressionType compression_type = 6;
+    }
+
+    string key = 1;
+    optional bytes content = 2;
+    optional MetaData meta_data = 3;
+  }
+
+  repeated Document documents = 1;
+}
