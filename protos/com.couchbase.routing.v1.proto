@@ -21,7 +21,7 @@ message QueryRouting { repeated string endpoints = 1; }
 message SearchQueryRouting { repeated string endpoints = 1; }
 message AnalyticsQueryRouting { repeated string endpoints = 1; }
 
-message WatchRoutingRequest {}
+message WatchRoutingRequest { optional string bucket_name = 1; }
 
 message WatchRoutingResponse {
   repeated string endpoints = 1;
