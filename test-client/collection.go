@@ -267,6 +267,7 @@ type ReplaceOptions struct {
 	PersistTo       uint32
 	ReplicateTo     uint32
 	Expiry          time.Duration
+	Cas             Cas
 }
 
 func (c *Collection) Replace(ctx context.Context, id string, content []byte, opts *ReplaceOptions) (*MutationResult, error) {
@@ -274,6 +275,13 @@ func (c *Collection) Replace(ctx context.Context, id string, content []byte, opt
 		opts = &ReplaceOptions{}
 	}
 	client, bucketName, scopeName, collName := c.getClient()
+
+	var cas *protos.Cas
+	if opts.Cas > 0 {
+		cas = &protos.Cas{
+			Value: uint64(opts.Cas),
+		}
+	}
 
 	req := &protos.ReplaceRequest{
 		BucketName:     bucketName,
@@ -283,6 +291,7 @@ func (c *Collection) Replace(ctx context.Context, id string, content []byte, opt
 		Content:        content,
 		ContentType:    protos.DocumentContentType_JSON,
 		Expiry:         durationToTimestamp(opts.Expiry),
+		Cas:            cas,
 	}
 
 	if opts.DurabilityLevel != DurabilityLevelUnknown {
@@ -313,6 +322,7 @@ type RemoveOptions struct {
 	DurabilityLevel DurabilityLevel
 	PersistTo       uint32
 	ReplicateTo     uint32
+	Cas             Cas
 }
 
 func (c *Collection) Remove(ctx context.Context, id string, opts *RemoveOptions) (*MutationResult, error) {
@@ -321,11 +331,19 @@ func (c *Collection) Remove(ctx context.Context, id string, opts *RemoveOptions)
 	}
 	client, bucketName, scopeName, collName := c.getClient()
 
+	var cas *protos.Cas
+	if opts.Cas > 0 {
+		cas = &protos.Cas{
+			Value: uint64(opts.Cas),
+		}
+	}
+
 	req := &protos.RemoveRequest{
 		BucketName:     bucketName,
 		ScopeName:      scopeName,
 		CollectionName: collName,
 		Key:            id,
+		Cas:            cas,
 	}
 
 	if opts.DurabilityLevel != DurabilityLevelUnknown {
