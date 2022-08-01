@@ -29,6 +29,8 @@ service Couchbase {
   rpc Upsert(UpsertRequest) returns (UpsertResponse) {}
   rpc Replace(ReplaceRequest) returns (ReplaceResponse) {}
   rpc Remove(RemoveRequest) returns (RemoveResponse) {}
+  rpc Increment(IncrementRequest) returns (CounterResponse) {}
+  rpc Decrement(DecrementRequest) returns (CounterResponse) {}
   rpc LookupIn(LookupInRequest) returns (LookupInResponse) {}
   rpc MutateIn(MutateInRequest) returns (MutateInResponse) {}
 
@@ -38,7 +40,7 @@ service Couchbase {
       returns (stream AnalyticsQueryResponse) {}
 }
 
-message Cas { uint64 Value = 1; }
+message Cas {uint64 Value = 1;}
 
 message MutationToken {
   string bucket_name = 1;
@@ -47,7 +49,7 @@ message MutationToken {
   uint64 seq_no = 4;
 }
 
-message MutationState { repeated MutationToken tokens = 1; }
+message MutationState {repeated MutationToken tokens = 1;}
 
 enum DurabilityLevel {
   MAJORITY = 0;
@@ -161,7 +163,7 @@ message InsertRequest {
   }
 }
 
-message InsertResponse { Cas Cas = 1; }
+message InsertResponse {Cas Cas = 1;}
 
 message UpsertRequest {
   string bucket_name = 1;
@@ -177,7 +179,7 @@ message UpsertRequest {
   }
 }
 
-message UpsertResponse { Cas cas = 1; }
+message UpsertResponse {Cas cas = 1;}
 
 message ReplaceRequest {
   string bucket_name = 1;
@@ -194,7 +196,7 @@ message ReplaceRequest {
   }
 }
 
-message ReplaceResponse { Cas cas = 1; }
+message ReplaceResponse {Cas cas = 1;}
 
 message RemoveRequest {
   string bucket_name = 1;
@@ -208,7 +210,37 @@ message RemoveRequest {
   }
 }
 
-message RemoveResponse { Cas cas = 1; }
+message RemoveResponse {Cas cas = 1;}
+
+message IncrementRequest {
+  string bucket_name = 1;
+  string scope_name = 2;
+  string collection_name = 3;
+  string key = 4;
+  uint64 delta = 5;
+  optional google.protobuf.Timestamp expiry = 6;
+  optional int64 initial = 7;
+  oneof durability_spec {
+    LegacyDurabilitySpec legacy_durability_spec = 8;
+    DurabilityLevel durability_level = 9;
+  }
+}
+
+message DecrementRequest {
+  string bucket_name = 1;
+  string scope_name = 2;
+  string collection_name = 3;
+  string key = 4;
+  uint64 delta = 5;
+  optional google.protobuf.Timestamp expiry = 6;
+  optional int64 initial = 7;
+  oneof durability_spec {
+    LegacyDurabilitySpec legacy_durability_spec = 8;
+    DurabilityLevel durability_level = 9;
+  }
+}
+
+message CounterResponse {Cas cas = 1; int64 content = 2;}
 
 message LookupInRequest {
   string bucket_name = 1;
@@ -226,13 +258,13 @@ message LookupInRequest {
 
     string path = 2;
 
-    message Flags { optional bool xattr = 1; }
+    message Flags {optional bool xattr = 1;}
     optional Flags flags = 3;
   }
 
   repeated Spec specs = 5;
 
-  message Flags { optional bool access_deleted = 1; }
+  message Flags {optional bool access_deleted = 1;}
   optional Flags flags = 6;
 }
 
@@ -292,12 +324,12 @@ message MutateInRequest {
 
   optional Cas cas = 9;
 
-  message Flags { optional bool access_deleted = 1; }
+  message Flags {optional bool access_deleted = 1;}
   optional Flags flags = 10;
 }
 
 message MutateInResponse {
-  message Spec { optional bytes content = 1; }
+  message Spec {optional bytes content = 1;}
   repeated Spec specs = 1;
 
   Cas cas = 2;

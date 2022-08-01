@@ -214,6 +214,86 @@ func (s *couchbaseServer) Remove(ctx context.Context, in *protos.RemoveRequest) 
 	}, nil
 }
 
+func (s *couchbaseServer) Increment(ctx context.Context, in *protos.IncrementRequest) (*protos.CounterResponse, error) {
+	coll := s.getCollection(ctx, in.BucketName, in.ScopeName, in.CollectionName)
+
+	var opts gocb.IncrementOptions
+	opts.Context = ctx
+	opts.Delta = in.Delta
+
+	if in.Expiry != nil {
+		opts.Expiry = time.Until(timeFromPs(in.Expiry))
+	}
+
+	if in.DurabilitySpec != nil {
+		if legacySpec, ok := in.DurabilitySpec.(*protos.IncrementRequest_LegacyDurabilitySpec); ok {
+			opts.PersistTo = uint(legacySpec.LegacyDurabilitySpec.NumPersisted)
+			opts.ReplicateTo = uint(legacySpec.LegacyDurabilitySpec.NumReplicated)
+		}
+		if levelSpec, ok := in.DurabilitySpec.(*protos.IncrementRequest_DurabilityLevel); ok {
+			dl, errSt := durabilityLevelFromPs(&levelSpec.DurabilityLevel)
+			if errSt != nil {
+				return nil, errSt.Err()
+			}
+			opts.DurabilityLevel = dl
+		}
+	}
+
+	if in.Initial != nil {
+		opts.Initial = *in.Initial
+	}
+
+	result, err := coll.Binary().Increment(in.Key, &opts)
+	if err != nil {
+		return nil, cbErrToPs(err)
+	}
+
+	return &protos.CounterResponse{
+		Cas:     casToPs(result.Cas()),
+		Content: int64(result.Content()),
+	}, nil
+}
+
+func (s *couchbaseServer) Decrement(ctx context.Context, in *protos.DecrementRequest) (*protos.CounterResponse, error) {
+	coll := s.getCollection(ctx, in.BucketName, in.ScopeName, in.CollectionName)
+
+	var opts gocb.DecrementOptions
+	opts.Context = ctx
+	opts.Delta = in.Delta
+
+	if in.Expiry != nil {
+		opts.Expiry = time.Until(timeFromPs(in.Expiry))
+	}
+
+	if in.DurabilitySpec != nil {
+		if legacySpec, ok := in.DurabilitySpec.(*protos.DecrementRequest_LegacyDurabilitySpec); ok {
+			opts.PersistTo = uint(legacySpec.LegacyDurabilitySpec.NumPersisted)
+			opts.ReplicateTo = uint(legacySpec.LegacyDurabilitySpec.NumReplicated)
+		}
+		if levelSpec, ok := in.DurabilitySpec.(*protos.DecrementRequest_DurabilityLevel); ok {
+			dl, errSt := durabilityLevelFromPs(&levelSpec.DurabilityLevel)
+			if errSt != nil {
+				return nil, errSt.Err()
+			}
+			opts.DurabilityLevel = dl
+		}
+	}
+
+	if in.Initial != nil {
+		opts.Initial = *in.Initial
+	}
+
+	result, err := coll.Binary().Decrement(in.Key, &opts)
+	if err != nil {
+		return nil, cbErrToPs(err)
+	}
+
+	return &protos.CounterResponse{
+		Cas:     casToPs(result.Cas()),
+		Content: int64(result.Content()),
+	}, nil
+}
+
 func (s *couchbaseServer) LookupIn(ctx context.Context, in *protos.LookupInRequest) (*protos.LookupInResponse, error) {
 	coll := s.getCollection(ctx, in.BucketName, in.ScopeName, in.CollectionName)
 
