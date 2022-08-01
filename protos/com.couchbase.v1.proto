@@ -31,6 +31,8 @@ service Couchbase {
   rpc Remove(RemoveRequest) returns (RemoveResponse) {}
   rpc Increment(IncrementRequest) returns (CounterResponse) {}
   rpc Decrement(DecrementRequest) returns (CounterResponse) {}
+  rpc Append(AppendRequest) returns (AppendResponse) {}
+  rpc Prepend(PrependRequest) returns (PrependResponse) {}
   rpc LookupIn(LookupInRequest) returns (LookupInResponse) {}
   rpc MutateIn(MutateInRequest) returns (MutateInResponse) {}
 
@@ -241,6 +243,36 @@ message DecrementRequest {
 }
 
 message CounterResponse {Cas cas = 1; int64 content = 2;}
+
+message AppendRequest {
+  string bucket_name = 1;
+  string scope_name = 2;
+  string collection_name = 3;
+  string key = 4;
+  bytes content = 5;
+  optional Cas cas = 6;
+  oneof durability_spec {
+    LegacyDurabilitySpec legacy_durability_spec = 7;
+    DurabilityLevel durability_level = 8;
+  }
+}
+
+message AppendResponse {Cas cas = 1;}
+
+message PrependRequest {
+  string bucket_name = 1;
+  string scope_name = 2;
+  string collection_name = 3;
+  string key = 4;
+  bytes content = 5;
+  optional Cas cas = 6;
+  oneof durability_spec {
+    LegacyDurabilitySpec legacy_durability_spec = 7;
+    DurabilityLevel durability_level = 8;
+  }
+}
+
+message PrependResponse {Cas cas = 1;}
 
 message LookupInRequest {
   string bucket_name = 1;

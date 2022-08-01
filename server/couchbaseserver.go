@@ -294,6 +294,80 @@ func (s *couchbaseServer) Decrement(ctx context.Context, in *protos.DecrementReq
 	}, nil
 }
 
+func (s *couchbaseServer) Append(ctx context.Context, in *protos.AppendRequest) (*protos.AppendResponse, error) {
+	coll := s.getCollection(ctx, in.BucketName, in.ScopeName, in.CollectionName)
+
+	var contentData psTranscodeData
+	contentData.ContentBytes = in.Content
+
+	var opts gocb.AppendOptions
+	opts.Context = ctx
+
+	if in.Cas != nil {
+		opts.Cas = casFromPs(in.Cas)
+	}
+
+	if in.DurabilitySpec != nil {
+		if legacySpec, ok := in.DurabilitySpec.(*protos.AppendRequest_LegacyDurabilitySpec); ok {
+			opts.PersistTo = uint(legacySpec.LegacyDurabilitySpec.NumPersisted)
+			opts.ReplicateTo = uint(legacySpec.LegacyDurabilitySpec.NumReplicated)
+		}
+		if levelSpec, ok := in.DurabilitySpec.(*protos.AppendRequest_DurabilityLevel); ok {
+			dl, errSt := durabilityLevelFromPs(&levelSpec.DurabilityLevel)
+			if errSt != nil {
+				return nil, errSt.Err()
+			}
+			opts.DurabilityLevel = dl
+		}
+	}
+
+	result, err := coll.Binary().Append(in.Key, in.Content, &opts)
+	if err != nil {
+		return nil, cbErrToPs(err)
+	}
+
+	return &protos.AppendResponse{
+		Cas: casToPs(result.Cas()),
+	}, nil
+}
+
+func (s *couchbaseServer) Prepend(ctx context.Context, in *protos.PrependRequest) (*protos.PrependResponse, error) {
+	coll := s.getCollection(ctx, in.BucketName, in.ScopeName, in.CollectionName)
+
+	var contentData psTranscodeData
+	contentData.ContentBytes = in.Content
+
+	var opts gocb.PrependOptions
+	opts.Context = ctx
+
+	if in.Cas != nil {
+		opts.Cas = casFromPs(in.Cas)
+	}
+
+	if in.DurabilitySpec != nil {
+		if legacySpec, ok := in.DurabilitySpec.(*protos.PrependRequest_LegacyDurabilitySpec); ok {
+			opts.PersistTo = uint(legacySpec.LegacyDurabilitySpec.NumPersisted)
+			opts.ReplicateTo = uint(legacySpec.LegacyDurabilitySpec.NumReplicated)
+		}
+		if levelSpec, ok := in.DurabilitySpec.(*protos.PrependRequest_DurabilityLevel); ok {
+			dl, errSt := durabilityLevelFromPs(&levelSpec.DurabilityLevel)
+			if errSt != nil {
+				return nil, errSt.Err()
+			}
+			opts.DurabilityLevel = dl
+		}
+	}
+
+	result, err := coll.Binary().Prepend(in.Key, in.Content, &opts)
+	if err != nil {
+		return nil, cbErrToPs(err)
+	}
+
+	return &protos.PrependResponse{
+		Cas: casToPs(result.Cas()),
+	}, nil
+}
+
 func (s *couchbaseServer) LookupIn(ctx context.Context, in *protos.LookupInRequest) (*protos.LookupInResponse, error) {
 	coll := s.getCollection(ctx, in.BucketName, in.ScopeName, in.CollectionName)
 
