@@ -214,7 +214,7 @@ func (s *couchbaseServer) Remove(ctx context.Context, in *protos.RemoveRequest) 
 	}, nil
 }
 
-func (s *couchbaseServer) Increment(ctx context.Context, in *protos.IncrementRequest) (*protos.CounterResponse, error) {
+func (s *couchbaseServer) Increment(ctx context.Context, in *protos.IncrementRequest) (*protos.IncrementResponse, error) {
 	coll := s.getCollection(ctx, in.BucketName, in.ScopeName, in.CollectionName)
 
 	var opts gocb.IncrementOptions
@@ -248,13 +248,13 @@ func (s *couchbaseServer) Increment(ctx context.Context, in *protos.IncrementReq
 		return nil, cbErrToPs(err)
 	}
 
-	return &protos.CounterResponse{
+	return &protos.IncrementResponse{
 		Cas:     casToPs(result.Cas()),
 		Content: int64(result.Content()),
 	}, nil
 }
 
-func (s *couchbaseServer) Decrement(ctx context.Context, in *protos.DecrementRequest) (*protos.CounterResponse, error) {
+func (s *couchbaseServer) Decrement(ctx context.Context, in *protos.DecrementRequest) (*protos.DecrementResponse, error) {
 	coll := s.getCollection(ctx, in.BucketName, in.ScopeName, in.CollectionName)
 
 	var opts gocb.DecrementOptions
@@ -288,7 +288,7 @@ func (s *couchbaseServer) Decrement(ctx context.Context, in *protos.DecrementReq
 		return nil, cbErrToPs(err)
 	}
 
-	return &protos.CounterResponse{
+	return &protos.DecrementResponse{
 		Cas:     casToPs(result.Cas()),
 		Content: int64(result.Content()),
 	}, nil

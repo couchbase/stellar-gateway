@@ -29,8 +29,8 @@ service Couchbase {
   rpc Upsert(UpsertRequest) returns (UpsertResponse) {}
   rpc Replace(ReplaceRequest) returns (ReplaceResponse) {}
   rpc Remove(RemoveRequest) returns (RemoveResponse) {}
-  rpc Increment(IncrementRequest) returns (CounterResponse) {}
-  rpc Decrement(DecrementRequest) returns (CounterResponse) {}
+  rpc Increment(IncrementRequest) returns (IncrementResponse) {}
+  rpc Decrement(DecrementRequest) returns (DecrementResponse) {}
   rpc Append(AppendRequest) returns (AppendResponse) {}
   rpc Prepend(PrependRequest) returns (PrependResponse) {}
   rpc LookupIn(LookupInRequest) returns (LookupInResponse) {}
@@ -228,6 +228,8 @@ message IncrementRequest {
   }
 }
 
+message IncrementResponse {Cas cas = 1; int64 content = 2;}
+
 message DecrementRequest {
   string bucket_name = 1;
   string scope_name = 2;
@@ -242,7 +244,7 @@ message DecrementRequest {
   }
 }
 
-message CounterResponse {Cas cas = 1; int64 content = 2;}
+message DecrementResponse {Cas cas = 1; int64 content = 2;}
 
 message AppendRequest {
   string bucket_name = 1;
