@@ -7,7 +7,7 @@ lint:
 	go vet
 	golangci-lint run
 
-check: lint test
+check: generate lint test
 
 generate: genproto
 	go generate
