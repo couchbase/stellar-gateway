@@ -386,12 +386,49 @@ message QueryRequest {
   optional TuningOptions tuning_options = 4;
 
   optional string client_context_id = 5;
+
+  enum QueryScanConsistency {
+    NOT_BOUNDED = 0;
+    REQUEST_PLUS = 1;
+  }
+  optional QueryScanConsistency scan_consistency = 6;
+  repeated bytes positional_parameters = 7;
+  map<string, bytes> named_parameters = 8;
+  optional bool flex_index = 9;
+  optional bool preserve_expiry = 10;
+  optional MutationState consistent_with = 11;
+
+  enum QueryProfileMode {
+    OFF = 0;
+    PHASES = 1;
+    TIMINGS = 2;
+  }
+  optional QueryProfileMode profile_mode = 12;
+
 }
 
 message QueryResponse {
   repeated bytes rows = 1;
 
   message MetaData {
+    message Warning {
+      uint32 code = 1;
+      string message = 2;
+    }
+
+    enum MetaDataStatus {
+      RUNNING = 0;
+      SUCCESS = 1;
+      ERRORS = 2;
+      COMPLETED = 3;
+      STOPPED = 4;
+      TIMEOUT = 5;
+      CLOSED = 6;
+      FATAL = 7;
+      ABORTED = 8;
+      UNKNOWN = 9;
+    }
+
     string request_id = 1;
     string client_context_id = 2;
 
@@ -406,6 +443,10 @@ message QueryResponse {
       uint64 warning_count = 8;
     }
     optional Metrics metrics = 3;
+    MetaDataStatus status = 4;
+    repeated Warning warnings = 5;
+    optional bytes profile = 6;
+    bytes signature = 7;
   }
   optional MetaData meta_data = 2;
 }
@@ -450,12 +491,12 @@ message AnalyticsQueryResponse {
     uint64 processed_objects = 9;
   }
 
-  message Warning {
-    uint32 code = 1;
-    string message = 2;
-  }
-
   message MetaData {
+    message Warning {
+      uint32 code = 1;
+      string message = 2;
+    }
+
     string request_id = 1;
     string client_context_id = 2;
     Metrics metrics = 3;

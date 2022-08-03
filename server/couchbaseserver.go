@@ -609,6 +609,22 @@ func (s *couchbaseServer) Query(in *protos.QueryRequest, out protos.Couchbase_Qu
 		opts.Adhoc = !*in.Prepared
 	}
 
+	if in.FlexIndex != nil {
+		opts.FlexIndex = *in.FlexIndex
+	}
+
+	if in.PreserveExpiry != nil {
+		opts.PreserveExpiry = *in.PreserveExpiry
+	}
+
+	if in.ConsistentWith != nil {
+		opts.ConsistentWith = gocb.NewMutationState()
+		// TODO(chvck): gocb doesn't expose a way to create mutation tokens beyond json marshal/unmarshal
+		// for _, token := range in.ConsistentWith.Tokens {
+		// 	opts.ConsistentWith.Add(gocb.MutationToken{})
+		// }
+	}
+
 	if in.TuningOptions != nil {
 		if in.TuningOptions.MaxParallelism != nil {
 			opts.MaxParallelism = *in.TuningOptions.MaxParallelism
@@ -632,6 +648,58 @@ func (s *couchbaseServer) Query(in *protos.QueryRequest, out protos.Couchbase_Qu
 
 	if in.ClientContextId != nil {
 		opts.ClientContextID = *in.ClientContextId
+	}
+
+	if in.ScanConsistency != nil {
+		switch *in.ScanConsistency {
+		case protos.QueryRequest_NOT_BOUNDED:
+			opts.ScanConsistency = gocb.QueryScanConsistencyNotBounded
+		case protos.QueryRequest_REQUEST_PLUS:
+			opts.ScanConsistency = gocb.QueryScanConsistencyRequestPlus
+		default:
+			return status.Errorf(codes.InvalidArgument, "invalid scan consistency option specified")
+		}
+	}
+	named := in.GetNamedParameters()
+	pos := in.GetPositionalParameters()
+	if len(named) > 0 && len(pos) > 0 {
+		return status.Errorf(codes.InvalidArgument, "named and positional parameters must be used exclusively")
+	}
+	if len(named) > 0 {
+		params := make(map[string]interface{}, len(named))
+		for k, param := range named {
+			var p interface{}
+			if err := json.Unmarshal(param, &p); err != nil {
+				return cbErrToPs(err)
+			}
+
+			params[k] = p
+		}
+		opts.NamedParameters = params
+	}
+	if len(pos) > 0 {
+		params := make([]interface{}, len(pos))
+		for i, param := range pos {
+			var p interface{}
+			if err := json.Unmarshal(param, &p); err != nil {
+				return cbErrToPs(err)
+			}
+
+			params[i] = p
+		}
+		opts.PositionalParameters = params
+	}
+	if in.ProfileMode != nil {
+		switch *in.ProfileMode {
+		case protos.QueryRequest_OFF:
+			opts.Profile = gocb.QueryProfileModeNone
+		case protos.QueryRequest_PHASES:
+			opts.Profile = gocb.QueryProfileModePhases
+		case protos.QueryRequest_TIMINGS:
+			opts.Profile = gocb.QueryProfileModeTimings
+		default:
+			return status.Errorf(codes.InvalidArgument, "invalid profile mode option specified")
+		}
 	}
 
 	result, err := s.cbClient.Query(in.Statement, &opts)
@@ -667,8 +735,13 @@ func (s *couchbaseServer) Query(in *protos.QueryRequest, out protos.Couchbase_Qu
 
 	metaData, err := result.MetaData()
 	if err == nil {
-		var psMetrics *protos.QueryResponse_MetaData_Metrics
+		psMetaData = &protos.QueryResponse_MetaData{
+			RequestId:       metaData.RequestID,
+			ClientContextId: metaData.ClientContextID,
+		}
+
 		if opts.Metrics {
+			var psMetrics *protos.QueryResponse_MetaData_Metrics
 			psMetrics = &protos.QueryResponse_MetaData_Metrics{
 				ElapsedTime:   durationToPs(metaData.Metrics.ElapsedTime),
 				ExecutionTime: durationToPs(metaData.Metrics.ExecutionTime),
@@ -679,12 +752,52 @@ func (s *couchbaseServer) Query(in *protos.QueryRequest, out protos.Couchbase_Qu
 				ErrorCount:    metaData.Metrics.ErrorCount,
 				WarningCount:  metaData.Metrics.WarningCount,
 			}
+
+			psMetaData.Metrics = psMetrics
 		}
 
-		psMetaData = &protos.QueryResponse_MetaData{
-			RequestId:       metaData.RequestID,
-			ClientContextId: metaData.ClientContextID,
-			Metrics:         psMetrics,
+		warnings := make([]*protos.QueryResponse_MetaData_Warning, len(metaData.Warnings))
+		for i, warning := range metaData.Warnings {
+			warnings[i] = &protos.QueryResponse_MetaData_Warning{
+				Code:    warning.Code,
+				Message: warning.Message,
+			}
+		}
+		psMetaData.Warnings = warnings
+
+		switch metaData.Status {
+		case gocb.QueryStatusRunning:
+			psMetaData.Status = protos.QueryResponse_MetaData_RUNNING
+		case gocb.QueryStatusSuccess:
+			psMetaData.Status = protos.QueryResponse_MetaData_SUCCESS
+		case gocb.QueryStatusErrors:
+			psMetaData.Status = protos.QueryResponse_MetaData_ERRORS
+		case gocb.QueryStatusCompleted:
+			psMetaData.Status = protos.QueryResponse_MetaData_COMPLETED
+		case gocb.QueryStatusStopped:
+			psMetaData.Status = protos.QueryResponse_MetaData_STOPPED
+		case gocb.QueryStatusTimeout:
+			psMetaData.Status = protos.QueryResponse_MetaData_TIMEOUT
+		case gocb.QueryStatusClosed:
+			psMetaData.Status = protos.QueryResponse_MetaData_CLOSED
+		case gocb.QueryStatusFatal:
+			psMetaData.Status = protos.QueryResponse_MetaData_FATAL
+		case gocb.QueryStatusAborted:
+			psMetaData.Status = protos.QueryResponse_MetaData_ABORTED
+		default:
+			psMetaData.Status = protos.QueryResponse_MetaData_UNKNOWN
+		}
+
+		sig, err := json.Marshal(metaData.Signature)
+		if err == nil {
+			psMetaData.Signature = sig
+		}
+
+		if metaData.Profile != nil {
+			profile, err := json.Marshal(metaData.Profile)
+			if err == nil {
+				psMetaData.Profile = profile
+			}
 		}
 	}
 
@@ -807,9 +920,9 @@ func (s *couchbaseServer) AnalyticsQuery(in *protos.AnalyticsQueryRequest, out p
 			ProcessedObjects: metaData.Metrics.ProcessedObjects,
 		}
 
-		warnings := make([]*protos.AnalyticsQueryResponse_Warning, len(metaData.Warnings))
+		warnings := make([]*protos.AnalyticsQueryResponse_MetaData_Warning, len(metaData.Warnings))
 		for i, warning := range metaData.Warnings {
-			warnings[i] = &protos.AnalyticsQueryResponse_Warning{
+			warnings[i] = &protos.AnalyticsQueryResponse_MetaData_Warning{
 				Code:    warning.Code,
 				Message: warning.Message,
 			}

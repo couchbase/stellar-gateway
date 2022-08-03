@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"flag"
-	"io"
 	"log"
 	"time"
 
@@ -83,26 +82,29 @@ func main() {
 
 	// testing some query directly via the connection
 	{
-		conn := client.GetConn()
-		cc := protos.NewCouchbaseClient(conn)
-
-		queryResp, err := cc.Query(ctx, &protos.QueryRequest{
-			Statement: "SELECT 1",
-		})
+		queryResp, err := client.Query(ctx, "SELECT 1", nil)
 		if err != nil {
 			log.Fatalf("could not query: %v", err)
 		}
 
-		for {
-			queryData, err := queryResp.Recv()
-			if err == io.EOF {
-				break
-			} else if err != nil {
-				log.Printf("failed to recv query rows: %s", err)
+		for queryResp.Next() {
+			row, err := queryResp.Row()
+			if err != nil {
+				log.Fatalf("could not query row: %s", err)
 			}
 
-			log.Printf("got some query rows: %+v", queryData)
+			log.Printf("got a query row: %+v", row)
 		}
+
+		if err := queryResp.Err(); err != nil {
+			log.Fatalf("got a query err: %s", err)
+		}
+
+		meta, err := queryResp.MetaData()
+		if err != nil {
+			log.Fatalf("could not query metadata: %s", err)
+		}
+		log.Printf("got an query metadata: %+v", meta)
 		log.Printf("done streaming query data")
 	}
 
@@ -130,5 +132,6 @@ func main() {
 			log.Fatalf("could not analytics metadata: %s", err)
 		}
 		log.Printf("got an analytics metadata: %+v", meta)
+		log.Printf("done streaming analytics data")
 	}
 }
