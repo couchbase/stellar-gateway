@@ -90,10 +90,16 @@ func (r *QueryResult) populateMeta(metadata *query_v1.QueryResponse_MetaData) {
 	}
 
 	if len(metadata.Signature) > 0 {
-		json.Unmarshal(metadata.Signature, &meta.Signature)
+		err := json.Unmarshal(metadata.Signature, &meta.Signature)
+		if err != nil {
+			r.err = err
+		}
 	}
 	if len(metadata.Profile) > 0 {
-		json.Unmarshal(metadata.Profile, &meta.Profile)
+		err := json.Unmarshal(metadata.Profile, &meta.Profile)
+		if err != nil {
+			r.err = err
+		}
 	}
 
 	if metadata.Metrics != nil {

@@ -30,9 +30,11 @@ type GetResult struct {
 }
 
 func (c *Collection) Get(ctx context.Context, id string, opts *GetOptions) (*GetResult, error) {
-	if opts == nil {
-		opts = &GetOptions{}
-	}
+	/*
+		if opts == nil {
+			opts = &GetOptions{}
+		}
+	*/
 	client, bucketName, scopeName, collName := c.getClient()
 
 	req := &data_v1.GetRequest{
@@ -62,9 +64,11 @@ type ExistsResult struct {
 }
 
 func (c *Collection) Exists(ctx context.Context, id string, opts *ExistsOptions) (*ExistsResult, error) {
-	if opts == nil {
-		opts = &ExistsOptions{}
-	}
+	/*
+		if opts == nil {
+			opts = &ExistsOptions{}
+		}
+	*/
 	client, bucketName, scopeName, collName := c.getClient()
 
 	req := &data_v1.ExistsRequest{
@@ -89,9 +93,11 @@ type GetAndTouchOptions struct {
 }
 
 func (c *Collection) GetAndTouch(ctx context.Context, id string, expiry time.Duration, opts *GetAndTouchOptions) (*GetResult, error) {
-	if opts == nil {
-		opts = &GetAndTouchOptions{}
-	}
+	/*
+		if opts == nil {
+			opts = &GetAndTouchOptions{}
+		}
+	*/
 	client, bucketName, scopeName, collName := c.getClient()
 
 	req := &data_v1.GetAndTouchRequest{
@@ -117,9 +123,11 @@ type GetAndLockOptions struct {
 }
 
 func (c *Collection) GetAndLock(ctx context.Context, id string, lockTime time.Duration, opts *GetAndLockOptions) (*GetResult, error) {
-	if opts == nil {
-		opts = &GetAndLockOptions{}
-	}
+	/*
+		if opts == nil {
+			opts = &GetAndLockOptions{}
+		}
+	*/
 	client, bucketName, scopeName, collName := c.getClient()
 
 	req := &data_v1.GetAndLockRequest{
@@ -145,9 +153,11 @@ type UnlockOptions struct {
 }
 
 func (c *Collection) Unlock(ctx context.Context, id string, cas Cas, opts *UnlockOptions) error {
-	if opts == nil {
-		opts = &UnlockOptions{}
-	}
+	/*
+		if opts == nil {
+			opts = &UnlockOptions{}
+		}
+	*/
 	client, bucketName, scopeName, collName := c.getClient()
 
 	req := &data_v1.UnlockRequest{
@@ -380,9 +390,11 @@ type TouchOptions struct {
 }
 
 func (c *Collection) Touch(ctx context.Context, id string, expiry time.Duration, opts *TouchOptions) (*MutationResult, error) {
-	if opts == nil {
-		opts = &TouchOptions{}
-	}
+	/*
+		if opts == nil {
+			opts = &TouchOptions{}
+		}
+	*/
 	client, bucketName, scopeName, collName := c.getClient()
 
 	req := &data_v1.TouchRequest{

@@ -68,7 +68,10 @@ func (r *AnalyticsQueryResult) populateMeta(metadata *analytics_v1.AnalyticsQuer
 	}
 
 	if len(metadata.Signature) > 0 {
-		json.Unmarshal(metadata.Signature, &meta.Signature)
+		err := json.Unmarshal(metadata.Signature, &meta.Signature)
+		if err != nil {
+			r.err = err
+		}
 	}
 
 	if metadata.Metrics != nil {

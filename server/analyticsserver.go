@@ -78,16 +78,24 @@ func (s *analyticsServer) AnalyticsQuery(in *analytics_v1.AnalyticsQueryRequest,
 
 	for result.Next() {
 		var rowBytes json.RawMessage
-		result.Row(&rowBytes)
+		err := result.Row(&rowBytes)
+		if err != nil {
+			return cbErrToPs(err)
+		}
+
 		rowNumBytes := len(rowBytes)
 
 		if rowCacheNumBytes+rowNumBytes > MAX_ROW_BYTES {
 			// adding this row to the cache would exceed its maximum number of
 			// bytes, so we need to evict all these rows...
-			out.Send(&analytics_v1.AnalyticsQueryResponse{
+			err := out.Send(&analytics_v1.AnalyticsQueryResponse{
 				Rows:     rowCache,
 				MetaData: nil,
 			})
+			if err != nil {
+				return cbErrToPs(err)
+			}
+
 			rowCache = nil
 			rowCacheNumBytes = 0
 		}
@@ -100,8 +108,7 @@ func (s *analyticsServer) AnalyticsQuery(in *analytics_v1.AnalyticsQueryRequest,
 
 	metaData, err := result.MetaData()
 	if err == nil {
-		var psMetrics *analytics_v1.AnalyticsQueryResponse_Metrics
-		psMetrics = &analytics_v1.AnalyticsQueryResponse_Metrics{
+		psMetrics := &analytics_v1.AnalyticsQueryResponse_Metrics{
 			ElapsedTime:      durationToPs(metaData.Metrics.ElapsedTime),
 			ExecutionTime:    durationToPs(metaData.Metrics.ExecutionTime),
 			ResultCount:      metaData.Metrics.ResultCount,
@@ -138,14 +145,13 @@ func (s *analyticsServer) AnalyticsQuery(in *analytics_v1.AnalyticsQueryRequest,
 	// if we have any rows or meta-data left to stream, we send that first
 	// before we process any errors that occurred.
 	if rowCache != nil || psMetaData != nil {
-		out.Send(&analytics_v1.AnalyticsQueryResponse{
+		err := out.Send(&analytics_v1.AnalyticsQueryResponse{
 			Rows:     rowCache,
 			MetaData: psMetaData,
 		})
-
-		rowCache = nil
-		rowCacheNumBytes = 0
-		psMetaData = nil
+		if err != nil {
+			return cbErrToPs(err)
+		}
 	}
 
 	err = result.Err()

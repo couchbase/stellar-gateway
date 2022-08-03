@@ -133,16 +133,23 @@ func (s *queryServer) Query(in *query_v1.QueryRequest, out query_v1.Query_QueryS
 
 	for result.Next() {
 		var rowBytes json.RawMessage
-		result.Row(&rowBytes)
+		err := result.Row(&rowBytes)
+		if err != nil {
+			return cbErrToPs(err)
+		}
 		rowNumBytes := len(rowBytes)
 
 		if rowCacheNumBytes+rowNumBytes > MAX_ROW_BYTES {
 			// adding this row to the cache would exceed its maximum number of
 			// bytes, so we need to evict all these rows...
-			out.Send(&query_v1.QueryResponse{
+			err := out.Send(&query_v1.QueryResponse{
 				Rows:     rowCache,
 				MetaData: nil,
 			})
+			if err != nil {
+				return cbErrToPs(err)
+			}
+
 			rowCache = nil
 			rowCacheNumBytes = 0
 		}
@@ -223,14 +230,13 @@ func (s *queryServer) Query(in *query_v1.QueryRequest, out query_v1.Query_QueryS
 	// if we have any rows or meta-data left to stream, we send that first
 	// before we process any errors that occurred.
 	if rowCache != nil || psMetaData != nil {
-		out.Send(&query_v1.QueryResponse{
+		err := out.Send(&query_v1.QueryResponse{
 			Rows:     rowCache,
 			MetaData: psMetaData,
 		})
-
-		rowCache = nil
-		rowCacheNumBytes = 0
-		psMetaData = nil
+		if err != nil {
+			return cbErrToPs(err)
+		}
 	}
 
 	err = result.Err()
