@@ -173,7 +173,8 @@ type UpsertOptions struct {
 }
 
 type MutationResult struct {
-	Cas Cas
+	Cas           Cas
+	MutationToken *MutationToken
 }
 
 func (c *Collection) Upsert(ctx context.Context, id string, content []byte, opts *UpsertOptions) (*MutationResult, error) {
@@ -211,7 +212,8 @@ func (c *Collection) Upsert(ctx context.Context, id string, content []byte, opts
 	}
 
 	return &MutationResult{
-		Cas: Cas(resp.Cas.Value),
+		Cas:           Cas(resp.Cas.Value),
+		MutationToken: mutationTokenFromPs(resp.MutationToken),
 	}, nil
 }
 
@@ -258,7 +260,8 @@ func (c *Collection) Insert(ctx context.Context, id string, content []byte, opts
 	}
 
 	return &MutationResult{
-		Cas: Cas(resp.Cas.Value),
+		Cas:           Cas(resp.Cas.Value),
+		MutationToken: mutationTokenFromPs(resp.MutationToken),
 	}, nil
 }
 
@@ -314,7 +317,8 @@ func (c *Collection) Replace(ctx context.Context, id string, content []byte, opt
 	}
 
 	return &MutationResult{
-		Cas: Cas(resp.Cas.Value),
+		Cas:           Cas(resp.Cas.Value),
+		MutationToken: mutationTokenFromPs(resp.MutationToken),
 	}, nil
 }
 
@@ -366,7 +370,8 @@ func (c *Collection) Remove(ctx context.Context, id string, opts *RemoveOptions)
 	}
 
 	return &MutationResult{
-		Cas: Cas(resp.Cas.Value),
+		Cas:           Cas(resp.Cas.Value),
+		MutationToken: mutationTokenFromPs(resp.MutationToken),
 	}, nil
 }
 
@@ -393,7 +398,8 @@ func (c *Collection) Touch(ctx context.Context, id string, expiry time.Duration,
 	}
 
 	return &MutationResult{
-		Cas: Cas(resp.Cas.Value),
+		Cas:           Cas(resp.Cas.Value),
+		MutationToken: mutationTokenFromPs(resp.MutationToken),
 	}, nil
 }
 

@@ -32,17 +32,17 @@ type QueryOptions struct {
 	NamedParameters      map[string]interface{}
 	Readonly             bool
 	ScanConsistency      QueryScanConsistency
-	// ConsistentWith       *MutationState TODO(chvck): mutation state
-	Profile        QueryProfileMode
-	ScanCap        uint32
-	PipelineBatch  uint32
-	PipelineCap    uint32
-	ScanWait       time.Duration
-	MaxParallelism uint32
-	Metrics        bool
-	AdHoc          bool
-	FlexIndex      bool
-	PreserveExpiry bool
+	ConsistentWith       *MutationState
+	Profile              QueryProfileMode
+	ScanCap              uint32
+	PipelineBatch        uint32
+	PipelineCap          uint32
+	ScanWait             time.Duration
+	MaxParallelism       uint32
+	Metrics              bool
+	AdHoc                bool
+	FlexIndex            bool
+	PreserveExpiry       bool
 }
 
 type QueryMetrics struct {
@@ -273,6 +273,21 @@ func (c *Client) Query(ctx context.Context, statement string, opts *QueryOptions
 	}
 	disableMetrics := !opts.Metrics
 	req.TuningOptions.DisableMetrics = &disableMetrics
+
+	if opts.ConsistentWith != nil {
+		tokens := make([]*protos.MutationToken, len(opts.ConsistentWith.Tokens))
+		for i, token := range opts.ConsistentWith.Tokens {
+			tokens[i] = &protos.MutationToken{
+				BucketName:  token.BucketName,
+				VbucketId:   uint32(token.VbID),
+				VbucketUuid: token.VbUUID,
+				SeqNo:       token.SeqNo,
+			}
+		}
+		req.ConsistentWith = &protos.MutationState{
+			Tokens: tokens,
+		}
+	}
 
 	res, err := c.couchbaseClient.Query(ctx, req)
 	if err != nil {

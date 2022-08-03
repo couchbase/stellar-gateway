@@ -66,7 +66,8 @@ func (c *CollectionBinary) Append(ctx context.Context, id string, content []byte
 	}
 
 	return &MutationResult{
-		Cas: Cas(resp.Cas.Value),
+		Cas:           Cas(resp.Cas.Value),
+		MutationToken: mutationTokenFromPs(resp.MutationToken),
 	}, nil
 }
 
@@ -120,13 +121,15 @@ func (c *CollectionBinary) Prepend(ctx context.Context, id string, content []byt
 	}
 
 	return &MutationResult{
-		Cas: Cas(resp.Cas.Value),
+		Cas:           Cas(resp.Cas.Value),
+		MutationToken: mutationTokenFromPs(resp.MutationToken),
 	}, nil
 }
 
 type CounterResult struct {
-	Cas     Cas
-	Content int64
+	Cas           Cas
+	Content       int64
+	MutationToken *MutationToken
 }
 
 type IncrementOptions struct {
@@ -177,8 +180,9 @@ func (c *CollectionBinary) Increment(ctx context.Context, id string, opts *Incre
 	}
 
 	return &CounterResult{
-		Cas:     Cas(resp.Cas.Value),
-		Content: resp.Content,
+		Cas:           Cas(resp.Cas.Value),
+		Content:       resp.Content,
+		MutationToken: mutationTokenFromPs(resp.MutationToken),
 	}, nil
 }
 
@@ -230,7 +234,8 @@ func (c *CollectionBinary) Decrement(ctx context.Context, id string, opts *Decre
 	}
 
 	return &CounterResult{
-		Cas:     Cas(resp.Cas.Value),
-		Content: resp.Content,
+		Cas:           Cas(resp.Cas.Value),
+		Content:       resp.Content,
+		MutationToken: mutationTokenFromPs(resp.MutationToken),
 	}, nil
 }

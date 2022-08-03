@@ -179,8 +179,9 @@ type MutateInResultSpec struct {
 }
 
 type MutateInResult struct {
-	Cas     Cas
-	Content []MutateInResultSpec
+	Cas           Cas
+	Content       []MutateInResultSpec
+	MutationToken *MutationToken
 }
 
 func (c *Collection) MutateIn(ctx context.Context, id string, specs []MutateInSpec, opts *MutateInOptions) (*MutateInResult, error) {
@@ -249,7 +250,8 @@ func (c *Collection) MutateIn(ctx context.Context, id string, specs []MutateInSp
 	}
 
 	return &MutateInResult{
-		Content: resSpecs,
-		Cas:     Cas(resp.Cas.Value),
+		Content:       resSpecs,
+		Cas:           Cas(resp.Cas.Value),
+		MutationToken: mutationTokenFromPs(resp.MutationToken),
 	}, nil
 }

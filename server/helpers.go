@@ -44,6 +44,19 @@ func durationFromPs(d *durationpb.Duration) time.Duration {
 	return d.AsDuration()
 }
 
+func tokenToPs(token *gocb.MutationToken) *protos.MutationToken {
+	if token == nil {
+		return nil
+	}
+
+	return &protos.MutationToken{
+		BucketName:  token.BucketName(),
+		VbucketId:   uint32(token.PartitionID()),
+		VbucketUuid: token.PartitionUUID(),
+		SeqNo:       token.SequenceNumber(),
+	}
+}
+
 func durabilityLevelFromPs(dl *protos.DurabilityLevel) (gocb.DurabilityLevel, *status.Status) {
 	if dl == nil {
 		return gocb.DurabilityLevelNone, nil

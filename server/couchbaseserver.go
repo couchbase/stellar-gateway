@@ -90,7 +90,8 @@ func (s *couchbaseServer) Insert(ctx context.Context, in *protos.InsertRequest) 
 	}
 
 	return &protos.InsertResponse{
-		Cas: casToPs(result.Cas()),
+		Cas:           casToPs(result.Cas()),
+		MutationToken: tokenToPs(result.MutationToken()),
 	}, nil
 }
 
@@ -131,7 +132,8 @@ func (s *couchbaseServer) Upsert(ctx context.Context, in *protos.UpsertRequest) 
 	}
 
 	return &protos.UpsertResponse{
-		Cas: casToPs(result.Cas()),
+		Cas:           casToPs(result.Cas()),
+		MutationToken: tokenToPs(result.MutationToken()),
 	}, nil
 }
 
@@ -176,7 +178,8 @@ func (s *couchbaseServer) Replace(ctx context.Context, in *protos.ReplaceRequest
 	}
 
 	return &protos.ReplaceResponse{
-		Cas: casToPs(result.Cas()),
+		Cas:           casToPs(result.Cas()),
+		MutationToken: tokenToPs(result.MutationToken()),
 	}, nil
 }
 
@@ -210,7 +213,8 @@ func (s *couchbaseServer) Remove(ctx context.Context, in *protos.RemoveRequest) 
 	}
 
 	return &protos.RemoveResponse{
-		Cas: casToPs(result.Cas()),
+		Cas:           casToPs(result.Cas()),
+		MutationToken: tokenToPs(result.MutationToken()),
 	}, nil
 }
 
@@ -249,8 +253,9 @@ func (s *couchbaseServer) Increment(ctx context.Context, in *protos.IncrementReq
 	}
 
 	return &protos.IncrementResponse{
-		Cas:     casToPs(result.Cas()),
-		Content: int64(result.Content()),
+		Cas:           casToPs(result.Cas()),
+		Content:       int64(result.Content()),
+		MutationToken: tokenToPs(result.MutationToken()),
 	}, nil
 }
 
@@ -289,8 +294,9 @@ func (s *couchbaseServer) Decrement(ctx context.Context, in *protos.DecrementReq
 	}
 
 	return &protos.DecrementResponse{
-		Cas:     casToPs(result.Cas()),
-		Content: int64(result.Content()),
+		Cas:           casToPs(result.Cas()),
+		Content:       int64(result.Content()),
+		MutationToken: tokenToPs(result.MutationToken()),
 	}, nil
 }
 
@@ -327,7 +333,8 @@ func (s *couchbaseServer) Append(ctx context.Context, in *protos.AppendRequest) 
 	}
 
 	return &protos.AppendResponse{
-		Cas: casToPs(result.Cas()),
+		Cas:           casToPs(result.Cas()),
+		MutationToken: tokenToPs(result.MutationToken()),
 	}, nil
 }
 
@@ -364,7 +371,8 @@ func (s *couchbaseServer) Prepend(ctx context.Context, in *protos.PrependRequest
 	}
 
 	return &protos.PrependResponse{
-		Cas: casToPs(result.Cas()),
+		Cas:           casToPs(result.Cas()),
+		MutationToken: tokenToPs(result.MutationToken()),
 	}, nil
 }
 
@@ -590,8 +598,9 @@ func (s *couchbaseServer) MutateIn(ctx context.Context, in *protos.MutateInReque
 	}
 
 	return &protos.MutateInResponse{
-		Specs: respSpecs,
-		Cas:   casToPs(result.Cas()),
+		Specs:         respSpecs,
+		Cas:           casToPs(result.Cas()),
+		MutationToken: tokenToPs(result.MutationToken()),
 	}, nil
 }
 
