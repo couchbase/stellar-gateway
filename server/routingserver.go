@@ -4,16 +4,16 @@ import (
 	"log"
 	"time"
 
-	"github.com/couchbase/stellar-nebula/protos"
+	routing_v1 "github.com/couchbase/stellar-nebula/genproto/routing/v1"
 )
 
 type routingServer struct {
-	protos.UnimplementedRoutingServer
+	routing_v1.UnimplementedRoutingServer
 
 	topologyManager *TopologyManager
 }
 
-func (s *routingServer) WatchRouting(in *protos.WatchRoutingRequest, out protos.Routing_WatchRoutingServer) error {
+func (s *routingServer) WatchRouting(in *routing_v1.WatchRoutingRequest, out routing_v1.Routing_WatchRoutingServer) error {
 	// TODO(brett19): Implement proper topology updates...
 	// For now we just fill out the entiry topology such that all the endpoints
 	// point back to this singular node which can handle all request types.  Note
@@ -23,21 +23,21 @@ topologyLoop:
 	for {
 		topology := s.topologyManager.GetTopology()
 
-		err := out.Send(&protos.WatchRoutingResponse{
+		err := out.Send(&routing_v1.WatchRoutingResponse{
 			Endpoints: topology.Endpoints,
-			KvRouting: &protos.WatchRoutingResponse_VbucketRouting{
-				VbucketRouting: &protos.VbucketMapRouting{
+			KvRouting: &routing_v1.WatchRoutingResponse_VbucketRouting{
+				VbucketRouting: &routing_v1.VbucketMapRouting{
 					Endpoints: topology.Endpoints,
 					Vbuckets:  nil,
 				},
 			},
-			QueryRouting: &protos.QueryRouting{
+			QueryRouting: &routing_v1.QueryRouting{
 				Endpoints: topology.Endpoints,
 			},
-			SearchQueryRouting: &protos.SearchQueryRouting{
+			SearchQueryRouting: &routing_v1.SearchQueryRouting{
 				Endpoints: topology.Endpoints,
 			},
-			AnalyticsQueryRouting: &protos.AnalyticsQueryRouting{
+			AnalyticsQueryRouting: &routing_v1.AnalyticsQueryRouting{
 				Endpoints: topology.Endpoints,
 			},
 		})

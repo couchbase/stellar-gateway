@@ -6,7 +6,8 @@ import (
 	"log"
 	"time"
 
-	"github.com/couchbase/stellar-nebula/protos"
+	routing_v1 "github.com/couchbase/stellar-nebula/genproto/routing/v1"
+	couchbase_v1 "github.com/couchbase/stellar-nebula/genproto/v1"
 	"google.golang.org/grpc/status"
 
 	gocbps "github.com/couchbase/stellar-nebula/test-client"
@@ -28,9 +29,9 @@ func main() {
 	// testing of some routing stuff
 	{
 		conn := client.GetConn()
-		rc := protos.NewRoutingClient(conn)
+		rc := routing_v1.NewRoutingClient(conn)
 
-		wr, err := rc.WatchRouting(ctx, &protos.WatchRoutingRequest{})
+		wr, err := rc.WatchRouting(ctx, &routing_v1.WatchRoutingRequest{})
 		if err != nil {
 			log.Fatalf("failed to watch routing: %s", err)
 		}
@@ -71,7 +72,7 @@ func main() {
 		if st, ok := status.FromError(err); ok {
 			for _, detail := range st.Details() {
 				switch typedDetail := detail.(type) {
-				case *protos.ErrorInfo:
+				case *couchbase_v1.ErrorInfo:
 					log.Printf("error details: %+v", typedDetail)
 				}
 			}

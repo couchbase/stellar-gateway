@@ -4,11 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/couchbase/stellar-nebula/protos"
-	"google.golang.org/protobuf/types/known/durationpb"
 	"io"
 	"strings"
 	"time"
+
+	query_v1 "github.com/couchbase/stellar-nebula/genproto/query/v1"
+	couchbase_v1 "github.com/couchbase/stellar-nebula/genproto/v1"
+	"google.golang.org/protobuf/types/known/durationpb"
 )
 
 type QueryScanConsistency uint
@@ -72,7 +74,7 @@ type QueryMetaData struct {
 }
 
 type QueryResult struct {
-	client protos.Couchbase_QueryClient
+	client query_v1.Query_QueryClient
 
 	rowCounter int
 	nextRows   [][]byte
@@ -80,7 +82,7 @@ type QueryResult struct {
 	err        error
 }
 
-func (r *QueryResult) populateMeta(metadata *protos.QueryResponse_MetaData) {
+func (r *QueryResult) populateMeta(metadata *query_v1.QueryResponse_MetaData) {
 	meta := &QueryMetaData{
 		RequestID:       metadata.RequestId,
 		ClientContextID: metadata.ClientContextId,
@@ -189,7 +191,7 @@ func (c *Client) Query(ctx context.Context, statement string, opts *QueryOptions
 		opts = &QueryOptions{}
 	}
 
-	req := &protos.QueryRequest{
+	req := &query_v1.QueryRequest{
 		Statement: statement,
 	}
 	if opts.ClientContextID != "" {
@@ -208,24 +210,24 @@ func (c *Client) Query(ctx context.Context, statement string, opts *QueryOptions
 	req.Prepared = &prepared
 
 	if opts.ScanConsistency > 0 {
-		var consistency protos.QueryRequest_QueryScanConsistency
+		var consistency query_v1.QueryRequest_QueryScanConsistency
 		switch opts.ScanConsistency {
 		case QueryScanConsistencyNotBounded:
-			consistency = protos.QueryRequest_NOT_BOUNDED
+			consistency = query_v1.QueryRequest_NOT_BOUNDED
 		case QueryScanConsistencyRequestPlus:
-			consistency = protos.QueryRequest_REQUEST_PLUS
+			consistency = query_v1.QueryRequest_REQUEST_PLUS
 		}
 		req.ScanConsistency = &consistency
 	}
 	if opts.Profile != "" {
-		var profile protos.QueryRequest_QueryProfileMode
+		var profile query_v1.QueryRequest_QueryProfileMode
 		switch opts.Profile {
 		case QueryProfileModeNone:
-			profile = protos.QueryRequest_OFF
+			profile = query_v1.QueryRequest_OFF
 		case QueryProfileModePhases:
-			profile = protos.QueryRequest_PHASES
+			profile = query_v1.QueryRequest_PHASES
 		case QueryProfileModeTimings:
-			profile = protos.QueryRequest_TIMINGS
+			profile = query_v1.QueryRequest_TIMINGS
 		}
 		req.ProfileMode = &profile
 	}
@@ -255,7 +257,7 @@ func (c *Client) Query(ctx context.Context, statement string, opts *QueryOptions
 
 		req.PositionalParameters = params
 	}
-	req.TuningOptions = &protos.QueryRequest_TuningOptions{}
+	req.TuningOptions = &query_v1.QueryRequest_TuningOptions{}
 	if opts.MaxParallelism > 0 {
 		req.TuningOptions.MaxParallelism = &opts.MaxParallelism
 	}
@@ -275,21 +277,21 @@ func (c *Client) Query(ctx context.Context, statement string, opts *QueryOptions
 	req.TuningOptions.DisableMetrics = &disableMetrics
 
 	if opts.ConsistentWith != nil {
-		tokens := make([]*protos.MutationToken, len(opts.ConsistentWith.Tokens))
+		tokens := make([]*couchbase_v1.MutationToken, len(opts.ConsistentWith.Tokens))
 		for i, token := range opts.ConsistentWith.Tokens {
-			tokens[i] = &protos.MutationToken{
+			tokens[i] = &couchbase_v1.MutationToken{
 				BucketName:  token.BucketName,
 				VbucketId:   uint32(token.VbID),
 				VbucketUuid: token.VbUUID,
 				SeqNo:       token.SeqNo,
 			}
 		}
-		req.ConsistentWith = &protos.MutationState{
+		req.ConsistentWith = &couchbase_v1.MutationState{
 			Tokens: tokens,
 		}
 	}
 
-	res, err := c.couchbaseClient.Query(ctx, req)
+	res, err := c.queryClient.Query(ctx, req)
 	if err != nil {
 		return nil, err
 	}

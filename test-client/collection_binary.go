@@ -2,8 +2,10 @@ package gocbps
 
 import (
 	"context"
-	"github.com/couchbase/stellar-nebula/protos"
 	"time"
+
+	data_v1 "github.com/couchbase/stellar-nebula/genproto/data/v1"
+	couchbase_v1 "github.com/couchbase/stellar-nebula/genproto/v1"
 )
 
 type CollectionBinary struct {
@@ -30,14 +32,14 @@ func (c *CollectionBinary) Append(ctx context.Context, id string, content []byte
 	}
 	client, bucketName, scopeName, collName := c.collection.getClient()
 
-	var cas *protos.Cas
+	var cas *couchbase_v1.Cas
 	if opts.Cas > 0 {
-		cas = &protos.Cas{
+		cas = &couchbase_v1.Cas{
 			Value: uint64(opts.Cas),
 		}
 	}
 
-	req := &protos.AppendRequest{
+	req := &data_v1.AppendRequest{
 		BucketName:     bucketName,
 		ScopeName:      scopeName,
 		CollectionName: collName,
@@ -47,20 +49,20 @@ func (c *CollectionBinary) Append(ctx context.Context, id string, content []byte
 	}
 
 	if opts.DurabilityLevel != DurabilityLevelUnknown {
-		req.DurabilitySpec = &protos.AppendRequest_DurabilityLevel{
+		req.DurabilitySpec = &data_v1.AppendRequest_DurabilityLevel{
 			DurabilityLevel: *opts.DurabilityLevel.toProto(),
 		}
 	}
 	if opts.ReplicateTo > 0 || opts.PersistTo > 0 {
-		req.DurabilitySpec = &protos.AppendRequest_LegacyDurabilitySpec{
-			LegacyDurabilitySpec: &protos.LegacyDurabilitySpec{
+		req.DurabilitySpec = &data_v1.AppendRequest_LegacyDurabilitySpec{
+			LegacyDurabilitySpec: &data_v1.LegacyDurabilitySpec{
 				NumPersisted:  opts.PersistTo,
 				NumReplicated: opts.ReplicateTo,
 			},
 		}
 	}
 
-	resp, err := client.couchbaseClient.Append(ctx, req)
+	resp, err := client.dataClient.Append(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -85,14 +87,14 @@ func (c *CollectionBinary) Prepend(ctx context.Context, id string, content []byt
 	}
 	client, bucketName, scopeName, collName := c.collection.getClient()
 
-	var cas *protos.Cas
+	var cas *couchbase_v1.Cas
 	if opts.Cas > 0 {
-		cas = &protos.Cas{
+		cas = &couchbase_v1.Cas{
 			Value: uint64(opts.Cas),
 		}
 	}
 
-	req := &protos.PrependRequest{
+	req := &data_v1.PrependRequest{
 		BucketName:     bucketName,
 		ScopeName:      scopeName,
 		CollectionName: collName,
@@ -102,20 +104,20 @@ func (c *CollectionBinary) Prepend(ctx context.Context, id string, content []byt
 	}
 
 	if opts.DurabilityLevel != DurabilityLevelUnknown {
-		req.DurabilitySpec = &protos.PrependRequest_DurabilityLevel{
+		req.DurabilitySpec = &data_v1.PrependRequest_DurabilityLevel{
 			DurabilityLevel: *opts.DurabilityLevel.toProto(),
 		}
 	}
 	if opts.ReplicateTo > 0 || opts.PersistTo > 0 {
-		req.DurabilitySpec = &protos.PrependRequest_LegacyDurabilitySpec{
-			LegacyDurabilitySpec: &protos.LegacyDurabilitySpec{
+		req.DurabilitySpec = &data_v1.PrependRequest_LegacyDurabilitySpec{
+			LegacyDurabilitySpec: &data_v1.LegacyDurabilitySpec{
 				NumPersisted:  opts.PersistTo,
 				NumReplicated: opts.ReplicateTo,
 			},
 		}
 	}
 
-	resp, err := client.couchbaseClient.Prepend(ctx, req)
+	resp, err := client.dataClient.Prepend(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -148,7 +150,7 @@ func (c *CollectionBinary) Increment(ctx context.Context, id string, opts *Incre
 	}
 	client, bucketName, scopeName, collName := c.collection.getClient()
 
-	req := &protos.IncrementRequest{
+	req := &data_v1.IncrementRequest{
 		BucketName:     bucketName,
 		ScopeName:      scopeName,
 		CollectionName: collName,
@@ -158,13 +160,13 @@ func (c *CollectionBinary) Increment(ctx context.Context, id string, opts *Incre
 	}
 
 	if opts.DurabilityLevel != DurabilityLevelUnknown {
-		req.DurabilitySpec = &protos.IncrementRequest_DurabilityLevel{
+		req.DurabilitySpec = &data_v1.IncrementRequest_DurabilityLevel{
 			DurabilityLevel: *opts.DurabilityLevel.toProto(),
 		}
 	}
 	if opts.ReplicateTo > 0 || opts.PersistTo > 0 {
-		req.DurabilitySpec = &protos.IncrementRequest_LegacyDurabilitySpec{
-			LegacyDurabilitySpec: &protos.LegacyDurabilitySpec{
+		req.DurabilitySpec = &data_v1.IncrementRequest_LegacyDurabilitySpec{
+			LegacyDurabilitySpec: &data_v1.LegacyDurabilitySpec{
 				NumPersisted:  opts.PersistTo,
 				NumReplicated: opts.ReplicateTo,
 			},
@@ -174,7 +176,7 @@ func (c *CollectionBinary) Increment(ctx context.Context, id string, opts *Incre
 		req.Initial = opts.Initial
 	}
 
-	resp, err := client.couchbaseClient.Increment(ctx, req)
+	resp, err := client.dataClient.Increment(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -202,7 +204,7 @@ func (c *CollectionBinary) Decrement(ctx context.Context, id string, opts *Decre
 	}
 	client, bucketName, scopeName, collName := c.collection.getClient()
 
-	req := &protos.DecrementRequest{
+	req := &data_v1.DecrementRequest{
 		BucketName:     bucketName,
 		ScopeName:      scopeName,
 		CollectionName: collName,
@@ -212,13 +214,13 @@ func (c *CollectionBinary) Decrement(ctx context.Context, id string, opts *Decre
 	}
 
 	if opts.DurabilityLevel != DurabilityLevelUnknown {
-		req.DurabilitySpec = &protos.DecrementRequest_DurabilityLevel{
+		req.DurabilitySpec = &data_v1.DecrementRequest_DurabilityLevel{
 			DurabilityLevel: *opts.DurabilityLevel.toProto(),
 		}
 	}
 	if opts.ReplicateTo > 0 || opts.PersistTo > 0 {
-		req.DurabilitySpec = &protos.DecrementRequest_LegacyDurabilitySpec{
-			LegacyDurabilitySpec: &protos.LegacyDurabilitySpec{
+		req.DurabilitySpec = &data_v1.DecrementRequest_LegacyDurabilitySpec{
+			LegacyDurabilitySpec: &data_v1.LegacyDurabilitySpec{
 				NumPersisted:  opts.PersistTo,
 				NumReplicated: opts.ReplicateTo,
 			},
@@ -228,7 +230,7 @@ func (c *CollectionBinary) Decrement(ctx context.Context, id string, opts *Decre
 		req.Initial = opts.Initial
 	}
 
-	resp, err := client.couchbaseClient.Decrement(ctx, req)
+	resp, err := client.dataClient.Decrement(ctx, req)
 	if err != nil {
 		return nil, err
 	}

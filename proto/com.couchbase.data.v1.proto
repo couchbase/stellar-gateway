@@ -1,22 +1,13 @@
 syntax = "proto3";
 
-option go_package = "github.com/couchbase/stellar-nebula/protos";
+option go_package = "github.com/couchbase/stellar-nebula/genproto/data/v1;data_v1";
 
-package com.couchbase.v1;
+package com.couchbase.data.v1;
 
 import "google/protobuf/timestamp.proto";
-import "google/protobuf/duration.proto";
+import "proto/com.couchbase.v1.proto";
 
-// This is a placeholder for some additional error details, ideally we will
-// likely have a few different blocks of error data depending on the error type.
-message ErrorInfo {
-  string reason = 1;
-  map<string, string> metadata = 2;
-}
-
-service Couchbase {
-  rpc Hello(HelloRequest) returns (HelloResponse) {}
-
+service Data {
   rpc Get(GetRequest) returns (GetResponse) {}
   rpc GetAndTouch(GetAndTouchRequest) returns (GetResponse) {}
   rpc GetAndLock(GetAndLockRequest) returns (GetResponse) {}
@@ -36,22 +27,8 @@ service Couchbase {
   rpc LookupIn(LookupInRequest) returns (LookupInResponse) {}
   rpc MutateIn(MutateInRequest) returns (MutateInResponse) {}
 
-  rpc Query(QueryRequest) returns (stream QueryResponse) {}
-  rpc SearchQuery(SearchQueryRequest) returns (stream SearchQueryResponse) {}
-  rpc AnalyticsQuery(AnalyticsQueryRequest)
-      returns (stream AnalyticsQueryResponse) {}
+  rpc RangeScan(RangeScanRequest) returns (RangeScanResponse) {}
 }
-
-message Cas { uint64 Value = 1; }
-
-message MutationToken {
-  string bucket_name = 1;
-  uint32 vbucket_id = 2;
-  uint64 vbucket_uuid = 3;
-  uint64 seq_no = 4;
-}
-
-message MutationState { repeated MutationToken mutation_tokens = 1; }
 
 enum DurabilityLevel {
   MAJORITY = 0;
@@ -80,10 +57,6 @@ enum DocumentCompressionType {
 
   SNAPPY = 1;
 }
-
-message HelloRequest {}
-
-message HelloResponse {}
 
 message GetRequest {
   string bucket_name = 1;
@@ -120,7 +93,7 @@ message GetResponse {
   bytes content = 1;
   DocumentContentType content_type = 2;
   DocumentCompressionType compression_type = 5;
-  Cas cas = 3;
+  com.couchbase.v1.Cas cas = 3;
   optional google.protobuf.Timestamp expiry = 4;
 }
 
@@ -129,7 +102,7 @@ message UnlockRequest {
   string scope_name = 2;
   string collection_name = 3;
   string key = 4;
-  Cas cas = 5;
+  com.couchbase.v1.Cas cas = 5;
 }
 
 message UnlockResponse {}
@@ -143,8 +116,8 @@ message TouchRequest {
 }
 
 message TouchResponse {
-  Cas cas = 1;
-  MutationToken mutation_token = 2;
+  com.couchbase.v1.Cas cas = 1;
+  com.couchbase.v1.MutationToken mutation_token = 2;
 }
 
 message ExistsRequest {
@@ -156,7 +129,7 @@ message ExistsRequest {
 
 message ExistsResponse {
   bool result = 1;
-  Cas cas = 2;
+  com.couchbase.v1.Cas cas = 2;
 }
 
 message InsertRequest {
@@ -174,8 +147,8 @@ message InsertRequest {
 }
 
 message InsertResponse {
-  Cas Cas = 1;
-  MutationToken mutation_token = 2;
+  com.couchbase.v1.Cas cas = 1;
+  com.couchbase.v1.MutationToken mutation_token = 2;
 }
 
 message UpsertRequest {
@@ -193,8 +166,8 @@ message UpsertRequest {
 }
 
 message UpsertResponse {
-  Cas cas = 1;
-  MutationToken mutation_token = 2;
+  com.couchbase.v1.Cas cas = 1;
+  com.couchbase.v1.MutationToken mutation_token = 2;
 }
 
 message ReplaceRequest {
@@ -204,7 +177,7 @@ message ReplaceRequest {
   string key = 4;
   bytes content = 5;
   DocumentContentType content_type = 6;
-  optional Cas cas = 7;
+  optional com.couchbase.v1.Cas cas = 7;
   optional google.protobuf.Timestamp expiry = 8;
   oneof durability_spec {
     LegacyDurabilitySpec legacy_durability_spec = 9;
@@ -213,8 +186,8 @@ message ReplaceRequest {
 }
 
 message ReplaceResponse {
-  Cas cas = 1;
-  MutationToken mutation_token = 2;
+  com.couchbase.v1.Cas cas = 1;
+  com.couchbase.v1.MutationToken mutation_token = 2;
 }
 
 message RemoveRequest {
@@ -222,7 +195,7 @@ message RemoveRequest {
   string scope_name = 2;
   string collection_name = 3;
   string key = 4;
-  optional Cas cas = 5;
+  optional com.couchbase.v1.Cas cas = 5;
   oneof durability_spec {
     LegacyDurabilitySpec legacy_durability_spec = 6;
     DurabilityLevel durability_level = 7;
@@ -230,8 +203,8 @@ message RemoveRequest {
 }
 
 message RemoveResponse {
-  Cas cas = 1;
-  MutationToken mutation_token = 2;
+  com.couchbase.v1.Cas cas = 1;
+  com.couchbase.v1.MutationToken mutation_token = 2;
 }
 
 message IncrementRequest {
@@ -249,9 +222,9 @@ message IncrementRequest {
 }
 
 message IncrementResponse {
-  Cas cas = 1;
+  com.couchbase.v1.Cas cas = 1;
   int64 content = 2;
-  MutationToken mutation_token = 3;
+  com.couchbase.v1.MutationToken mutation_token = 3;
 }
 
 message DecrementRequest {
@@ -269,9 +242,9 @@ message DecrementRequest {
 }
 
 message DecrementResponse {
-  Cas cas = 1;
+  com.couchbase.v1.Cas cas = 1;
   int64 content = 2;
-  MutationToken mutation_token = 3;
+  com.couchbase.v1.MutationToken mutation_token = 3;
 }
 
 message AppendRequest {
@@ -280,7 +253,7 @@ message AppendRequest {
   string collection_name = 3;
   string key = 4;
   bytes content = 5;
-  optional Cas cas = 6;
+  optional com.couchbase.v1.Cas cas = 6;
   oneof durability_spec {
     LegacyDurabilitySpec legacy_durability_spec = 7;
     DurabilityLevel durability_level = 8;
@@ -288,8 +261,8 @@ message AppendRequest {
 }
 
 message AppendResponse {
-  Cas cas = 1;
-  MutationToken mutation_token = 2;
+  com.couchbase.v1.Cas cas = 1;
+  com.couchbase.v1.MutationToken mutation_token = 2;
 }
 
 message PrependRequest {
@@ -298,7 +271,7 @@ message PrependRequest {
   string collection_name = 3;
   string key = 4;
   bytes content = 5;
-  optional Cas cas = 6;
+  optional com.couchbase.v1.Cas cas = 6;
   oneof durability_spec {
     LegacyDurabilitySpec legacy_durability_spec = 7;
     DurabilityLevel durability_level = 8;
@@ -306,8 +279,8 @@ message PrependRequest {
 }
 
 message PrependResponse {
-  Cas cas = 1;
-  MutationToken mutation_token = 2;
+  com.couchbase.v1.Cas cas = 1;
+  com.couchbase.v1.MutationToken mutation_token = 2;
 }
 
 message LookupInRequest {
@@ -343,7 +316,7 @@ message LookupInResponse {
   }
   repeated Spec specs = 1;
 
-  Cas cas = 2;
+  com.couchbase.v1.Cas cas = 2;
 }
 
 message MutateInRequest {
@@ -390,7 +363,7 @@ message MutateInRequest {
     DurabilityLevel durability_level = 8;
   }
 
-  optional Cas cas = 9;
+  optional com.couchbase.v1.Cas cas = 9;
 
   message Flags { optional bool access_deleted = 1; }
   optional Flags flags = 10;
@@ -400,151 +373,8 @@ message MutateInResponse {
   message Spec { optional bytes content = 1; }
   repeated Spec specs = 1;
 
-  Cas cas = 2;
-  MutationToken mutation_token = 3;
-}
-
-message QueryRequest {
-  optional string bucket_name = 7;
-  optional string scope_name = 8;
-  string statement = 1;
-
-  optional bool read_only = 2;
-  optional bool prepared = 3;
-
-  message TuningOptions {
-    optional uint32 max_parallelism = 1;
-    optional uint32 pipeline_batch = 2;
-    optional uint32 pipeline_cap = 3;
-    optional google.protobuf.Duration scan_wait = 4;
-    optional uint32 scan_cap = 5;
-    optional bool disable_metrics = 6;
-  }
-  optional TuningOptions tuning_options = 4;
-
-  optional string client_context_id = 5;
-
-  enum QueryScanConsistency {
-    NOT_BOUNDED = 0;
-    REQUEST_PLUS = 1;
-  }
-  optional QueryScanConsistency scan_consistency = 6;
-  repeated bytes positional_parameters = 7;
-  map<string, bytes> named_parameters = 8;
-  optional bool flex_index = 9;
-  optional bool preserve_expiry = 10;
-  optional MutationState consistent_with = 11;
-
-  enum QueryProfileMode {
-    OFF = 0;
-    PHASES = 1;
-    TIMINGS = 2;
-  }
-  optional QueryProfileMode profile_mode = 12;
-}
-
-message QueryResponse {
-  repeated bytes rows = 1;
-
-  message MetaData {
-    message Warning {
-      uint32 code = 1;
-      string message = 2;
-    }
-
-    enum MetaDataStatus {
-      RUNNING = 0;
-      SUCCESS = 1;
-      ERRORS = 2;
-      COMPLETED = 3;
-      STOPPED = 4;
-      TIMEOUT = 5;
-      CLOSED = 6;
-      FATAL = 7;
-      ABORTED = 8;
-      UNKNOWN = 9;
-    }
-
-    string request_id = 1;
-    string client_context_id = 2;
-
-    message Metrics {
-      google.protobuf.Duration elapsed_time = 1;
-      google.protobuf.Duration execution_time = 2;
-      uint64 result_count = 3;
-      uint64 result_size = 4;
-      uint64 mutation_count = 5;
-      uint64 sort_count = 6;
-      uint64 error_count = 7;
-      uint64 warning_count = 8;
-    }
-    optional Metrics metrics = 3;
-    MetaDataStatus status = 4;
-    repeated Warning warnings = 5;
-    optional bytes profile = 6;
-    bytes signature = 7;
-  }
-  optional MetaData meta_data = 2;
-}
-
-message SearchQueryRequest {
-  string bucket_name = 1;
-  string scope_name = 2;
-  string index_name = 3;
-  // stuff
-}
-
-message SearchQueryResponse {
-  // stuff
-}
-
-message AnalyticsQueryRequest {
-  optional string bucket_name = 8;
-  optional string scope_name = 9;
-  string statement = 1;
-
-  optional bool read_only = 2;
-  optional string client_context_id = 3;
-  optional bool priority = 4;
-
-  enum ScanConsistency {
-    NOT_BOUNDED = 0;
-    REQUEST_PLUS = 1;
-  }
-  optional ScanConsistency scan_consistency = 5;
-  repeated bytes positional_parameters = 6;
-  map<string, bytes> named_parameters = 7;
-}
-
-message AnalyticsQueryResponse {
-  repeated bytes rows = 1;
-
-  message Metrics {
-    google.protobuf.Duration elapsed_time = 1;
-    google.protobuf.Duration execution_time = 2;
-    uint64 result_count = 3;
-    uint64 result_size = 4;
-    uint64 mutation_count = 5;
-    uint64 sort_count = 6;
-    uint64 error_count = 7;
-    uint64 warning_count = 8;
-    uint64 processed_objects = 9;
-  }
-
-  message MetaData {
-    message Warning {
-      uint32 code = 1;
-      string message = 2;
-    }
-
-    string request_id = 1;
-    string client_context_id = 2;
-    Metrics metrics = 3;
-    bytes signature = 4;
-    repeated Warning warnings = 5;
-    string status = 6;
-  }
-  optional MetaData meta_data = 2;
+  com.couchbase.v1.Cas cas = 2;
+  com.couchbase.v1.MutationToken mutation_token = 3;
 }
 
 message RangeScanRequest {

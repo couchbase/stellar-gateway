@@ -6,7 +6,12 @@ import (
 	"log"
 	"strings"
 
-	"github.com/couchbase/stellar-nebula/protos"
+	analytics_v1 "github.com/couchbase/stellar-nebula/genproto/analytics/v1"
+	data_v1 "github.com/couchbase/stellar-nebula/genproto/data/v1"
+	query_v1 "github.com/couchbase/stellar-nebula/genproto/query/v1"
+	routing_v1 "github.com/couchbase/stellar-nebula/genproto/routing/v1"
+	search_v1 "github.com/couchbase/stellar-nebula/genproto/search/v1"
+	couchbase_v1 "github.com/couchbase/stellar-nebula/genproto/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
@@ -14,8 +19,12 @@ import (
 
 type Client struct {
 	conn            *grpc.ClientConn
-	couchbaseClient protos.CouchbaseClient
-	routingClient   protos.RoutingClient
+	couchbaseClient couchbase_v1.CouchbaseClient
+	routingClient   routing_v1.RoutingClient
+	dataClient      data_v1.DataClient
+	queryClient     query_v1.QueryClient
+	searchClient    search_v1.SearchClient
+	analyticsClient analytics_v1.AnalyticsClient
 }
 
 type ConnectOptions struct {
@@ -63,11 +72,15 @@ func Connect(connStr string, opts *ConnectOptions) (*Client, error) {
 		return nil, err
 	}
 
-	couchbaseClient := protos.NewCouchbaseClient(conn)
-	routingClient := protos.NewRoutingClient(conn)
+	couchbaseClient := couchbase_v1.NewCouchbaseClient(conn)
+	routingClient := routing_v1.NewRoutingClient(conn)
+	dataClient := data_v1.NewDataClient(conn)
+	queryClient := query_v1.NewQueryClient(conn)
+	searchClient := search_v1.NewSearchClient(conn)
+	analyticsClient := analytics_v1.NewAnalyticsClient(conn)
 
 	// this is our version of checking auth credentials
-	_, err = couchbaseClient.Hello(context.Background(), &protos.HelloRequest{})
+	_, err = couchbaseClient.Hello(context.Background(), &couchbase_v1.HelloRequest{})
 	if err != nil {
 		closeErr := conn.Close()
 		if closeErr != nil {
@@ -81,6 +94,10 @@ func Connect(connStr string, opts *ConnectOptions) (*Client, error) {
 		conn:            conn,
 		couchbaseClient: couchbaseClient,
 		routingClient:   routingClient,
+		dataClient:      dataClient,
+		queryClient:     queryClient,
+		searchClient:    searchClient,
+		analyticsClient: analyticsClient,
 	}, nil
 }
 

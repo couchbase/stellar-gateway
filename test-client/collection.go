@@ -4,7 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/couchbase/stellar-nebula/protos"
+	data_v1 "github.com/couchbase/stellar-nebula/genproto/data/v1"
+	couchbase_v1 "github.com/couchbase/stellar-nebula/genproto/v1"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -34,14 +35,14 @@ func (c *Collection) Get(ctx context.Context, id string, opts *GetOptions) (*Get
 	}
 	client, bucketName, scopeName, collName := c.getClient()
 
-	req := &protos.GetRequest{
+	req := &data_v1.GetRequest{
 		BucketName:     bucketName,
 		ScopeName:      scopeName,
 		CollectionName: collName,
 		Key:            id,
 	}
 
-	resp, err := client.couchbaseClient.Get(ctx, req)
+	resp, err := client.dataClient.Get(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -66,14 +67,14 @@ func (c *Collection) Exists(ctx context.Context, id string, opts *ExistsOptions)
 	}
 	client, bucketName, scopeName, collName := c.getClient()
 
-	req := &protos.ExistsRequest{
+	req := &data_v1.ExistsRequest{
 		BucketName:     bucketName,
 		ScopeName:      scopeName,
 		CollectionName: collName,
 		Key:            id,
 	}
 
-	resp, err := client.couchbaseClient.Exists(ctx, req)
+	resp, err := client.dataClient.Exists(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -93,7 +94,7 @@ func (c *Collection) GetAndTouch(ctx context.Context, id string, expiry time.Dur
 	}
 	client, bucketName, scopeName, collName := c.getClient()
 
-	req := &protos.GetAndTouchRequest{
+	req := &data_v1.GetAndTouchRequest{
 		BucketName:     bucketName,
 		ScopeName:      scopeName,
 		CollectionName: collName,
@@ -101,7 +102,7 @@ func (c *Collection) GetAndTouch(ctx context.Context, id string, expiry time.Dur
 		Expiry:         durationToTimestamp(expiry),
 	}
 
-	resp, err := client.couchbaseClient.GetAndTouch(ctx, req)
+	resp, err := client.dataClient.GetAndTouch(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -121,7 +122,7 @@ func (c *Collection) GetAndLock(ctx context.Context, id string, lockTime time.Du
 	}
 	client, bucketName, scopeName, collName := c.getClient()
 
-	req := &protos.GetAndLockRequest{
+	req := &data_v1.GetAndLockRequest{
 		BucketName:     bucketName,
 		ScopeName:      scopeName,
 		CollectionName: collName,
@@ -129,7 +130,7 @@ func (c *Collection) GetAndLock(ctx context.Context, id string, lockTime time.Du
 		LockTime:       uint32(lockTime / time.Second),
 	}
 
-	resp, err := client.couchbaseClient.GetAndLock(ctx, req)
+	resp, err := client.dataClient.GetAndLock(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -149,7 +150,7 @@ func (c *Collection) Unlock(ctx context.Context, id string, cas Cas, opts *Unloc
 	}
 	client, bucketName, scopeName, collName := c.getClient()
 
-	req := &protos.UnlockRequest{
+	req := &data_v1.UnlockRequest{
 		BucketName:     bucketName,
 		ScopeName:      scopeName,
 		CollectionName: collName,
@@ -157,7 +158,7 @@ func (c *Collection) Unlock(ctx context.Context, id string, cas Cas, opts *Unloc
 		Cas:            cas.toProto(),
 	}
 
-	_, err := client.couchbaseClient.Unlock(ctx, req)
+	_, err := client.dataClient.Unlock(ctx, req)
 	if err != nil {
 		return err
 	}
@@ -183,30 +184,30 @@ func (c *Collection) Upsert(ctx context.Context, id string, content []byte, opts
 	}
 	client, bucketName, scopeName, collName := c.getClient()
 
-	req := &protos.UpsertRequest{
+	req := &data_v1.UpsertRequest{
 		BucketName:     bucketName,
 		ScopeName:      scopeName,
 		CollectionName: collName,
 		Key:            id,
 		Content:        content,
-		ContentType:    protos.DocumentContentType_JSON,
+		ContentType:    data_v1.DocumentContentType_JSON,
 		Expiry:         durationToTimestamp(opts.Expiry),
 	}
 
 	if opts.DurabilityLevel != DurabilityLevelUnknown {
-		req.DurabilitySpec = &protos.UpsertRequest_DurabilityLevel{
+		req.DurabilitySpec = &data_v1.UpsertRequest_DurabilityLevel{
 			DurabilityLevel: *opts.DurabilityLevel.toProto(),
 		}
 	}
 	if opts.ReplicateTo > 0 || opts.PersistTo > 0 {
-		req.DurabilitySpec = &protos.UpsertRequest_LegacyDurabilitySpec{
-			LegacyDurabilitySpec: &protos.LegacyDurabilitySpec{
+		req.DurabilitySpec = &data_v1.UpsertRequest_LegacyDurabilitySpec{
+			LegacyDurabilitySpec: &data_v1.LegacyDurabilitySpec{
 				NumPersisted:  opts.PersistTo,
 				NumReplicated: opts.ReplicateTo,
 			},
 		}
 	}
-	resp, err := client.couchbaseClient.Upsert(ctx, req)
+	resp, err := client.dataClient.Upsert(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -230,31 +231,31 @@ func (c *Collection) Insert(ctx context.Context, id string, content []byte, opts
 	}
 	client, bucketName, scopeName, collName := c.getClient()
 
-	req := &protos.InsertRequest{
+	req := &data_v1.InsertRequest{
 		BucketName:     bucketName,
 		ScopeName:      scopeName,
 		CollectionName: collName,
 		Key:            id,
 		Content:        content,
-		ContentType:    protos.DocumentContentType_JSON,
+		ContentType:    data_v1.DocumentContentType_JSON,
 		Expiry:         durationToTimestamp(opts.Expiry),
 	}
 
 	if opts.DurabilityLevel != DurabilityLevelUnknown {
-		req.DurabilitySpec = &protos.InsertRequest_DurabilityLevel{
+		req.DurabilitySpec = &data_v1.InsertRequest_DurabilityLevel{
 			DurabilityLevel: *opts.DurabilityLevel.toProto(),
 		}
 	}
 	if opts.ReplicateTo > 0 || opts.PersistTo > 0 {
-		req.DurabilitySpec = &protos.InsertRequest_LegacyDurabilitySpec{
-			LegacyDurabilitySpec: &protos.LegacyDurabilitySpec{
+		req.DurabilitySpec = &data_v1.InsertRequest_LegacyDurabilitySpec{
+			LegacyDurabilitySpec: &data_v1.LegacyDurabilitySpec{
 				NumPersisted:  opts.PersistTo,
 				NumReplicated: opts.ReplicateTo,
 			},
 		}
 	}
 
-	resp, err := client.couchbaseClient.Insert(ctx, req)
+	resp, err := client.dataClient.Insert(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -279,39 +280,39 @@ func (c *Collection) Replace(ctx context.Context, id string, content []byte, opt
 	}
 	client, bucketName, scopeName, collName := c.getClient()
 
-	var cas *protos.Cas
+	var cas *couchbase_v1.Cas
 	if opts.Cas > 0 {
-		cas = &protos.Cas{
+		cas = &couchbase_v1.Cas{
 			Value: uint64(opts.Cas),
 		}
 	}
 
-	req := &protos.ReplaceRequest{
+	req := &data_v1.ReplaceRequest{
 		BucketName:     bucketName,
 		ScopeName:      scopeName,
 		CollectionName: collName,
 		Key:            id,
 		Content:        content,
-		ContentType:    protos.DocumentContentType_JSON,
+		ContentType:    data_v1.DocumentContentType_JSON,
 		Expiry:         durationToTimestamp(opts.Expiry),
 		Cas:            cas,
 	}
 
 	if opts.DurabilityLevel != DurabilityLevelUnknown {
-		req.DurabilitySpec = &protos.ReplaceRequest_DurabilityLevel{
+		req.DurabilitySpec = &data_v1.ReplaceRequest_DurabilityLevel{
 			DurabilityLevel: *opts.DurabilityLevel.toProto(),
 		}
 	}
 	if opts.ReplicateTo > 0 || opts.PersistTo > 0 {
-		req.DurabilitySpec = &protos.ReplaceRequest_LegacyDurabilitySpec{
-			LegacyDurabilitySpec: &protos.LegacyDurabilitySpec{
+		req.DurabilitySpec = &data_v1.ReplaceRequest_LegacyDurabilitySpec{
+			LegacyDurabilitySpec: &data_v1.LegacyDurabilitySpec{
 				NumPersisted:  opts.PersistTo,
 				NumReplicated: opts.ReplicateTo,
 			},
 		}
 	}
 
-	resp, err := client.couchbaseClient.Replace(ctx, req)
+	resp, err := client.dataClient.Replace(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -335,14 +336,14 @@ func (c *Collection) Remove(ctx context.Context, id string, opts *RemoveOptions)
 	}
 	client, bucketName, scopeName, collName := c.getClient()
 
-	var cas *protos.Cas
+	var cas *couchbase_v1.Cas
 	if opts.Cas > 0 {
-		cas = &protos.Cas{
+		cas = &couchbase_v1.Cas{
 			Value: uint64(opts.Cas),
 		}
 	}
 
-	req := &protos.RemoveRequest{
+	req := &data_v1.RemoveRequest{
 		BucketName:     bucketName,
 		ScopeName:      scopeName,
 		CollectionName: collName,
@@ -351,20 +352,20 @@ func (c *Collection) Remove(ctx context.Context, id string, opts *RemoveOptions)
 	}
 
 	if opts.DurabilityLevel != DurabilityLevelUnknown {
-		req.DurabilitySpec = &protos.RemoveRequest_DurabilityLevel{
+		req.DurabilitySpec = &data_v1.RemoveRequest_DurabilityLevel{
 			DurabilityLevel: *opts.DurabilityLevel.toProto(),
 		}
 	}
 	if opts.ReplicateTo > 0 || opts.PersistTo > 0 {
-		req.DurabilitySpec = &protos.RemoveRequest_LegacyDurabilitySpec{
-			LegacyDurabilitySpec: &protos.LegacyDurabilitySpec{
+		req.DurabilitySpec = &data_v1.RemoveRequest_LegacyDurabilitySpec{
+			LegacyDurabilitySpec: &data_v1.LegacyDurabilitySpec{
 				NumPersisted:  opts.PersistTo,
 				NumReplicated: opts.ReplicateTo,
 			},
 		}
 	}
 
-	resp, err := client.couchbaseClient.Remove(ctx, req)
+	resp, err := client.dataClient.Remove(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -384,7 +385,7 @@ func (c *Collection) Touch(ctx context.Context, id string, expiry time.Duration,
 	}
 	client, bucketName, scopeName, collName := c.getClient()
 
-	req := &protos.TouchRequest{
+	req := &data_v1.TouchRequest{
 		BucketName:     bucketName,
 		ScopeName:      scopeName,
 		CollectionName: collName,
@@ -392,7 +393,7 @@ func (c *Collection) Touch(ctx context.Context, id string, expiry time.Duration,
 		Expiry:         durationToTimestamp(expiry),
 	}
 
-	resp, err := client.couchbaseClient.Touch(ctx, req)
+	resp, err := client.dataClient.Touch(ctx, req)
 	if err != nil {
 		return nil, err
 	}

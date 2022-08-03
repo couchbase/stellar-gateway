@@ -4,9 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/couchbase/stellar-nebula/protos"
 	"io"
 	"time"
+
+	analytics_v1 "github.com/couchbase/stellar-nebula/genproto/analytics/v1"
 )
 
 type AnalyticsScanConsistency uint
@@ -51,7 +52,7 @@ type AnalyticsMetaData struct {
 }
 
 type AnalyticsQueryResult struct {
-	client protos.Couchbase_AnalyticsQueryClient
+	client analytics_v1.Analytics_AnalyticsQueryClient
 
 	rowCounter int
 	nextRows   [][]byte
@@ -59,7 +60,7 @@ type AnalyticsQueryResult struct {
 	err        error
 }
 
-func (r *AnalyticsQueryResult) populateMeta(metadata *protos.AnalyticsQueryResponse_MetaData) {
+func (r *AnalyticsQueryResult) populateMeta(metadata *analytics_v1.AnalyticsQueryResponse_MetaData) {
 	meta := &AnalyticsMetaData{
 		RequestID:       metadata.RequestId,
 		ClientContextID: metadata.ClientContextId,
@@ -166,7 +167,7 @@ func (c *Client) AnalyticsQuery(ctx context.Context, statement string, opts *Ana
 		opts = &AnalyticsQueryOptions{}
 	}
 
-	req := &protos.AnalyticsQueryRequest{
+	req := &analytics_v1.AnalyticsQueryRequest{
 		Statement: statement,
 	}
 	if opts.ClientContextID != "" {
@@ -179,12 +180,12 @@ func (c *Client) AnalyticsQuery(ctx context.Context, statement string, opts *Ana
 		req.Priority = &opts.Priority
 	}
 	if opts.ScanConsistency > 0 {
-		var consistency protos.AnalyticsQueryRequest_ScanConsistency
+		var consistency analytics_v1.AnalyticsQueryRequest_ScanConsistency
 		switch opts.ScanConsistency {
 		case AnalyticsScanConsistencyNotBounded:
-			consistency = protos.AnalyticsQueryRequest_NOT_BOUNDED
+			consistency = analytics_v1.AnalyticsQueryRequest_NOT_BOUNDED
 		case AnalyticsScanConsistencyRequestPlus:
-			consistency = protos.AnalyticsQueryRequest_REQUEST_PLUS
+			consistency = analytics_v1.AnalyticsQueryRequest_REQUEST_PLUS
 		}
 		req.ScanConsistency = &consistency
 	}
@@ -214,7 +215,7 @@ func (c *Client) AnalyticsQuery(ctx context.Context, statement string, opts *Ana
 
 		req.PositionalParameters = params
 	}
-	res, err := c.couchbaseClient.AnalyticsQuery(ctx, req)
+	res, err := c.analyticsClient.AnalyticsQuery(ctx, req)
 	if err != nil {
 		return nil, err
 	}

@@ -7,7 +7,8 @@ import (
 	"time"
 
 	"github.com/couchbase/gocb/v2"
-	"github.com/couchbase/stellar-nebula/protos"
+	data_v1 "github.com/couchbase/stellar-nebula/genproto/data/v1"
+	couchbase_v1 "github.com/couchbase/stellar-nebula/genproto/v1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/runtime/protoiface"
@@ -15,13 +16,13 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-func casToPs(cas gocb.Cas) *protos.Cas {
-	return &protos.Cas{
+func casToPs(cas gocb.Cas) *couchbase_v1.Cas {
+	return &couchbase_v1.Cas{
 		Value: uint64(cas),
 	}
 }
 
-func casFromPs(cas *protos.Cas) gocb.Cas {
+func casFromPs(cas *couchbase_v1.Cas) gocb.Cas {
 	return gocb.Cas(cas.Value)
 }
 
@@ -44,12 +45,12 @@ func durationFromPs(d *durationpb.Duration) time.Duration {
 	return d.AsDuration()
 }
 
-func tokenToPs(token *gocb.MutationToken) *protos.MutationToken {
+func tokenToPs(token *gocb.MutationToken) *couchbase_v1.MutationToken {
 	if token == nil {
 		return nil
 	}
 
-	return &protos.MutationToken{
+	return &couchbase_v1.MutationToken{
 		BucketName:  token.BucketName(),
 		VbucketId:   uint32(token.PartitionID()),
 		VbucketUuid: token.PartitionUUID(),
@@ -57,17 +58,17 @@ func tokenToPs(token *gocb.MutationToken) *protos.MutationToken {
 	}
 }
 
-func durabilityLevelFromPs(dl *protos.DurabilityLevel) (gocb.DurabilityLevel, *status.Status) {
+func durabilityLevelFromPs(dl *data_v1.DurabilityLevel) (gocb.DurabilityLevel, *status.Status) {
 	if dl == nil {
 		return gocb.DurabilityLevelNone, nil
 	}
 
 	switch *dl {
-	case protos.DurabilityLevel_MAJORITY:
+	case data_v1.DurabilityLevel_MAJORITY:
 		return gocb.DurabilityLevelMajority, nil
-	case protos.DurabilityLevel_MAJORITY_AND_PERSIST_TO_ACTIVE:
+	case data_v1.DurabilityLevel_MAJORITY_AND_PERSIST_TO_ACTIVE:
 		return gocb.DurabilityLevelMajorityAndPersistOnMaster, nil
-	case protos.DurabilityLevel_PERSIST_TO_MAJORITY:
+	case data_v1.DurabilityLevel_PERSIST_TO_MAJORITY:
 		return gocb.DurabilityLevelPersistToMajority, nil
 	}
 
@@ -82,7 +83,7 @@ func cbErrToPsStatus(err error) *status.Status {
 	var keyValueContext *gocb.KeyValueError
 	if errors.As(err, &keyValueContext) {
 		// TODO(bret19): Need to include more error context here
-		errorDetails = &protos.ErrorInfo{
+		errorDetails = &couchbase_v1.ErrorInfo{
 			Reason: keyValueContext.ErrorName,
 			Metadata: map[string]string{
 				"bucket":     keyValueContext.BucketName,

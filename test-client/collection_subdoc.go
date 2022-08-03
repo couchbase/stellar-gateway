@@ -2,7 +2,8 @@ package gocbps
 
 import (
 	"context"
-	"github.com/couchbase/stellar-nebula/protos"
+
+	data_v1 "github.com/couchbase/stellar-nebula/genproto/data/v1"
 )
 
 type LookupInOperation uint32
@@ -13,14 +14,14 @@ const (
 	LookupInOperationCount
 )
 
-func (op LookupInOperation) toProto() protos.LookupInRequest_Spec_Operation {
+func (op LookupInOperation) toProto() data_v1.LookupInRequest_Spec_Operation {
 	switch op {
 	case LookupInOperationGet:
-		return protos.LookupInRequest_Spec_GET
+		return data_v1.LookupInRequest_Spec_GET
 	case LookupInOperationExists:
-		return protos.LookupInRequest_Spec_EXISTS
+		return data_v1.LookupInRequest_Spec_EXISTS
 	case LookupInOperationCount:
-		return protos.LookupInRequest_Spec_COUNT
+		return data_v1.LookupInRequest_Spec_COUNT
 	}
 
 	return 0
@@ -51,7 +52,7 @@ func (c *Collection) LookupIn(ctx context.Context, id string, specs []LookupInSp
 	}
 	client, bucketName, scopeName, collName := c.getClient()
 
-	req := &protos.LookupInRequest{
+	req := &data_v1.LookupInRequest{
 		BucketName:     bucketName,
 		ScopeName:      scopeName,
 		CollectionName: collName,
@@ -59,19 +60,19 @@ func (c *Collection) LookupIn(ctx context.Context, id string, specs []LookupInSp
 	}
 
 	if opts.AccessDeleted {
-		req.Flags = &protos.LookupInRequest_Flags{
+		req.Flags = &data_v1.LookupInRequest_Flags{
 			AccessDeleted: &opts.AccessDeleted,
 		}
 	}
 
-	reqSpecs := make([]*protos.LookupInRequest_Spec, len(specs))
+	reqSpecs := make([]*data_v1.LookupInRequest_Spec, len(specs))
 	for i, spec := range specs {
-		reqSpec := &protos.LookupInRequest_Spec{
+		reqSpec := &data_v1.LookupInRequest_Spec{
 			Path:      spec.Path,
 			Operation: spec.Operation.toProto(),
 		}
 		if spec.IsXattr {
-			reqSpec.Flags = &protos.LookupInRequest_Spec_Flags{
+			reqSpec.Flags = &data_v1.LookupInRequest_Spec_Flags{
 				Xattr: &spec.IsXattr,
 			}
 		}
@@ -80,7 +81,7 @@ func (c *Collection) LookupIn(ctx context.Context, id string, specs []LookupInSp
 	}
 	req.Specs = reqSpecs
 
-	resp, err := client.couchbaseClient.LookupIn(ctx, req)
+	resp, err := client.dataClient.LookupIn(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -112,26 +113,26 @@ const (
 	MutateInOperationCounter
 )
 
-func (op MutateInOperation) toProto() protos.MutateInRequest_Spec_Operation {
+func (op MutateInOperation) toProto() data_v1.MutateInRequest_Spec_Operation {
 	switch op {
 	case MutateInOperationInsert:
-		return protos.MutateInRequest_Spec_INSERT
+		return data_v1.MutateInRequest_Spec_INSERT
 	case MutateInOperationUpsert:
-		return protos.MutateInRequest_Spec_UPSERT
+		return data_v1.MutateInRequest_Spec_UPSERT
 	case MutateInOperationReplace:
-		return protos.MutateInRequest_Spec_REPLACE
+		return data_v1.MutateInRequest_Spec_REPLACE
 	case MutateInOperationRemove:
-		return protos.MutateInRequest_Spec_REMOVE
+		return data_v1.MutateInRequest_Spec_REMOVE
 	case MutateInOperationArrayAppend:
-		return protos.MutateInRequest_Spec_ARRAY_APPEND
+		return data_v1.MutateInRequest_Spec_ARRAY_APPEND
 	case MutateInOperationArrayPrepend:
-		return protos.MutateInRequest_Spec_ARRAY_PREPEND
+		return data_v1.MutateInRequest_Spec_ARRAY_PREPEND
 	case MutateInOperationArrayInsert:
-		return protos.MutateInRequest_Spec_ARRAY_INSERT
+		return data_v1.MutateInRequest_Spec_ARRAY_INSERT
 	case MutateInOperationArrayAddUnique:
-		return protos.MutateInRequest_Spec_ARRAY_ADD_UNIQUE
+		return data_v1.MutateInRequest_Spec_ARRAY_ADD_UNIQUE
 	case MutateInOperationCounter:
-		return protos.MutateInRequest_Spec_COUNTER
+		return data_v1.MutateInRequest_Spec_COUNTER
 	}
 
 	return 0
@@ -145,15 +146,15 @@ const (
 	StoreSemanticInsert
 )
 
-func (s StoreSemantic) toProto() *protos.MutateInRequest_StoreSemantic {
-	var semantic protos.MutateInRequest_StoreSemantic
+func (s StoreSemantic) toProto() *data_v1.MutateInRequest_StoreSemantic {
+	var semantic data_v1.MutateInRequest_StoreSemantic
 	switch s {
 	case StoreSemanticReplace:
-		semantic = protos.MutateInRequest_REPLACE
+		semantic = data_v1.MutateInRequest_REPLACE
 	case StoreSemanticUpsert:
-		semantic = protos.MutateInRequest_UPSERT
+		semantic = data_v1.MutateInRequest_UPSERT
 	case StoreSemanticInsert:
-		semantic = protos.MutateInRequest_INSERT
+		semantic = data_v1.MutateInRequest_INSERT
 	}
 
 	return &semantic
@@ -190,7 +191,7 @@ func (c *Collection) MutateIn(ctx context.Context, id string, specs []MutateInSp
 	}
 	client, bucketName, scopeName, collName := c.getClient()
 
-	req := &protos.MutateInRequest{
+	req := &data_v1.MutateInRequest{
 		BucketName:     bucketName,
 		ScopeName:      scopeName,
 		CollectionName: collName,
@@ -198,13 +199,13 @@ func (c *Collection) MutateIn(ctx context.Context, id string, specs []MutateInSp
 	}
 
 	if opts.DurabilityLevel != DurabilityLevelUnknown {
-		req.DurabilitySpec = &protos.MutateInRequest_DurabilityLevel{
+		req.DurabilitySpec = &data_v1.MutateInRequest_DurabilityLevel{
 			DurabilityLevel: *opts.DurabilityLevel.toProto(),
 		}
 	}
 	if opts.ReplicateTo > 0 || opts.PersistTo > 0 {
-		req.DurabilitySpec = &protos.MutateInRequest_LegacyDurabilitySpec{
-			LegacyDurabilitySpec: &protos.LegacyDurabilitySpec{
+		req.DurabilitySpec = &data_v1.MutateInRequest_LegacyDurabilitySpec{
+			LegacyDurabilitySpec: &data_v1.LegacyDurabilitySpec{
 				NumPersisted:  opts.PersistTo,
 				NumReplicated: opts.ReplicateTo,
 			},
@@ -215,20 +216,20 @@ func (c *Collection) MutateIn(ctx context.Context, id string, specs []MutateInSp
 	}
 
 	if opts.AccessDeleted {
-		req.Flags = &protos.MutateInRequest_Flags{
+		req.Flags = &data_v1.MutateInRequest_Flags{
 			AccessDeleted: &opts.AccessDeleted,
 		}
 	}
 
-	reqSpecs := make([]*protos.MutateInRequest_Spec, len(specs))
+	reqSpecs := make([]*data_v1.MutateInRequest_Spec, len(specs))
 	for i, spec := range specs {
-		reqSpec := &protos.MutateInRequest_Spec{
+		reqSpec := &data_v1.MutateInRequest_Spec{
 			Path:      spec.Path,
 			Operation: spec.Operation.toProto(),
 			Content:   spec.Content,
 		}
 		if spec.IsXattr {
-			reqSpec.Flags = &protos.MutateInRequest_Spec_Flags{
+			reqSpec.Flags = &data_v1.MutateInRequest_Spec_Flags{
 				Xattr: &spec.IsXattr,
 			}
 		}
@@ -237,7 +238,7 @@ func (c *Collection) MutateIn(ctx context.Context, id string, specs []MutateInSp
 	}
 	req.Specs = reqSpecs
 
-	resp, err := client.couchbaseClient.MutateIn(ctx, req)
+	resp, err := client.dataClient.MutateIn(ctx, req)
 	if err != nil {
 		return nil, err
 	}

@@ -1,6 +1,8 @@
 package gocbps
 
-import "github.com/couchbase/stellar-nebula/protos"
+import (
+	data_v1 "github.com/couchbase/stellar-nebula/genproto/data/v1"
+)
 
 // DurabilityLevel specifies the level of synchronous replication to use.
 type DurabilityLevel uint8
@@ -24,15 +26,15 @@ const (
 	DurabilityLevelPersistToMajority
 )
 
-func (dl DurabilityLevel) toProto() *protos.DurabilityLevel {
-	var durability protos.DurabilityLevel
+func (dl DurabilityLevel) toProto() *data_v1.DurabilityLevel {
+	var durability data_v1.DurabilityLevel
 	switch dl {
 	case DurabilityLevelMajority:
-		durability = protos.DurabilityLevel_MAJORITY
+		durability = data_v1.DurabilityLevel_MAJORITY
 	case DurabilityLevelMajorityAndPersistOnMaster:
-		durability = protos.DurabilityLevel_MAJORITY_AND_PERSIST_TO_ACTIVE
+		durability = data_v1.DurabilityLevel_MAJORITY_AND_PERSIST_TO_ACTIVE
 	case DurabilityLevelPersistToMajority:
-		durability = protos.DurabilityLevel_PERSIST_TO_MAJORITY
+		durability = data_v1.DurabilityLevel_PERSIST_TO_MAJORITY
 	default:
 		return nil
 	}

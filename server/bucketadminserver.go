@@ -4,16 +4,16 @@ import (
 	"context"
 
 	"github.com/couchbase/gocb/v2"
-	"github.com/couchbase/stellar-nebula/protos"
+	admin_bucket_v1 "github.com/couchbase/stellar-nebula/genproto/admin/bucket/v1"
 )
 
 type bucketAdminServer struct {
-	protos.UnimplementedBucketAdminServer
+	admin_bucket_v1.UnimplementedBucketAdminServer
 
 	cbClient *gocb.Cluster
 }
 
-func (s *bucketAdminServer) ListCollections(context context.Context, in *protos.ListCollectionsRequest) (*protos.ListCollectionsResponse, error) {
+func (s *bucketAdminServer) ListCollections(context context.Context, in *admin_bucket_v1.ListCollectionsRequest) (*admin_bucket_v1.ListCollectionsResponse, error) {
 	collMgr := s.cbClient.Bucket(in.BucketName).Collections()
 
 	result, err := collMgr.GetAllScopes(&gocb.GetAllScopesOptions{
@@ -23,28 +23,28 @@ func (s *bucketAdminServer) ListCollections(context context.Context, in *protos.
 		return nil, cbErrToPs(err)
 	}
 
-	var scopes []*protos.ListCollectionsResponse_Scope
+	var scopes []*admin_bucket_v1.ListCollectionsResponse_Scope
 	for _, scope := range result {
-		var collections []*protos.ListCollectionsResponse_Collection
+		var collections []*admin_bucket_v1.ListCollectionsResponse_Collection
 
 		for _, collection := range scope.Collections {
-			collections = append(collections, &protos.ListCollectionsResponse_Collection{
+			collections = append(collections, &admin_bucket_v1.ListCollectionsResponse_Collection{
 				Name: collection.Name,
 			})
 		}
 
-		scopes = append(scopes, &protos.ListCollectionsResponse_Scope{
+		scopes = append(scopes, &admin_bucket_v1.ListCollectionsResponse_Scope{
 			Name:        scope.Name,
 			Collections: collections,
 		})
 	}
 
-	return &protos.ListCollectionsResponse{
+	return &admin_bucket_v1.ListCollectionsResponse{
 		Scopes: scopes,
 	}, nil
 }
 
-func (s *bucketAdminServer) CreateScope(context context.Context, in *protos.CreateScopeRequest) (*protos.CreateScopeResponse, error) {
+func (s *bucketAdminServer) CreateScope(context context.Context, in *admin_bucket_v1.CreateScopeRequest) (*admin_bucket_v1.CreateScopeResponse, error) {
 	collMgr := s.cbClient.Bucket(in.BucketName).Collections()
 
 	err := collMgr.CreateScope(in.ScopeName, &gocb.CreateScopeOptions{
@@ -54,10 +54,10 @@ func (s *bucketAdminServer) CreateScope(context context.Context, in *protos.Crea
 		return nil, cbErrToPs(err)
 	}
 
-	return &protos.CreateScopeResponse{}, nil
+	return &admin_bucket_v1.CreateScopeResponse{}, nil
 }
 
-func (s *bucketAdminServer) DeleteScope(context context.Context, in *protos.DeleteScopeRequest) (*protos.DeleteScopeResponse, error) {
+func (s *bucketAdminServer) DeleteScope(context context.Context, in *admin_bucket_v1.DeleteScopeRequest) (*admin_bucket_v1.DeleteScopeResponse, error) {
 	collMgr := s.cbClient.Bucket(in.BucketName).Collections()
 
 	err := collMgr.DropScope(in.ScopeName, &gocb.DropScopeOptions{
@@ -67,10 +67,10 @@ func (s *bucketAdminServer) DeleteScope(context context.Context, in *protos.Dele
 		return nil, cbErrToPs(err)
 	}
 
-	return &protos.DeleteScopeResponse{}, nil
+	return &admin_bucket_v1.DeleteScopeResponse{}, nil
 }
 
-func (s *bucketAdminServer) CreateCollection(context context.Context, in *protos.CreateCollectionRequest) (*protos.CreateCollectionResponse, error) {
+func (s *bucketAdminServer) CreateCollection(context context.Context, in *admin_bucket_v1.CreateCollectionRequest) (*admin_bucket_v1.CreateCollectionResponse, error) {
 	collMgr := s.cbClient.Bucket(in.BucketName).Collections()
 
 	err := collMgr.CreateCollection(gocb.CollectionSpec{
@@ -84,10 +84,10 @@ func (s *bucketAdminServer) CreateCollection(context context.Context, in *protos
 		return nil, cbErrToPs(err)
 	}
 
-	return &protos.CreateCollectionResponse{}, nil
+	return &admin_bucket_v1.CreateCollectionResponse{}, nil
 }
 
-func (s *bucketAdminServer) DeleteCollection(context context.Context, in *protos.DeleteCollectionRequest) (*protos.DeleteCollectionResponse, error) {
+func (s *bucketAdminServer) DeleteCollection(context context.Context, in *admin_bucket_v1.DeleteCollectionRequest) (*admin_bucket_v1.DeleteCollectionResponse, error) {
 	collMgr := s.cbClient.Bucket(in.BucketName).Collections()
 
 	err := collMgr.DropCollection(gocb.CollectionSpec{
@@ -100,7 +100,7 @@ func (s *bucketAdminServer) DeleteCollection(context context.Context, in *protos
 		return nil, cbErrToPs(err)
 	}
 
-	return &protos.DeleteCollectionResponse{}, nil
+	return &admin_bucket_v1.DeleteCollectionResponse{}, nil
 }
 
 func NewBucketAdminServer(cbClient *gocb.Cluster) *bucketAdminServer {
