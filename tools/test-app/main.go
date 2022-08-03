@@ -105,4 +105,30 @@ func main() {
 		}
 		log.Printf("done streaming query data")
 	}
+
+	{
+		analyticsResp, err := client.AnalyticsQuery(ctx, "SELECT 1", nil)
+		if err != nil {
+			log.Fatalf("could not analytics: %s", err)
+		}
+
+		for analyticsResp.Next() {
+			row, err := analyticsResp.Row()
+			if err != nil {
+				log.Fatalf("could not analytics row: %s", err)
+			}
+
+			log.Printf("got an analytics row: %+v", row)
+		}
+
+		if err := analyticsResp.Err(); err != nil {
+			log.Fatalf("got an analytics err: %s", err)
+		}
+
+		meta, err := analyticsResp.MetaData()
+		if err != nil {
+			log.Fatalf("could not analytics metadata: %s", err)
+		}
+		log.Printf("got an analytics metadata: %+v", meta)
+	}
 }
