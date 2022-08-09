@@ -3,6 +3,7 @@ package gocbps
 import (
 	"context"
 	"crypto/x509"
+	view_v1 "github.com/couchbase/stellar-nebula/genproto/view/v1"
 	"log"
 	"strings"
 
@@ -25,6 +26,7 @@ type Client struct {
 	queryClient     query_v1.QueryClient
 	searchClient    search_v1.SearchClient
 	analyticsClient analytics_v1.AnalyticsClient
+	viewClient      view_v1.ViewClient
 }
 
 type ConnectOptions struct {
@@ -78,6 +80,7 @@ func Connect(connStr string, opts *ConnectOptions) (*Client, error) {
 	queryClient := query_v1.NewQueryClient(conn)
 	searchClient := search_v1.NewSearchClient(conn)
 	analyticsClient := analytics_v1.NewAnalyticsClient(conn)
+	viewClient := view_v1.NewViewClient(conn)
 
 	// this is our version of checking auth credentials
 	_, err = couchbaseClient.Hello(context.Background(), &couchbase_v1.HelloRequest{})
@@ -98,6 +101,7 @@ func Connect(connStr string, opts *ConnectOptions) (*Client, error) {
 		queryClient:     queryClient,
 		searchClient:    searchClient,
 		analyticsClient: analyticsClient,
+		viewClient:      viewClient,
 	}, nil
 }
 
