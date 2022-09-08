@@ -14,6 +14,7 @@ import (
 	query_v1 "github.com/couchbase/stellar-nebula/genproto/query/v1"
 	routing_v1 "github.com/couchbase/stellar-nebula/genproto/routing/v1"
 	search_v1 "github.com/couchbase/stellar-nebula/genproto/search/v1"
+	couchbase_v1 "github.com/couchbase/stellar-nebula/genproto/v1"
 	"github.com/couchbase/stellar-nebula/server"
 	"google.golang.org/grpc"
 )
@@ -57,6 +58,7 @@ func main() {
 	}
 	s := grpc.NewServer()
 
+	couchbase_v1.RegisterCouchbaseServer(s, server.NewCouchbaseServer())
 	routing_v1.RegisterRoutingServer(s, server.NewRoutingServer(topologyManager))
 	data_v1.RegisterDataServer(s, server.NewDataServer(client))
 	query_v1.RegisterQueryServer(s, server.NewQueryServer(client))
