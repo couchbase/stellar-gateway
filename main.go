@@ -14,6 +14,7 @@ import (
 	query_v1 "github.com/couchbase/stellar-nebula/genproto/query/v1"
 	routing_v1 "github.com/couchbase/stellar-nebula/genproto/routing/v1"
 	search_v1 "github.com/couchbase/stellar-nebula/genproto/search/v1"
+	transactions_v1 "github.com/couchbase/stellar-nebula/genproto/transactions/v1"
 	couchbase_v1 "github.com/couchbase/stellar-nebula/genproto/v1"
 	"github.com/couchbase/stellar-nebula/server"
 	"google.golang.org/grpc"
@@ -65,6 +66,7 @@ func main() {
 	search_v1.RegisterSearchServer(s, server.NewSearchServer(client))
 	analytics_v1.RegisterAnalyticsServer(s, server.NewAnalyticsServer(client))
 	admin_bucket_v1.RegisterBucketAdminServer(s, server.NewBucketAdminServer(client))
+	transactions_v1.RegisterTransactionsServer(s, server.NewTransactionsServer(client))
 
 	log.Printf("server listening at %v", lis.Addr())
 	if err := s.Serve(lis); err != nil {

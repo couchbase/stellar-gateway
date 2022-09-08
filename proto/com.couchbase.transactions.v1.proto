@@ -1,0 +1,117 @@
+syntax = "proto3";
+
+option go_package = "github.com/couchbase/stellar-nebula/genproto/transactions/v1;transactions_v1";
+
+package com.couchbase.transactions.v1;
+
+service Transactions {
+  rpc TransactionBegin(TransactionBeginRequest)
+      returns (TransactionBeginResponse) {}
+  rpc TransactionCommit(TransactionCommitRequest)
+      returns (TransactionCommitResponse) {}
+  rpc TransactionRollback(TransactionRollbackRequest)
+      returns (TransactionRollbackResponse) {}
+
+  rpc TransactionGet(TransactionGetRequest) returns (TransactionGetResponse) {}
+  rpc TransactionInsert(TransactionInsertRequest)
+      returns (TransactionInsertResponse) {}
+  rpc TransactionReplace(TransactionReplaceRequest)
+      returns (TransactionReplaceResponse) {}
+  rpc TransactionRemove(TransactionRemoveRequest)
+      returns (TransactionRemoveResponse) {}
+}
+
+message TransactionBeginRequest {
+  string bucket_name = 1;
+  optional string transaction_id = 2;
+}
+
+message TransactionBeginResponse {
+  string transaction_id = 1;
+  string attempt_id = 2;
+}
+
+message TransactionCommitRequest {
+  string bucket_name = 1;
+  string transaction_id = 2;
+  string attempt_id = 3;
+}
+
+message TransactionCommitResponse {}
+
+message TransactionRollbackRequest {
+  string bucket_name = 1;
+  string transaction_id = 2;
+  string attempt_id = 3;
+}
+
+message TransactionRollbackResponse {}
+
+message TransactionGetRequest {
+  string bucket_name = 1;
+  string transaction_id = 2;
+  string attempt_id = 3;
+
+  string scope_name = 4;
+  string collection_name = 5;
+  string key = 6;
+}
+
+message TransactionGetResponse {
+  bytes txn_meta = 1;
+  uint64 cas = 2;
+  bytes value = 3;
+}
+
+message TransactionInsertRequest {
+  string bucket_name = 1;
+  string transaction_id = 2;
+  string attempt_id = 3;
+
+  string scope_name = 4;
+  string collection_name = 5;
+  string key = 6;
+  bytes txn_meta = 7;
+  uint64 cas = 8;
+  bytes value = 9;
+}
+
+message TransactionInsertResponse {
+  bytes txn_meta = 1;
+  uint64 cas = 2;
+}
+
+message TransactionReplaceRequest {
+  string bucket_name = 1;
+  string transaction_id = 2;
+  string attempt_id = 3;
+
+  string scope_name = 4;
+  string collection_name = 5;
+  string key = 6;
+  bytes txn_meta = 7;
+  uint64 cas = 8;
+  bytes value = 9;
+}
+
+message TransactionReplaceResponse {
+  bytes txn_meta = 1;
+  uint64 cas = 2;
+}
+
+message TransactionRemoveRequest {
+  string bucket_name = 1;
+  string transaction_id = 2;
+  string attempt_id = 3;
+
+  string scope_name = 4;
+  string collection_name = 5;
+  string key = 6;
+  bytes txn_meta = 7;
+  uint64 cas = 8;
+}
+
+message TransactionRemoveResponse {
+  bytes txn_meta = 1;
+  uint64 cas = 2;
+}
