@@ -44,7 +44,7 @@ func main() {
 		}
 		log.Printf("wrote test document: %+v (value: %s)", upsertRes, testDoc1)
 
-		txnBeginResp, err := tc.TransactionBegin(ctx, &transactions_v1.TransactionBeginRequest{
+		txnBeginResp, err := tc.TransactionBeginAttempt(ctx, &transactions_v1.TransactionBeginAttemptRequest{
 			BucketName:    "default",
 			TransactionId: nil, // first attempt
 		})

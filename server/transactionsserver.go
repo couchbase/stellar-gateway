@@ -93,10 +93,10 @@ func (s *transactionsServer) asyncOp(fn func(cb func()) error) error {
 	return nil
 }
 
-func (s *transactionsServer) TransactionBegin(
+func (s *transactionsServer) TransactionBeginAttempt(
 	ctx context.Context,
-	in *transactions_v1.TransactionBeginRequest,
-) (*transactions_v1.TransactionBeginResponse, error) {
+	in *transactions_v1.TransactionBeginAttemptRequest,
+) (*transactions_v1.TransactionBeginAttemptResponse, error) {
 	if in.TransactionId != nil {
 		txnId := *in.TransactionId
 		txn, err := s.getTransaction(in.BucketName, txnId)
@@ -109,7 +109,7 @@ func (s *transactionsServer) TransactionBegin(
 			return nil, err
 		}
 
-		return &transactions_v1.TransactionBeginResponse{
+		return &transactions_v1.TransactionBeginAttemptResponse{
 			TransactionId: txnId,
 			AttemptId:     txn.Attempt().ID,
 		}, nil
@@ -133,7 +133,7 @@ func (s *transactionsServer) TransactionBegin(
 	s.txns[txnId] = txn
 	s.txnsLock.Unlock()
 
-	return &transactions_v1.TransactionBeginResponse{
+	return &transactions_v1.TransactionBeginAttemptResponse{
 		TransactionId: txnId,
 		AttemptId:     txn.Attempt().ID,
 	}, nil

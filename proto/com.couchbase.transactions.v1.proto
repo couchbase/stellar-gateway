@@ -5,8 +5,8 @@ option go_package = "github.com/couchbase/stellar-nebula/genproto/transactions/v
 package com.couchbase.transactions.v1;
 
 service Transactions {
-  rpc TransactionBegin(TransactionBeginRequest)
-      returns (TransactionBeginResponse) {}
+  rpc TransactionBeginAttempt(TransactionBeginAttemptRequest)
+      returns (TransactionBeginAttemptResponse) {}
   rpc TransactionCommit(TransactionCommitRequest)
       returns (TransactionCommitResponse) {}
   rpc TransactionRollback(TransactionRollbackRequest)
@@ -21,12 +21,12 @@ service Transactions {
       returns (TransactionRemoveResponse) {}
 }
 
-message TransactionBeginRequest {
+message TransactionBeginAttemptRequest {
   string bucket_name = 1;
   optional string transaction_id = 2;
 }
 
-message TransactionBeginResponse {
+message TransactionBeginAttemptResponse {
   string transaction_id = 1;
   string attempt_id = 2;
 }
