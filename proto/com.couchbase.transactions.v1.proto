@@ -49,6 +49,9 @@ message TransactionRollbackResponse {}
 
 message TransactionGetRequest {
   string bucket_name = 1;
+  // transaction_id and attempt_id are optional to allow read-only transactions.
+  // clients are not permitted to use this functionality to optimize
+  // non-read-only transactions.
   string transaction_id = 2;
   string attempt_id = 3;
 
