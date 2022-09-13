@@ -8,14 +8,6 @@ import (
 	"time"
 
 	"github.com/couchbase/gocb/v2"
-	admin_bucket_v1 "github.com/couchbase/stellar-nebula/genproto/admin/bucket/v1"
-	analytics_v1 "github.com/couchbase/stellar-nebula/genproto/analytics/v1"
-	data_v1 "github.com/couchbase/stellar-nebula/genproto/data/v1"
-	query_v1 "github.com/couchbase/stellar-nebula/genproto/query/v1"
-	routing_v1 "github.com/couchbase/stellar-nebula/genproto/routing/v1"
-	search_v1 "github.com/couchbase/stellar-nebula/genproto/search/v1"
-	transactions_v1 "github.com/couchbase/stellar-nebula/genproto/transactions/v1"
-	couchbase_v1 "github.com/couchbase/stellar-nebula/genproto/v1"
 	"github.com/couchbase/stellar-nebula/server"
 	"google.golang.org/grpc"
 )
@@ -59,14 +51,7 @@ func main() {
 	}
 	s := grpc.NewServer()
 
-	couchbase_v1.RegisterCouchbaseServer(s, server.NewCouchbaseServer())
-	routing_v1.RegisterRoutingServer(s, server.NewRoutingServer(topologyManager))
-	data_v1.RegisterDataServer(s, server.NewDataServer(client))
-	query_v1.RegisterQueryServer(s, server.NewQueryServer(client))
-	search_v1.RegisterSearchServer(s, server.NewSearchServer(client))
-	analytics_v1.RegisterAnalyticsServer(s, server.NewAnalyticsServer(client))
-	admin_bucket_v1.RegisterBucketAdminServer(s, server.NewBucketAdminServer(client))
-	transactions_v1.RegisterTransactionsServer(s, server.NewTransactionsServer(client))
+	server.Register(s, topologyManager, client)
 
 	log.Printf("server listening at %v", lis.Addr())
 	if err := s.Serve(lis); err != nil {
