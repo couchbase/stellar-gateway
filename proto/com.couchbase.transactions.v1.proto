@@ -72,8 +72,7 @@ message TransactionInsertRequest {
   string collection_name = 5;
   string key = 6;
   bytes txn_meta = 7;
-  uint64 cas = 8;
-  bytes value = 9;
+  bytes value = 8;
 }
 
 message TransactionInsertResponse {
