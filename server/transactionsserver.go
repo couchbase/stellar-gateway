@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"log"
 	"sync"
@@ -48,34 +47,6 @@ func (s *transactionsServer) getAttempt(bucketName string, txnId string, attempt
 	}
 
 	return txn, nil
-}
-
-func (s *transactionsServer) marshallTxnMeta(meta *gocbcore.TransactionMutableItemMeta) ([]byte, error) {
-	if meta == nil {
-		return nil, nil
-	}
-
-	// TODO(brett19): Transaction Meta should be sent as protobuf, not JSON
-	metaBytes, err := json.Marshal(meta)
-	if err != nil {
-		return nil, err
-	}
-
-	return metaBytes, nil
-}
-
-func (s *transactionsServer) unmarshallTxnMeta(metaBytes []byte) (*gocbcore.TransactionMutableItemMeta, error) {
-	if len(metaBytes) == 0 {
-		return nil, nil
-	}
-
-	var txnMeta *gocbcore.TransactionMutableItemMeta
-	err := json.Unmarshal(metaBytes, &txnMeta)
-	if err != nil {
-		return nil, err
-	}
-
-	return txnMeta, nil
 }
 
 func (s *transactionsServer) asyncOp(fn func(cb func()) error) error {
@@ -225,17 +196,9 @@ func (s *transactionsServer) TransactionGet(
 				return
 			}
 
-			metaBytes, err := s.marshallTxnMeta(res.Meta)
-			if err != nil {
-				errOut = err
-				cb()
-				return
-			}
-
 			respOut = &transactions_v1.TransactionGetResponse{
-				TxnMeta: metaBytes,
-				Cas:     uint64(res.Cas),
-				Value:   res.Value,
+				Cas:   uint64(res.Cas),
+				Value: res.Value,
 			}
 			errOut = err
 			cb()
@@ -277,16 +240,8 @@ func (s *transactionsServer) TransactionInsert(
 				return
 			}
 
-			metaBytes, err := s.marshallTxnMeta(res.Meta)
-			if err != nil {
-				errOut = err
-				cb()
-				return
-			}
-
 			respOut = &transactions_v1.TransactionInsertResponse{
-				TxnMeta: metaBytes,
-				Cas:     uint64(res.Cas),
+				Cas: uint64(res.Cas),
 			}
 			errOut = err
 			cb()
@@ -313,18 +268,13 @@ func (s *transactionsServer) TransactionReplace(
 		return nil, err
 	}
 
-	txnMeta, err := s.unmarshallTxnMeta(in.TxnMeta)
-	if err != nil {
-		return nil, err
-	}
-
 	txnDoc := s.txnMgr.Internal().CreateGetResult(gocbcore.TransactionCreateGetResultOptions{
 		Agent:          agent,
 		ScopeName:      in.ScopeName,
 		CollectionName: in.CollectionName,
 		Key:            []byte(in.Key),
 		Cas:            gocbcore.Cas(in.Cas),
-		Meta:           txnMeta,
+		Meta:           nil,
 		OboUser:        "",
 	})
 
@@ -339,16 +289,8 @@ func (s *transactionsServer) TransactionReplace(
 				return
 			}
 
-			metaBytes, err := s.marshallTxnMeta(res.Meta)
-			if err != nil {
-				errOut = err
-				cb()
-				return
-			}
-
 			respOut = &transactions_v1.TransactionReplaceResponse{
-				TxnMeta: metaBytes,
-				Cas:     uint64(res.Cas),
+				Cas: uint64(res.Cas),
 			}
 			errOut = err
 			cb()
@@ -375,18 +317,13 @@ func (s *transactionsServer) TransactionRemove(
 		return nil, err
 	}
 
-	txnMeta, err := s.unmarshallTxnMeta(in.TxnMeta)
-	if err != nil {
-		return nil, err
-	}
-
 	txnDoc := s.txnMgr.Internal().CreateGetResult(gocbcore.TransactionCreateGetResultOptions{
 		Agent:          agent,
 		ScopeName:      in.ScopeName,
 		CollectionName: in.CollectionName,
 		Key:            []byte(in.Key),
 		Cas:            gocbcore.Cas(in.Cas),
-		Meta:           txnMeta,
+		Meta:           nil,
 		OboUser:        "",
 	})
 
@@ -400,16 +337,8 @@ func (s *transactionsServer) TransactionRemove(
 				return
 			}
 
-			metaBytes, err := json.Marshal(res.Meta)
-			if err != nil {
-				errOut = err
-				cb()
-				return
-			}
-
 			respOut = &transactions_v1.TransactionRemoveResponse{
-				TxnMeta: metaBytes,
-				Cas:     uint64(res.Cas),
+				Cas: uint64(res.Cas),
 			}
 			errOut = err
 			cb()
