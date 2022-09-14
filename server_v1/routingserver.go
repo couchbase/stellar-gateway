@@ -5,12 +5,13 @@ import (
 	"time"
 
 	routing_v1 "github.com/couchbase/stellar-nebula/genproto/routing/v1"
+	"github.com/couchbase/stellar-nebula/topology"
 )
 
 type routingServer struct {
 	routing_v1.UnimplementedRoutingServer
 
-	topologyManager *TopologyManager
+	topologyManager *topology.TopologyManager
 }
 
 func (s *routingServer) WatchRouting(in *routing_v1.WatchRoutingRequest, out routing_v1.Routing_WatchRoutingServer) error {
@@ -56,7 +57,7 @@ topologyLoop:
 	return nil
 }
 
-func NewRoutingServer(topologyManager *TopologyManager) *routingServer {
+func NewRoutingServer(topologyManager *topology.TopologyManager) *routingServer {
 	return &routingServer{
 		topologyManager: topologyManager,
 	}

@@ -9,6 +9,7 @@ import (
 
 	"github.com/couchbase/gocb/v2"
 	"github.com/couchbase/stellar-nebula/server_v1"
+	"github.com/couchbase/stellar-nebula/topology"
 	"google.golang.org/grpc"
 )
 
@@ -40,7 +41,7 @@ func main() {
 
 	log.Printf("connected to remote host")
 
-	topologyManager := server_v1.NewTopologyManager(server_v1.TopologyManagerConfig{
+	topologyManager := topology.NewTopologyManager(topology.TopologyManagerConfig{
 		LocalHostname: *localHostname,
 		LocalPort:     int(*port),
 	})

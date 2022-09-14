@@ -10,10 +10,11 @@ import (
 	search_v1 "github.com/couchbase/stellar-nebula/genproto/search/v1"
 	transactions_v1 "github.com/couchbase/stellar-nebula/genproto/transactions/v1"
 	couchbase_v1 "github.com/couchbase/stellar-nebula/genproto/v1"
+	"github.com/couchbase/stellar-nebula/topology"
 	"google.golang.org/grpc"
 )
 
-func Register(s *grpc.Server, topologyManager *TopologyManager, client *gocb.Cluster) {
+func Register(s *grpc.Server, topologyManager *topology.TopologyManager, client *gocb.Cluster) {
 	couchbase_v1.RegisterCouchbaseServer(s, NewCouchbaseServer())
 	routing_v1.RegisterRoutingServer(s, NewRoutingServer(topologyManager))
 	data_v1.RegisterDataServer(s, NewDataServer(client))
