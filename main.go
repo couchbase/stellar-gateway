@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/couchbase/gocb/v2"
-	"github.com/couchbase/stellar-nebula/server"
+	"github.com/couchbase/stellar-nebula/server_v1"
 	"google.golang.org/grpc"
 )
 
@@ -40,7 +40,7 @@ func main() {
 
 	log.Printf("connected to remote host")
 
-	topologyManager := server.NewTopologyManager(server.TopologyManagerConfig{
+	topologyManager := server_v1.NewTopologyManager(server_v1.TopologyManagerConfig{
 		LocalHostname: *localHostname,
 		LocalPort:     int(*port),
 	})
@@ -51,7 +51,7 @@ func main() {
 	}
 	s := grpc.NewServer()
 
-	server.Register(s, topologyManager, client)
+	server_v1.Register(s, topologyManager, client)
 
 	log.Printf("server listening at %v", lis.Addr())
 	if err := s.Serve(lis); err != nil {

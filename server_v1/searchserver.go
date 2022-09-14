@@ -1,4 +1,4 @@
-package server
+package server_v1
 
 import (
 	"github.com/couchbase/gocb/v2"
