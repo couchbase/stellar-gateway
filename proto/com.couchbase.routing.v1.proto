@@ -8,30 +8,29 @@ service Routing {
   rpc WatchRouting(WatchRoutingRequest) returns (stream WatchRoutingResponse) {}
 }
 
-message KetamaRouting { repeated string endpoints = 1; }
+message RoutingEndpoint { string endpoint = 1; }
 
-message VbucketMapVbucket { repeated int32 endpoint_idxs = 1; }
-
-message VbucketMapRouting {
-  repeated string endpoints = 1;
-  repeated VbucketMapVbucket vbuckets = 2;
+message DataRoutingEndpoint {
+  uint32 endpoint_idx = 1;
+  repeated uint32 local_vbuckets = 2;
+  repeated uint32 group_vbuckets = 3;
 }
 
-message QueryRouting { repeated string endpoints = 1; }
-message SearchQueryRouting { repeated string endpoints = 1; }
-message AnalyticsQueryRouting { repeated string endpoints = 1; }
+message VbucketDataRoutingStrategy {
+  repeated DataRoutingEndpoint endpoints = 1;
+  uint32 num_vbuckets = 3;
+}
+
+message QueryRoutingEndpoint { uint32 endpoint_idx = 1; }
+
+message QueryRouting { repeated QueryRoutingEndpoint endpoints = 1; }
 
 message WatchRoutingRequest { optional string bucket_name = 1; }
 
 message WatchRoutingResponse {
-  repeated string endpoints = 1;
+  repeated RoutingEndpoint endpoints = 1;
 
-  oneof kv_routing {
-    KetamaRouting ketama_routing = 2;
-    VbucketMapRouting vbucket_routing = 3;
-  }
-
-  QueryRouting query_routing = 4;
-  SearchQueryRouting search_query_routing = 5;
-  AnalyticsQueryRouting analytics_query_routing = 6;
+  oneof data_routing { VbucketDataRoutingStrategy vbucket_data_routing = 2; }
+  optional QueryRouting query_routing = 3;
+  optional ViewsRouting views_routing = 4;
 }

@@ -1,14 +1,12 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"flag"
 	"log"
 	"time"
 
 	routing_v1 "github.com/couchbase/stellar-nebula/genproto/routing/v1"
-	transactions_v1 "github.com/couchbase/stellar-nebula/genproto/transactions/v1"
 	couchbase_v1 "github.com/couchbase/stellar-nebula/genproto/v1"
 	"google.golang.org/grpc/status"
 
@@ -31,85 +29,89 @@ func main() {
 	defer cancel()
 
 	// testing some transactions stuff
-	{
-		conn := client.GetConn()
-		tc := transactions_v1.NewTransactionsClient(conn)
+	/*
+		{
+			conn := client.GetConn()
+			tc := transactions_v1.NewTransactionsClient(conn)
 
-		testDoc1 := []byte(`{"foo":"baz"}`)
-		testDoc2 := []byte(`{"foo":"bar"}`)
+			testDoc1 := []byte(`{"foo":"baz"}`)
+			testDoc2 := []byte(`{"foo":"bar"}`)
 
-		upsertRes, err := client.Bucket("default").DefaultCollection().Upsert(ctx, "test", testDoc1, nil)
-		if err != nil {
-			log.Fatalf("failed to write test document: %s", err)
+			upsertRes, err := client.Bucket("default").DefaultCollection().Upsert(ctx, "test", testDoc1, nil)
+			if err != nil {
+				log.Fatalf("failed to write test document: %s", err)
+			}
+			log.Printf("wrote test document: %+v (value: %s)", upsertRes, testDoc1)
+
+			txnBeginResp, err := tc.TransactionBeginAttempt(ctx, &transactions_v1.TransactionBeginAttemptRequest{
+				BucketName:    "default",
+				TransactionId: nil, // first attempt
+			})
+			if err != nil {
+				log.Fatalf("failed to begin transaction: %s", err)
+			}
+			log.Printf("began transaction: %+v", txnBeginResp)
+
+			txnGetResp, err := tc.TransactionGet(ctx, &transactions_v1.TransactionGetRequest{
+				BucketName:     "default",
+				TransactionId:  txnBeginResp.TransactionId,
+				AttemptId:      txnBeginResp.AttemptId,
+				ScopeName:      "_default",
+				CollectionName: "_default",
+				Key:            "test",
+			})
+			if err != nil {
+				log.Fatalf("failed to get document in transaction: %s", err)
+			}
+			log.Printf("got document in transaction: %+v (value: %s)", txnGetResp, txnGetResp.Value)
+
+			txnRepResp, err := tc.TransactionReplace(ctx, &transactions_v1.TransactionReplaceRequest{
+				BucketName:     "default",
+				TransactionId:  txnBeginResp.TransactionId,
+				AttemptId:      txnBeginResp.AttemptId,
+				ScopeName:      "_default",
+				CollectionName: "_default",
+				Key:            "test",
+				Value:          testDoc2,
+			})
+			if err != nil {
+				log.Fatalf("failed to replace document in transaction: %s", err)
+			}
+			log.Printf("replaced document in transaction: %+v (value: %s)", txnRepResp, testDoc2)
+
+			txnCommitResp, err := tc.TransactionCommit(ctx, &transactions_v1.TransactionCommitRequest{
+				BucketName:    "default",
+				TransactionId: txnBeginResp.TransactionId,
+				AttemptId:     txnBeginResp.AttemptId,
+			})
+			if err != nil {
+				log.Fatalf("failed to commit transaction: %s", err)
+			}
+			log.Printf("committed transaction: %+v", txnCommitResp)
+
+			getRes, err := client.Bucket("default").DefaultCollection().Get(ctx, "test", nil)
+			if err != nil {
+				log.Fatalf("failed to write test document: %s", err)
+			}
+
+			if !bytes.Equal(getRes.Content, testDoc2) {
+				log.Fatalf("document content did not match!")
+			}
+
+			log.Printf("got updated test document: %+v (value: %s)", getRes, getRes.Content)
 		}
-		log.Printf("wrote test document: %+v (value: %s)", upsertRes, testDoc1)
 
-		txnBeginResp, err := tc.TransactionBeginAttempt(ctx, &transactions_v1.TransactionBeginAttemptRequest{
-			BucketName:    "default",
-			TransactionId: nil, // first attempt
-		})
-		if err != nil {
-			log.Fatalf("failed to begin transaction: %s", err)
-		}
-		log.Printf("began transaction: %+v", txnBeginResp)
-
-		txnGetResp, err := tc.TransactionGet(ctx, &transactions_v1.TransactionGetRequest{
-			BucketName:     "default",
-			TransactionId:  txnBeginResp.TransactionId,
-			AttemptId:      txnBeginResp.AttemptId,
-			ScopeName:      "_default",
-			CollectionName: "_default",
-			Key:            "test",
-		})
-		if err != nil {
-			log.Fatalf("failed to get document in transaction: %s", err)
-		}
-		log.Printf("got document in transaction: %+v (value: %s)", txnGetResp, txnGetResp.Value)
-
-		txnRepResp, err := tc.TransactionReplace(ctx, &transactions_v1.TransactionReplaceRequest{
-			BucketName:     "default",
-			TransactionId:  txnBeginResp.TransactionId,
-			AttemptId:      txnBeginResp.AttemptId,
-			ScopeName:      "_default",
-			CollectionName: "_default",
-			Key:            "test",
-			Value:          testDoc2,
-		})
-		if err != nil {
-			log.Fatalf("failed to replace document in transaction: %s", err)
-		}
-		log.Printf("replaced document in transaction: %+v (value: %s)", txnRepResp, testDoc2)
-
-		txnCommitResp, err := tc.TransactionCommit(ctx, &transactions_v1.TransactionCommitRequest{
-			BucketName:    "default",
-			TransactionId: txnBeginResp.TransactionId,
-			AttemptId:     txnBeginResp.AttemptId,
-		})
-		if err != nil {
-			log.Fatalf("failed to commit transaction: %s", err)
-		}
-		log.Printf("committed transaction: %+v", txnCommitResp)
-
-		getRes, err := client.Bucket("default").DefaultCollection().Get(ctx, "test", nil)
-		if err != nil {
-			log.Fatalf("failed to write test document: %s", err)
-		}
-
-		if !bytes.Equal(getRes.Content, testDoc2) {
-			log.Fatalf("document content did not match!")
-		}
-
-		log.Printf("got updated test document: %+v (value: %s)", getRes, getRes.Content)
-	}
-
-	return
+		return
+	*/
 
 	// testing of some routing stuff
 	{
 		conn := client.GetConn()
 		rc := routing_v1.NewRoutingClient(conn)
 
-		wr, err := rc.WatchRouting(ctx, &routing_v1.WatchRoutingRequest{})
+		wr, err := rc.WatchBucketRouting(ctx, &routing_v1.WatchBucketRoutingRequest{
+			BucketName: "default",
+		})
 		if err != nil {
 			log.Fatalf("failed to watch routing: %s", err)
 		}
@@ -126,6 +128,9 @@ func main() {
 			}
 		}()
 	}
+
+	time.Sleep(10 * time.Second)
+	return
 
 	// testing some basic CRUD operations
 
