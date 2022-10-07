@@ -25,6 +25,10 @@ message QueryRoutingEndpoint { uint32 endpoint_idx = 1; }
 
 message QueryRouting { repeated QueryRoutingEndpoint endpoints = 1; }
 
+message ViewsRoutingEndpoint { uint32 endpoint_idx = 1; }
+
+message ViewsRouting { repeated ViewsRoutingEndpoint endpoints = 1; }
+
 message WatchRoutingRequest { optional string bucket_name = 1; }
 
 message WatchRoutingResponse {

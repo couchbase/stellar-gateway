@@ -48,42 +48,6 @@ topologyLoop:
 	return nil
 }
 
-func (s *routingServer) WatchBucketRouting(in *routing_v1.WatchBucketRoutingRequest, out routing_v1.Routing_WatchBucketRoutingServer) error {
-topologyLoop:
-	for {
-		topology, err := s.topologyProvider.Get()
-		if err != nil {
-			return err
-		}
-
-		var endpoints []*routing_v1.BucketRoutingEndpoint
-		for _, endpoint := range topology.Endpoints {
-			endpoints = append(endpoints,
-				&routing_v1.BucketRoutingEndpoint{
-					Endpoint:      fmt.Sprintf("%s:%d", endpoint.AdvertiseAddr, endpoint.AdvertisePort),
-					LocalVbuckets: []uint32{},
-					GroupVbuckets: []uint32{},
-				})
-		}
-
-		err = out.Send(&routing_v1.WatchBucketRoutingResponse{
-			Endpoints: endpoints,
-		})
-		if err != nil {
-			log.Printf("failed to send topology update: %s", err)
-		}
-
-		select {
-		case <-time.After(15 * time.Second):
-			// we send toplogy updates every 15 seconds for demo purposes
-		case <-out.Context().Done():
-			break topologyLoop
-		}
-	}
-
-	return nil
-}
-
 func NewRoutingServer(topologyProvider topology.Provider) *routingServer {
 	return &routingServer{
 		topologyProvider: topologyProvider,

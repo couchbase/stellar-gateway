@@ -109,8 +109,9 @@ func main() {
 		conn := client.GetConn()
 		rc := routing_v1.NewRoutingClient(conn)
 
-		wr, err := rc.WatchBucketRouting(ctx, &routing_v1.WatchBucketRoutingRequest{
-			BucketName: "default",
+		bucketName := "default"
+		wr, err := rc.WatchRouting(ctx, &routing_v1.WatchRoutingRequest{
+			BucketName: &bucketName,
 		})
 		if err != nil {
 			log.Fatalf("failed to watch routing: %s", err)
