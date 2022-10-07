@@ -1,3 +1,4 @@
 *.pb.go
 stellar-nebula
 ./genproto
+*.log
