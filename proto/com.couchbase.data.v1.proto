@@ -93,7 +93,7 @@ message GetResponse {
   bytes content = 1;
   DocumentContentType content_type = 2;
   DocumentCompressionType compression_type = 5;
-  com.couchbase.v1.Cas cas = 3;
+  uint64 cas = 3;
   optional google.protobuf.Timestamp expiry = 4;
 }
 
@@ -102,7 +102,7 @@ message UnlockRequest {
   string scope_name = 2;
   string collection_name = 3;
   string key = 4;
-  com.couchbase.v1.Cas cas = 5;
+  uint64 cas = 5;
 }
 
 message UnlockResponse {}
@@ -116,7 +116,7 @@ message TouchRequest {
 }
 
 message TouchResponse {
-  com.couchbase.v1.Cas cas = 1;
+  uint64 cas = 1;
   com.couchbase.v1.MutationToken mutation_token = 2;
 }
 
@@ -129,7 +129,7 @@ message ExistsRequest {
 
 message ExistsResponse {
   bool result = 1;
-  com.couchbase.v1.Cas cas = 2;
+  uint64 cas = 2;
 }
 
 message InsertRequest {
@@ -147,7 +147,7 @@ message InsertRequest {
 }
 
 message InsertResponse {
-  com.couchbase.v1.Cas cas = 1;
+  uint64 cas = 1;
   com.couchbase.v1.MutationToken mutation_token = 2;
 }
 
@@ -166,7 +166,7 @@ message UpsertRequest {
 }
 
 message UpsertResponse {
-  com.couchbase.v1.Cas cas = 1;
+  uint64 cas = 1;
   com.couchbase.v1.MutationToken mutation_token = 2;
 }
 
@@ -177,7 +177,7 @@ message ReplaceRequest {
   string key = 4;
   bytes content = 5;
   DocumentContentType content_type = 6;
-  optional com.couchbase.v1.Cas cas = 7;
+  optional uint64 cas = 7;
   optional google.protobuf.Timestamp expiry = 8;
   oneof durability_spec {
     LegacyDurabilitySpec legacy_durability_spec = 9;
@@ -186,7 +186,7 @@ message ReplaceRequest {
 }
 
 message ReplaceResponse {
-  com.couchbase.v1.Cas cas = 1;
+  uint64 cas = 1;
   com.couchbase.v1.MutationToken mutation_token = 2;
 }
 
@@ -195,7 +195,7 @@ message RemoveRequest {
   string scope_name = 2;
   string collection_name = 3;
   string key = 4;
-  optional com.couchbase.v1.Cas cas = 5;
+  optional uint64 cas = 5;
   oneof durability_spec {
     LegacyDurabilitySpec legacy_durability_spec = 6;
     DurabilityLevel durability_level = 7;
@@ -203,7 +203,7 @@ message RemoveRequest {
 }
 
 message RemoveResponse {
-  com.couchbase.v1.Cas cas = 1;
+  uint64 cas = 1;
   com.couchbase.v1.MutationToken mutation_token = 2;
 }
 
@@ -222,7 +222,7 @@ message IncrementRequest {
 }
 
 message IncrementResponse {
-  com.couchbase.v1.Cas cas = 1;
+  uint64 cas = 1;
   int64 content = 2;
   com.couchbase.v1.MutationToken mutation_token = 3;
 }
@@ -242,7 +242,7 @@ message DecrementRequest {
 }
 
 message DecrementResponse {
-  com.couchbase.v1.Cas cas = 1;
+  uint64 cas = 1;
   int64 content = 2;
   com.couchbase.v1.MutationToken mutation_token = 3;
 }
@@ -253,7 +253,7 @@ message AppendRequest {
   string collection_name = 3;
   string key = 4;
   bytes content = 5;
-  optional com.couchbase.v1.Cas cas = 6;
+  optional uint64 cas = 6;
   oneof durability_spec {
     LegacyDurabilitySpec legacy_durability_spec = 7;
     DurabilityLevel durability_level = 8;
@@ -261,7 +261,7 @@ message AppendRequest {
 }
 
 message AppendResponse {
-  com.couchbase.v1.Cas cas = 1;
+  uint64 cas = 1;
   com.couchbase.v1.MutationToken mutation_token = 2;
 }
 
@@ -271,7 +271,7 @@ message PrependRequest {
   string collection_name = 3;
   string key = 4;
   bytes content = 5;
-  optional com.couchbase.v1.Cas cas = 6;
+  optional uint64 cas = 6;
   oneof durability_spec {
     LegacyDurabilitySpec legacy_durability_spec = 7;
     DurabilityLevel durability_level = 8;
@@ -279,7 +279,7 @@ message PrependRequest {
 }
 
 message PrependResponse {
-  com.couchbase.v1.Cas cas = 1;
+  uint64 cas = 1;
   com.couchbase.v1.MutationToken mutation_token = 2;
 }
 
@@ -316,7 +316,7 @@ message LookupInResponse {
   }
   repeated Spec specs = 1;
 
-  com.couchbase.v1.Cas cas = 2;
+  uint64 cas = 2;
 }
 
 message MutateInRequest {
@@ -363,7 +363,7 @@ message MutateInRequest {
     DurabilityLevel durability_level = 8;
   }
 
-  optional com.couchbase.v1.Cas cas = 9;
+  optional uint64 cas = 9;
 
   message Flags { optional bool access_deleted = 1; }
   optional Flags flags = 10;
@@ -373,7 +373,7 @@ message MutateInResponse {
   message Spec { optional bytes content = 1; }
   repeated Spec specs = 1;
 
-  com.couchbase.v1.Cas cas = 2;
+  uint64 cas = 2;
   com.couchbase.v1.MutationToken mutation_token = 3;
 }
 

@@ -16,14 +16,12 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-func casToPs(cas gocb.Cas) *couchbase_v1.Cas {
-	return &couchbase_v1.Cas{
-		Value: uint64(cas),
-	}
+func casToPs(cas gocb.Cas) uint64 {
+	return uint64(cas)
 }
 
-func casFromPs(cas *couchbase_v1.Cas) gocb.Cas {
-	return gocb.Cas(cas.Value)
+func casFromPs(cas *uint64) gocb.Cas {
+	return gocb.Cas(*cas)
 }
 
 func timeToPs(when time.Time) *timestamppb.Timestamp {

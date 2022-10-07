@@ -5,7 +5,6 @@ import (
 	"time"
 
 	data_v1 "github.com/couchbase/stellar-nebula/genproto/data/v1"
-	couchbase_v1 "github.com/couchbase/stellar-nebula/genproto/v1"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -51,7 +50,7 @@ func (c *Collection) Get(ctx context.Context, id string, opts *GetOptions) (*Get
 
 	return &GetResult{
 		Content: resp.Content,
-		Cas:     Cas(resp.Cas.Value),
+		Cas:     Cas(resp.Cas),
 	}, nil
 }
 
@@ -85,7 +84,7 @@ func (c *Collection) Exists(ctx context.Context, id string, opts *ExistsOptions)
 
 	return &ExistsResult{
 		Exists: resp.Result,
-		Cas:    Cas(resp.Cas.Value),
+		Cas:    Cas(resp.Cas),
 	}, nil
 }
 
@@ -115,7 +114,7 @@ func (c *Collection) GetAndTouch(ctx context.Context, id string, expiry time.Dur
 
 	return &GetResult{
 		Content: resp.Content,
-		Cas:     Cas(resp.Cas.Value),
+		Cas:     Cas(resp.Cas),
 	}, nil
 }
 
@@ -145,7 +144,7 @@ func (c *Collection) GetAndLock(ctx context.Context, id string, lockTime time.Du
 
 	return &GetResult{
 		Content: resp.Content,
-		Cas:     Cas(resp.Cas.Value),
+		Cas:     Cas(resp.Cas),
 	}, nil
 }
 
@@ -165,7 +164,7 @@ func (c *Collection) Unlock(ctx context.Context, id string, cas Cas, opts *Unloc
 		ScopeName:      scopeName,
 		CollectionName: collName,
 		Key:            id,
-		Cas:            cas.toProto(),
+		Cas:            uint64(cas),
 	}
 
 	_, err := client.dataClient.Unlock(ctx, req)
@@ -223,7 +222,7 @@ func (c *Collection) Upsert(ctx context.Context, id string, content []byte, opts
 	}
 
 	return &MutationResult{
-		Cas:           Cas(resp.Cas.Value),
+		Cas:           Cas(resp.Cas),
 		MutationToken: mutationTokenFromPs(resp.MutationToken),
 	}, nil
 }
@@ -271,7 +270,7 @@ func (c *Collection) Insert(ctx context.Context, id string, content []byte, opts
 	}
 
 	return &MutationResult{
-		Cas:           Cas(resp.Cas.Value),
+		Cas:           Cas(resp.Cas),
 		MutationToken: mutationTokenFromPs(resp.MutationToken),
 	}, nil
 }
@@ -290,11 +289,10 @@ func (c *Collection) Replace(ctx context.Context, id string, content []byte, opt
 	}
 	client, bucketName, scopeName, collName := c.getClient()
 
-	var cas *couchbase_v1.Cas
+	var cas *uint64
 	if opts.Cas > 0 {
-		cas = &couchbase_v1.Cas{
-			Value: uint64(opts.Cas),
-		}
+		protoCas := uint64(opts.Cas)
+		cas = &protoCas
 	}
 
 	req := &data_v1.ReplaceRequest{
@@ -328,7 +326,7 @@ func (c *Collection) Replace(ctx context.Context, id string, content []byte, opt
 	}
 
 	return &MutationResult{
-		Cas:           Cas(resp.Cas.Value),
+		Cas:           Cas(resp.Cas),
 		MutationToken: mutationTokenFromPs(resp.MutationToken),
 	}, nil
 }
@@ -346,11 +344,10 @@ func (c *Collection) Remove(ctx context.Context, id string, opts *RemoveOptions)
 	}
 	client, bucketName, scopeName, collName := c.getClient()
 
-	var cas *couchbase_v1.Cas
+	var cas *uint64
 	if opts.Cas > 0 {
-		cas = &couchbase_v1.Cas{
-			Value: uint64(opts.Cas),
-		}
+		protoCas := uint64(opts.Cas)
+		cas = &protoCas
 	}
 
 	req := &data_v1.RemoveRequest{
@@ -381,7 +378,7 @@ func (c *Collection) Remove(ctx context.Context, id string, opts *RemoveOptions)
 	}
 
 	return &MutationResult{
-		Cas:           Cas(resp.Cas.Value),
+		Cas:           Cas(resp.Cas),
 		MutationToken: mutationTokenFromPs(resp.MutationToken),
 	}, nil
 }
@@ -411,7 +408,7 @@ func (c *Collection) Touch(ctx context.Context, id string, expiry time.Duration,
 	}
 
 	return &MutationResult{
-		Cas:           Cas(resp.Cas.Value),
+		Cas:           Cas(resp.Cas),
 		MutationToken: mutationTokenFromPs(resp.MutationToken),
 	}, nil
 }

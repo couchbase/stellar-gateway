@@ -95,7 +95,7 @@ func (c *Collection) LookupIn(ctx context.Context, id string, specs []LookupInSp
 
 	return &LookupInResult{
 		Content: resSpecs,
-		Cas:     Cas(resp.Cas.Value),
+		Cas:     Cas(resp.Cas),
 	}, nil
 }
 
@@ -252,7 +252,7 @@ func (c *Collection) MutateIn(ctx context.Context, id string, specs []MutateInSp
 
 	return &MutateInResult{
 		Content:       resSpecs,
-		Cas:           Cas(resp.Cas.Value),
+		Cas:           Cas(resp.Cas),
 		MutationToken: mutationTokenFromPs(resp.MutationToken),
 	}, nil
 }

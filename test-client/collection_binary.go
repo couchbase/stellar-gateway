@@ -5,7 +5,6 @@ import (
 	"time"
 
 	data_v1 "github.com/couchbase/stellar-nebula/genproto/data/v1"
-	couchbase_v1 "github.com/couchbase/stellar-nebula/genproto/v1"
 )
 
 type CollectionBinary struct {
@@ -32,11 +31,10 @@ func (c *CollectionBinary) Append(ctx context.Context, id string, content []byte
 	}
 	client, bucketName, scopeName, collName := c.collection.getClient()
 
-	var cas *couchbase_v1.Cas
+	var cas *uint64
 	if opts.Cas > 0 {
-		cas = &couchbase_v1.Cas{
-			Value: uint64(opts.Cas),
-		}
+		protoCas := uint64(opts.Cas)
+		cas = &protoCas
 	}
 
 	req := &data_v1.AppendRequest{
@@ -68,7 +66,7 @@ func (c *CollectionBinary) Append(ctx context.Context, id string, content []byte
 	}
 
 	return &MutationResult{
-		Cas:           Cas(resp.Cas.Value),
+		Cas:           Cas(resp.Cas),
 		MutationToken: mutationTokenFromPs(resp.MutationToken),
 	}, nil
 }
@@ -87,11 +85,10 @@ func (c *CollectionBinary) Prepend(ctx context.Context, id string, content []byt
 	}
 	client, bucketName, scopeName, collName := c.collection.getClient()
 
-	var cas *couchbase_v1.Cas
+	var cas *uint64
 	if opts.Cas > 0 {
-		cas = &couchbase_v1.Cas{
-			Value: uint64(opts.Cas),
-		}
+		protoCas := uint64(opts.Cas)
+		cas = &protoCas
 	}
 
 	req := &data_v1.PrependRequest{
@@ -123,7 +120,7 @@ func (c *CollectionBinary) Prepend(ctx context.Context, id string, content []byt
 	}
 
 	return &MutationResult{
-		Cas:           Cas(resp.Cas.Value),
+		Cas:           Cas(resp.Cas),
 		MutationToken: mutationTokenFromPs(resp.MutationToken),
 	}, nil
 }
@@ -182,7 +179,7 @@ func (c *CollectionBinary) Increment(ctx context.Context, id string, opts *Incre
 	}
 
 	return &CounterResult{
-		Cas:           Cas(resp.Cas.Value),
+		Cas:           Cas(resp.Cas),
 		Content:       resp.Content,
 		MutationToken: mutationTokenFromPs(resp.MutationToken),
 	}, nil
@@ -236,7 +233,7 @@ func (c *CollectionBinary) Decrement(ctx context.Context, id string, opts *Decre
 	}
 
 	return &CounterResult{
-		Cas:           Cas(resp.Cas.Value),
+		Cas:           Cas(resp.Cas),
 		Content:       resp.Content,
 		MutationToken: mutationTokenFromPs(resp.MutationToken),
 	}, nil
