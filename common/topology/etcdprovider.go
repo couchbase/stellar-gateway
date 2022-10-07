@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"log"
 
-	"github.com/couchbase/stellar-nebula/utils/etcdmemberlist"
+	"github.com/couchbase/stellar-nebula/contrib/etcdmemberlist"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
