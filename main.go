@@ -1,15 +1,14 @@
 package main
 
 import (
+	"context"
 	"flag"
-	"fmt"
 	"log"
-	"net"
 	"os"
 	"time"
 
 	"github.com/couchbase/stellar-nebula/common/topology"
-	"github.com/couchbase/stellar-nebula/gateway/server_v1"
+	"github.com/couchbase/stellar-nebula/gateway"
 	"github.com/couchbase/stellar-nebula/legacyproxy"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -17,7 +16,6 @@ import (
 
 	"github.com/couchbase/gocb/v2"
 	etcd "go.etcd.io/etcd/client/v3"
-	"google.golang.org/grpc"
 )
 
 var cbHost = flag.String("cb-host", "couchbase://127.0.0.1", "the couchbase cluster to link to")
@@ -25,7 +23,7 @@ var cbUser = flag.String("cb-user", "Administrator", "the username to use for th
 var cbPass = flag.String("cb-pass", "password", "the password to use for the couchbase cluster")
 var etcdHost = flag.String("etcd-host", "localhost:2379", "the etcd host to connect to")
 var bindAddr = flag.String("bind-addr", "0.0.0.0", "the address to bind")
-var bindPort = flag.Uint64("bind-port", 18098, "the port to bind to")
+var bindPort = flag.Int("bind-port", 18098, "the port to bind to")
 var advertiseAddr = flag.String("advertise-addr", "127.0.0.1", "the address to use when advertising this node")
 var advertisePort = flag.Uint64("advertise-port", 18098, "the port to use when advertising this node")
 var nodeID = flag.String("node-id", "", "the local node id for this service")
@@ -98,19 +96,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	// setup the grpc server
-	log.Printf("initializing grpc system")
-	s := grpc.NewServer()
-	server_v1.Register(s, topologyProvider, client)
-
-	// start our listener for grpc
-	log.Printf("initializing grpc listener")
-	lis, err := net.Listen("tcp", fmt.Sprintf("%s:%d", *bindAddr, *bindPort))
-	if err != nil {
-		log.Fatalf("failed to listen: %v", err)
-	}
-	log.Printf("grpc listener is listening at %v", lis.Addr())
-
 	// join the cluster topology
 	log.Printf("joining nebula cluster toplogy")
 	topologyProvider.Join(&topology.Endpoint{
@@ -119,13 +104,28 @@ func main() {
 		AdvertisePort: int(*advertisePort),
 		ServerGroup:   *serverGroup,
 	})
+
+	// setup the gateway server
+	log.Printf("initializing gateway system")
+	gateway, err := gateway.NewGateway(&gateway.GatewayOptions{
+		Logger:           logger,
+		BindAddress:      *bindAddr,
+		BindPort:         *bindPort,
+		TopologyProvider: topologyProvider,
+		CbClient:         client,
+	})
+	if err != nil {
+		log.Fatalf("failed to initialize gateway: %s", err)
+	}
+
 	waitCh := make(chan struct{})
 
 	go func() {
 		// start serving requests
 		log.Printf("starting to serve grpc")
-		if err := s.Serve(lis); err != nil {
-			log.Fatalf("failed to serve: %v", err)
+		err := gateway.Run(context.Background())
+		if err != nil {
+			log.Fatalf("failed to run gateway: %v", err)
 		}
 
 		waitCh <- struct{}{}
@@ -142,9 +142,9 @@ func main() {
 		},
 		TLSBindPorts: legacyproxy.ServicePorts{},
 
-		DataServer:    nil,
-		QueryServer:   nil,
-		RoutingServer: nil,
+		DataServer:    gateway.DataV1Server,
+		QueryServer:   gateway.QueryV1Server,
+		RoutingServer: gateway.RoutingV1Server,
 	})
 	if err != nil {
 		log.Printf("error creating legacy proxy: %s", err)

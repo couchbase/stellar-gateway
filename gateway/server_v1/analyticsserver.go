@@ -9,13 +9,13 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-type analyticsServer struct {
+type AnalyticsServer struct {
 	analytics_v1.UnimplementedAnalyticsServer
 
 	cbClient *gocb.Cluster
 }
 
-func (s *analyticsServer) AnalyticsQuery(in *analytics_v1.AnalyticsQueryRequest, out analytics_v1.Analytics_AnalyticsQueryServer) error {
+func (s *AnalyticsServer) AnalyticsQuery(in *analytics_v1.AnalyticsQueryRequest, out analytics_v1.Analytics_AnalyticsQueryServer) error {
 	var opts gocb.AnalyticsOptions
 
 	if in.ReadOnly != nil {
@@ -162,8 +162,8 @@ func (s *analyticsServer) AnalyticsQuery(in *analytics_v1.AnalyticsQueryRequest,
 	return nil
 }
 
-func NewAnalyticsServer(cbClient *gocb.Cluster) *analyticsServer {
-	return &analyticsServer{
+func NewAnalyticsServer(cbClient *gocb.Cluster) *AnalyticsServer {
+	return &AnalyticsServer{
 		cbClient: cbClient,
 	}
 }

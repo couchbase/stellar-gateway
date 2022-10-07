@@ -11,13 +11,13 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-type dataServer struct {
+type DataServer struct {
 	data_v1.UnimplementedDataServer
 
 	cbClient *gocb.Cluster
 }
 
-func (s *dataServer) getCollection(ctx context.Context, bucketName, scopeName, collectionName string) *gocb.Collection {
+func (s *DataServer) getCollection(ctx context.Context, bucketName, scopeName, collectionName string) *gocb.Collection {
 	client := s.cbClient
 	bucket := client.Bucket(bucketName)
 	scope := bucket.Scope(scopeName)
@@ -25,7 +25,7 @@ func (s *dataServer) getCollection(ctx context.Context, bucketName, scopeName, c
 	return collection
 }
 
-func (s *dataServer) Get(ctx context.Context, in *data_v1.GetRequest) (*data_v1.GetResponse, error) {
+func (s *DataServer) Get(ctx context.Context, in *data_v1.GetRequest) (*data_v1.GetResponse, error) {
 	coll := s.getCollection(ctx, in.BucketName, in.ScopeName, in.CollectionName)
 
 	var opts gocb.GetOptions
@@ -51,7 +51,7 @@ func (s *dataServer) Get(ctx context.Context, in *data_v1.GetRequest) (*data_v1.
 	}, nil
 }
 
-func (s *dataServer) Insert(ctx context.Context, in *data_v1.InsertRequest) (*data_v1.InsertResponse, error) {
+func (s *DataServer) Insert(ctx context.Context, in *data_v1.InsertRequest) (*data_v1.InsertResponse, error) {
 	coll := s.getCollection(ctx, in.BucketName, in.ScopeName, in.CollectionName)
 
 	var contentData psTranscodeData
@@ -91,7 +91,7 @@ func (s *dataServer) Insert(ctx context.Context, in *data_v1.InsertRequest) (*da
 	}, nil
 }
 
-func (s *dataServer) Upsert(ctx context.Context, in *data_v1.UpsertRequest) (*data_v1.UpsertResponse, error) {
+func (s *DataServer) Upsert(ctx context.Context, in *data_v1.UpsertRequest) (*data_v1.UpsertResponse, error) {
 	coll := s.getCollection(ctx, in.BucketName, in.ScopeName, in.CollectionName)
 
 	var contentData psTranscodeData
@@ -133,7 +133,7 @@ func (s *dataServer) Upsert(ctx context.Context, in *data_v1.UpsertRequest) (*da
 	}, nil
 }
 
-func (s *dataServer) Replace(ctx context.Context, in *data_v1.ReplaceRequest) (*data_v1.ReplaceResponse, error) {
+func (s *DataServer) Replace(ctx context.Context, in *data_v1.ReplaceRequest) (*data_v1.ReplaceResponse, error) {
 	coll := s.getCollection(ctx, in.BucketName, in.ScopeName, in.CollectionName)
 
 	var contentData psTranscodeData
@@ -179,7 +179,7 @@ func (s *dataServer) Replace(ctx context.Context, in *data_v1.ReplaceRequest) (*
 	}, nil
 }
 
-func (s *dataServer) Remove(ctx context.Context, in *data_v1.RemoveRequest) (*data_v1.RemoveResponse, error) {
+func (s *DataServer) Remove(ctx context.Context, in *data_v1.RemoveRequest) (*data_v1.RemoveResponse, error) {
 	coll := s.getCollection(ctx, in.BucketName, in.ScopeName, in.CollectionName)
 
 	var opts gocb.RemoveOptions
@@ -214,7 +214,7 @@ func (s *dataServer) Remove(ctx context.Context, in *data_v1.RemoveRequest) (*da
 	}, nil
 }
 
-func (s *dataServer) Increment(ctx context.Context, in *data_v1.IncrementRequest) (*data_v1.IncrementResponse, error) {
+func (s *DataServer) Increment(ctx context.Context, in *data_v1.IncrementRequest) (*data_v1.IncrementResponse, error) {
 	coll := s.getCollection(ctx, in.BucketName, in.ScopeName, in.CollectionName)
 
 	var opts gocb.IncrementOptions
@@ -255,7 +255,7 @@ func (s *dataServer) Increment(ctx context.Context, in *data_v1.IncrementRequest
 	}, nil
 }
 
-func (s *dataServer) Decrement(ctx context.Context, in *data_v1.DecrementRequest) (*data_v1.DecrementResponse, error) {
+func (s *DataServer) Decrement(ctx context.Context, in *data_v1.DecrementRequest) (*data_v1.DecrementResponse, error) {
 	coll := s.getCollection(ctx, in.BucketName, in.ScopeName, in.CollectionName)
 
 	var opts gocb.DecrementOptions
@@ -296,7 +296,7 @@ func (s *dataServer) Decrement(ctx context.Context, in *data_v1.DecrementRequest
 	}, nil
 }
 
-func (s *dataServer) Append(ctx context.Context, in *data_v1.AppendRequest) (*data_v1.AppendResponse, error) {
+func (s *DataServer) Append(ctx context.Context, in *data_v1.AppendRequest) (*data_v1.AppendResponse, error) {
 	coll := s.getCollection(ctx, in.BucketName, in.ScopeName, in.CollectionName)
 
 	var contentData psTranscodeData
@@ -334,7 +334,7 @@ func (s *dataServer) Append(ctx context.Context, in *data_v1.AppendRequest) (*da
 	}, nil
 }
 
-func (s *dataServer) Prepend(ctx context.Context, in *data_v1.PrependRequest) (*data_v1.PrependResponse, error) {
+func (s *DataServer) Prepend(ctx context.Context, in *data_v1.PrependRequest) (*data_v1.PrependResponse, error) {
 	coll := s.getCollection(ctx, in.BucketName, in.ScopeName, in.CollectionName)
 
 	var contentData psTranscodeData
@@ -372,7 +372,7 @@ func (s *dataServer) Prepend(ctx context.Context, in *data_v1.PrependRequest) (*
 	}, nil
 }
 
-func (s *dataServer) LookupIn(ctx context.Context, in *data_v1.LookupInRequest) (*data_v1.LookupInResponse, error) {
+func (s *DataServer) LookupIn(ctx context.Context, in *data_v1.LookupInRequest) (*data_v1.LookupInResponse, error) {
 	coll := s.getCollection(ctx, in.BucketName, in.ScopeName, in.CollectionName)
 
 	var opts gocb.LookupInOptions
@@ -437,7 +437,7 @@ func (s *dataServer) LookupIn(ctx context.Context, in *data_v1.LookupInRequest) 
 	}, nil
 }
 
-func (s *dataServer) MutateIn(ctx context.Context, in *data_v1.MutateInRequest) (*data_v1.MutateInResponse, error) {
+func (s *DataServer) MutateIn(ctx context.Context, in *data_v1.MutateInRequest) (*data_v1.MutateInResponse, error) {
 	coll := s.getCollection(ctx, in.BucketName, in.ScopeName, in.CollectionName)
 
 	var opts gocb.MutateInOptions
@@ -600,8 +600,8 @@ func (s *dataServer) MutateIn(ctx context.Context, in *data_v1.MutateInRequest) 
 	}, nil
 }
 
-func NewDataServer(cbClient *gocb.Cluster) *dataServer {
-	return &dataServer{
+func NewDataServer(cbClient *gocb.Cluster) *DataServer {
+	return &DataServer{
 		cbClient: cbClient,
 	}
 }

@@ -11,7 +11,7 @@ import (
 	transactions_v1 "github.com/couchbase/stellar-nebula/genproto/transactions/v1"
 )
 
-type transactionsServer struct {
+type TransactionsServer struct {
 	transactions_v1.UnimplementedTransactionsServer
 
 	cbClient *gocb.Cluster
@@ -20,11 +20,11 @@ type transactionsServer struct {
 	txnsLock sync.Mutex
 }
 
-func (s *transactionsServer) getAgent(bucketName string) (*gocbcore.Agent, error) {
+func (s *TransactionsServer) getAgent(bucketName string) (*gocbcore.Agent, error) {
 	return s.cbClient.Bucket(bucketName).Internal().IORouter()
 }
 
-func (s *transactionsServer) getTransaction(bucketName string, txnId string) (*gocbcore.Transaction, error) {
+func (s *TransactionsServer) getTransaction(bucketName string, txnId string) (*gocbcore.Transaction, error) {
 	s.txnsLock.Lock()
 	txn, ok := s.txns[txnId]
 	s.txnsLock.Unlock()
@@ -36,7 +36,7 @@ func (s *transactionsServer) getTransaction(bucketName string, txnId string) (*g
 	return txn, nil
 }
 
-func (s *transactionsServer) getAttempt(bucketName string, txnId string, attemptId string) (*gocbcore.Transaction, error) {
+func (s *TransactionsServer) getAttempt(bucketName string, txnId string, attemptId string) (*gocbcore.Transaction, error) {
 	txn, err := s.getTransaction(bucketName, txnId)
 	if err != nil {
 		return nil, err
@@ -49,7 +49,7 @@ func (s *transactionsServer) getAttempt(bucketName string, txnId string, attempt
 	return txn, nil
 }
 
-func (s *transactionsServer) asyncOp(fn func(cb func()) error) error {
+func (s *TransactionsServer) asyncOp(fn func(cb func()) error) error {
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 
@@ -64,7 +64,7 @@ func (s *transactionsServer) asyncOp(fn func(cb func()) error) error {
 	return nil
 }
 
-func (s *transactionsServer) TransactionBeginAttempt(
+func (s *TransactionsServer) TransactionBeginAttempt(
 	ctx context.Context,
 	in *transactions_v1.TransactionBeginAttemptRequest,
 ) (*transactions_v1.TransactionBeginAttemptResponse, error) {
@@ -110,7 +110,7 @@ func (s *transactionsServer) TransactionBeginAttempt(
 	}, nil
 }
 
-func (s *transactionsServer) TransactionCommit(
+func (s *TransactionsServer) TransactionCommit(
 	ctx context.Context,
 	in *transactions_v1.TransactionCommitRequest,
 ) (respOut *transactions_v1.TransactionCommitResponse, errOut error) {
@@ -139,7 +139,7 @@ func (s *transactionsServer) TransactionCommit(
 	return
 }
 
-func (s *transactionsServer) TransactionRollback(
+func (s *TransactionsServer) TransactionRollback(
 	ctx context.Context,
 	in *transactions_v1.TransactionRollbackRequest,
 ) (respOut *transactions_v1.TransactionRollbackResponse, errOut error) {
@@ -168,7 +168,7 @@ func (s *transactionsServer) TransactionRollback(
 	return
 }
 
-func (s *transactionsServer) TransactionGet(
+func (s *TransactionsServer) TransactionGet(
 	ctx context.Context,
 	in *transactions_v1.TransactionGetRequest,
 ) (respOut *transactions_v1.TransactionGetResponse, errOut error) {
@@ -211,7 +211,7 @@ func (s *transactionsServer) TransactionGet(
 	return
 }
 
-func (s *transactionsServer) TransactionInsert(
+func (s *TransactionsServer) TransactionInsert(
 	ctx context.Context,
 	in *transactions_v1.TransactionInsertRequest,
 ) (respOut *transactions_v1.TransactionInsertResponse, errOut error) {
@@ -254,7 +254,7 @@ func (s *transactionsServer) TransactionInsert(
 	return
 }
 
-func (s *transactionsServer) TransactionReplace(
+func (s *TransactionsServer) TransactionReplace(
 	ctx context.Context,
 	in *transactions_v1.TransactionReplaceRequest,
 ) (respOut *transactions_v1.TransactionReplaceResponse, errOut error) {
@@ -303,7 +303,7 @@ func (s *transactionsServer) TransactionReplace(
 	return
 }
 
-func (s *transactionsServer) TransactionRemove(
+func (s *TransactionsServer) TransactionRemove(
 	ctx context.Context,
 	in *transactions_v1.TransactionRemoveRequest,
 ) (respOut *transactions_v1.TransactionRemoveResponse, errOut error) {
@@ -351,13 +351,13 @@ func (s *transactionsServer) TransactionRemove(
 	return
 }
 
-func NewTransactionsServer(cbClient *gocb.Cluster) *transactionsServer {
+func NewTransactionsServer(cbClient *gocb.Cluster) *TransactionsServer {
 	txnMgr, err := gocbcore.InitTransactions(&gocbcore.TransactionsConfig{})
 	if err != nil {
 		log.Printf("failed to initialize transactions manager: %s", err)
 	}
 
-	return &transactionsServer{
+	return &TransactionsServer{
 		cbClient: cbClient,
 		txnMgr:   txnMgr,
 		txns:     make(map[string]*gocbcore.Transaction),

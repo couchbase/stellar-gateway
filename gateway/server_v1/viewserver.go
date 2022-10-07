@@ -10,13 +10,13 @@ import (
 	view_v1 "github.com/couchbase/stellar-nebula/genproto/view/v1"
 )
 
-type viewServer struct {
+type ViewsServer struct {
 	view_v1.UnimplementedViewServer
 
 	cbClient *gocb.Cluster
 }
 
-func (s *viewServer) ViewQuery(in *view_v1.ViewQueryRequest, out view_v1.View_ViewQueryServer) error {
+func (s *ViewsServer) ViewQuery(in *view_v1.ViewQueryRequest, out view_v1.View_ViewQueryServer) error {
 	var opts gocb.ViewOptions
 
 	if in.ScanConsistency != nil {
@@ -194,8 +194,8 @@ func (s *viewServer) ViewQuery(in *view_v1.ViewQueryRequest, out view_v1.View_Vi
 	return nil
 }
 
-func NewViewServer(cbClient *gocb.Cluster) *viewServer {
-	return &viewServer{
+func NewViewServer(cbClient *gocb.Cluster) *ViewsServer {
+	return &ViewsServer{
 		cbClient: cbClient,
 	}
 }

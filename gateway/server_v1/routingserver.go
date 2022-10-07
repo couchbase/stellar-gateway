@@ -9,13 +9,13 @@ import (
 	routing_v1 "github.com/couchbase/stellar-nebula/genproto/routing/v1"
 )
 
-type routingServer struct {
+type RoutingServer struct {
 	routing_v1.UnimplementedRoutingServer
 
 	topologyProvider topology.Provider
 }
 
-func (s *routingServer) WatchRouting(in *routing_v1.WatchRoutingRequest, out routing_v1.Routing_WatchRoutingServer) error {
+func (s *RoutingServer) WatchRouting(in *routing_v1.WatchRoutingRequest, out routing_v1.Routing_WatchRoutingServer) error {
 topologyLoop:
 	for {
 		topology, err := s.topologyProvider.Get()
@@ -48,8 +48,8 @@ topologyLoop:
 	return nil
 }
 
-func NewRoutingServer(topologyProvider topology.Provider) *routingServer {
-	return &routingServer{
+func NewRoutingServer(topologyProvider topology.Provider) *RoutingServer {
+	return &RoutingServer{
 		topologyProvider: topologyProvider,
 	}
 }

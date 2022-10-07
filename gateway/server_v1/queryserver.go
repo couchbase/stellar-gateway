@@ -9,13 +9,13 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-type queryServer struct {
+type QueryServer struct {
 	query_v1.UnimplementedQueryServer
 
 	cbClient *gocb.Cluster
 }
 
-func (s *queryServer) Query(in *query_v1.QueryRequest, out query_v1.Query_QueryServer) error {
+func (s *QueryServer) Query(in *query_v1.QueryRequest, out query_v1.Query_QueryServer) error {
 	var opts gocb.QueryOptions
 
 	// metrics are included by default
@@ -247,8 +247,8 @@ func (s *queryServer) Query(in *query_v1.QueryRequest, out query_v1.Query_QueryS
 	return nil
 }
 
-func NewQueryServer(cbClient *gocb.Cluster) *queryServer {
-	return &queryServer{
+func NewQueryServer(cbClient *gocb.Cluster) *QueryServer {
+	return &QueryServer{
 		cbClient: cbClient,
 	}
 }
