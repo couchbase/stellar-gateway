@@ -3,8 +3,8 @@ module github.com/couchbase/stellar-nebula
 go 1.18
 
 require (
-	github.com/couchbase/gocb/v2 v2.5.0
-	github.com/couchbase/gocbcore/v10 v10.1.2
+	github.com/couchbase/gocb/v2 v2.5.2
+	github.com/couchbase/gocbcore/v10 v10.1.4
 	github.com/google/uuid v1.3.0
 	go.etcd.io/etcd/api/v3 v3.5.5
 	go.etcd.io/etcd/client/v3 v3.5.5
