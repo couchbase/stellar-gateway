@@ -10,7 +10,10 @@ import (
 
 	"github.com/couchbase/stellar-nebula/common/topology"
 	"github.com/couchbase/stellar-nebula/gateway/server_v1"
+	"github.com/couchbase/stellar-nebula/legacyproxy"
 	"github.com/google/uuid"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 
 	"github.com/couchbase/gocb/v2"
 	etcd "go.etcd.io/etcd/client/v3"
@@ -37,6 +40,25 @@ func main() {
 		nodeID = &genNodeID
 	}
 
+	// initialize the logger
+	logLevel := zap.NewAtomicLevel()
+	config := zap.NewProductionEncoderConfig()
+	config.EncodeTime = zapcore.ISO8601TimeEncoder
+	fileEncoder := zapcore.NewJSONEncoder(config)
+	consoleEncoder := zapcore.NewConsoleEncoder(config)
+	logFile, _ := os.OpenFile("text.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	writer := zapcore.AddSync(logFile)
+	core := zapcore.NewTee(
+		zapcore.NewCore(fileEncoder, writer, logLevel),
+		zapcore.NewCore(consoleEncoder, zapcore.AddSync(os.Stdout), logLevel),
+	)
+	logger := zap.New(core, zap.AddCaller(), zap.AddStacktrace(zapcore.ErrorLevel))
+
+	// switch to debug level logs for ... debugging
+
+	logLevel.SetLevel(zap.DebugLevel)
+
+	// start connecting to the underlying cluster
 	log.Printf("linking to couchbase cluster at: %s (user: %s)", *cbHost, *cbUser)
 
 	client, err := gocb.Connect(*cbHost, gocb.ClusterOptions{
@@ -97,10 +119,38 @@ func main() {
 		AdvertisePort: int(*advertisePort),
 		ServerGroup:   *serverGroup,
 	})
+	waitCh := make(chan struct{})
 
-	// start serving requests
-	log.Printf("initialization complete")
-	if err := s.Serve(lis); err != nil {
-		log.Fatalf("failed to serve: %v", err)
+	go func() {
+		// start serving requests
+		log.Printf("starting to serve grpc")
+		if err := s.Serve(lis); err != nil {
+			log.Fatalf("failed to serve: %v", err)
+		}
+
+		waitCh <- struct{}{}
+	}()
+
+	log.Printf("starting to serve legacy")
+	lproxy, err := legacyproxy.NewSystem(&legacyproxy.SystemOptions{
+		Logger: logger,
+
+		BindAddress: "",
+		BindPorts: legacyproxy.ServicePorts{
+			Mgmt: 8091,
+			Kv:   11210,
+		},
+		TLSBindPorts: legacyproxy.ServicePorts{},
+
+		DataServer:    nil,
+		QueryServer:   nil,
+		RoutingServer: nil,
+	})
+	if err != nil {
+		log.Printf("error creating legacy proxy: %s", err)
 	}
+
+	lproxy.Test()
+
+	<-waitCh
 }
