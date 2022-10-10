@@ -1,5 +1,9 @@
 package cbconfig
 
+// TODO(brett19): We should switch to using OpenAPI v3 to define the ns_server REST here...
+// Some references:
+//   https://github.com/couchbaselabs/cb-swagger/
+
 type VBucketServerMapJson struct {
 	HashAlgorithm string   `json:"hashAlgorithm"`
 	NumReplicas   int      `json:"numReplicas"`

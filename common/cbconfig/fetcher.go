@@ -1,6 +1,7 @@
 package cbconfig
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -99,9 +100,28 @@ func (f *Fetcher) doGetJson(ctx context.Context, path string, data any) error {
 	return nil
 }
 
+func (f *Fetcher) doGetJsonConfig(ctx context.Context, path string, data any) error {
+	// we use an intermediary so that we can replace $HOST
+	var configBytes json.RawMessage
+	err := f.doGetJson(ctx, path, &configBytes)
+	if err != nil {
+		return err
+	}
+
+	hostname := f.deriveHostname()
+	configBytes = bytes.ReplaceAll(configBytes, []byte("$HOST"), []byte(hostname))
+
+	err = json.Unmarshal(configBytes, data)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (f *Fetcher) FetchNodeServices(ctx context.Context) (*TerseConfigJson, error) {
 	var config TerseConfigJson
-	err := f.doGetJson(ctx, "/pools/default/nodeServices", &config)
+	err := f.doGetJsonConfig(ctx, "/pools/default/nodeServices", &config)
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +131,7 @@ func (f *Fetcher) FetchNodeServices(ctx context.Context) (*TerseConfigJson, erro
 
 func (f *Fetcher) FetchServerGroups(ctx context.Context) (*ServerGroupConfigJson, error) {
 	var config ServerGroupConfigJson
-	err := f.doGetJson(ctx, "/pools/default/serverGroups", &config)
+	err := f.doGetJsonConfig(ctx, "/pools/default/serverGroups", &config)
 	if err != nil {
 		return nil, err
 	}
@@ -121,7 +141,7 @@ func (f *Fetcher) FetchServerGroups(ctx context.Context) (*ServerGroupConfigJson
 
 func (f *Fetcher) FetchTerseBucket(ctx context.Context, bucketName string) (*TerseConfigJson, error) {
 	var config TerseConfigJson
-	err := f.doGetJson(ctx, fmt.Sprintf("/pools/default/b/%s", bucketName), &config)
+	err := f.doGetJsonConfig(ctx, fmt.Sprintf("/pools/default/b/%s", bucketName), &config)
 	if err != nil {
 		return nil, err
 	}
