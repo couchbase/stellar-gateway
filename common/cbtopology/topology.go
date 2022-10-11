@@ -21,12 +21,14 @@ type DataServer struct {
 }
 
 type Topology struct {
+	RevEpoch uint64
 	Revision uint64
 
 	Servers []*Server
 }
 
 type BucketTopology struct {
+	RevEpoch uint64
 	Revision uint64
 
 	Servers     []*Server

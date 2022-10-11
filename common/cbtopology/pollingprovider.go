@@ -123,7 +123,9 @@ func (p *PollingProvider) parseClusterConfig(
 	}
 
 	return &Topology{
-		Servers: servers,
+		RevEpoch: uint64(config.RevEpoch),
+		Revision: uint64(config.Rev),
+		Servers:  servers,
 	}, nil
 }
 
@@ -228,6 +230,8 @@ func (p *PollingProvider) parseBucketConfig(
 	}
 
 	return &BucketTopology{
+		RevEpoch:    uint64(config.RevEpoch),
+		Revision:    uint64(config.Rev),
 		Servers:     servers,
 		DataServers: dataServers,
 	}, nil
