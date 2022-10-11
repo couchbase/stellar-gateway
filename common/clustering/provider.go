@@ -1,4 +1,4 @@
-package topology
+package clustering
 
 type Endpoint struct {
 	NodeID        string

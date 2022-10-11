@@ -1,4 +1,4 @@
-package topology
+package clustering
 
 import "errors"
 

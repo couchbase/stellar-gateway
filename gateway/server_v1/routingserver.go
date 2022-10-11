@@ -5,14 +5,14 @@ import (
 	"log"
 	"time"
 
-	"github.com/couchbase/stellar-nebula/common/topology"
+	"github.com/couchbase/stellar-nebula/common/clustering"
 	routing_v1 "github.com/couchbase/stellar-nebula/genproto/routing/v1"
 )
 
 type RoutingServer struct {
 	routing_v1.UnimplementedRoutingServer
 
-	topologyProvider topology.Provider
+	topologyProvider clustering.Provider
 }
 
 func (s *RoutingServer) WatchRouting(in *routing_v1.WatchRoutingRequest, out routing_v1.Routing_WatchRoutingServer) error {
@@ -48,7 +48,7 @@ topologyLoop:
 	return nil
 }
 
-func NewRoutingServer(topologyProvider topology.Provider) *RoutingServer {
+func NewRoutingServer(topologyProvider clustering.Provider) *RoutingServer {
 	return &RoutingServer{
 		topologyProvider: topologyProvider,
 	}

@@ -7,7 +7,7 @@ import (
 	"net"
 
 	"github.com/couchbase/gocb/v2"
-	"github.com/couchbase/stellar-nebula/common/topology"
+	"github.com/couchbase/stellar-nebula/common/clustering"
 	"github.com/couchbase/stellar-nebula/gateway/server_v1"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -30,7 +30,7 @@ type GatewayOptions struct {
 	BindAddress string
 	BindPort    int
 
-	TopologyProvider topology.Provider
+	TopologyProvider clustering.Provider
 	CbClient         *gocb.Cluster
 }
 
@@ -38,7 +38,7 @@ type Gateway struct {
 	logger           *zap.Logger
 	bindAddress      string
 	bindPort         int
-	topologyProvider topology.Provider
+	topologyProvider clustering.Provider
 	cbClient         *gocb.Cluster
 
 	grpcListener net.Listener

@@ -7,7 +7,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/couchbase/stellar-nebula/common/topology"
+	"github.com/couchbase/stellar-nebula/common/clustering"
 	"github.com/couchbase/stellar-nebula/gateway"
 	"github.com/couchbase/stellar-nebula/legacyproxy"
 	"github.com/google/uuid"
@@ -87,7 +87,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	topologyProvider, err := topology.NewEtcdProvider(topology.EtcdProviderOptions{
+	topologyProvider, err := clustering.NewEtcdProvider(clustering.EtcdProviderOptions{
 		EtcdClient: etcdClient,
 		KeyPrefix:  "/nebula/topology",
 	})
@@ -98,7 +98,7 @@ func main() {
 
 	// join the cluster topology
 	log.Printf("joining nebula cluster toplogy")
-	topologyProvider.Join(&topology.Endpoint{
+	topologyProvider.Join(&clustering.Endpoint{
 		NodeID:        *nodeID,
 		AdvertiseAddr: *advertiseAddr,
 		AdvertisePort: int(*advertisePort),

@@ -1,4 +1,4 @@
-package topology
+package clustering
 
 import "github.com/couchbase/stellar-nebula/common/cbtopology"
 
