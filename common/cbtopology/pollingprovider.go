@@ -168,7 +168,7 @@ func (p *PollingProvider) fetchClusterConfig(ctx context.Context, baseConfig *cb
 	return topology, nil
 }
 
-func (p *PollingProvider) WatchCluster(ctx context.Context) (chan *Topology, error) {
+func (p *PollingProvider) WatchCluster(ctx context.Context) (<-chan *Topology, error) {
 	topology, err := p.fetchClusterConfig(ctx, nil)
 	if err != nil {
 		return nil, err
@@ -197,7 +197,7 @@ func (p *PollingProvider) WatchCluster(ctx context.Context) (chan *Topology, err
 			// only if they don't match do we compare revisions to decide.  This will
 			// prevent us from triggereing updates from changes we don't care about.
 			if topology.Revision > lastTopology.Revision {
-				outputCh <- topology
+				inputCh <- topology
 				lastTopology = topology
 			}
 
@@ -233,7 +233,7 @@ func (p *PollingProvider) parseBucketConfig(
 	}, nil
 }
 
-func (p *PollingProvider) WatchBucket(ctx context.Context, bucketName string) (chan *BucketTopology, error) {
+func (p *PollingProvider) WatchBucket(ctx context.Context, bucketName string) (<-chan *BucketTopology, error) {
 	// fetch the first version
 	config, err := p.fetcher.FetchTerseBucket(ctx, bucketName)
 	if err != nil {
@@ -288,7 +288,7 @@ func (p *PollingProvider) WatchBucket(ctx context.Context, bucketName string) (c
 			// only if they don't match do we compare revisions to decide.  This will
 			// prevent us from triggereing updates from changes we don't care about.
 			if topology.Revision > lastTopology.Revision {
-				outputCh <- topology
+				inputCh <- topology
 				lastTopology = topology
 			}
 
