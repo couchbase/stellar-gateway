@@ -8,6 +8,9 @@ type Endpoint struct {
 }
 
 type Snapshot struct {
+	RevEpoch uint64
+	Revision uint64
+
 	Endpoints []Endpoint
 }
 

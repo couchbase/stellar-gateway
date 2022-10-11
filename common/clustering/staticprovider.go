@@ -75,6 +75,9 @@ func (tp *StaticProvider) Get() (*Snapshot, error) {
 	}
 
 	return &Snapshot{
+		RevEpoch: 0,
+		Revision: 0,
+
 		Endpoints: []Endpoint{
 			*localConfig,
 		},

@@ -128,6 +128,9 @@ func (tp *EtcdProvider) procMemberList(snap *etcdmemberlist.MembersSnapshot) (*S
 	}
 
 	return &Snapshot{
+		RevEpoch: 1,
+		Revision: uint64(snap.Revision),
+
 		Endpoints: members,
 	}, nil
 }
