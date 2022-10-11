@@ -35,16 +35,16 @@ func NewPollingProvider(opts PollingProviderOptions) (*PollingProvider, error) {
 func (p *PollingProvider) parseConfigServers(
 	config *cbconfig.TerseConfigJson,
 	groupsConfig *cbconfig.ServerGroupConfigJson,
-) ([]*Server, error) {
-	var servers []*Server
-	hostMap := make(map[string]*Server)
+) ([]*Node, error) {
+	var servers []*Node
+	hostMap := make(map[string]*Node)
 
 	// We parse NodesExt first to get the ordering correct.  This is required
 	// when we match the server list to the vbucketMaps...
 	for _, nodeJson := range config.NodesExt {
 		hostID := fmt.Sprintf("%s:%d", nodeJson.Hostname, nodeJson.Services["mgmt"])
 
-		server := &Server{
+		server := &Node{
 			HostID:      hostID,
 			NodeID:      "",
 			ServerGroup: "",
@@ -83,13 +83,13 @@ func (p *PollingProvider) parseConfigServers(
 	return servers, nil
 }
 
-func (p *PollingProvider) parseVbucketMap(config *cbconfig.VBucketServerMapJson, servers []*Server) ([]*DataServer, error) {
+func (p *PollingProvider) parseVbucketMap(config *cbconfig.VBucketServerMapJson, servers []*Node) ([]*DataNode, error) {
 	// TODO(brett19): Add better error handling for missmatch in server lengths
 
-	dataServers := make([]*DataServer, len(config.ServerList))
+	dataServers := make([]*DataNode, len(config.ServerList))
 	for serverIdx := range dataServers {
-		dataServers[serverIdx] = &DataServer{
-			Server: servers[serverIdx],
+		dataServers[serverIdx] = &DataNode{
+			Node: servers[serverIdx],
 		}
 	}
 
@@ -125,7 +125,7 @@ func (p *PollingProvider) parseClusterConfig(
 	return &Topology{
 		RevEpoch: uint64(config.RevEpoch),
 		Revision: uint64(config.Rev),
-		Servers:  servers,
+		Nodes:    servers,
 	}, nil
 }
 
@@ -230,10 +230,10 @@ func (p *PollingProvider) parseBucketConfig(
 	}
 
 	return &BucketTopology{
-		RevEpoch:    uint64(config.RevEpoch),
-		Revision:    uint64(config.Rev),
-		Servers:     servers,
-		DataServers: dataServers,
+		RevEpoch:  uint64(config.RevEpoch),
+		Revision:  uint64(config.Rev),
+		Nodes:     servers,
+		DataNodes: dataServers,
 	}, nil
 }
 

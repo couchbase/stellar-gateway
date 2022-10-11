@@ -30,8 +30,8 @@ func TestWatchClusterConfig(t *testing.T) {
 	}
 
 	clusterConfig := <-clusterConfigs
-	if len(clusterConfig.Servers) == 0 {
-		t.Fatalf("failed to parse servers")
+	if len(clusterConfig.Nodes) == 0 {
+		t.Fatalf("failed to parse nodes")
 	}
 
 	cancelFn()
@@ -74,14 +74,14 @@ func TestWatchBucketConfig(t *testing.T) {
 	}
 
 	bucketConfig := <-bucketConfigs
-	if len(bucketConfig.Servers) == 0 {
-		t.Fatalf("failed to parse servers")
+	if len(bucketConfig.Nodes) == 0 {
+		t.Fatalf("failed to parse nodes")
 	}
-	if len(bucketConfig.DataServers) == 0 {
+	if len(bucketConfig.DataNodes) == 0 {
 		t.Fatalf("failed to parse vbucket data")
 	}
-	if len(bucketConfig.DataServers[0].Vbuckets) <= 0 {
-		t.Fatalf("failed to parse server vbuckets")
+	if len(bucketConfig.DataNodes[0].Vbuckets) <= 0 {
+		t.Fatalf("failed to parse node vbuckets")
 	}
 
 	cancelFn()

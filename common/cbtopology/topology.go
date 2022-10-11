@@ -1,6 +1,6 @@
 package cbtopology
 
-type Server struct {
+type Node struct {
 	HostID      string
 	NodeID      string
 	ServerGroup string
@@ -13,8 +13,8 @@ type Server struct {
 	HasSearch    bool
 }
 
-type DataServer struct {
-	Server *Server
+type DataNode struct {
+	Node *Node
 
 	Vbuckets        []int
 	VbucketReplicas []int
@@ -24,13 +24,13 @@ type Topology struct {
 	RevEpoch uint64
 	Revision uint64
 
-	Servers []*Server
+	Nodes []*Node
 }
 
 type BucketTopology struct {
 	RevEpoch uint64
 	Revision uint64
 
-	Servers     []*Server
-	DataServers []*DataServer
+	Nodes     []*Node
+	DataNodes []*DataNode
 }
