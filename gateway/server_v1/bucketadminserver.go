@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/couchbase/gocb/v2"
-	admin_bucket_v1 "github.com/couchbase/stellar-nebula/genproto/admin/bucket/v1"
+	"github.com/couchbase/stellar-nebula/genproto/admin_bucket_v1"
 )
 
 type BucketAdminServer struct {

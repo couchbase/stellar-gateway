@@ -6,8 +6,8 @@ import (
 	"log"
 	"time"
 
-	routing_v1 "github.com/couchbase/stellar-nebula/genproto/routing/v1"
-	couchbase_v1 "github.com/couchbase/stellar-nebula/genproto/v1"
+	"github.com/couchbase/stellar-nebula/genproto/couchbase_v1"
+	"github.com/couchbase/stellar-nebula/genproto/routing_v1"
 	"google.golang.org/grpc/status"
 
 	gocbps "github.com/couchbase/stellar-nebula/tools/test-client"

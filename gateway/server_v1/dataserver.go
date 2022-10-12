@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/couchbase/gocb/v2"
-	data_v1 "github.com/couchbase/stellar-nebula/genproto/data/v1"
+	"github.com/couchbase/stellar-nebula/genproto/data_v1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 
 	"github.com/couchbase/gocb/v2"
-	analytics_v1 "github.com/couchbase/stellar-nebula/genproto/analytics/v1"
+	"github.com/couchbase/stellar-nebula/genproto/analytics_v1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

@@ -3,7 +3,7 @@ package servers
 import (
 	"crypto/tls"
 
-	query_v1 "github.com/couchbase/stellar-nebula/genproto/query/v1"
+	"github.com/couchbase/stellar-nebula/genproto/query_v1"
 )
 
 type QueryServerOptions struct {

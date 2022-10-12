@@ -3,7 +3,7 @@ package server_v1
 import (
 	"context"
 
-	couchbase_v1 "github.com/couchbase/stellar-nebula/genproto/v1"
+	"github.com/couchbase/stellar-nebula/genproto/couchbase_v1"
 )
 
 type CouchbaseServer struct {

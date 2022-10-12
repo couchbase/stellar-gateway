@@ -7,8 +7,8 @@ import (
 	"strings"
 	"sync"
 
-	data_v1 "github.com/couchbase/stellar-nebula/genproto/data/v1"
-	routing_v1 "github.com/couchbase/stellar-nebula/genproto/routing/v1"
+	"github.com/couchbase/stellar-nebula/genproto/data_v1"
+	"github.com/couchbase/stellar-nebula/genproto/routing_v1"
 	"go.uber.org/zap"
 )
 

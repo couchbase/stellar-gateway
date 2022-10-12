@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/couchbase/stellar-nebula/common/clustering"
-	routing_v1 "github.com/couchbase/stellar-nebula/genproto/routing/v1"
+	"github.com/couchbase/stellar-nebula/genproto/routing_v1"
 )
 
 type RoutingServer struct {

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
-	routing_v1 "github.com/couchbase/stellar-nebula/genproto/routing/v1"
+	"github.com/couchbase/stellar-nebula/genproto/routing_v1"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 )

@@ -3,13 +3,14 @@ package servers
 import (
 	"context"
 	"encoding/binary"
+	"time"
+
 	"github.com/couchbase/gocbcore/v10"
 	"github.com/couchbase/gocbcore/v10/memd"
-	data_v1 "github.com/couchbase/stellar-nebula/genproto/data/v1"
+	"github.com/couchbase/stellar-nebula/genproto/data_v1"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	"time"
 )
 
 func (c *KvServerClient) getOpContext(pak *memd.Packet) (context.Context, string, string, string) {

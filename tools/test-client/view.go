@@ -4,8 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	view_v1 "github.com/couchbase/stellar-nebula/genproto/view/v1"
 	"io"
+
+	"github.com/couchbase/stellar-nebula/genproto/view_v1"
 )
 
 type ViewScanConsistency uint

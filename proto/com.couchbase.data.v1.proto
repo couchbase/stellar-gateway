@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-option go_package = "github.com/couchbase/stellar-nebula/genproto/data/v1;data_v1";
+option go_package = "github.com/couchbase/stellar-nebula/genproto/data_v1;data_v1";
 
 package com.couchbase.data.v1;
 

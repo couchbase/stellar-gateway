@@ -3,7 +3,7 @@ package client
 import (
 	"context"
 
-	routing_v1 "github.com/couchbase/stellar-nebula/genproto/routing/v1"
+	"github.com/couchbase/stellar-nebula/genproto/routing_v1"
 	"google.golang.org/grpc"
 )
 

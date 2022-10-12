@@ -12,14 +12,14 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 
-	admin_bucket_v1 "github.com/couchbase/stellar-nebula/genproto/admin/bucket/v1"
-	analytics_v1 "github.com/couchbase/stellar-nebula/genproto/analytics/v1"
-	data_v1 "github.com/couchbase/stellar-nebula/genproto/data/v1"
-	query_v1 "github.com/couchbase/stellar-nebula/genproto/query/v1"
-	routing_v1 "github.com/couchbase/stellar-nebula/genproto/routing/v1"
-	search_v1 "github.com/couchbase/stellar-nebula/genproto/search/v1"
-	transactions_v1 "github.com/couchbase/stellar-nebula/genproto/transactions/v1"
-	couchbase_v1 "github.com/couchbase/stellar-nebula/genproto/v1"
+	"github.com/couchbase/stellar-nebula/genproto/admin_bucket_v1"
+	"github.com/couchbase/stellar-nebula/genproto/analytics_v1"
+	"github.com/couchbase/stellar-nebula/genproto/couchbase_v1"
+	"github.com/couchbase/stellar-nebula/genproto/data_v1"
+	"github.com/couchbase/stellar-nebula/genproto/query_v1"
+	"github.com/couchbase/stellar-nebula/genproto/routing_v1"
+	"github.com/couchbase/stellar-nebula/genproto/search_v1"
+	"github.com/couchbase/stellar-nebula/genproto/transactions_v1"
 )
 
 // TODO(brett19): Implement the gateway system as its own component

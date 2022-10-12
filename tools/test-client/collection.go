@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	data_v1 "github.com/couchbase/stellar-nebula/genproto/data/v1"
+	"github.com/couchbase/stellar-nebula/genproto/data_v1"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 

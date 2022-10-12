@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	query_v1 "github.com/couchbase/stellar-nebula/genproto/query/v1"
-	couchbase_v1 "github.com/couchbase/stellar-nebula/genproto/v1"
+	"github.com/couchbase/stellar-nebula/genproto/couchbase_v1"
+	"github.com/couchbase/stellar-nebula/genproto/query_v1"
 	"google.golang.org/protobuf/types/known/durationpb"
 )
 

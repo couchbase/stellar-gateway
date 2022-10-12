@@ -2,7 +2,7 @@ package server_v1
 
 import (
 	"github.com/couchbase/gocb/v2"
-	search_v1 "github.com/couchbase/stellar-nebula/genproto/search/v1"
+	"github.com/couchbase/stellar-nebula/genproto/search_v1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

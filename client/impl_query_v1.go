@@ -3,7 +3,7 @@ package client
 import (
 	"context"
 
-	query_v1 "github.com/couchbase/stellar-nebula/genproto/query/v1"
+	"github.com/couchbase/stellar-nebula/genproto/query_v1"
 	"google.golang.org/grpc"
 )
 

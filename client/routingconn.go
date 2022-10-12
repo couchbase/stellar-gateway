@@ -3,9 +3,9 @@ package client
 import (
 	"crypto/x509"
 
-	data_v1 "github.com/couchbase/stellar-nebula/genproto/data/v1"
-	query_v1 "github.com/couchbase/stellar-nebula/genproto/query/v1"
-	routing_v1 "github.com/couchbase/stellar-nebula/genproto/routing/v1"
+	"github.com/couchbase/stellar-nebula/genproto/data_v1"
+	"github.com/couchbase/stellar-nebula/genproto/query_v1"
+	"github.com/couchbase/stellar-nebula/genproto/routing_v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"

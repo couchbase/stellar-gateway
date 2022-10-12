@@ -7,7 +7,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/couchbase/gocb/v2"
-	view_v1 "github.com/couchbase/stellar-nebula/genproto/view/v1"
+	"github.com/couchbase/stellar-nebula/genproto/view_v1"
 )
 
 type ViewsServer struct {

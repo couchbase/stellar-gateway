@@ -4,7 +4,7 @@ import (
 	"errors"
 
 	"github.com/couchbase/gocbcore/v10"
-	data_v1 "github.com/couchbase/stellar-nebula/genproto/data/v1"
+	"github.com/couchbase/stellar-nebula/genproto/data_v1"
 )
 
 type psTranscodeData struct {
