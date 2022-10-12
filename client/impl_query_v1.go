@@ -1,0 +1,23 @@
+package client
+
+import (
+	"context"
+
+	query_v1 "github.com/couchbase/stellar-nebula/genproto/query/v1"
+	"google.golang.org/grpc"
+)
+
+type routingImpl_QueryV1 struct {
+	client *RoutingClient
+}
+
+// Verify that RoutingClient implements Conn
+var _ query_v1.QueryClient = (*routingImpl_QueryV1)(nil)
+
+func (c *routingImpl_QueryV1) Query(ctx context.Context, in *query_v1.QueryRequest, opts ...grpc.CallOption) (query_v1.Query_QueryClient, error) {
+	if in.BucketName != nil {
+		return c.client.fetchConnForBucket(*in.BucketName).QueryV1().Query(ctx, in, opts...)
+	} else {
+		return c.client.fetchConn().QueryV1().Query(ctx, in, opts...)
+	}
+}
