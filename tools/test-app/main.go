@@ -10,7 +10,7 @@ import (
 	couchbase_v1 "github.com/couchbase/stellar-nebula/genproto/v1"
 	"google.golang.org/grpc/status"
 
-	gocbps "github.com/couchbase/stellar-nebula/test-client"
+	gocbps "github.com/couchbase/stellar-nebula/tools/test-client"
 )
 
 var addr = flag.String("addr", "localhost:18098", "the address to connect to")

@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 
-	gocbps "github.com/couchbase/stellar-nebula/test-client"
+	gocbps "github.com/couchbase/stellar-nebula/tools/test-client"
 )
 
 type protostellarWrapper struct {
