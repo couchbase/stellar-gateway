@@ -1,19 +1,5 @@
 package clustering
 
-type Endpoint struct {
-	NodeID        string
-	AdvertiseAddr string
-	AdvertisePort int
-	ServerGroup   string
-}
-
-type Snapshot struct {
-	RevEpoch uint64
-	Revision uint64
-
-	Endpoints []Endpoint
-}
-
 // TODO(brett19): Add context support everywhere so things are deadlineable/cancellable.
 // TODO(brett19): Add cancellable watch handling (cancel after the stream is done).
 // It might be acceptable to have the watch only last as long as the context does, and have there
