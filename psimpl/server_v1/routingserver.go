@@ -18,7 +18,7 @@ type RoutingServer struct {
 func (s *RoutingServer) WatchRouting(in *routing_v1.WatchRoutingRequest, out routing_v1.Routing_WatchRoutingServer) error {
 topologyLoop:
 	for {
-		topology, err := s.topologyProvider.Get()
+		topology, err := s.topologyProvider.Get(out.Context())
 		if err != nil {
 			return err
 		}

@@ -99,7 +99,7 @@ func main() {
 
 	// join the cluster topology
 	log.Printf("joining nebula cluster toplogy")
-	topologyProvider.Join(&clustering.Endpoint{
+	topologyProvider.Join(context.Background(), &clustering.Endpoint{
 		NodeID:        *nodeID,
 		AdvertiseAddr: *advertiseAddr,
 		AdvertisePort: int(*advertisePort),

@@ -1,18 +1,15 @@
 package clustering
 
-// TODO(brett19): Add context support everywhere so things are deadlineable/cancellable.
-// TODO(brett19): Add cancellable watch handling (cancel after the stream is done).
-// It might be acceptable to have the watch only last as long as the context does, and have there
-// be no way to timeout the initial setup.  We may need to make it non-blocking for that to work though...
+import "context"
 
 /*
 Note that the Join/Leave calls must not be called concurrently.  It is however
 safe to concurrently call Join or Leave alongside Watch/Get calls.
 */
 type Provider interface {
-	Join(localConfig *Endpoint) error
-	Leave() error
+	Join(ctx context.Context, localConfig *Endpoint) error
+	Leave(ctx context.Context) error
 
-	Watch() (chan *Snapshot, error)
-	Get() (*Snapshot, error)
+	Watch(ctx context.Context) (chan *Snapshot, error)
+	Get(ctx context.Context) (*Snapshot, error)
 }

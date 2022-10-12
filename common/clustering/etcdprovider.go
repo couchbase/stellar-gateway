@@ -57,7 +57,7 @@ func (t *EtcdProvider) init() error {
 	return nil
 }
 
-func (tp *EtcdProvider) Join(localConfig *Endpoint) error {
+func (tp *EtcdProvider) Join(ctx context.Context, localConfig *Endpoint) error {
 	if tp.membership != nil {
 		return ErrAlreadyJoined
 	}
@@ -73,7 +73,7 @@ func (tp *EtcdProvider) Join(localConfig *Endpoint) error {
 		return err
 	}
 
-	mb, err := tp.memberList.Join(context.Background(), &etcdmemberlist.JoinOptions{
+	mb, err := tp.memberList.Join(ctx, &etcdmemberlist.JoinOptions{
 		MemberID: localConfig.NodeID,
 		MetaData: metaDataBytes,
 	})
@@ -86,12 +86,12 @@ func (tp *EtcdProvider) Join(localConfig *Endpoint) error {
 	return nil
 }
 
-func (tp *EtcdProvider) Leave() error {
+func (tp *EtcdProvider) Leave(ctx context.Context) error {
 	if tp.membership == nil {
 		return ErrNotJoined
 	}
 
-	err := tp.membership.Leave(context.Background())
+	err := tp.membership.Leave(ctx)
 	if err != nil {
 		return err
 	}
@@ -135,10 +135,8 @@ func (tp *EtcdProvider) procMemberList(snap *etcdmemberlist.MembersSnapshot) (*S
 	}, nil
 }
 
-func (tp *EtcdProvider) Watch() (chan *Snapshot, error) {
-	// TODO(brett19): Without context support, this is uncancellable...
-
-	snapEvts, err := tp.memberList.WatchMembers(context.Background())
+func (tp *EtcdProvider) Watch(ctx context.Context) (chan *Snapshot, error) {
+	snapEvts, err := tp.memberList.WatchMembers(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -179,8 +177,8 @@ func (tp *EtcdProvider) Watch() (chan *Snapshot, error) {
 	return outputCh, nil
 }
 
-func (tp *EtcdProvider) Get() (*Snapshot, error) {
-	memberSnap, err := tp.memberList.Members(context.Background())
+func (tp *EtcdProvider) Get(ctx context.Context) (*Snapshot, error) {
+	memberSnap, err := tp.memberList.Members(ctx)
 	if err != nil {
 		return nil, err
 	}

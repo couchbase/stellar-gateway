@@ -1,6 +1,7 @@
 package clustering
 
 import (
+	"context"
 	"sync"
 )
 
@@ -16,7 +17,7 @@ func NewStaticProvider(opts StaticProviderOptions) (*StaticProvider, error) {
 	return &StaticProvider{}, nil
 }
 
-func (tp *StaticProvider) Join(localConfig *Endpoint) error {
+func (tp *StaticProvider) Join(ctx context.Context, localConfig *Endpoint) error {
 	copiedConfig := *localConfig
 
 	tp.localLock.Lock()
@@ -31,7 +32,7 @@ func (tp *StaticProvider) Join(localConfig *Endpoint) error {
 	return nil
 }
 
-func (tp *StaticProvider) Leave() error {
+func (tp *StaticProvider) Leave(ctx context.Context) error {
 	tp.localLock.Lock()
 	if tp.localConfig == nil {
 		tp.localLock.Unlock()
@@ -44,10 +45,10 @@ func (tp *StaticProvider) Leave() error {
 	return nil
 }
 
-func (tp *StaticProvider) Watch() (chan *Snapshot, error) {
+func (tp *StaticProvider) Watch(ctx context.Context) (chan *Snapshot, error) {
 	// TODO(brett19): Implement pushing updates from Join/Leave calls.
 
-	currentConfig, err := tp.Get()
+	currentConfig, err := tp.Get(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -58,7 +59,7 @@ func (tp *StaticProvider) Watch() (chan *Snapshot, error) {
 	return outputCh, nil
 }
 
-func (tp *StaticProvider) Get() (*Snapshot, error) {
+func (tp *StaticProvider) Get(ctx context.Context) (*Snapshot, error) {
 	var localConfig *Endpoint
 
 	tp.localLock.Lock()
