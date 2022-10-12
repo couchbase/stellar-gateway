@@ -8,8 +8,9 @@ import (
 	"time"
 
 	"github.com/couchbase/stellar-nebula/common/clustering"
-	"github.com/couchbase/stellar-nebula/gateway"
-	"github.com/couchbase/stellar-nebula/legacyproxy"
+	"github.com/couchbase/stellar-nebula/legacysystem"
+	"github.com/couchbase/stellar-nebula/psimpl"
+	"github.com/couchbase/stellar-nebula/pssystem"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -106,16 +107,24 @@ func main() {
 	})
 
 	// setup the gateway server
-	log.Printf("initializing gateway system")
-	gateway, err := gateway.NewGateway(&gateway.GatewayOptions{
+	log.Printf("initializing gateway implementation")
+	psImpl, err := psimpl.NewGateway(&psimpl.GatewayOptions{
 		Logger:           logger,
-		BindAddress:      *bindAddr,
-		BindPort:         *bindPort,
 		TopologyProvider: topologyProvider,
 		CbClient:         client,
 	})
 	if err != nil {
-		log.Fatalf("failed to initialize gateway: %s", err)
+		log.Fatalf("failed to initialize gateway implementation: %s", err)
+	}
+
+	gatewaySrv, err := pssystem.NewSystem(&pssystem.SystemOptions{
+		Logger:      logger,
+		BindAddress: *bindAddr,
+		BindPort:    *bindPort,
+		Impl:        psImpl,
+	})
+	if err != nil {
+		log.Fatalf("failed to initialize protostellar server: %s", err)
 	}
 
 	waitCh := make(chan struct{})
@@ -123,7 +132,7 @@ func main() {
 	go func() {
 		// start serving requests
 		log.Printf("starting to serve grpc")
-		err := gateway.Run(context.Background())
+		err := gatewaySrv.Run(context.Background())
 		if err != nil {
 			log.Fatalf("failed to run gateway: %v", err)
 		}
@@ -132,19 +141,19 @@ func main() {
 	}()
 
 	log.Printf("starting to serve legacy")
-	lproxy, err := legacyproxy.NewSystem(&legacyproxy.SystemOptions{
+	lproxy, err := legacysystem.NewSystem(&legacysystem.SystemOptions{
 		Logger: logger,
 
 		BindAddress: "",
-		BindPorts: legacyproxy.ServicePorts{
+		BindPorts: legacysystem.ServicePorts{
 			Mgmt: 8091,
 			Kv:   11210,
 		},
-		TLSBindPorts: legacyproxy.ServicePorts{},
+		TLSBindPorts: legacysystem.ServicePorts{},
 
-		DataServer:    gateway.DataV1Server,
-		QueryServer:   gateway.QueryV1Server,
-		RoutingServer: gateway.RoutingV1Server,
+		DataServer:    psImpl.DataV1(),
+		QueryServer:   psImpl.QueryV1(),
+		RoutingServer: psImpl.RoutingV1(),
 	})
 	if err != nil {
 		log.Printf("error creating legacy proxy: %s", err)

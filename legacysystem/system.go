@@ -1,10 +1,10 @@
-package legacyproxy
+package legacysystem
 
 import (
 	"github.com/couchbase/stellar-nebula/genproto/data_v1"
 	"github.com/couchbase/stellar-nebula/genproto/query_v1"
 	"github.com/couchbase/stellar-nebula/genproto/routing_v1"
-	"github.com/couchbase/stellar-nebula/legacyproxy/servers"
+	"github.com/couchbase/stellar-nebula/legacysystem/servers"
 	"go.uber.org/zap"
 )
 
