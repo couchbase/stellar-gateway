@@ -26,7 +26,7 @@ topologyLoop:
 		var endpoints []*routing_v1.RoutingEndpoint
 		for _, endpoint := range topology.Endpoints {
 			endpoints = append(endpoints, &routing_v1.RoutingEndpoint{
-				Endpoint: fmt.Sprintf("%s:%d", endpoint.AdvertiseAddr, endpoint.AdvertisePort),
+				Address: fmt.Sprintf("%s:%d", endpoint.AdvertiseAddr, endpoint.AdvertisePort),
 			})
 		}
 
