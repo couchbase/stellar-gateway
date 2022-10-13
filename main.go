@@ -29,6 +29,7 @@ var advertiseAddr = flag.String("advertise-addr", "127.0.0.1", "the address to u
 var advertisePort = flag.Uint64("advertise-port", 18098, "the port to use when advertising this node")
 var nodeID = flag.String("node-id", "", "the local node id for this service")
 var serverGroup = flag.String("server-group", "", "the local hostname for this service")
+var verbose = flag.Bool("verbose", false, "whether to enable debug logging")
 
 func main() {
 	flag.Parse()
@@ -54,8 +55,9 @@ func main() {
 	logger := zap.New(core, zap.AddCaller(), zap.AddStacktrace(zapcore.ErrorLevel))
 
 	// switch to debug level logs for ... debugging
-
-	logLevel.SetLevel(zap.DebugLevel)
+	if *verbose {
+		logLevel.SetLevel(zap.DebugLevel)
+	}
 
 	// start connecting to the underlying cluster
 	log.Printf("linking to couchbase cluster at: %s (user: %s)", *cbHost, *cbUser)
