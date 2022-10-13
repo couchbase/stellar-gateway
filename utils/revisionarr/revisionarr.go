@@ -3,11 +3,48 @@
 // These revision numbers are essentially big endian revisions.
 package revisionarr
 
+// IsZero indicates whether this revision is essentially unspecified.
+func IsZero(a []uint64) bool {
+	for _, v := range a {
+		if v != 0 {
+			return false
+		}
+	}
+
+	return true
+}
+
+// Compact accepts a revision and compacts away unused parts of the array.
+func Compact(a []uint64) []uint64 {
+	// if the length is 0, return nil
+	if len(a) == 0 {
+		return nil
+	}
+
+	// while the ending value is 0, remove the ending value
+	for len(a) > 0 && a[len(a)-1] == 0 {
+		a = a[:len(a)-1]
+	}
+
+	// double check we didn't compact it to a zero-length array
+	if len(a) == 0 {
+		return nil
+	}
+
+	return a
+}
+
 // Add takes two input revision arrays and returns the result of adding
 // each element of each together.  This is useful due to the nature of
 // the revisions being monotonically increasing.  You can calculate a
 // revision from two underlying revisions simply through addition.
 func Add(a, b []uint64) []uint64 {
+	// if both inputs are nil, return nil.  If both are zero-length,
+	// we return a zero-length result through the logic below.
+	if a == nil && b == nil {
+		return nil
+	}
+
 	var out []uint64
 
 	// The output array needs to be as large as the largest input
