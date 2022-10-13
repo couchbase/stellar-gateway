@@ -29,6 +29,8 @@ type EtcdProvider struct {
 	membership *etcdmemberlist.Membership
 }
 
+var _ Provider = (*EtcdProvider)(nil)
+
 func NewEtcdProvider(opts EtcdProviderOptions) (*EtcdProvider, error) {
 	p := &EtcdProvider{
 		etcdClient: opts.EtcdClient,

@@ -17,6 +17,8 @@ func NewStaticProvider(opts StaticProviderOptions) (*StaticProvider, error) {
 	return &StaticProvider{}, nil
 }
 
+var _ Provider = (*StaticProvider)(nil)
+
 func (tp *StaticProvider) Join(ctx context.Context, localConfig *Endpoint) error {
 	copiedConfig := *localConfig
 
