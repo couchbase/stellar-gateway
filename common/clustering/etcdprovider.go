@@ -2,7 +2,6 @@ package clustering
 
 import (
 	"context"
-	"encoding/json"
 	"log"
 
 	"github.com/couchbase/stellar-nebula/contrib/etcdmemberlist"
@@ -22,123 +21,66 @@ type EtcdProviderOptions struct {
 }
 
 type EtcdProvider struct {
-	etcdClient *clientv3.Client
-	keyPrefix  string
-
-	memberList *etcdmemberlist.MemberList
-	membership *etcdmemberlist.Membership
+	ml *etcdmemberlist.MemberList
 }
 
 var _ Provider = (*EtcdProvider)(nil)
 
 func NewEtcdProvider(opts EtcdProviderOptions) (*EtcdProvider, error) {
-	p := &EtcdProvider{
-		etcdClient: opts.EtcdClient,
-		keyPrefix:  opts.KeyPrefix,
-	}
-
-	err := p.init()
-	if err != nil {
-		return nil, err
-	}
-
-	return p, nil
-}
-
-func (t *EtcdProvider) init() error {
 	ml, err := etcdmemberlist.NewMemberList(etcdmemberlist.MemberListOptions{
-		EtcdClient: t.etcdClient,
-		KeyPrefix:  t.keyPrefix,
+		EtcdClient: opts.EtcdClient,
+		KeyPrefix:  opts.KeyPrefix,
 	})
-	if err != nil {
-		return err
-	}
-
-	t.memberList = ml
-
-	return nil
-}
-
-func (tp *EtcdProvider) Join(ctx context.Context, localConfig *Endpoint) error {
-	if tp.membership != nil {
-		return ErrAlreadyJoined
-	}
-
-	metaData := jsonEtcdNodeMetaData{
-		AdvertiseAddr: localConfig.AdvertiseAddr,
-		AdvertisePort: localConfig.AdvertisePort,
-		ServerGroup:   localConfig.ServerGroup,
-	}
-
-	metaDataBytes, err := json.Marshal(metaData)
-	if err != nil {
-		return err
-	}
-
-	mb, err := tp.memberList.Join(ctx, &etcdmemberlist.JoinOptions{
-		MemberID: localConfig.NodeID,
-		MetaData: metaDataBytes,
-	})
-	if err != nil {
-		return err
-	}
-
-	tp.membership = mb
-
-	return nil
-}
-
-func (tp *EtcdProvider) Leave(ctx context.Context) error {
-	if tp.membership == nil {
-		return ErrNotJoined
-	}
-
-	err := tp.membership.Leave(ctx)
-	if err != nil {
-		return err
-	}
-
-	tp.membership = nil
-
-	return nil
-}
-
-func (tp *EtcdProvider) procMemberEntry(entry *etcdmemberlist.Member) (*Endpoint, error) {
-	var metaData jsonEtcdNodeMetaData
-	err := json.Unmarshal(entry.MetaData, &metaData)
 	if err != nil {
 		return nil, err
 	}
 
-	return &Endpoint{
-		NodeID:        entry.MemberID,
-		AdvertiseAddr: metaData.AdvertiseAddr,
-		AdvertisePort: metaData.AdvertisePort,
-		ServerGroup:   metaData.ServerGroup,
+	return &EtcdProvider{
+		ml: ml,
 	}, nil
 }
 
-func (tp *EtcdProvider) procMemberList(snap *etcdmemberlist.MembersSnapshot) (*Snapshot, error) {
-	var members []Endpoint
-	for _, entry := range snap.Members {
-		member, err := tp.procMemberEntry(entry)
-		if err != nil {
-			return nil, err
-		}
+func (p *EtcdProvider) Join(ctx context.Context, memberID string, metaData []byte) (Membership, error) {
+	mb, err := p.ml.Join(ctx, &etcdmemberlist.JoinOptions{
+		MemberID: memberID,
+		MetaData: metaData,
+	})
+	if err != nil {
+		return nil, err
+	}
 
-		members = append(members, *member)
+	return &etcdMembership{mb}, nil
+}
+
+type etcdMembership struct {
+	ms *etcdmemberlist.Membership
+}
+
+func (m *etcdMembership) UpdateMetaData(ctx context.Context, metaData []byte) error {
+	return m.ms.SetMetaData(ctx, metaData)
+}
+
+func (m *etcdMembership) Leave(ctx context.Context) error {
+	return m.ms.Leave(ctx)
+}
+
+func (p *EtcdProvider) procMemberList(snap *etcdmemberlist.MembersSnapshot) (*Snapshot, error) {
+	var members []*Member
+	for _, entry := range snap.Members {
+		members = append(members, &Member{
+			MemberID: entry.MemberID,
+			MetaData: entry.MetaData,
+		})
 	}
 
 	return &Snapshot{
-		RevEpoch: 1,
-		Revision: uint64(snap.Revision),
-
-		Endpoints: members,
+		Revision: []uint64{uint64(snap.Revision)},
+		Members:  members,
 	}, nil
 }
 
-func (tp *EtcdProvider) Watch(ctx context.Context) (chan *Snapshot, error) {
-	snapEvts, err := tp.memberList.WatchMembers(ctx)
+func (p *EtcdProvider) Watch(ctx context.Context) (chan *Snapshot, error) {
+	snapEvts, err := p.ml.WatchMembers(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -149,7 +91,7 @@ func (tp *EtcdProvider) Watch(ctx context.Context) (chan *Snapshot, error) {
 	// to directly return...
 	// TODO(brett19): Handle the channel closing before the first snapshot.
 	firstSnap := <-snapEvts
-	firstOutput, err := tp.procMemberList(firstSnap)
+	firstOutput, err := p.procMemberList(firstSnap)
 	if err != nil {
 		return nil, err
 	}
@@ -160,7 +102,7 @@ func (tp *EtcdProvider) Watch(ctx context.Context) (chan *Snapshot, error) {
 	// start a goroutine to handle the remaining snapshots...
 	go func() {
 		for snap := range snapEvts {
-			output, err := tp.procMemberList(snap)
+			output, err := p.procMemberList(snap)
 			if err != nil {
 				// if an error occurs, we can't directly return it to the user, so instead we simply
 				// break out of the read loop and close the output channel.  If the user attempts to
@@ -179,13 +121,13 @@ func (tp *EtcdProvider) Watch(ctx context.Context) (chan *Snapshot, error) {
 	return outputCh, nil
 }
 
-func (tp *EtcdProvider) Get(ctx context.Context) (*Snapshot, error) {
-	memberSnap, err := tp.memberList.Members(ctx)
+func (p *EtcdProvider) Get(ctx context.Context) (*Snapshot, error) {
+	memberSnap, err := p.ml.Members(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	snap, err := tp.procMemberList(memberSnap)
+	snap, err := p.procMemberList(memberSnap)
 	if err != nil {
 		return nil, err
 	}

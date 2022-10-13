@@ -1,16 +1,11 @@
 package clustering
 
-type Endpoint struct {
-	NodeID      string
-	ServerGroup string
-
-	AdvertiseAddr string
-	AdvertisePort int
+type Member struct {
+	MemberID string
+	MetaData []byte
 }
 
 type Snapshot struct {
-	RevEpoch uint64
-	Revision uint64
-
-	Endpoints []Endpoint
+	Revision []uint64
+	Members  []*Member
 }

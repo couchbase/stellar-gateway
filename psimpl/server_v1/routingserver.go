@@ -5,26 +5,26 @@ import (
 	"log"
 	"time"
 
-	"github.com/couchbase/stellar-nebula/common/clustering"
+	"github.com/couchbase/stellar-nebula/common/psclustering"
 	"github.com/couchbase/stellar-nebula/genproto/routing_v1"
 )
 
 type RoutingServer struct {
 	routing_v1.UnimplementedRoutingServer
 
-	topologyProvider clustering.Provider
+	clusteringManager *psclustering.Manager
 }
 
 func (s *RoutingServer) WatchRouting(in *routing_v1.WatchRoutingRequest, out routing_v1.Routing_WatchRoutingServer) error {
 topologyLoop:
 	for {
-		topology, err := s.topologyProvider.Get(out.Context())
+		topology, err := s.clusteringManager.Get(out.Context())
 		if err != nil {
 			return err
 		}
 
 		var endpoints []*routing_v1.RoutingEndpoint
-		for _, endpoint := range topology.Endpoints {
+		for _, endpoint := range topology.Members {
 			endpoints = append(endpoints, &routing_v1.RoutingEndpoint{
 				Address: fmt.Sprintf("%s:%d", endpoint.AdvertiseAddr, endpoint.AdvertisePort),
 			})
@@ -48,8 +48,8 @@ topologyLoop:
 	return nil
 }
 
-func NewRoutingServer(topologyProvider clustering.Provider) *RoutingServer {
+func NewRoutingServer(clusteringManager *psclustering.Manager) *RoutingServer {
 	return &RoutingServer{
-		topologyProvider: topologyProvider,
+		clusteringManager: clusteringManager,
 	}
 }

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/couchbase/stellar-nebula/common/clustering"
+	"github.com/couchbase/stellar-nebula/common/psclustering"
 	"github.com/couchbase/stellar-nebula/legacysystem"
 	"github.com/couchbase/stellar-nebula/psimpl"
 	"github.com/couchbase/stellar-nebula/pssystem"
@@ -90,19 +91,21 @@ func main() {
 		os.Exit(1)
 	}
 
-	topologyProvider, err := clustering.NewEtcdProvider(clustering.EtcdProviderOptions{
+	clusteringProvider, err := clustering.NewEtcdProvider(clustering.EtcdProviderOptions{
 		EtcdClient: etcdClient,
 		KeyPrefix:  "/nebula/topology",
 	})
 	if err != nil {
-		log.Printf("failed to initialize topology provider: %s", err)
+		log.Printf("failed to initialize clustering provider: %s", err)
 		os.Exit(1)
 	}
 
+	clusteringManager := &psclustering.Manager{Provider: clusteringProvider}
+
 	// join the cluster topology
 	log.Printf("joining nebula cluster toplogy")
-	topologyProvider.Join(context.Background(), &clustering.Endpoint{
-		NodeID:        *nodeID,
+	clusteringManager.Join(context.Background(), &psclustering.Member{
+		MemberID:      *nodeID,
 		AdvertiseAddr: *advertiseAddr,
 		AdvertisePort: int(*advertisePort),
 		ServerGroup:   *serverGroup,
@@ -111,9 +114,9 @@ func main() {
 	// setup the gateway server
 	log.Printf("initializing gateway implementation")
 	psImpl, err := psimpl.NewGateway(&psimpl.GatewayOptions{
-		Logger:           logger,
-		TopologyProvider: topologyProvider,
-		CbClient:         client,
+		Logger:            logger,
+		ClusteringManager: clusteringManager,
+		CbClient:          client,
 	})
 	if err != nil {
 		log.Fatalf("failed to initialize gateway implementation: %s", err)
