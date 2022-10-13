@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/couchbase/stellar-nebula/common/cbconfig"
-	"github.com/couchbase/stellar-nebula/utils"
+	"github.com/couchbase/stellar-nebula/utils/latestonlychannel"
 	"golang.org/x/exp/slices"
 )
 
@@ -210,7 +210,7 @@ func (p *PollingProvider) WatchCluster(ctx context.Context) (<-chan *Topology, e
 		}
 	}()
 
-	return utils.LatestOnlyChannel(outputCh), nil
+	return latestonlychannel.Wrap(outputCh), nil
 }
 
 func (p *PollingProvider) parseBucketConfig(
@@ -301,5 +301,5 @@ func (p *PollingProvider) WatchBucket(ctx context.Context, bucketName string) (<
 		}
 	}()
 
-	return utils.LatestOnlyChannel(outputCh), nil
+	return latestonlychannel.Wrap(outputCh), nil
 }

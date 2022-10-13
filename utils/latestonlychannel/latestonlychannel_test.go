@@ -1,4 +1,4 @@
-package utils
+package latestonlychannel
 
 import (
 	"testing"
@@ -7,7 +7,7 @@ import (
 
 func TestLatestOnlyChannel_EmptyBlock(t *testing.T) {
 	inputCh := make(chan int)
-	outputCh := LatestOnlyChannel(inputCh)
+	outputCh := Wrap(inputCh)
 
 	select {
 	case <-outputCh:
@@ -20,7 +20,7 @@ func TestLatestOnlyChannel_EmptyBlock(t *testing.T) {
 
 func TestLatestOnlyChannel_Single(t *testing.T) {
 	inputCh := make(chan int)
-	outputCh := LatestOnlyChannel(inputCh)
+	outputCh := Wrap(inputCh)
 
 	// not waiting works because although these channels are unbuffered,
 	// the deduplication logic acts as if its a buffered 1-length channel.
@@ -47,7 +47,7 @@ func TestLatestOnlyChannel_Single(t *testing.T) {
 
 func TestLatestOnlyChannel_Multiple(t *testing.T) {
 	inputCh := make(chan int)
-	outputCh := LatestOnlyChannel(inputCh)
+	outputCh := Wrap(inputCh)
 
 	inputCh <- 1
 	inputCh <- 2

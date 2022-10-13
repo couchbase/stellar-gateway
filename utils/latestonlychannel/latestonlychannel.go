@@ -1,10 +1,10 @@
-package utils
+package latestonlychannel
 
 // LatestOnlyChannel creates a channel pipe which guarentees that the input channel
 // will never block by having no queue and discarding older entries from being sent
 // to the output once newer values are received on the input channel.
 // You must close the input channel to release internal resources.
-func LatestOnlyChannel[T any](inputCh <-chan T) <-chan T {
+func Wrap[T any](inputCh <-chan T) <-chan T {
 	outputCh := make(chan T)
 
 	go func() {
