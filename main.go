@@ -119,7 +119,8 @@ func main() {
 		log.Fatalf("failed to initialize gateway implementation: %s", err)
 	}
 
-	gatewaySrv, err := pssystem.NewSystem(&pssystem.SystemOptions{
+	log.Printf("initializing ps system")
+	psSys, err := pssystem.NewSystem(&pssystem.SystemOptions{
 		Logger:      logger,
 		BindAddress: *bindAddr,
 		BindPort:    *bindPort,
@@ -129,21 +130,8 @@ func main() {
 		log.Fatalf("failed to initialize protostellar server: %s", err)
 	}
 
-	waitCh := make(chan struct{})
-
-	go func() {
-		// start serving requests
-		log.Printf("starting to serve grpc")
-		err := gatewaySrv.Run(context.Background())
-		if err != nil {
-			log.Fatalf("failed to run gateway: %v", err)
-		}
-
-		waitCh <- struct{}{}
-	}()
-
-	log.Printf("starting to serve legacy")
-	lproxy, err := legacysystem.NewSystem(&legacysystem.SystemOptions{
+	log.Printf("initializing legacy system")
+	legacySys, err := legacysystem.NewSystem(&legacysystem.SystemOptions{
 		Logger: logger,
 
 		BindAddress: "",
@@ -161,7 +149,30 @@ func main() {
 		log.Printf("error creating legacy proxy: %s", err)
 	}
 
-	lproxy.Test()
+	waitCh := make(chan struct{})
 
+	go func() {
+		// start serving requests
+		log.Printf("starting to run ps system")
+		err := psSys.Run(context.Background())
+		if err != nil {
+			log.Fatalf("failed to run ps system: %v", err)
+		}
+
+		waitCh <- struct{}{}
+	}()
+
+	go func() {
+		// start serving requests
+		log.Printf("starting to run legacy system")
+		err := legacySys.Run(context.Background())
+		if err != nil {
+			log.Fatalf("failed to run legacy system: %v", err)
+		}
+
+		waitCh <- struct{}{}
+	}()
+
+	<-waitCh
 	<-waitCh
 }

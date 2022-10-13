@@ -1,6 +1,8 @@
 package legacysystem
 
 import (
+	"context"
+
 	"github.com/couchbase/stellar-nebula/genproto/data_v1"
 	"github.com/couchbase/stellar-nebula/genproto/query_v1"
 	"github.com/couchbase/stellar-nebula/genproto/routing_v1"
@@ -97,6 +99,6 @@ func (s *System) init() error {
 	return nil
 }
 
-func (s *System) Test() {
-
+func (s *System) Run(ctx context.Context) error {
+	return nil
 }
