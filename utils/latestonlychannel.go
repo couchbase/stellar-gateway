@@ -4,8 +4,7 @@ package utils
 // will never block by having no queue and discarding older entries from being sent
 // to the output once newer values are received on the input channel.
 // You must close the input channel to release internal resources.
-func LatestOnlyChannel[T any]() (chan<- T, <-chan T) {
-	inputCh := make(chan T)
+func LatestOnlyChannel[T any](inputCh <-chan T) <-chan T {
 	outputCh := make(chan T)
 
 	go func() {
@@ -45,5 +44,5 @@ func LatestOnlyChannel[T any]() (chan<- T, <-chan T) {
 		close(outputCh)
 	}()
 
-	return inputCh, outputCh
+	return outputCh
 }

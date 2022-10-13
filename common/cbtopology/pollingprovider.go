@@ -176,20 +176,18 @@ func (p *PollingProvider) WatchCluster(ctx context.Context) (<-chan *Topology, e
 		return nil, err
 	}
 
-	// send the first output to the output, it's buffered to let it hold the
-	// initial configuration...
-	inputCh, outputCh := utils.LatestOnlyChannel[*Topology]()
-	inputCh <- topology
-
-	lastTopology := topology
+	outputCh := make(chan *Topology)
 
 	// start a goroutine to fetch future configs
 	go func() {
+		outputCh <- topology
+		lastTopology := topology
+
 	WatchLoop:
 		for {
 			topology, err := p.fetchClusterConfig(ctx, nil)
 			if err != nil {
-				close(inputCh)
+				close(outputCh)
 				return
 			}
 
@@ -199,7 +197,7 @@ func (p *PollingProvider) WatchCluster(ctx context.Context) (<-chan *Topology, e
 			// only if they don't match do we compare revisions to decide.  This will
 			// prevent us from triggereing updates from changes we don't care about.
 			if topology.Revision > lastTopology.Revision {
-				inputCh <- topology
+				outputCh <- topology
 				lastTopology = topology
 			}
 
@@ -212,7 +210,7 @@ func (p *PollingProvider) WatchCluster(ctx context.Context) (<-chan *Topology, e
 		}
 	}()
 
-	return outputCh, nil
+	return utils.LatestOnlyChannel(outputCh), nil
 }
 
 func (p *PollingProvider) parseBucketConfig(
@@ -255,34 +253,32 @@ func (p *PollingProvider) WatchBucket(ctx context.Context, bucketName string) (<
 		return nil, err
 	}
 
-	// send the first output to the output, it's buffered to let it hold the
-	// initial configuration...
-	inputCh, outputCh := utils.LatestOnlyChannel[*BucketTopology]()
-	inputCh <- topology
-
-	lastTopology := topology
+	outputCh := make(chan *BucketTopology)
 
 	// start a goroutine to fetch future configs
 	go func() {
+		outputCh <- topology
+		lastTopology := topology
+
 	WatchLoop:
 		for {
 			// fetch an updated configuration
 			config, err := p.fetcher.FetchTerseBucket(ctx, bucketName)
 			if err != nil {
-				close(inputCh)
+				close(outputCh)
 				return
 			}
 
 			groups, err := p.fetcher.FetchServerGroups(ctx)
 			if err != nil {
-				close(inputCh)
+				close(outputCh)
 				return
 			}
 
 			// convert to our internal topology representation
 			topology, err := p.parseBucketConfig(config, groups)
 			if err != nil {
-				close(inputCh)
+				close(outputCh)
 				return
 			}
 
@@ -292,7 +288,7 @@ func (p *PollingProvider) WatchBucket(ctx context.Context, bucketName string) (<
 			// only if they don't match do we compare revisions to decide.  This will
 			// prevent us from triggereing updates from changes we don't care about.
 			if topology.Revision > lastTopology.Revision {
-				inputCh <- topology
+				outputCh <- topology
 				lastTopology = topology
 			}
 
@@ -305,5 +301,5 @@ func (p *PollingProvider) WatchBucket(ctx context.Context, bucketName string) (<
 		}
 	}()
 
-	return outputCh, nil
+	return utils.LatestOnlyChannel(outputCh), nil
 }
