@@ -157,12 +157,16 @@ func main() {
 
 	// join the cluster topology
 	log.Printf("joining nebula cluster toplogy")
-	clusteringManager.Join(context.Background(), &psclustering.Member{
+	clusterEntry, err := clusteringManager.Join(context.Background(), &psclustering.Member{
 		MemberID:      *nodeID,
 		AdvertiseAddr: *advertiseAddr,
 		AdvertisePort: int(*advertisePort),
 		ServerGroup:   *serverGroup,
 	})
+	if err != nil {
+		log.Fatalf("failed to join cluster: %s", err)
+		os.Exit(1)
+	}
 
 	waitCh := make(chan struct{})
 
@@ -190,4 +194,6 @@ func main() {
 
 	<-waitCh
 	<-waitCh
+
+	clusterEntry.Leave(context.Background())
 }
