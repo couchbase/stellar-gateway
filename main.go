@@ -7,8 +7,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/couchbase/stellar-nebula/common/clustering"
 	"github.com/couchbase/stellar-nebula/common/psclustering"
+	"github.com/couchbase/stellar-nebula/contrib/clustering"
 	"github.com/couchbase/stellar-nebula/legacysystem"
 	"github.com/couchbase/stellar-nebula/psimpl"
 	"github.com/couchbase/stellar-nebula/pssystem"

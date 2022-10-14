@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"log"
 
-	"github.com/couchbase/stellar-nebula/common/clustering"
+	"github.com/couchbase/stellar-nebula/contrib/clustering"
 )
 
 type Membership struct {

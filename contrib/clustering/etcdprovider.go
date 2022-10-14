@@ -8,13 +8,6 @@ import (
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
-type jsonEtcdNodeMetaData struct {
-	NodeID        string `json:"node_id"`
-	AdvertiseAddr string `json:"advertise_addr"`
-	AdvertisePort int    `json:"advertise_port"`
-	ServerGroup   string `json:"server_group"`
-}
-
 type EtcdProviderOptions struct {
 	EtcdClient *clientv3.Client
 	KeyPrefix  string

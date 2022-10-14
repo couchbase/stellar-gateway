@@ -3,8 +3,8 @@ package pstopology
 import (
 	"context"
 
-	"github.com/couchbase/stellar-nebula/common/clustering"
 	"github.com/couchbase/stellar-nebula/common/remotetopology"
+	"github.com/couchbase/stellar-nebula/contrib/clustering"
 )
 
 type DefaultProviderOptions struct {
