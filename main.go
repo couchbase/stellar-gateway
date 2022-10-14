@@ -102,15 +102,6 @@ func main() {
 
 	clusteringManager := &psclustering.Manager{Provider: clusteringProvider}
 
-	// join the cluster topology
-	log.Printf("joining nebula cluster toplogy")
-	clusteringManager.Join(context.Background(), &psclustering.Member{
-		MemberID:      *nodeID,
-		AdvertiseAddr: *advertiseAddr,
-		AdvertisePort: int(*advertisePort),
-		ServerGroup:   *serverGroup,
-	})
-
 	// setup the gateway server
 	log.Printf("initializing gateway implementation")
 	psImpl, err := psimpl.NewGateway(&psimpl.GatewayOptions{
@@ -135,15 +126,7 @@ func main() {
 
 	log.Printf("initializing legacy system")
 	legacySys, err := legacysystem.NewSystem(&legacysystem.SystemOptions{
-		Logger: logger,
-
-		BindAddress: "",
-		BindPorts: legacysystem.ServicePorts{
-			Mgmt: 8091,
-			Kv:   11210,
-		},
-		TLSBindPorts: legacysystem.ServicePorts{},
-
+		Logger:        logger,
 		DataServer:    psImpl.DataV1(),
 		QueryServer:   psImpl.QueryV1(),
 		RoutingServer: psImpl.RoutingV1(),
@@ -152,14 +135,43 @@ func main() {
 		log.Printf("error creating legacy proxy: %s", err)
 	}
 
+	grpcLis, err := pssystem.NewListener(&pssystem.ListenerOptions{
+		Address: *bindAddr,
+		Port:    *bindPort,
+	})
+	if err != nil {
+		log.Printf("error creating grpc listener: %s", err)
+	}
+
+	legacyLis, err := legacysystem.NewListeners(&legacysystem.ListenersOptions{
+		Address: "",
+		Ports: legacysystem.ServicePorts{
+			Mgmt: 8091,
+			KV:   11210,
+		},
+		TLSPorts: legacysystem.ServicePorts{},
+	})
+	if err != nil {
+		log.Printf("error creating legacy proxy listeners: %s", err)
+	}
+
+	// join the cluster topology
+	log.Printf("joining nebula cluster toplogy")
+	clusteringManager.Join(context.Background(), &psclustering.Member{
+		MemberID:      *nodeID,
+		AdvertiseAddr: *advertiseAddr,
+		AdvertisePort: int(*advertisePort),
+		ServerGroup:   *serverGroup,
+	})
+
 	waitCh := make(chan struct{})
 
 	go func() {
 		// start serving requests
 		log.Printf("starting to run ps system")
-		err := psSys.Run(context.Background())
+		err := psSys.Serve(context.Background(), grpcLis)
 		if err != nil {
-			log.Fatalf("failed to run ps system: %v", err)
+			log.Fatalf("failed to serve ps system: %v", err)
 		}
 
 		waitCh <- struct{}{}
@@ -168,9 +180,9 @@ func main() {
 	go func() {
 		// start serving requests
 		log.Printf("starting to run legacy system")
-		err := legacySys.Run(context.Background())
+		err := legacySys.Serve(context.Background(), legacyLis)
 		if err != nil {
-			log.Fatalf("failed to run legacy system: %v", err)
+			log.Fatalf("failed to serve legacy system: %v", err)
 		}
 
 		waitCh <- struct{}{}

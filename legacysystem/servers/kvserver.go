@@ -1,8 +1,6 @@
 package servers
 
 import (
-	"crypto/tls"
-	"fmt"
 	"net"
 	"strings"
 	"sync"
@@ -14,73 +12,32 @@ import (
 
 type KvServerOptions struct {
 	Logger        *zap.Logger
-	BindAddress   string
-	BindPort      int
-	TlsConfig     *tls.Config
 	DataServer    data_v1.DataServer
 	RoutingServer routing_v1.RoutingServer
 }
 
 type KvServer struct {
 	logger        *zap.Logger
-	bindAddress   string
-	bindPort      int
-	tlsConfig     *tls.Config
 	dataServer    data_v1.DataServer
 	routingServer routing_v1.RoutingServer
 
-	lock     sync.Mutex
-	listener net.Listener
-	clients  []*KvServerClient
+	lock    sync.Mutex
+	clients []*KvServerClient
 }
 
 func NewKvServer(opts *KvServerOptions) (*KvServer, error) {
 	server := &KvServer{
 		logger:        opts.Logger,
-		bindAddress:   opts.BindAddress,
-		bindPort:      opts.BindPort,
-		tlsConfig:     opts.TlsConfig,
 		dataServer:    opts.DataServer,
 		routingServer: opts.RoutingServer,
-	}
-
-	err := server.init()
-	if err != nil {
-		return nil, err
 	}
 
 	return server, nil
 }
 
-func (s *KvServer) init() error {
-	listenAddress := fmt.Sprintf("%s:%d", s.bindAddress, s.bindPort)
-
-	if s.tlsConfig != nil {
-		l, err := tls.Listen("tcp", listenAddress, s.tlsConfig)
-		if err != nil {
-			s.logger.Error("failed to start tls listener", zap.Error(err))
-			return err
-		}
-
-		s.listener = l
-	} else {
-		l, err := net.Listen("tcp", listenAddress)
-		if err != nil {
-			s.logger.Error("failed to start tcp listener", zap.Error(err))
-			return err
-		}
-
-		s.listener = l
-	}
-
-	go s.procThread()
-
-	return nil
-}
-
-func (s *KvServer) procThread() {
+func (s *KvServer) Serve(l net.Listener) error {
 	for {
-		conn, err := s.listener.Accept()
+		conn, err := l.Accept()
 		if err != nil {
 			// Accept() returns an error with substring "use of closed network connection" if
 			// the socket has been closed elsewhere (ie. during graceful stop, instead of EOF).
@@ -96,6 +53,13 @@ func (s *KvServer) procThread() {
 
 		s.handleNewConnection(conn)
 	}
+
+	err := l.Close()
+	if err != nil {
+		s.logger.Error("failed to close kv server listener", zap.Error(err))
+	}
+
+	return nil
 }
 
 func (s *KvServer) handleNewConnection(conn net.Conn) {
@@ -143,8 +107,4 @@ func (s *KvServer) handleClientDisconnect(client *KvServerClient) {
 	s.clients = s.clients[:len(s.clients)-1]
 
 	s.lock.Unlock()
-}
-
-func (s *KvServer) BoundAddress() net.TCPAddr {
-	return *s.listener.Addr().(*net.TCPAddr)
 }
