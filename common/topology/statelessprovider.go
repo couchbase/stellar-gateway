@@ -1,27 +1,28 @@
-package pstopology
+package topology
 
 import (
 	"context"
 
+	"github.com/couchbase/stellar-nebula/common/nebclustering"
 	"github.com/couchbase/stellar-nebula/common/remotetopology"
-	"github.com/couchbase/stellar-nebula/contrib/clustering"
+	"github.com/couchbase/stellar-nebula/contrib/revisionarr"
 )
 
-type DefaultProviderOptions struct {
-	ClusteringProvider     clustering.Provider
+type StatelessProviderOptions struct {
+	ClusteringManager      *nebclustering.Manager
 	RemoteTopologyProvider remotetopology.Provider
 }
 
-type DefaultProvider struct {
-	clusteringProvider     clustering.Provider
+type StatelessProvider struct {
+	clusteringManager      *nebclustering.Manager
 	remoteTopologyProvider remotetopology.Provider
 }
 
-var _ Provider = (*DefaultProvider)(nil)
+var _ Provider = (*StatelessProvider)(nil)
 
-func NewDefaultProvider(opts *DefaultProviderOptions) (*DefaultProvider, error) {
-	p := &DefaultProvider{
-		clusteringProvider:     opts.ClusteringProvider,
+func NewStatelessProvider(opts *StatelessProviderOptions) (*StatelessProvider, error) {
+	p := &StatelessProvider{
+		clusteringManager:      opts.ClusteringManager,
 		remoteTopologyProvider: opts.RemoteTopologyProvider,
 	}
 
@@ -33,28 +34,35 @@ func NewDefaultProvider(opts *DefaultProviderOptions) (*DefaultProvider, error) 
 	return p, nil
 }
 
-func (p *DefaultProvider) init() error {
+func (p *StatelessProvider) init() error {
 	return nil
 }
 
-func (p *DefaultProvider) calcTopology(
-	clusterSnapshot *clustering.Snapshot,
+func (p *StatelessProvider) calcTopology(
+	clusterSnapshot *nebclustering.Snapshot,
 	remoteTopology *remotetopology.Topology,
 ) *Topology {
-	// TODO(brett19): Implement topology generation
-	return &Topology{}
+	// The local topology and remote topology revisions must be monotonically increasing which
+	// means that we can safely calculate the derived revision through addition.
+	mergedRevision := revisionarr.Add(clusterSnapshot.Revision, remoteTopology.Revision)
+
+	return &Topology{
+		Revision:       mergedRevision,
+		LocalTopology:  clusterSnapshot,
+		RemoteTopology: remoteTopology,
+	}
 }
 
-func (p *DefaultProvider) watchCluster(ctx context.Context) (chan *Topology, error) {
+func (p *StatelessProvider) Watch(ctx context.Context, bucketName string) (chan *Topology, error) {
 	cancelCtx, cancelFn := context.WithCancel(ctx)
 
-	clusterCh, err := p.clusteringProvider.Watch(cancelCtx)
+	clusterCh, err := p.clusteringManager.Watch(cancelCtx)
 	if err != nil {
 		cancelFn()
 		return nil, err
 	}
 
-	remoteCh, err := p.remoteTopologyProvider.WatchCluster(cancelCtx)
+	remoteCh, err := p.remoteTopologyProvider.Watch(cancelCtx, bucketName)
 	if err != nil {
 		cancelFn()
 		return nil, err
@@ -100,17 +108,4 @@ func (p *DefaultProvider) watchCluster(ctx context.Context) (chan *Topology, err
 	}()
 
 	return outputCh, nil
-}
-
-func (p *DefaultProvider) watchBucket(ctx context.Context, bucketName string) (chan *Topology, error) {
-	// TODO(brett19): Implement bucket-specific toplogies
-	return p.watchCluster(ctx)
-}
-
-func (p *DefaultProvider) Watch(ctx context.Context, bucketName string) (chan *Topology, error) {
-	if bucketName == "" {
-		return p.watchCluster(ctx)
-	} else {
-		return p.watchBucket(ctx, bucketName)
-	}
 }

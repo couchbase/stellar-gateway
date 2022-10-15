@@ -228,10 +228,11 @@ func (p *PollingProvider) parseBucketConfig(
 	}
 
 	return &BucketTopology{
-		RevEpoch:  uint64(config.RevEpoch),
-		Revision:  uint64(config.Rev),
-		Nodes:     servers,
-		DataNodes: dataServers,
+		RevEpoch:    uint64(config.RevEpoch),
+		Revision:    uint64(config.Rev),
+		Nodes:       servers,
+		DataNodes:   dataServers,
+		NumVbuckets: uint(len(config.VBucketServerMap.VBucketMap)),
 	}, nil
 }
 

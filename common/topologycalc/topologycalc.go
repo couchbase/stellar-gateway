@@ -1,21 +1,22 @@
 package topologycalc
 
 import (
+	"github.com/couchbase/stellar-nebula/common/nebclustering"
 	"github.com/couchbase/stellar-nebula/common/remotetopology"
 	"github.com/couchbase/stellar-nebula/contrib/revisionarr"
 	"github.com/couchbase/stellar-nebula/utils/sliceutils"
 	"golang.org/x/exp/slices"
 )
 
-func CalcTopology(lt *LocalTopology, rt *remotetopology.Topology) (*OutputTopology, error) {
+func CalcTopology(lt *nebclustering.Snapshot, rt *remotetopology.Topology) (*OutputTopology, error) {
 	var nodes []*OutputNode
 	var dataNodes []*OutputDataNode
 
 	// build the nodes lists first
-	for _, lclNode := range lt.Nodes {
+	for _, lclNode := range lt.Members {
 		// all local nodes are considered part of the topology
 		node := &OutputNode{
-			NodeID:      lclNode.NodeID,
+			NodeID:      lclNode.MemberID,
 			ServerGroup: lclNode.ServerGroup,
 		}
 
@@ -24,7 +25,7 @@ func CalcTopology(lt *LocalTopology, rt *remotetopology.Topology) (*OutputTopolo
 			Node: node,
 		}
 
-		for _, rmtDataNode := range rt.DataNodes {
+		for _, rmtDataNode := range rt.VbucketRouting.Nodes {
 			// if we have the same NodeID as one of the remote nodes, we take
 			// all their local vbuckets and make them our own.
 			if rmtDataNode.Node.NodeID == node.NodeID {

@@ -12,9 +12,14 @@ type DataNode struct {
 	GroupVbuckets []uint32
 }
 
+type VbucketRouting struct {
+	Nodes       []*DataNode
+	NumVbuckets uint
+}
+
 type Topology struct {
 	Revision []uint64
 
-	Nodes     []*Node
-	DataNodes []*DataNode
+	Nodes          []*Node
+	VbucketRouting *VbucketRouting
 }

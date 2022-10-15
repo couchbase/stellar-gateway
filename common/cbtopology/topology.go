@@ -31,6 +31,7 @@ type BucketTopology struct {
 	RevEpoch uint64
 	Revision uint64
 
-	Nodes     []*Node
-	DataNodes []*DataNode
+	Nodes       []*Node
+	DataNodes   []*DataNode
+	NumVbuckets uint
 }

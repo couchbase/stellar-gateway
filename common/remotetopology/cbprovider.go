@@ -71,40 +71,44 @@ func (p *CBProvider) translateBucketTopology(t *cbtopology.BucketTopology) *Topo
 	}
 
 	return &Topology{
-		Revision:  []uint64{t.Revision, t.RevEpoch},
-		Nodes:     nodes,
-		DataNodes: dataNodes,
+		Revision: []uint64{t.Revision, t.RevEpoch},
+		Nodes:    nodes,
+		VbucketRouting: &VbucketRouting{
+			NumVbuckets: t.NumVbuckets,
+			Nodes:       dataNodes,
+		},
 	}
 }
 
-func (p *CBProvider) WatchCluster(ctx context.Context) (<-chan *Topology, error) {
-	cbTopologyCh, err := p.provider.WatchCluster(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	outputCh := make(chan *Topology)
-	go func() {
-		for cbTopology := range cbTopologyCh {
-			outputCh <- p.translateClusterTopology(cbTopology)
+func (p *CBProvider) Watch(ctx context.Context, bucketName string) (<-chan *Topology, error) {
+	// TODO(brett19): We should just merge the Watch functions in this provider...
+	if bucketName == "" {
+		cbTopologyCh, err := p.provider.WatchCluster(ctx)
+		if err != nil {
+			return nil, err
 		}
-	}()
-	return outputCh, err
-}
 
-func (p *CBProvider) WatchBucket(ctx context.Context, bucketName string) (<-chan *Topology, error) {
-	cbTopologyCh, err := p.provider.WatchBucket(ctx, bucketName)
-	if err != nil {
-		return nil, err
-	}
-
-	outputCh := make(chan *Topology)
-	go func() {
-		for cbTopology := range cbTopologyCh {
-			outputCh <- p.translateBucketTopology(cbTopology)
+		outputCh := make(chan *Topology)
+		go func() {
+			for cbTopology := range cbTopologyCh {
+				outputCh <- p.translateClusterTopology(cbTopology)
+			}
+		}()
+		return outputCh, err
+	} else {
+		cbTopologyCh, err := p.provider.WatchBucket(ctx, bucketName)
+		if err != nil {
+			return nil, err
 		}
-		close(outputCh)
-	}()
 
-	return outputCh, err
+		outputCh := make(chan *Topology)
+		go func() {
+			for cbTopology := range cbTopologyCh {
+				outputCh <- p.translateBucketTopology(cbTopology)
+			}
+			close(outputCh)
+		}()
+
+		return outputCh, err
+	}
 }

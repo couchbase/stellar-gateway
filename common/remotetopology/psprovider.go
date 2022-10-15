@@ -24,7 +24,7 @@ func NewPSProvider(opts *PSProviderOptions) (*PSProvider, error) {
 	}, nil
 }
 
-func (p *PSProvider) translateClusterTopology(t *routing_v1.WatchRoutingResponse) *Topology {
+func (p *PSProvider) translateTopology(t *routing_v1.WatchRoutingResponse) *Topology {
 	nodes := make([]*Node, len(t.Endpoints))
 	for psEpIdx, psEp := range t.Endpoints {
 		node := &Node{
@@ -34,27 +34,11 @@ func (p *PSProvider) translateClusterTopology(t *routing_v1.WatchRoutingResponse
 		nodes[psEpIdx] = node
 	}
 
-	return &Topology{
-		Revision: t.Revision,
-		Nodes:    nodes,
-	}
-}
-
-func (p *PSProvider) translateBucketTopology(t *routing_v1.WatchRoutingResponse) *Topology {
-	nodes := make([]*Node, len(t.Endpoints))
-	for psEpIdx, psEp := range t.Endpoints {
-		node := &Node{
-			NodeID:      psEp.Id,
-			ServerGroup: psEp.ServerGroup,
-		}
-		nodes[psEpIdx] = node
-	}
-
-	var dataNodes []*DataNode
-	vbRouting := t.GetVbucketDataRouting()
+	var vbRouting *VbucketRouting
+	psVbRouting := t.GetVbucketDataRouting()
 	if vbRouting != nil {
-		dataNodes := make([]*DataNode, len(vbRouting.Endpoints))
-		for psDataEpIdx, psDataEp := range vbRouting.Endpoints {
+		dataNodes := make([]*DataNode, len(psVbRouting.Endpoints))
+		for psDataEpIdx, psDataEp := range psVbRouting.Endpoints {
 			dataNode := &DataNode{
 				Node:          nodes[psDataEp.EndpointIdx],
 				LocalVbuckets: psDataEp.LocalVbuckets,
@@ -62,16 +46,20 @@ func (p *PSProvider) translateBucketTopology(t *routing_v1.WatchRoutingResponse)
 			}
 			dataNodes[psDataEpIdx] = dataNode
 		}
+		vbRouting = &VbucketRouting{
+			NumVbuckets: uint(vbRouting.NumVbuckets),
+			Nodes:       dataNodes,
+		}
 	}
 
 	return &Topology{
-		Revision:  t.Revision,
-		Nodes:     nodes,
-		DataNodes: dataNodes,
+		Revision:       t.Revision,
+		Nodes:          nodes,
+		VbucketRouting: vbRouting,
 	}
 }
 
-func (p *PSProvider) watchTopology(ctx context.Context, bucketName *string) (<-chan *routing_v1.WatchRoutingResponse, error) {
+func (p *PSProvider) watchTopology(ctx context.Context, bucketName *string) (<-chan *Topology, error) {
 	// TODO(brett19): PSProvider.watchTopology is something that probably belongs in the client.
 	// Putting it in the client will be helpful because it's likely used in multipled places, and the
 	// client itself needs to maintain knowledge of the topology anyways, we can perform coalescing
@@ -92,9 +80,9 @@ func (p *PSProvider) watchTopology(ctx context.Context, bucketName *string) (<-c
 		return nil, err
 	}
 
-	outputCh := make(chan *routing_v1.WatchRoutingResponse)
+	outputCh := make(chan *Topology)
 	go func() {
-		outputCh <- routingResp
+		outputCh <- p.translateTopology(routingResp)
 
 	MainLoop:
 		for {
@@ -120,7 +108,7 @@ func (p *PSProvider) watchTopology(ctx context.Context, bucketName *string) (<-c
 					break
 				}
 
-				outputCh <- routingResp
+				outputCh <- p.translateTopology(routingResp)
 			}
 		}
 	}()
@@ -128,36 +116,11 @@ func (p *PSProvider) watchTopology(ctx context.Context, bucketName *string) (<-c
 	return outputCh, nil
 }
 
-func (p *PSProvider) WatchCluster(ctx context.Context) (<-chan *Topology, error) {
-	routingStream, err := p.watchTopology(ctx, nil)
-	if err != nil {
-		return nil, err
+func (p *PSProvider) Watch(ctx context.Context, bucketName string) (<-chan *Topology, error) {
+	// TODO(brett19): Remove this pointer shenanigans
+	var bucketNamePtr *string
+	if bucketName != "" {
+		bucketNamePtr = &bucketName
 	}
-
-	outputCh := make(chan *Topology)
-	go func() {
-		for cbTopology := range routingStream {
-			outputCh <- p.translateClusterTopology(cbTopology)
-		}
-		close(outputCh)
-	}()
-
-	return outputCh, err
-}
-
-func (p *PSProvider) WatchBucket(ctx context.Context, bucketName string) (<-chan *Topology, error) {
-	routingStream, err := p.watchTopology(ctx, &bucketName)
-	if err != nil {
-		return nil, err
-	}
-
-	outputCh := make(chan *Topology)
-	go func() {
-		for cbTopology := range routingStream {
-			outputCh <- p.translateBucketTopology(cbTopology)
-		}
-		close(outputCh)
-	}()
-
-	return outputCh, err
+	return p.watchTopology(ctx, bucketNamePtr)
 }

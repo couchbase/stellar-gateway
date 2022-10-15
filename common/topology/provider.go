@@ -1,4 +1,4 @@
-package pstopology
+package topology
 
 import "context"
 
