@@ -3,8 +3,8 @@ package topologyutils
 import (
 	"context"
 
-	"github.com/couchbase/stellar-nebula/common/nebclustering"
-	"github.com/couchbase/stellar-nebula/common/remotetopology"
+	"github.com/couchbase/stellar-nebula/nebclustering"
+	"github.com/couchbase/stellar-nebula/remotetopology"
 )
 
 type MergedTopology struct {

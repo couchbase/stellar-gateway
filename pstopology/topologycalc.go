@@ -1,9 +1,9 @@
 package pstopology
 
 import (
-	"github.com/couchbase/stellar-nebula/common/nebclustering"
-	"github.com/couchbase/stellar-nebula/common/remotetopology"
 	"github.com/couchbase/stellar-nebula/contrib/revisionarr"
+	"github.com/couchbase/stellar-nebula/nebclustering"
+	"github.com/couchbase/stellar-nebula/remotetopology"
 	"github.com/couchbase/stellar-nebula/utils/sliceutils"
 	"golang.org/x/exp/slices"
 )

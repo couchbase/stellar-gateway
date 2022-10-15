@@ -1,12 +1,12 @@
-package legacytopology
+package pstopology
 
 import (
 	"context"
 	"log"
 
-	"github.com/couchbase/stellar-nebula/common/nebclustering"
-	"github.com/couchbase/stellar-nebula/common/remotetopology"
-	"github.com/couchbase/stellar-nebula/common/topologyutils"
+	"github.com/couchbase/stellar-nebula/nebclustering"
+	"github.com/couchbase/stellar-nebula/remotetopology"
+	"github.com/couchbase/stellar-nebula/topologyutils"
 )
 
 type ManagerOptions struct {

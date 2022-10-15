@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/couchbase/stellar-nebula/common/pstopology"
 	"github.com/couchbase/stellar-nebula/genproto/routing_v1"
+	"github.com/couchbase/stellar-nebula/pstopology"
 	"github.com/couchbase/stellar-nebula/utils/latestonlychannel"
 )
 

@@ -5,8 +5,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/couchbase/stellar-nebula/common/legacytopology"
 	"github.com/couchbase/stellar-nebula/genproto/data_v1"
+	"github.com/couchbase/stellar-nebula/legacytopology"
 	"go.uber.org/zap"
 )
 

@@ -8,9 +8,9 @@ import (
 	"syscall"
 
 	"github.com/couchbase/gocbcore/v10/memd"
-	"github.com/couchbase/stellar-nebula/common/legacytopology"
 	"github.com/couchbase/stellar-nebula/contrib/scramserver"
 	"github.com/couchbase/stellar-nebula/genproto/data_v1"
+	"github.com/couchbase/stellar-nebula/legacytopology"
 	"go.uber.org/zap"
 )
 
