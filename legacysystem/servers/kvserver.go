@@ -5,21 +5,21 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/couchbase/stellar-nebula/common/legacytopology"
 	"github.com/couchbase/stellar-nebula/genproto/data_v1"
-	"github.com/couchbase/stellar-nebula/genproto/routing_v1"
 	"go.uber.org/zap"
 )
 
 type KvServerOptions struct {
-	Logger        *zap.Logger
-	DataServer    data_v1.DataServer
-	RoutingServer routing_v1.RoutingServer
+	Logger           *zap.Logger
+	TopologyProvider legacytopology.Provider
+	DataServer       data_v1.DataServer
 }
 
 type KvServer struct {
-	logger        *zap.Logger
-	dataServer    data_v1.DataServer
-	routingServer routing_v1.RoutingServer
+	logger           *zap.Logger
+	topologyProvider legacytopology.Provider
+	dataServer       data_v1.DataServer
 
 	lock    sync.Mutex
 	clients []*KvServerClient
@@ -27,9 +27,9 @@ type KvServer struct {
 
 func NewKvServer(opts *KvServerOptions) (*KvServer, error) {
 	server := &KvServer{
-		logger:        opts.Logger,
-		dataServer:    opts.DataServer,
-		routingServer: opts.RoutingServer,
+		logger:           opts.Logger,
+		dataServer:       opts.DataServer,
+		topologyProvider: opts.TopologyProvider,
 	}
 
 	return server, nil
@@ -71,10 +71,10 @@ func (s *KvServer) handleNewConnection(conn net.Conn) {
 		Logger: s.logger.With(
 			zap.Stringer("address", conn.RemoteAddr()),
 		),
-		ParentServer:  s,
-		DataServer:    s.dataServer,
-		RoutingServer: s.routingServer,
-		Conn:          conn,
+		ParentServer:     s,
+		DataServer:       s.dataServer,
+		TopologyProvider: s.topologyProvider,
+		Conn:             conn,
 	})
 	if err != nil {
 		s.logger.Info("failed to init kv proxy client", zap.Error(err))

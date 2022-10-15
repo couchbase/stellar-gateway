@@ -29,6 +29,8 @@ type Manager struct {
 	Provider clustering.Provider
 }
 
+var _ Provider = (*Manager)(nil)
+
 func (m *Manager) Join(ctx context.Context, data *Member) (*Membership, error) {
 	dataBytes, err := json.Marshal(data)
 	if err != nil {

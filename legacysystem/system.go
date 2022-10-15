@@ -4,6 +4,7 @@ import (
 	"context"
 	"sync"
 
+	"github.com/couchbase/stellar-nebula/common/legacytopology"
 	"github.com/couchbase/stellar-nebula/genproto/data_v1"
 	"github.com/couchbase/stellar-nebula/genproto/query_v1"
 	"github.com/couchbase/stellar-nebula/genproto/routing_v1"
@@ -12,10 +13,11 @@ import (
 )
 
 type SystemOptions struct {
-	Logger        *zap.Logger
-	DataServer    data_v1.DataServer
-	QueryServer   query_v1.QueryServer
-	RoutingServer routing_v1.RoutingServer
+	Logger           *zap.Logger
+	TopologyProvider legacytopology.Provider
+	DataServer       data_v1.DataServer
+	QueryServer      query_v1.QueryServer
+	RoutingServer    routing_v1.RoutingServer
 }
 
 type System struct {
@@ -28,17 +30,17 @@ type System struct {
 
 func NewSystem(opts *SystemOptions) (*System, error) {
 	mgmtServer, err := servers.NewMgmtServer(&servers.MgmtServerOptions{
-		Logger:        opts.Logger,
-		RoutingServer: opts.RoutingServer,
+		Logger:           opts.Logger,
+		TopologyProvider: opts.TopologyProvider,
 	})
 	if err != nil {
 		return nil, err
 	}
 
 	kvServer, err := servers.NewKvServer(&servers.KvServerOptions{
-		Logger:        opts.Logger,
-		DataServer:    opts.DataServer,
-		RoutingServer: opts.RoutingServer,
+		Logger:           opts.Logger,
+		DataServer:       opts.DataServer,
+		TopologyProvider: opts.TopologyProvider,
 	})
 	if err != nil {
 		return nil, err

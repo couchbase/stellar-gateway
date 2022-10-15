@@ -3,30 +3,39 @@ package server_v1
 import (
 	"fmt"
 	"log"
-	"time"
 
-	"github.com/couchbase/stellar-nebula/common/nebclustering"
+	"github.com/couchbase/stellar-nebula/common/pstopology"
 	"github.com/couchbase/stellar-nebula/genproto/routing_v1"
+	"github.com/couchbase/stellar-nebula/utils/latestonlychannel"
 )
 
 type RoutingServer struct {
 	routing_v1.UnimplementedRoutingServer
 
-	clusteringManager *nebclustering.Manager
+	topologyProvider pstopology.Provider
+}
+
+func NewRoutingServer(topologyProvider pstopology.Provider) *RoutingServer {
+	return &RoutingServer{
+		topologyProvider: topologyProvider,
+	}
 }
 
 func (s *RoutingServer) WatchRouting(in *routing_v1.WatchRoutingRequest, out routing_v1.Routing_WatchRoutingServer) error {
-topologyLoop:
-	for {
-		topology, err := s.clusteringManager.Get(out.Context())
-		if err != nil {
-			return err
-		}
+	topologyCh, err := s.topologyProvider.Watch(out.Context(), in.GetBucketName())
+	if err != nil {
+		return err
+	}
 
+	// we wrap the topology channel in a helper which ensures we can block to send
+	// topologies without blocking the channel itself...
+	topologyCh = latestonlychannel.Wrap(topologyCh)
+
+	for topology := range topologyCh {
 		var endpoints []*routing_v1.RoutingEndpoint
-		for _, endpoint := range topology.Members {
+		for _, node := range topology.Nodes {
 			endpoints = append(endpoints, &routing_v1.RoutingEndpoint{
-				Address: fmt.Sprintf("%s:%d", endpoint.AdvertiseAddr, endpoint.AdvertisePorts.PS),
+				Address: fmt.Sprintf("%s:%d", node.Address, node.Port),
 			})
 		}
 
@@ -36,20 +45,7 @@ topologyLoop:
 		if err != nil {
 			log.Printf("failed to send topology update: %s", err)
 		}
-
-		select {
-		case <-time.After(15 * time.Second):
-			// we send toplogy updates every 15 seconds for demo purposes
-		case <-out.Context().Done():
-			break topologyLoop
-		}
 	}
 
 	return nil
-}
-
-func NewRoutingServer(clusteringManager *nebclustering.Manager) *RoutingServer {
-	return &RoutingServer{
-		clusteringManager: clusteringManager,
-	}
 }

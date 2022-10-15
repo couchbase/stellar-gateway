@@ -4,7 +4,7 @@ import (
 	"net"
 	"net/http"
 
-	"github.com/couchbase/stellar-nebula/genproto/routing_v1"
+	"github.com/couchbase/stellar-nebula/common/legacytopology"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 )
@@ -12,20 +12,20 @@ import (
 type MgmtServerOptions struct {
 	Logger *zap.Logger
 
-	RoutingServer routing_v1.RoutingServer
+	TopologyProvider legacytopology.Provider
 }
 
 type MgmtServer struct {
-	logger        *zap.Logger
-	routingServer routing_v1.RoutingServer
+	logger           *zap.Logger
+	topologyProvider legacytopology.Provider
 
 	httpServer *http.Server
 }
 
 func NewMgmtServer(opts *MgmtServerOptions) (*MgmtServer, error) {
 	s := &MgmtServer{
-		logger:        opts.Logger,
-		routingServer: opts.RoutingServer,
+		logger:           opts.Logger,
+		topologyProvider: opts.TopologyProvider,
 	}
 
 	router := mux.NewRouter()

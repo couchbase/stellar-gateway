@@ -7,7 +7,12 @@ import (
 	"os"
 	"time"
 
+	"github.com/couchbase/stellar-nebula/common/cbconfig"
+	"github.com/couchbase/stellar-nebula/common/cbtopology"
+	"github.com/couchbase/stellar-nebula/common/legacytopology"
 	"github.com/couchbase/stellar-nebula/common/nebclustering"
+	"github.com/couchbase/stellar-nebula/common/pstopology"
+	"github.com/couchbase/stellar-nebula/common/remotetopology"
 	"github.com/couchbase/stellar-nebula/contrib/clustering"
 	"github.com/couchbase/stellar-nebula/legacysystem"
 	"github.com/couchbase/stellar-nebula/psimpl"
@@ -111,12 +116,47 @@ func main() {
 
 	clusteringManager := &nebclustering.Manager{Provider: clusteringProvider}
 
+	// TODO(brett19): We should use the gocb client to fetch the topologies.
+	cbTopologyProvider, err := cbtopology.NewPollingProvider(cbtopology.PollingProviderOptions{
+		Fetcher: cbconfig.NewFetcher(cbconfig.FetcherOptions{
+			Host:     *cbHost,
+			Username: "",
+			Password: "",
+		}),
+	})
+	if err != nil {
+		log.Fatalf("failed to initialize cb topology poller: %s", err)
+	}
+
+	remoteTopologyProvider, err := remotetopology.NewCBProvider(&remotetopology.CBProviderOptions{
+		Provider: cbTopologyProvider,
+	})
+	if err != nil {
+		log.Fatalf("failed to initialize remote topology provider: %s", err)
+	}
+
+	psTopologyManager, err := pstopology.NewManager(&pstopology.ManagerOptions{
+		LocalTopologyProvider:  clusteringManager,
+		RemoteTopologyProvider: remoteTopologyProvider,
+	})
+	if err != nil {
+		log.Fatalf("failed to initialize ps topology manager: %s", err)
+	}
+
+	legacyTopologyManager, err := legacytopology.NewManager(&legacytopology.ManagerOptions{
+		LocalTopologyProvider:  clusteringManager,
+		RemoteTopologyProvider: remoteTopologyProvider,
+	})
+	if err != nil {
+		log.Fatalf("failed to initialize legacy topology manager: %s", err)
+	}
+
 	// setup the gateway server
 	log.Printf("initializing gateway implementation")
 	psImpl, err := psimpl.NewGateway(&psimpl.GatewayOptions{
-		Logger:            logger,
-		ClusteringManager: clusteringManager,
-		CbClient:          client,
+		Logger:           logger,
+		TopologyProvider: psTopologyManager,
+		CbClient:         client,
 	})
 	if err != nil {
 		log.Fatalf("failed to initialize gateway implementation: %s", err)
@@ -135,10 +175,11 @@ func main() {
 
 	log.Printf("initializing legacy system")
 	legacySys, err := legacysystem.NewSystem(&legacysystem.SystemOptions{
-		Logger:        logger,
-		DataServer:    psImpl.DataV1(),
-		QueryServer:   psImpl.QueryV1(),
-		RoutingServer: psImpl.RoutingV1(),
+		Logger:           logger,
+		TopologyProvider: legacyTopologyManager,
+		DataServer:       psImpl.DataV1(),
+		QueryServer:      psImpl.QueryV1(),
+		RoutingServer:    psImpl.RoutingV1(),
 	})
 	if err != nil {
 		log.Printf("error creating legacy proxy: %s", err)

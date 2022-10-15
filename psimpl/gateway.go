@@ -2,7 +2,7 @@ package psimpl
 
 import (
 	"github.com/couchbase/gocb/v2"
-	"github.com/couchbase/stellar-nebula/common/nebclustering"
+	"github.com/couchbase/stellar-nebula/common/pstopology"
 	"github.com/couchbase/stellar-nebula/genproto/admin_bucket_v1"
 	"github.com/couchbase/stellar-nebula/genproto/analytics_v1"
 	"github.com/couchbase/stellar-nebula/genproto/couchbase_v1"
@@ -18,14 +18,14 @@ import (
 type GatewayOptions struct {
 	Logger *zap.Logger
 
-	ClusteringManager *nebclustering.Manager
-	CbClient          *gocb.Cluster
+	TopologyProvider pstopology.Provider
+	CbClient         *gocb.Cluster
 }
 
 type Gateway struct {
-	logger            *zap.Logger
-	clusteringManager *nebclustering.Manager
-	cbClient          *gocb.Cluster
+	logger           *zap.Logger
+	topologyProvider pstopology.Provider
+	cbClient         *gocb.Cluster
 
 	// This are intentionally public to allow external use
 	couchbaseV1Server    *server_v1.CouchbaseServer
@@ -40,9 +40,9 @@ type Gateway struct {
 
 func NewGateway(opts *GatewayOptions) (*Gateway, error) {
 	g := &Gateway{
-		logger:            opts.Logger,
-		clusteringManager: opts.ClusteringManager,
-		cbClient:          opts.CbClient,
+		logger:           opts.Logger,
+		topologyProvider: opts.TopologyProvider,
+		cbClient:         opts.CbClient,
 	}
 
 	err := g.init()
@@ -55,7 +55,7 @@ func NewGateway(opts *GatewayOptions) (*Gateway, error) {
 
 func (g *Gateway) init() error {
 	g.couchbaseV1Server = server_v1.NewCouchbaseServer()
-	g.routingV1Server = server_v1.NewRoutingServer(g.clusteringManager)
+	g.routingV1Server = server_v1.NewRoutingServer(g.topologyProvider)
 	g.dataV1Server = server_v1.NewDataServer(g.cbClient)
 	g.queryV1Server = server_v1.NewQueryServer(g.cbClient)
 	g.searchV1Server = server_v1.NewSearchServer(g.cbClient)

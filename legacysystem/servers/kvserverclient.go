@@ -8,26 +8,26 @@ import (
 	"syscall"
 
 	"github.com/couchbase/gocbcore/v10/memd"
+	"github.com/couchbase/stellar-nebula/common/legacytopology"
 	"github.com/couchbase/stellar-nebula/contrib/scramserver"
 	"github.com/couchbase/stellar-nebula/genproto/data_v1"
-	"github.com/couchbase/stellar-nebula/genproto/routing_v1"
 	"go.uber.org/zap"
 )
 
 type KvServerClientOptions struct {
-	Logger        *zap.Logger
-	ParentServer  *KvServer
-	DataServer    data_v1.DataServer
-	RoutingServer routing_v1.RoutingServer
-	Conn          net.Conn
+	Logger           *zap.Logger
+	ParentServer     *KvServer
+	TopologyProvider legacytopology.Provider
+	DataServer       data_v1.DataServer
+	Conn             net.Conn
 }
 
 type KvServerClient struct {
-	logger        *zap.Logger
-	parentServer  *KvServer
-	dataServer    data_v1.DataServer
-	routingServer routing_v1.RoutingServer
-	conn          net.Conn
+	logger           *zap.Logger
+	parentServer     *KvServer
+	topologyProvider legacytopology.Provider
+	dataServer       data_v1.DataServer
+	conn             net.Conn
 
 	memdConn       *memd.Conn
 	scramServer    *scramserver.ScramServer
@@ -51,11 +51,11 @@ func makeBufferedMemdConn(s io.ReadWriter) *memd.Conn {
 
 func NewKvServerClient(opts *KvServerClientOptions) (*KvServerClient, error) {
 	client := &KvServerClient{
-		logger:        opts.Logger,
-		parentServer:  opts.ParentServer,
-		dataServer:    opts.DataServer,
-		routingServer: opts.RoutingServer,
-		conn:          opts.Conn,
+		logger:           opts.Logger,
+		parentServer:     opts.ParentServer,
+		dataServer:       opts.DataServer,
+		topologyProvider: opts.TopologyProvider,
+		conn:             opts.Conn,
 	}
 
 	err := client.init()
