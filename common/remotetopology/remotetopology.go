@@ -13,15 +13,7 @@ type DataNode struct {
 }
 
 type Topology struct {
-	RevEpoch uint64
-	Revision uint64
-
-	Nodes []*Node
-}
-
-type BucketTopology struct {
-	RevEpoch uint64
-	Revision uint64
+	Revision []uint64
 
 	Nodes     []*Node
 	DataNodes []*DataNode

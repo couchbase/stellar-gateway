@@ -1,4 +1,4 @@
-package psclustering
+package nebclustering
 
 import (
 	"context"

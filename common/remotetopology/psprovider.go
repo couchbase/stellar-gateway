@@ -24,18 +24,6 @@ func NewPSProvider(opts *PSProviderOptions) (*PSProvider, error) {
 	}, nil
 }
 
-func (p *PSProvider) parseRevision(psRevision []uint64) (uint64, uint64) {
-	var revEpoch, revision uint64
-	if len(psRevision) >= 2 {
-		revEpoch = psRevision[0]
-		revision = psRevision[1]
-	} else if len(psRevision) >= 1 {
-		revEpoch = 0
-		revision = psRevision[0]
-	}
-	return revEpoch, revision
-}
-
 func (p *PSProvider) translateClusterTopology(t *routing_v1.WatchRoutingResponse) *Topology {
 	nodes := make([]*Node, len(t.Endpoints))
 	for psEpIdx, psEp := range t.Endpoints {
@@ -46,16 +34,13 @@ func (p *PSProvider) translateClusterTopology(t *routing_v1.WatchRoutingResponse
 		nodes[psEpIdx] = node
 	}
 
-	revEpoch, revision := p.parseRevision(t.Revision)
-
 	return &Topology{
-		RevEpoch: revEpoch,
-		Revision: revision,
+		Revision: t.Revision,
 		Nodes:    nodes,
 	}
 }
 
-func (p *PSProvider) translateBucketTopology(t *routing_v1.WatchRoutingResponse) *BucketTopology {
+func (p *PSProvider) translateBucketTopology(t *routing_v1.WatchRoutingResponse) *Topology {
 	nodes := make([]*Node, len(t.Endpoints))
 	for psEpIdx, psEp := range t.Endpoints {
 		node := &Node{
@@ -79,11 +64,8 @@ func (p *PSProvider) translateBucketTopology(t *routing_v1.WatchRoutingResponse)
 		}
 	}
 
-	revEpoch, revision := p.parseRevision(t.Revision)
-
-	return &BucketTopology{
-		RevEpoch:  revEpoch,
-		Revision:  revision,
+	return &Topology{
+		Revision:  t.Revision,
 		Nodes:     nodes,
 		DataNodes: dataNodes,
 	}
@@ -163,13 +145,13 @@ func (p *PSProvider) WatchCluster(ctx context.Context) (<-chan *Topology, error)
 	return outputCh, err
 }
 
-func (p *PSProvider) WatchBucket(ctx context.Context, bucketName string) (<-chan *BucketTopology, error) {
+func (p *PSProvider) WatchBucket(ctx context.Context, bucketName string) (<-chan *Topology, error) {
 	routingStream, err := p.watchTopology(ctx, &bucketName)
 	if err != nil {
 		return nil, err
 	}
 
-	outputCh := make(chan *BucketTopology)
+	outputCh := make(chan *Topology)
 	go func() {
 		for cbTopology := range routingStream {
 			outputCh <- p.translateBucketTopology(cbTopology)

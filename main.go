@@ -7,11 +7,12 @@ import (
 	"os"
 	"time"
 
-	"github.com/couchbase/stellar-nebula/common/psclustering"
+	"github.com/couchbase/stellar-nebula/common/nebclustering"
 	"github.com/couchbase/stellar-nebula/contrib/clustering"
 	"github.com/couchbase/stellar-nebula/legacysystem"
 	"github.com/couchbase/stellar-nebula/psimpl"
 	"github.com/couchbase/stellar-nebula/pssystem"
+	"github.com/couchbase/stellar-nebula/utils/netutils"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -26,8 +27,8 @@ var cbPass = flag.String("cb-pass", "password", "the password to use for the cou
 var etcdHost = flag.String("etcd-host", "localhost:2379", "the etcd host to connect to")
 var bindAddr = flag.String("bind-addr", "0.0.0.0", "the address to bind")
 var bindPort = flag.Int("bind-port", 18098, "the port to bind to")
-var advertiseAddr = flag.String("advertise-addr", "127.0.0.1", "the address to use when advertising this node")
-var advertisePort = flag.Uint64("advertise-port", 18098, "the port to use when advertising this node")
+var advertiseAddr = flag.String("advertise-addr", "", "the address to use when advertising this node")
+var advertisePort = flag.Uint64("advertise-port", 0, "the port to use when advertising this node")
 var nodeID = flag.String("node-id", "", "the local node id for this service")
 var serverGroup = flag.String("server-group", "", "the local hostname for this service")
 var verbose = flag.Bool("verbose", false, "whether to enable debug logging")
@@ -100,7 +101,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	clusteringManager := &psclustering.Manager{Provider: clusteringProvider}
+	clusteringManager := &nebclustering.Manager{Provider: clusteringProvider}
 
 	// setup the gateway server
 	log.Printf("initializing gateway implementation")
@@ -146,8 +147,9 @@ func main() {
 	legacyLis, err := legacysystem.NewListeners(&legacysystem.ListenersOptions{
 		Address: "",
 		Ports: legacysystem.ServicePorts{
-			Mgmt: 8091,
-			KV:   11210,
+			Mgmt:  8091,
+			KV:    11210,
+			Query: 8093,
 		},
 		TLSPorts: legacysystem.ServicePorts{},
 	})
@@ -157,12 +159,63 @@ func main() {
 
 	// join the cluster topology
 	log.Printf("joining nebula cluster toplogy")
-	clusterEntry, err := clusteringManager.Join(context.Background(), &psclustering.Member{
-		MemberID:      *nodeID,
-		AdvertiseAddr: *advertiseAddr,
-		AdvertisePort: int(*advertisePort),
-		ServerGroup:   *serverGroup,
-	})
+
+	advertiseAddr := *advertiseAddr
+	// if no advertise port was explicitly provided, use the bind address if it
+	// was not an inaddr_any bind.
+	if advertiseAddr == "" {
+		if !netutils.IsInAddrAny(*bindAddr) {
+			advertiseAddr = *bindAddr
+		}
+	}
+	// if the bind address was also not provided, try to get it from the system.
+	if advertiseAddr == "" {
+		outboundIP, err := netutils.GetOutboundIP()
+		if err != nil {
+			log.Printf("failed to get outbound IP address: %s", err)
+		}
+		advertiseAddr = outboundIP.String()
+	}
+
+	// if we still don't have an advertise address, let's explode
+	if advertiseAddr == "" {
+		log.Printf("cannot figure out our local advertisement address")
+		os.Exit(1)
+	}
+
+	advertisePorts := nebclustering.ServicePorts{}
+
+	grpcEnabled := false
+	if grpcLis != nil {
+		grpcEnabled = true
+		advertisePorts.PS = int(*advertisePort)
+		if advertisePorts.PS == 0 {
+			advertisePorts.PS = grpcLis.BoundPort()
+		}
+	}
+
+	legacyEnabled := false
+	if legacyLis != nil {
+		legacyEnabled = true
+		advertisePorts.Mgmt = legacyLis.BoundMgmtPort()
+		advertisePorts.KV = legacyLis.BoundKVPort()
+		advertisePorts.Query = legacyLis.BoundQueryPort()
+		advertisePorts.MgmtTls = legacyLis.BoundMgmtTLSPort()
+		advertisePorts.KVTls = legacyLis.BoundKVTLSPort()
+		advertisePorts.QueryTls = legacyLis.BoundQueryTLSPort()
+	}
+
+	localMemberData := &nebclustering.Member{
+		MemberID:       *nodeID,
+		ServerGroup:    *serverGroup,
+		AdvertiseAddr:  advertiseAddr,
+		AdvertisePorts: advertisePorts,
+		PsDisabled:     !grpcEnabled,
+		LegacyEnabled:  legacyEnabled,
+	}
+	log.Printf("joining cluster with `%+v`", localMemberData)
+
+	clusterEntry, err := clusteringManager.Join(context.Background(), localMemberData)
 	if err != nil {
 		log.Fatalf("failed to join cluster: %s", err)
 		os.Exit(1)

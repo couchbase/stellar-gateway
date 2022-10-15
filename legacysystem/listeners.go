@@ -87,24 +87,41 @@ func NewListeners(opts *ListenersOptions) (*Listeners, error) {
 		return nil, err
 	}
 
-	// TODO(brett19): Ensure TLS listeners support HTTP2 and what not.
+	if opts.TLSConfig != nil {
+		// TODO(brett19): Ensure TLS listeners support HTTP2 and what not.
 
-	l.mgmtTLSListener, err = makeTLS(opts.TLSPorts.Mgmt)
-	if err != nil {
-		l.Close()
-		return nil, err
-	}
+		l.mgmtTLSListener, err = makeTLS(opts.TLSPorts.Mgmt)
+		if err != nil {
+			l.Close()
+			return nil, err
+		}
 
-	l.kvTLSListener, err = makeTLS(opts.TLSPorts.KV)
-	if err != nil {
-		l.Close()
-		return nil, err
-	}
+		l.kvTLSListener, err = makeTLS(opts.TLSPorts.KV)
+		if err != nil {
+			l.Close()
+			return nil, err
+		}
 
-	l.queryTLSListener, err = makeTLS(opts.TLSPorts.Query)
-	if err != nil {
-		l.Close()
-		return nil, err
+		l.queryTLSListener, err = makeTLS(opts.TLSPorts.Query)
+		if err != nil {
+			l.Close()
+			return nil, err
+		}
+	} else {
+		errorText := ""
+		if opts.TLSPorts.Mgmt > 0 {
+			errorText = "provided explit mgmt port but no tls config"
+		}
+		if opts.TLSPorts.KV > 0 {
+			errorText = "provided explit kv port but no tls config"
+		}
+		if opts.TLSPorts.Query > 0 {
+			errorText = "provided explit query port but no tls config"
+		}
+		if errorText != "" {
+			l.Close()
+			return nil, errors.New(errorText)
+		}
 	}
 
 	return l, nil
@@ -138,4 +155,46 @@ func (l *Listeners) Close() error {
 	}
 
 	return nil
+}
+
+func (l *Listeners) BoundMgmtPort() int {
+	if l.kvListener == nil {
+		return 0
+	}
+	return l.mgmtListener.Addr().(*net.TCPAddr).Port
+}
+
+func (l *Listeners) BoundKVPort() int {
+	if l.kvListener == nil {
+		return 0
+	}
+	return l.kvListener.Addr().(*net.TCPAddr).Port
+}
+
+func (l *Listeners) BoundQueryPort() int {
+	if l.queryListener == nil {
+		return 0
+	}
+	return l.queryListener.Addr().(*net.TCPAddr).Port
+}
+
+func (l *Listeners) BoundMgmtTLSPort() int {
+	if l.kvTLSListener == nil {
+		return 0
+	}
+	return l.mgmtTLSListener.Addr().(*net.TCPAddr).Port
+}
+
+func (l *Listeners) BoundKVTLSPort() int {
+	if l.kvTLSListener == nil {
+		return 0
+	}
+	return l.kvTLSListener.Addr().(*net.TCPAddr).Port
+}
+
+func (l *Listeners) BoundQueryTLSPort() int {
+	if l.queryTLSListener == nil {
+		return 0
+	}
+	return l.queryTLSListener.Addr().(*net.TCPAddr).Port
 }

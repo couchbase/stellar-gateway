@@ -31,13 +31,12 @@ func (p *CBProvider) translateClusterTopology(t *cbtopology.Topology) *Topology 
 	}
 
 	return &Topology{
-		RevEpoch: t.RevEpoch,
-		Revision: t.Revision,
+		Revision: []uint64{t.Revision, t.RevEpoch},
 		Nodes:    nodes,
 	}
 }
 
-func (p *CBProvider) translateBucketTopology(t *cbtopology.BucketTopology) *BucketTopology {
+func (p *CBProvider) translateBucketTopology(t *cbtopology.BucketTopology) *Topology {
 	nodes := make([]*Node, len(t.Nodes))
 	nodesMap := make(map[*cbtopology.Node]*Node)
 	for cbNodeIdx, cbNode := range t.Nodes {
@@ -71,9 +70,8 @@ func (p *CBProvider) translateBucketTopology(t *cbtopology.BucketTopology) *Buck
 		dataNodes[cbDataNodeIdx] = dataNode
 	}
 
-	return &BucketTopology{
-		RevEpoch:  t.RevEpoch,
-		Revision:  t.Revision,
+	return &Topology{
+		Revision:  []uint64{t.Revision, t.RevEpoch},
 		Nodes:     nodes,
 		DataNodes: dataNodes,
 	}
@@ -94,13 +92,13 @@ func (p *CBProvider) WatchCluster(ctx context.Context) (<-chan *Topology, error)
 	return outputCh, err
 }
 
-func (p *CBProvider) WatchBucket(ctx context.Context, bucketName string) (<-chan *BucketTopology, error) {
+func (p *CBProvider) WatchBucket(ctx context.Context, bucketName string) (<-chan *Topology, error) {
 	cbTopologyCh, err := p.provider.WatchBucket(ctx, bucketName)
 	if err != nil {
 		return nil, err
 	}
 
-	outputCh := make(chan *BucketTopology)
+	outputCh := make(chan *Topology)
 	go func() {
 		for cbTopology := range cbTopologyCh {
 			outputCh <- p.translateBucketTopology(cbTopology)

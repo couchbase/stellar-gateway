@@ -2,7 +2,7 @@ package psimpl
 
 import (
 	"github.com/couchbase/gocb/v2"
-	"github.com/couchbase/stellar-nebula/common/psclustering"
+	"github.com/couchbase/stellar-nebula/common/nebclustering"
 	"github.com/couchbase/stellar-nebula/genproto/admin_bucket_v1"
 	"github.com/couchbase/stellar-nebula/genproto/analytics_v1"
 	"github.com/couchbase/stellar-nebula/genproto/couchbase_v1"
@@ -18,13 +18,13 @@ import (
 type GatewayOptions struct {
 	Logger *zap.Logger
 
-	ClusteringManager *psclustering.Manager
+	ClusteringManager *nebclustering.Manager
 	CbClient          *gocb.Cluster
 }
 
 type Gateway struct {
 	logger            *zap.Logger
-	clusteringManager *psclustering.Manager
+	clusteringManager *nebclustering.Manager
 	cbClient          *gocb.Cluster
 
 	// This are intentionally public to allow external use

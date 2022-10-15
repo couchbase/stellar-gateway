@@ -2,7 +2,6 @@ package pssystem
 
 import (
 	"context"
-	"net"
 
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -35,8 +34,7 @@ type System struct {
 	bindPort    int
 	impl        psimpl.Impl
 
-	grpcListener net.Listener
-	grpcServer   *grpc.Server
+	grpcServer *grpc.Server
 }
 
 func NewSystem(opts *SystemOptions) (*System, error) {
@@ -63,6 +61,6 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 	return s, nil
 }
 
-func (s *System) Serve(ctx context.Context, l net.Listener) error {
-	return s.grpcServer.Serve(l)
+func (s *System) Serve(ctx context.Context, l *Listener) error {
+	return s.grpcServer.Serve(l.l)
 }
