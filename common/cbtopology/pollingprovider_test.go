@@ -24,7 +24,7 @@ func TestWatchClusterConfig(t *testing.T) {
 
 	cancelCtx, cancelFn := context.WithCancel(context.Background())
 
-	clusterConfigs, err := poller.WatchCluster(cancelCtx)
+	clusterConfigs, err := poller.Watch(cancelCtx, "")
 	if err != nil {
 		t.Fatalf("failed to watch cluster configs: %s", err)
 	}
@@ -68,7 +68,7 @@ func TestWatchBucketConfig(t *testing.T) {
 
 	cancelCtx, cancelFn := context.WithCancel(context.Background())
 
-	bucketConfigs, err := poller.WatchBucket(cancelCtx, "default")
+	bucketConfigs, err := poller.Watch(cancelCtx, "default")
 	if err != nil {
 		t.Fatalf("failed to watch bucket configs: %s", err)
 	}
@@ -77,10 +77,10 @@ func TestWatchBucketConfig(t *testing.T) {
 	if len(bucketConfig.Nodes) == 0 {
 		t.Fatalf("failed to parse nodes")
 	}
-	if len(bucketConfig.DataNodes) == 0 {
+	if len(bucketConfig.VbucketMapping.Nodes) == 0 {
 		t.Fatalf("failed to parse vbucket data")
 	}
-	if len(bucketConfig.DataNodes[0].Vbuckets) <= 0 {
+	if len(bucketConfig.VbucketMapping.Nodes[0].Vbuckets) <= 0 {
 		t.Fatalf("failed to parse node vbuckets")
 	}
 

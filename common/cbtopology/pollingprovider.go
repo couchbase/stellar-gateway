@@ -24,6 +24,8 @@ type PollingProvider struct {
 	fetcher *cbconfig.Fetcher
 }
 
+var _ Provider = (*PollingProvider)(nil)
+
 func NewPollingProvider(opts PollingProviderOptions) (*PollingProvider, error) {
 	p := &PollingProvider{
 		fetcher: opts.Fetcher,
@@ -170,7 +172,7 @@ func (p *PollingProvider) fetchClusterConfig(ctx context.Context, baseConfig *cb
 	return topology, nil
 }
 
-func (p *PollingProvider) WatchCluster(ctx context.Context) (<-chan *Topology, error) {
+func (p *PollingProvider) watchCluster(ctx context.Context) (<-chan *Topology, error) {
 	topology, err := p.fetchClusterConfig(ctx, nil)
 	if err != nil {
 		return nil, err
@@ -216,7 +218,7 @@ func (p *PollingProvider) WatchCluster(ctx context.Context) (<-chan *Topology, e
 func (p *PollingProvider) parseBucketConfig(
 	config *cbconfig.TerseConfigJson,
 	groupsConfig *cbconfig.ServerGroupConfigJson,
-) (*BucketTopology, error) {
+) (*Topology, error) {
 	servers, err := p.parseConfigServers(config, groupsConfig)
 	if err != nil {
 		return nil, err
@@ -227,16 +229,18 @@ func (p *PollingProvider) parseBucketConfig(
 		return nil, err
 	}
 
-	return &BucketTopology{
-		RevEpoch:    uint64(config.RevEpoch),
-		Revision:    uint64(config.Rev),
-		Nodes:       servers,
-		DataNodes:   dataServers,
-		NumVbuckets: uint(len(config.VBucketServerMap.VBucketMap)),
+	return &Topology{
+		RevEpoch: uint64(config.RevEpoch),
+		Revision: uint64(config.Rev),
+		Nodes:    servers,
+		VbucketMapping: &VbucketMapping{
+			Nodes:       dataServers,
+			NumVbuckets: uint(len(config.VBucketServerMap.VBucketMap)),
+		},
 	}, nil
 }
 
-func (p *PollingProvider) WatchBucket(ctx context.Context, bucketName string) (<-chan *BucketTopology, error) {
+func (p *PollingProvider) watchBucket(ctx context.Context, bucketName string) (<-chan *Topology, error) {
 	// fetch the first version
 	config, err := p.fetcher.FetchTerseBucket(ctx, bucketName)
 	if err != nil {
@@ -254,7 +258,7 @@ func (p *PollingProvider) WatchBucket(ctx context.Context, bucketName string) (<
 		return nil, err
 	}
 
-	outputCh := make(chan *BucketTopology)
+	outputCh := make(chan *Topology)
 
 	// start a goroutine to fetch future configs
 	go func() {
@@ -303,4 +307,12 @@ func (p *PollingProvider) WatchBucket(ctx context.Context, bucketName string) (<
 	}()
 
 	return latestonlychannel.Wrap(outputCh), nil
+}
+
+func (p *PollingProvider) Watch(ctx context.Context, bucketName string) (<-chan *Topology, error) {
+	if bucketName == "" {
+		return p.watchCluster(ctx)
+	} else {
+		return p.watchBucket(ctx, bucketName)
+	}
 }

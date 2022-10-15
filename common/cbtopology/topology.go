@@ -20,18 +20,15 @@ type DataNode struct {
 	VbucketReplicas []int
 }
 
+type VbucketMapping struct {
+	Nodes       []*DataNode
+	NumVbuckets uint
+}
+
 type Topology struct {
 	RevEpoch uint64
 	Revision uint64
 
-	Nodes []*Node
-}
-
-type BucketTopology struct {
-	RevEpoch uint64
-	Revision uint64
-
-	Nodes       []*Node
-	DataNodes   []*DataNode
-	NumVbuckets uint
+	Nodes          []*Node
+	VbucketMapping *VbucketMapping
 }

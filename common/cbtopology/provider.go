@@ -1,8 +1,9 @@
 package cbtopology
 
-import "context"
+import (
+	"context"
+)
 
 type Provider interface {
-	WatchCluster(ctx context.Context) (<-chan *Topology, error)
-	WatchBucket(ctx context.Context, bucketName string) (<-chan *BucketTopology, error)
+	Watch(ctx context.Context, bucketName string) (<-chan *Topology, error)
 }

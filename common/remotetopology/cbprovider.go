@@ -20,23 +20,7 @@ func NewCBProvider(opts *CBProviderOptions) (*CBProvider, error) {
 	}, nil
 }
 
-func (p *CBProvider) translateClusterTopology(t *cbtopology.Topology) *Topology {
-	nodes := make([]*Node, len(t.Nodes))
-	for cbNodeIdx, cbNode := range t.Nodes {
-		node := &Node{
-			NodeID:      cbNode.NodeID,
-			ServerGroup: cbNode.ServerGroup,
-		}
-		nodes[cbNodeIdx] = node
-	}
-
-	return &Topology{
-		Revision: []uint64{t.Revision, t.RevEpoch},
-		Nodes:    nodes,
-	}
-}
-
-func (p *CBProvider) translateBucketTopology(t *cbtopology.BucketTopology) *Topology {
+func (p *CBProvider) translateTopology(t *cbtopology.Topology) *Topology {
 	nodes := make([]*Node, len(t.Nodes))
 	nodesMap := make(map[*cbtopology.Node]*Node)
 	for cbNodeIdx, cbNode := range t.Nodes {
@@ -48,67 +32,56 @@ func (p *CBProvider) translateBucketTopology(t *cbtopology.BucketTopology) *Topo
 		nodesMap[cbNode] = node
 	}
 
-	dataNodes := make([]*DataNode, len(t.DataNodes))
-	for cbDataNodeIdx, cbDataNode := range t.DataNodes {
-		var localVbuckets, groupVbuckets []uint32
+	var vbucketRouting *VbucketRouting
+	if t.VbucketMapping != nil {
+		dataNodes := make([]*DataNode, len(t.VbucketMapping.Nodes))
+		for cbDataNodeIdx, cbDataNode := range t.VbucketMapping.Nodes {
+			var localVbuckets, groupVbuckets []uint32
 
-		// We directly copy the local vbuckets from the couchbase config
-		localVbuckets = make([]uint32, len(cbDataNode.Vbuckets))
-		for vbIdx, vbId := range cbDataNode.Vbuckets {
-			localVbuckets[vbIdx] = uint32(vbId)
+			// We directly copy the local vbuckets from the couchbase config
+			localVbuckets = make([]uint32, len(cbDataNode.Vbuckets))
+			for vbIdx, vbId := range cbDataNode.Vbuckets {
+				localVbuckets[vbIdx] = uint32(vbId)
+			}
+
+			// We don't provide GroupVbuckets here, because technically the service
+			// under the hood (kv_engine), isn't capable of contacting it's group.
+			groupVbuckets = nil
+
+			dataNode := &DataNode{
+				Node:          nodesMap[cbDataNode.Node],
+				LocalVbuckets: localVbuckets,
+				GroupVbuckets: groupVbuckets,
+			}
+			dataNodes[cbDataNodeIdx] = dataNode
 		}
 
-		// We don't provide GroupVbuckets here, because technically the service
-		// under the hood (kv_engine), isn't capable of contacting it's group.
-		groupVbuckets = nil
-
-		dataNode := &DataNode{
-			Node:          nodesMap[cbDataNode.Node],
-			LocalVbuckets: localVbuckets,
-			GroupVbuckets: groupVbuckets,
+		vbucketRouting = &VbucketRouting{
+			NumVbuckets: t.VbucketMapping.NumVbuckets,
+			Nodes:       dataNodes,
 		}
-		dataNodes[cbDataNodeIdx] = dataNode
 	}
 
 	return &Topology{
-		Revision: []uint64{t.Revision, t.RevEpoch},
-		Nodes:    nodes,
-		VbucketRouting: &VbucketRouting{
-			NumVbuckets: t.NumVbuckets,
-			Nodes:       dataNodes,
-		},
+		Revision:       []uint64{t.Revision, t.RevEpoch},
+		Nodes:          nodes,
+		VbucketRouting: vbucketRouting,
 	}
 }
 
 func (p *CBProvider) Watch(ctx context.Context, bucketName string) (<-chan *Topology, error) {
-	// TODO(brett19): We should just merge the Watch functions in this provider...
-	if bucketName == "" {
-		cbTopologyCh, err := p.provider.WatchCluster(ctx)
-		if err != nil {
-			return nil, err
-		}
-
-		outputCh := make(chan *Topology)
-		go func() {
-			for cbTopology := range cbTopologyCh {
-				outputCh <- p.translateClusterTopology(cbTopology)
-			}
-		}()
-		return outputCh, err
-	} else {
-		cbTopologyCh, err := p.provider.WatchBucket(ctx, bucketName)
-		if err != nil {
-			return nil, err
-		}
-
-		outputCh := make(chan *Topology)
-		go func() {
-			for cbTopology := range cbTopologyCh {
-				outputCh <- p.translateBucketTopology(cbTopology)
-			}
-			close(outputCh)
-		}()
-
-		return outputCh, err
+	cbTopologyCh, err := p.provider.Watch(ctx, bucketName)
+	if err != nil {
+		return nil, err
 	}
+
+	outputCh := make(chan *Topology)
+	go func() {
+		for cbTopology := range cbTopologyCh {
+			outputCh <- p.translateTopology(cbTopology)
+		}
+		close(outputCh)
+	}()
+
+	return outputCh, err
 }
