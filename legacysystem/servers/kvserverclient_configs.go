@@ -6,7 +6,7 @@ import (
 	"net/url"
 
 	"github.com/couchbase/gocbcore/v10/memd"
-	"github.com/couchbase/stellar-nebula/common/cbconfig"
+	"github.com/couchbase/stellar-nebula/contrib/cbconfig"
 )
 
 func (c *KvServerClient) handleCmdGetClusterConfigReq(pak *memd.Packet) {

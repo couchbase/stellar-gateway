@@ -7,7 +7,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/couchbase/stellar-nebula/common/cbconfig"
+	"github.com/couchbase/stellar-nebula/contrib/cbconfig"
 	"github.com/couchbase/stellar-nebula/utils/latestonlychannel"
 	"golang.org/x/exp/slices"
 )

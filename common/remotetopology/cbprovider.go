@@ -3,7 +3,7 @@ package remotetopology
 import (
 	"context"
 
-	"github.com/couchbase/stellar-nebula/common/cbtopology"
+	"github.com/couchbase/stellar-nebula/contrib/cbtopology"
 )
 
 type CBProviderOptions struct {
