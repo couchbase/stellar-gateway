@@ -92,6 +92,14 @@ func main() {
 		os.Exit(1)
 	}
 
+	etcdCtx, etcdCtxCancelFn := context.WithDeadline(context.Background(), time.Now().Add(2500*time.Millisecond))
+	_, err = etcdClient.KV.Get(etcdCtx, "test-key")
+	etcdCtxCancelFn()
+	if err != nil {
+		log.Printf("failed to validate etcd connection: %s", err)
+		os.Exit(1)
+	}
+
 	clusteringProvider, err := clustering.NewEtcdProvider(clustering.EtcdProviderOptions{
 		EtcdClient: etcdClient,
 		KeyPrefix:  "/nebula/topology",
@@ -220,6 +228,8 @@ func main() {
 		log.Fatalf("failed to join cluster: %s", err)
 		os.Exit(1)
 	}
+
+	log.Printf("starting to serve")
 
 	waitCh := make(chan struct{})
 
