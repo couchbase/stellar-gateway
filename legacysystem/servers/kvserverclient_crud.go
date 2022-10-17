@@ -84,10 +84,9 @@ func (c *KvServerClient) handleCmdGetReq(pak *memd.Packet) {
 		Extras:       nil,
 		Value:        resp.Content,
 	}); err != nil {
-		c.sendBasicReply(pak, memd.StatusInternalError, nil, nil, nil)
+		c.logger.Debug("encountered memd write error", zap.Error(err))
 		return
 	}
-	c.sendBasicReply(pak, memd.StatusSuccess, nil, resp.Content, nil)
 }
 
 func (c *KvServerClient) handleCmdSetReq(pak *memd.Packet) {
@@ -139,12 +138,9 @@ func (c *KvServerClient) handleCmdSetReq(pak *memd.Packet) {
 		Extras:       nil,
 		Value:        nil,
 	}); err != nil {
-		c.sendBasicReply(pak, memd.StatusInternalError, nil, nil, nil)
+		c.logger.Debug("encountered memd write error", zap.Error(err))
 		return
 	}
-
-	c.sendBasicReply(pak, memd.StatusSuccess, nil, nil, nil)
-
 }
 
 func (c *KvServerClient) handleCmdDeleteReq(pak *memd.Packet) {
@@ -186,9 +182,7 @@ func (c *KvServerClient) handleCmdDeleteReq(pak *memd.Packet) {
 		Extras:       nil,
 		Value:        nil,
 	}); err != nil {
-		c.sendBasicReply(pak, memd.StatusInternalError, nil, nil, nil)
+		c.logger.Debug("encountered memd write error", zap.Error(err))
 		return
 	}
-
-	c.sendBasicReply(pak, memd.StatusSuccess, nil, nil, nil)
 }
