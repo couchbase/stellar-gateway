@@ -15,19 +15,30 @@ Provides translation capabilities for Protostellar to legacy protocols.
 - protoc-gen-go @ v1.28+
 - protoc-gen-go-grpc @ v1.2+
 
-### Executing program
+### Executing the gateway
 
 ```
 > go generate
-> go build
-> ./stellar-nebula
+> go build ./cmd/gateway
+> ./gateway
 ```
 
-or alternatively while developing:
+### Executing the legacy bridge
 
 ```
 > go generate
-> go run ./
+> go build ./cmd/bridge
+> ./bridge
+```
+
+### Executing for development
+
+This (by default) starts 3 instances of the gateway and 3 instances
+of the legacy bridge running on the local system on default ports.
+
+```
+> go generate
+> go run ./cmd/dev
 ```
 
 ## Help
