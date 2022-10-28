@@ -12,6 +12,7 @@ require (
 	go.etcd.io/etcd/client/v3 v3.5.5
 	go.uber.org/zap v1.23.0
 	golang.org/x/exp v0.0.0-20221004215720-b9f4876ce741
+	google.golang.org/genproto v0.0.0-20210602131652-f16073e35f0c
 	google.golang.org/grpc v1.47.0
 	google.golang.org/protobuf v1.28.0
 )
@@ -28,5 +29,4 @@ require (
 	golang.org/x/net v0.0.0-20210405180319-a5a99cb37ef4 // indirect
 	golang.org/x/sys v0.0.0-20220728004956-3c1f35247d10 // indirect
 	golang.org/x/text v0.3.5 // indirect
-	google.golang.org/genproto v0.0.0-20210602131652-f16073e35f0c // indirect
 )

@@ -128,7 +128,10 @@ func (c *KvServerClient) sendBasicReply(
 		Value:        value,
 	}
 
-	c.memdConn.WritePacket(respPak)
+	err := c.memdConn.WritePacket(respPak)
+	if err != nil {
+		c.logger.Debug("failed to write packet", zap.Error(err), zap.Any("packet", respPak))
+	}
 }
 
 func (c *KvServerClient) sendSuccessReply(

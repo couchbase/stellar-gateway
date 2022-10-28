@@ -42,7 +42,10 @@ func NewQueryServer(opts *QueryServerOptions) (*QueryServer, error) {
 func (s *QueryServer) handleRoot(w http.ResponseWriter, r *http.Request) {
 	// TODO(brett19): Handle errors and stuff here...
 	w.WriteHeader(200)
-	w.Write([]byte("mgmt service"))
+	_, err := w.Write([]byte("query service"))
+	if err != nil {
+		s.logger.Debug("failed to write root response", zap.Error(err))
+	}
 }
 
 func (s *QueryServer) Serve(l net.Listener) error {

@@ -59,7 +59,12 @@ func (c *KvServerClient) handleCmdSASLAuthReq_SCRAM(pak *memd.Packet, authMech s
 		c.sendBasicReply(pak, memd.StatusAccessError, nil, nil, nil)
 		return
 	}
-	scramServer.SetPassword("password")
+	err = scramServer.SetPassword("password")
+	if err != nil {
+		c.logger.Debug("failed to setup scram password", zap.Error(err))
+		c.sendBasicReply(pak, memd.StatusAuthError, nil, nil, nil)
+		return
+	}
 
 	c.scramServer = scramServer
 	c.sendBasicReply(pak, memd.StatusAuthContinue, nil, respBytes, nil)
