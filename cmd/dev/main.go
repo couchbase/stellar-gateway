@@ -9,7 +9,6 @@ import (
 	"sync"
 
 	"github.com/couchbase/stellar-nebula/gateway"
-	"github.com/couchbase/stellar-nebula/gateway/clustering"
 	"github.com/couchbase/stellar-nebula/legacybridge"
 	"go.uber.org/zap"
 )
@@ -53,7 +52,7 @@ func main() {
 			BindSdPort:   sdPort,
 			NumInstances: *numInstances,
 
-			MembershipCallback: func(m clustering.Member) {
+			StartupCallback: func(m *gateway.StartupInfo) {
 				gatewayConnStrCh <- fmt.Sprintf("%s:%d", m.AdvertiseAddr, m.AdvertisePorts.PS)
 			},
 		})

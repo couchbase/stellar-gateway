@@ -27,6 +27,14 @@ type ServicePorts struct {
 	Analytics int `json:"a,omitempty"`
 }
 
+type StartupInfo struct {
+	MemberID          string
+	ServerGroup       string
+	AdvertiseAddr     string
+	AdvertisePorts    ServicePorts
+	AdvertisePortsTLS ServicePorts
+}
+
 type Config struct {
 	Logger      *zap.Logger
 	NodeID      string
@@ -44,10 +52,10 @@ type Config struct {
 	TLSBindPorts      ServicePorts
 	AdvertiseAddress  string
 	AdvertisePorts    ServicePorts
-	TLSAdvertisePorts ServicePorts
+	AdvertisePortsTLS ServicePorts
 
-	NumInstances       uint
-	MembershipCallback func(clustering.Member)
+	NumInstances    uint
+	StartupCallback func(*StartupInfo)
 }
 
 func Run(ctx context.Context, config *Config) error {
@@ -174,9 +182,9 @@ func Run(ctx context.Context, config *Config) error {
 			KV:    pickPort(config.AdvertisePorts.KV, legacyLis.BoundQueryPort()),
 			Query: pickPort(config.AdvertisePorts.Query, legacyLis.BoundQueryPort()),
 
-			MgmtTls:  pickPort(config.TLSAdvertisePorts.Mgmt, legacyLis.BoundMgmtTLSPort()),
-			KVTls:    pickPort(config.TLSAdvertisePorts.KV, legacyLis.BoundKVTLSPort()),
-			QueryTls: pickPort(config.TLSAdvertisePorts.Query, legacyLis.BoundQueryTLSPort()),
+			MgmtTls:  pickPort(config.AdvertisePortsTLS.Mgmt, legacyLis.BoundMgmtTLSPort()),
+			KVTls:    pickPort(config.AdvertisePortsTLS.KV, legacyLis.BoundKVTLSPort()),
+			QueryTls: pickPort(config.AdvertisePortsTLS.Query, legacyLis.BoundQueryTLSPort()),
 		}
 
 		localMemberData := &clustering.Member{
@@ -186,14 +194,28 @@ func Run(ctx context.Context, config *Config) error {
 			AdvertisePorts: advertisePorts,
 		}
 
-		if instanceIdx == 0 && config.MembershipCallback != nil {
-			config.MembershipCallback(*localMemberData)
-		}
-
 		clusterEntry, err := clusteringManager.Join(ctx, localMemberData)
 		if err != nil {
 			log.Fatalf("failed to join cluster: %s", err)
 			os.Exit(1)
+		}
+
+		if instanceIdx == 0 && config.StartupCallback != nil {
+			config.StartupCallback(&StartupInfo{
+				MemberID:      nodeID,
+				ServerGroup:   serverGroup,
+				AdvertiseAddr: advertiseAddr,
+				AdvertisePorts: ServicePorts{
+					Mgmt:  advertisePorts.Mgmt,
+					KV:    advertisePorts.KV,
+					Query: advertisePorts.Query,
+				},
+				AdvertisePortsTLS: ServicePorts{
+					Mgmt:  advertisePorts.MgmtTls,
+					KV:    advertisePorts.KVTls,
+					Query: advertisePorts.QueryTls,
+				},
+			})
 		}
 
 		log.Printf("starting to run legacy system")

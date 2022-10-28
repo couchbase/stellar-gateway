@@ -20,6 +20,18 @@ import (
 	"go.uber.org/zap"
 )
 
+type ServicePorts struct {
+	PS int `json:"p,omitempty"`
+	SD int `json:"s,omitempty"`
+}
+
+type StartupInfo struct {
+	MemberID       string
+	ServerGroup    string
+	AdvertiseAddr  string
+	AdvertisePorts ServicePorts
+}
+
 type Config struct {
 	Logger      *zap.Logger
 	NodeID      string
@@ -29,15 +41,14 @@ type Config struct {
 	Username  string
 	Password  string
 
-	BindAddress       string
-	BindDataPort      int
-	BindSdPort        int
-	AdvertiseAddress  string
-	AdvertiseDataPort int
-	AdvertiseSdPort   int
+	BindAddress      string
+	BindDataPort     int
+	BindSdPort       int
+	AdvertiseAddress string
+	AdvertisePorts   ServicePorts
 
-	NumInstances       uint
-	MembershipCallback func(clustering.Member)
+	NumInstances    uint
+	StartupCallback func(*StartupInfo)
 }
 
 func Run(ctx context.Context, config *Config) error {
@@ -155,8 +166,8 @@ func Run(ctx context.Context, config *Config) error {
 			return boundPort
 		}
 		advertisePorts := clustering.ServicePorts{
-			PS: pickPort(config.AdvertiseDataPort, legacyLis.BoundDataPort()),
-			SD: pickPort(config.AdvertiseSdPort, legacyLis.BoundSdPort()),
+			PS: pickPort(config.AdvertisePorts.PS, legacyLis.BoundDataPort()),
+			SD: pickPort(config.AdvertisePorts.SD, legacyLis.BoundSdPort()),
 		}
 
 		localMemberData := &clustering.Member{
@@ -166,14 +177,22 @@ func Run(ctx context.Context, config *Config) error {
 			AdvertisePorts: advertisePorts,
 		}
 
-		if instanceIdx == 0 && config.MembershipCallback != nil {
-			config.MembershipCallback(*localMemberData)
-		}
-
 		clusterEntry, err := clusteringManager.Join(ctx, localMemberData)
 		if err != nil {
 			log.Fatalf("failed to join cluster: %s", err)
 			os.Exit(1)
+		}
+
+		if instanceIdx == 0 && config.StartupCallback != nil {
+			config.StartupCallback(&StartupInfo{
+				MemberID:      nodeID,
+				ServerGroup:   serverGroup,
+				AdvertiseAddr: advertiseAddr,
+				AdvertisePorts: ServicePorts{
+					PS: advertisePorts.PS,
+					SD: advertisePorts.SD,
+				},
+			})
 		}
 
 		log.Printf("starting to run protostellar system")
