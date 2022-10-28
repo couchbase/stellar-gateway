@@ -14,6 +14,8 @@ import (
 	"google.golang.org/protobuf/runtime/protoiface"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
+
+	epb "google.golang.org/genproto/googleapis/rpc/errdetails"
 )
 
 func casToPs(cas gocb.Cas) uint64 {
@@ -81,8 +83,9 @@ func cbErrToPsStatus(err error) *status.Status {
 	var keyValueContext *gocb.KeyValueError
 	if errors.As(err, &keyValueContext) {
 		// TODO(bret19): Need to include more error context here
-		errorDetails = &couchbase_v1.ErrorInfo{
+		errorDetails = &epb.ErrorInfo{
 			Reason: keyValueContext.ErrorName,
+			Domain: "com.couchbase",
 			Metadata: map[string]string{
 				"bucket":     keyValueContext.BucketName,
 				"scope":      keyValueContext.ScopeName,
