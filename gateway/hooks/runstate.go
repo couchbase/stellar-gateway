@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
-	"strings"
 
+	"github.com/couchbase/stellar-nebula/contrib/govalcmp"
 	"github.com/couchbase/stellar-nebula/genproto/internal_hooks_v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -46,108 +46,15 @@ func (s *runState) Run(ctx context.Context, req interface{}) (interface{}, error
 	return resp, err
 }
 
-// coerceType compacts the possible types to a smaller amount, namely int64 for
-// signed numbers, uint64 for unsigned numbers, string for strings, etc...
-func (s *runState) coerceType(val interface{}) interface{} {
-	switch val := val.(type) {
-	case uint:
-		return uint64(val)
-	case int:
-		return int64(val)
-	case uint64:
-		return val
-	case int64:
-		return val
-	case string:
-		return val
-	}
-	return nil
-}
-
 func (s *runState) compare(
 	left interface{},
 	op internal_hooks_v1.ComparisonOperator,
 	right interface{},
 ) (bool, error) {
-	leftVal := s.coerceType(left)
-	rightVal := s.coerceType(right)
-
-	leftInt, isLeftInt := leftVal.(int64)
-	rightInt, isRightInt := rightVal.(int64)
-
-	if isLeftInt && isRightInt {
-		return s.compare_int(leftInt, op, rightInt)
+	delta, err := govalcmp.Compare(left, right)
+	if err != nil {
+		return false, err
 	}
-
-	leftUint, isLeftUint := leftVal.(uint64)
-	rightUint, isRightUint := rightVal.(uint64)
-	if isLeftUint && isRightUint {
-		return s.compare_uint(leftUint, op, rightUint)
-	}
-	if isLeftUint && isRightInt {
-		return s.compare_uint(leftUint, op, uint64(rightInt))
-	}
-	if isLeftInt && isRightUint {
-		return s.compare_uint(uint64(leftInt), op, rightUint)
-	}
-
-	leftStr, isLeftStr := leftVal.(string)
-	rightStr, isRightStr := rightVal.(string)
-	if isLeftStr && isRightStr {
-		return s.compare_string(leftStr, op, rightStr)
-	}
-
-	return false, errors.New("types do not match for comparison")
-}
-
-func (s *runState) compare_int(
-	left int64,
-	op internal_hooks_v1.ComparisonOperator,
-	right int64,
-) (bool, error) {
-	switch op {
-	case internal_hooks_v1.ComparisonOperator_EQUAL:
-		return left == right, nil
-	case internal_hooks_v1.ComparisonOperator_GREATER_THAN:
-		return left > right, nil
-	case internal_hooks_v1.ComparisonOperator_GREATER_THAN_OR_EQUAL:
-		return left >= right, nil
-	case internal_hooks_v1.ComparisonOperator_LESS_THAN:
-		return left < right, nil
-	case internal_hooks_v1.ComparisonOperator_LESS_THAN_OR_EQUAL:
-		return left <= right, nil
-	}
-
-	return false, errors.New("unsupported comparison op")
-}
-
-func (s *runState) compare_uint(
-	left uint64,
-	op internal_hooks_v1.ComparisonOperator,
-	right uint64,
-) (bool, error) {
-	switch op {
-	case internal_hooks_v1.ComparisonOperator_EQUAL:
-		return left == right, nil
-	case internal_hooks_v1.ComparisonOperator_GREATER_THAN:
-		return left > right, nil
-	case internal_hooks_v1.ComparisonOperator_GREATER_THAN_OR_EQUAL:
-		return left >= right, nil
-	case internal_hooks_v1.ComparisonOperator_LESS_THAN:
-		return left < right, nil
-	case internal_hooks_v1.ComparisonOperator_LESS_THAN_OR_EQUAL:
-		return left <= right, nil
-	}
-
-	return false, errors.New("unsupported comparison op")
-}
-
-func (s *runState) compare_string(
-	left string,
-	op internal_hooks_v1.ComparisonOperator,
-	right string,
-) (bool, error) {
-	delta := strings.Compare(left, right)
 
 	switch op {
 	case internal_hooks_v1.ComparisonOperator_EQUAL:
@@ -162,7 +69,7 @@ func (s *runState) compare_string(
 		return delta <= 0, nil
 	}
 
-	return false, errors.New("unsupported comparison op")
+	return false, errors.New("invalid comparison operator")
 }
 
 func (s *runState) resolveValueRef(
