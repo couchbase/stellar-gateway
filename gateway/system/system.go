@@ -8,11 +8,13 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/couchbase/stellar-nebula/gateway/dataimpl"
+	"github.com/couchbase/stellar-nebula/gateway/hooks"
 	"github.com/couchbase/stellar-nebula/gateway/sdimpl"
 	"github.com/couchbase/stellar-nebula/genproto/admin_bucket_v1"
 	"github.com/couchbase/stellar-nebula/genproto/analytics_v1"
 	"github.com/couchbase/stellar-nebula/genproto/couchbase_v1"
 	"github.com/couchbase/stellar-nebula/genproto/data_v1"
+	"github.com/couchbase/stellar-nebula/genproto/internal_hooks_v1"
 	"github.com/couchbase/stellar-nebula/genproto/query_v1"
 	"github.com/couchbase/stellar-nebula/genproto/routing_v1"
 	"github.com/couchbase/stellar-nebula/genproto/search_v1"
@@ -39,7 +41,12 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 	dataImpl := opts.DataImpl
 	sdImpl := opts.SdImpl
 
-	dataSrv := grpc.NewServer()
+	hooksManager := hooks.NewHooksManager()
+
+	dataSrv := grpc.NewServer(
+		grpc.UnaryInterceptor(hooksManager.GrpcUnaryInterceptor()),
+	)
+	internal_hooks_v1.RegisterHooksServer(dataSrv, hooksManager.Server())
 	couchbase_v1.RegisterCouchbaseServer(dataSrv, dataImpl.CouchbaseV1Server)
 	data_v1.RegisterDataServer(dataSrv, dataImpl.DataV1Server)
 	query_v1.RegisterQueryServer(dataSrv, dataImpl.QueryV1Server)
@@ -48,7 +55,10 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 	admin_bucket_v1.RegisterBucketAdminServer(dataSrv, dataImpl.AdminBucketV1Server)
 	transactions_v1.RegisterTransactionsServer(dataSrv, dataImpl.TransactionsV1Server)
 
-	sdSrv := grpc.NewServer()
+	sdSrv := grpc.NewServer(
+		grpc.UnaryInterceptor(hooksManager.GrpcUnaryInterceptor()),
+	)
+	internal_hooks_v1.RegisterHooksServer(sdSrv, hooksManager.Server())
 	routing_v1.RegisterRoutingServer(sdSrv, sdImpl.RoutingV1Server)
 
 	s := &System{

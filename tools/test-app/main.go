@@ -7,8 +7,11 @@ import (
 	"log"
 	"time"
 
+	"github.com/couchbase/stellar-nebula/genproto/data_v1"
+	"github.com/couchbase/stellar-nebula/genproto/internal_hooks_v1"
 	"github.com/couchbase/stellar-nebula/genproto/routing_v1"
 	"github.com/couchbase/stellar-nebula/genproto/transactions_v1"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 
 	gocbps "github.com/couchbase/stellar-nebula/tools/test-client"
@@ -213,5 +216,115 @@ func main() {
 		}
 		log.Printf("got an analytics metadata: %+v", meta)
 		log.Printf("done streaming analytics data")
+	}
+
+	// hooks tests
+	{
+		conn := client.GetConn()
+		dc := data_v1.NewDataClient(conn)
+		hc := internal_hooks_v1.NewHooksClient(conn)
+
+		icptResp, err := hc.CreateInterceptor(ctx, &internal_hooks_v1.CreateInterceptorRequest{})
+		if err != nil {
+			log.Fatalf("could not create interceptor: %s", err)
+		}
+
+		interceptorID := icptResp.InterceptorId
+		log.Printf("created interceptor: %s", interceptorID)
+
+		// register a hook
+		hc.AddHooks(ctx, &internal_hooks_v1.AddHooksRequest{
+			InterceptorId: interceptorID,
+			Hooks: []*internal_hooks_v1.Hook{
+				{
+					Name:         "test",
+					Description:  "test description",
+					TargetMethod: "/com.couchbase.data.v1.Data/Upsert",
+					Actions: []*internal_hooks_v1.HookAction{
+						{
+							Action: &internal_hooks_v1.HookAction_Counter_{
+								Counter: &internal_hooks_v1.HookAction_Counter{
+									CounterId: "latch-client",
+									Delta:     +1,
+								},
+							},
+						},
+						{
+							Action: &internal_hooks_v1.HookAction_WaitForCounter_{
+								WaitForCounter: &internal_hooks_v1.HookAction_WaitForCounter{
+									CounterId: "latch-server",
+									Operator:  internal_hooks_v1.ComparisonOperator_EQUAL,
+									Value:     1,
+								},
+							},
+						},
+					},
+				},
+			},
+		})
+		log.Printf("registered hook")
+
+		// start a goroutine waiting for the client latch, and set the server latch in response
+		log.Printf("starting latch watcher")
+		go func() {
+			watchCtx, watchCancel := context.WithCancel(ctx)
+			watchSrv, err := hc.WatchCounter(watchCtx, &internal_hooks_v1.WatchCounterRequest{
+				InterceptorId: interceptorID,
+				CounterId:     "latch-client",
+			})
+			if err != nil {
+				log.Fatalf("failed to watch counter: %s", err)
+			}
+			log.Printf("started counter watch")
+
+			for {
+				watchResp, err := watchSrv.Recv()
+				if err != nil {
+					log.Printf("watching failed: %s", err)
+					break
+				}
+
+				log.Printf("counter watch updated: %v", watchResp.Value)
+
+				if watchResp.Value == 1 {
+					// set the server latch
+					_, err := hc.UpdateCounter(ctx, &internal_hooks_v1.UpdateCounterRequest{
+						InterceptorId: interceptorID,
+						CounterId:     "latch-server",
+						Delta:         +1,
+					})
+					if err != nil {
+						log.Fatalf("failed to update counter: %s", err)
+					}
+
+					// stop watching
+					watchCancel()
+				}
+			}
+
+			watchCancel()
+		}()
+
+		time.Sleep(500 * time.Millisecond)
+
+		// perform the upsert
+		log.Printf("executing hooked upsert call")
+		upsertCtx := metadata.AppendToOutgoingContext(ctx, "X-Hooks-ID", interceptorID)
+		upsertResp, err := dc.Upsert(upsertCtx, &data_v1.UpsertRequest{
+			BucketName:     "default",
+			ScopeName:      "",
+			CollectionName: "",
+			Key:            "test-key",
+		})
+		if err != nil {
+			log.Fatalf("failed to perform hooked upsert: %s", err)
+		}
+
+		log.Printf("hooked upsert resp: %+v", upsertResp)
+
+		hc.DestroyInterceptor(ctx, &internal_hooks_v1.DestroyInterceptorRequest{
+			InterceptorId: interceptorID,
+		})
+		log.Printf("destroyed interceptor")
 	}
 }

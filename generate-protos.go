@@ -9,5 +9,6 @@
 //go:generate protostellar proto/com.couchbase.transactions.v1.proto
 //go:generate protostellar proto/com.couchbase.routing.v1.proto
 //go:generate protostellar proto/com.couchbase.admin.bucket.v1.proto
+//go:generate protostellar proto/com.couchbase.internal.hooks.v1.proto
 
 package main
