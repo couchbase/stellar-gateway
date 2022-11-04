@@ -75,14 +75,14 @@ func (s *runState) compare(
 func (s *runState) resolveValueRef(
 	ctx context.Context,
 	req interface{},
-	ref *internal_hooks_v1.HookCondition_ValueRef,
+	ref *internal_hooks_v1.ValueRef,
 ) (interface{}, error) {
 	switch ref := ref.Value.(type) {
-	case *internal_hooks_v1.HookCondition_ValueRef_CounterValue:
+	case *internal_hooks_v1.ValueRef_CounterValue:
 		return s.resolveValueRef_CounterValue(ctx, req, ref)
-	case *internal_hooks_v1.HookCondition_ValueRef_RequestField:
+	case *internal_hooks_v1.ValueRef_RequestField:
 		return s.resolveValueRef_RequestField(ctx, req, ref)
-	case *internal_hooks_v1.HookCondition_ValueRef_JsonValue:
+	case *internal_hooks_v1.ValueRef_JsonValue:
 		return s.resolveValueRef_JsonValue(ctx, req, ref)
 	}
 
@@ -92,7 +92,7 @@ func (s *runState) resolveValueRef(
 func (s *runState) resolveValueRef_CounterValue(
 	ctx context.Context,
 	req interface{},
-	ref *internal_hooks_v1.HookCondition_ValueRef_CounterValue,
+	ref *internal_hooks_v1.ValueRef_CounterValue,
 ) (interface{}, error) {
 	counter := s.HooksContext.GetCounter(ref.CounterValue)
 	return counter.Get(), nil
@@ -101,7 +101,7 @@ func (s *runState) resolveValueRef_CounterValue(
 func (s *runState) resolveValueRef_RequestField(
 	ctx context.Context,
 	req interface{},
-	ref *internal_hooks_v1.HookCondition_ValueRef_RequestField,
+	ref *internal_hooks_v1.ValueRef_RequestField,
 ) (interface{}, error) {
 	return nil, errors.New("unimplemented request field query")
 }
@@ -109,7 +109,7 @@ func (s *runState) resolveValueRef_RequestField(
 func (s *runState) resolveValueRef_JsonValue(
 	ctx context.Context,
 	req interface{},
-	ref *internal_hooks_v1.HookCondition_ValueRef_JsonValue,
+	ref *internal_hooks_v1.ValueRef_JsonValue,
 ) (interface{}, error) {
 	var val interface{}
 	err := json.Unmarshal(ref.JsonValue, &val)

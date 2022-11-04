@@ -35,15 +35,15 @@ enum ComparisonOperator {
   LESS_THAN_OR_EQUAL = 5;
 }
 
-message HookCondition {
-  message ValueRef {
-    oneof value {
-      string request_field = 1;
-      string counter_value = 2;
-      bytes json_value = 3;
-    }
+message ValueRef {
+  oneof value {
+    string request_field = 1;
+    string counter_value = 2;
+    bytes json_value = 3;
   }
+}
 
+message HookCondition {
   ValueRef left = 1;
   ComparisonOperator op = 2;
   ValueRef right = 3;
