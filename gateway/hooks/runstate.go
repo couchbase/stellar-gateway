@@ -17,20 +17,20 @@ import (
 // potentially maintain stateful debugging information about how the hooks are
 // being executed
 type runState struct {
-	Interceptor *Interceptor
-	Handler     grpc.UnaryHandler
-	Hook        *internal_hooks_v1.Hook
+	HooksContext *HooksContext
+	Handler      grpc.UnaryHandler
+	Hook         *internal_hooks_v1.Hook
 }
 
 func newRunState(
-	interceptor *Interceptor,
+	hooksContext *HooksContext,
 	handler grpc.UnaryHandler,
 	hook *internal_hooks_v1.Hook,
 ) *runState {
 	return &runState{
-		Interceptor: interceptor,
-		Handler:     handler,
-		Hook:        hook,
+		HooksContext: hooksContext,
+		Handler:      handler,
+		Hook:         hook,
 	}
 }
 
@@ -187,7 +187,7 @@ func (s *runState) resolveValueRef_CounterValue(
 	req interface{},
 	ref *internal_hooks_v1.HookCondition_ValueRef_CounterValue,
 ) (interface{}, error) {
-	counter := s.Interceptor.GetCounter(ref.CounterValue)
+	counter := s.HooksContext.GetCounter(ref.CounterValue)
 	return counter.Get(), nil
 }
 
@@ -323,7 +323,7 @@ func (s *runState) runAction_Counter(
 ) (resp interface{}, err error) {
 	log.Printf("hook incrementing counter: %+v", action)
 
-	counter := s.Interceptor.GetCounter(action.CounterId)
+	counter := s.HooksContext.GetCounter(action.CounterId)
 	counter.Update(action.Delta)
 
 	log.Printf("hook incremented counter: %+v", action)
@@ -338,7 +338,7 @@ func (s *runState) runAction_WaitForCounter(
 ) (resp interface{}, err error) {
 	log.Printf("hook waiting for counter: %+v", action)
 
-	counter := s.Interceptor.GetCounter(action.CounterId)
+	counter := s.HooksContext.GetCounter(action.CounterId)
 
 	watchCtx, watchCancel := context.WithCancel(ctx)
 	watchCh := counter.Watch(watchCtx)

@@ -7,10 +7,10 @@ package com.couchbase.internal.hooks.v1;
 import "google/protobuf/any.proto";
 
 service Hooks {
-  rpc CreateInterceptor(CreateInterceptorRequest)
-      returns (CreateInterceptorResponse) {}
-  rpc DestroyInterceptor(DestroyInterceptorRequest)
-      returns (DestroyInterceptorResponse) {}
+  rpc CreateHooksContext(CreateHooksContextRequest)
+      returns (CreateHooksContextResponse) {}
+  rpc DestroyHooksContext(DestroyHooksContextRequest)
+      returns (DestroyHooksContextResponse) {}
 
   rpc AddHooks(AddHooksRequest) returns (AddHooksResponse) {}
 
@@ -18,13 +18,13 @@ service Hooks {
   rpc WatchCounter(WatchCounterRequest) returns (stream WatchCounterResponse) {}
 }
 
-message CreateInterceptorRequest {}
+message CreateHooksContextRequest {}
 
-message CreateInterceptorResponse { string interceptor_id = 1; }
+message CreateHooksContextResponse { string hooks_context_id = 1; }
 
-message DestroyInterceptorRequest { string interceptor_id = 1; }
+message DestroyHooksContextRequest { string hooks_context_id = 1; }
 
-message DestroyInterceptorResponse {}
+message DestroyHooksContextResponse {}
 
 enum ComparisonOperator {
   EQUAL = 0;
@@ -92,14 +92,14 @@ message Hook {
 }
 
 message AddHooksRequest {
-  string interceptor_id = 1;
+  string hooks_context_id = 1;
   repeated Hook hooks = 2;
 }
 
 message AddHooksResponse {}
 
 message UpdateCounterRequest {
-  string interceptor_id = 1;
+  string hooks_context_id = 1;
   string counter_id = 2;
   int64 delta = 3;
 }
@@ -107,7 +107,7 @@ message UpdateCounterRequest {
 message UpdateCounterResponse { int64 value = 1; }
 
 message WatchCounterRequest {
-  string interceptor_id = 1;
+  string hooks_context_id = 1;
   string counter_id = 2;
 }
 

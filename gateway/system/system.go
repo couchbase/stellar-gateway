@@ -44,7 +44,7 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 	hooksManager := hooks.NewHooksManager()
 
 	dataSrv := grpc.NewServer(
-		grpc.UnaryInterceptor(hooksManager.GrpcUnaryInterceptor()),
+		grpc.UnaryInterceptor(hooksManager.UnaryInterceptor()),
 	)
 	internal_hooks_v1.RegisterHooksServer(dataSrv, hooksManager.Server())
 	couchbase_v1.RegisterCouchbaseServer(dataSrv, dataImpl.CouchbaseV1Server)
@@ -56,7 +56,7 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 	transactions_v1.RegisterTransactionsServer(dataSrv, dataImpl.TransactionsV1Server)
 
 	sdSrv := grpc.NewServer(
-		grpc.UnaryInterceptor(hooksManager.GrpcUnaryInterceptor()),
+		grpc.UnaryInterceptor(hooksManager.UnaryInterceptor()),
 	)
 	internal_hooks_v1.RegisterHooksServer(sdSrv, hooksManager.Server())
 	routing_v1.RegisterRoutingServer(sdSrv, sdImpl.RoutingV1Server)

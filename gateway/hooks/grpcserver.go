@@ -16,38 +16,38 @@ type grpcHooksServer struct {
 	manager *HooksManager
 }
 
-func (s *grpcHooksServer) CreateInterceptor(
+func (s *grpcHooksServer) CreateHooksContext(
 	ctx context.Context,
-	req *internal_hooks_v1.CreateInterceptorRequest,
-) (*internal_hooks_v1.CreateInterceptorResponse, error) {
-	interceptorID := s.manager.CreateInterceptor()
+	req *internal_hooks_v1.CreateHooksContextRequest,
+) (*internal_hooks_v1.CreateHooksContextResponse, error) {
+	hooksContextID := s.manager.CreateHooksContext()
 
-	return &internal_hooks_v1.CreateInterceptorResponse{
-		InterceptorId: interceptorID,
+	return &internal_hooks_v1.CreateHooksContextResponse{
+		HooksContextId: hooksContextID,
 	}, nil
 }
 
-func (s *grpcHooksServer) DestroyInterceptor(
+func (s *grpcHooksServer) DestroyHooksContext(
 	ctx context.Context,
-	req *internal_hooks_v1.DestroyInterceptorRequest,
-) (*internal_hooks_v1.DestroyInterceptorResponse, error) {
-	s.manager.DestroyInterceptor(req.InterceptorId)
+	req *internal_hooks_v1.DestroyHooksContextRequest,
+) (*internal_hooks_v1.DestroyHooksContextResponse, error) {
+	s.manager.DestroyHooksContext(req.HooksContextId)
 
-	return &internal_hooks_v1.DestroyInterceptorResponse{}, nil
+	return &internal_hooks_v1.DestroyHooksContextResponse{}, nil
 }
 
 func (s *grpcHooksServer) AddHooks(
 	ctx context.Context,
 	req *internal_hooks_v1.AddHooksRequest,
 ) (*internal_hooks_v1.AddHooksResponse, error) {
-	interceptor := s.manager.GetInterceptor(req.InterceptorId)
-	if interceptor == nil {
-		return nil, status.Errorf(codes.NotFound, "invalid interceptor id")
+	hooksContext := s.manager.GetHooksContext(req.HooksContextId)
+	if hooksContext == nil {
+		return nil, status.Errorf(codes.NotFound, "invalid hooks context id")
 	}
 
 	// register all the hooks
 	for _, hook := range req.Hooks {
-		interceptor.AddHook(hook)
+		hooksContext.AddHook(hook)
 	}
 
 	return &internal_hooks_v1.AddHooksResponse{}, nil
@@ -57,12 +57,12 @@ func (s *grpcHooksServer) UpdateCounter(
 	ctx context.Context,
 	req *internal_hooks_v1.UpdateCounterRequest,
 ) (*internal_hooks_v1.UpdateCounterResponse, error) {
-	interceptor := s.manager.GetInterceptor(req.InterceptorId)
-	if interceptor == nil {
-		return nil, status.Errorf(codes.NotFound, "invalid interceptor id")
+	hooksContext := s.manager.GetHooksContext(req.HooksContextId)
+	if hooksContext == nil {
+		return nil, status.Errorf(codes.NotFound, "invalid hooks context id")
 	}
 
-	counter := interceptor.GetCounter(req.CounterId)
+	counter := hooksContext.GetCounter(req.CounterId)
 	newValue := counter.Update(req.Delta)
 
 	return &internal_hooks_v1.UpdateCounterResponse{
@@ -74,14 +74,14 @@ func (s *grpcHooksServer) WatchCounter(
 	req *internal_hooks_v1.WatchCounterRequest,
 	stream internal_hooks_v1.Hooks_WatchCounterServer,
 ) error {
-	interceptor := s.manager.GetInterceptor(req.InterceptorId)
-	if interceptor == nil {
-		return status.Errorf(codes.NotFound, "invalid interceptor id")
+	hooksContext := s.manager.GetHooksContext(req.HooksContextId)
+	if hooksContext == nil {
+		return status.Errorf(codes.NotFound, "invalid hooks context id")
 	}
 
 	log.Printf("starting counter watcher")
 
-	counter := interceptor.GetCounter(req.CounterId)
+	counter := hooksContext.GetCounter(req.CounterId)
 	watchCh := counter.Watch(stream.Context())
 
 	log.Printf("started counter watcher")

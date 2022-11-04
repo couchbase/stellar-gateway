@@ -10,45 +10,45 @@ import (
 )
 
 type HooksManager struct {
-	lock         sync.Mutex
-	interceptors map[string]*Interceptor
+	lock          sync.Mutex
+	hooksContexts map[string]*HooksContext
 }
 
 func NewHooksManager() *HooksManager {
 	return &HooksManager{
-		interceptors: make(map[string]*Interceptor),
+		hooksContexts: make(map[string]*HooksContext),
 	}
 }
 
-func (m *HooksManager) CreateInterceptor() string {
+func (m *HooksManager) CreateHooksContext() string {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
-	interceptorID := uuid.NewString()
+	hooksContextID := uuid.NewString()
 
-	interceptor := newInterceptor()
-	m.interceptors[interceptorID] = interceptor
+	hooksContext := newHooksContext()
+	m.hooksContexts[hooksContextID] = hooksContext
 
-	return interceptorID
+	return hooksContextID
 }
 
-func (m *HooksManager) GetInterceptor(interceptorID string) *Interceptor {
+func (m *HooksManager) GetHooksContext(hooksContextID string) *HooksContext {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
-	return m.interceptors[interceptorID]
+	return m.hooksContexts[hooksContextID]
 }
 
-func (m *HooksManager) DestroyInterceptor(interceptorID string) error {
+func (m *HooksManager) DestroyHooksContext(hooksContextID string) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
-	_, ok := m.interceptors[interceptorID]
+	_, ok := m.hooksContexts[hooksContextID]
 	if !ok {
-		return errors.New("invalid interceptor id")
+		return errors.New("invalid hooks context id")
 	}
 
-	delete(m.interceptors, interceptorID)
+	delete(m.hooksContexts, hooksContextID)
 	return nil
 }
 
@@ -58,6 +58,6 @@ func (m *HooksManager) Server() internal_hooks_v1.HooksServer {
 	}
 }
 
-func (m *HooksManager) GrpcUnaryInterceptor() grpc.UnaryServerInterceptor {
-	return makeGrpcInterceptor(m)
+func (m *HooksManager) UnaryInterceptor() grpc.UnaryServerInterceptor {
+	return makeGrpcUnaryInterceptor(m)
 }

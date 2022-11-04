@@ -9,21 +9,21 @@ import (
 	"google.golang.org/grpc"
 )
 
-type Interceptor struct {
+type HooksContext struct {
 	lock     sync.Mutex
 	counters map[string]*Counter
 	hooks    map[string]*internal_hooks_v1.Hook
 }
 
-func newInterceptor() *Interceptor {
-	return &Interceptor{
+func newHooksContext() *HooksContext {
+	return &HooksContext{
 		counters: make(map[string]*Counter),
 		hooks:    make(map[string]*internal_hooks_v1.Hook),
 	}
 }
 
 // Gets a Counter by name, creating it if it does not exist.
-func (i *Interceptor) GetCounter(name string) *Counter {
+func (i *HooksContext) GetCounter(name string) *Counter {
 	i.lock.Lock()
 	defer i.lock.Unlock()
 
@@ -37,14 +37,14 @@ func (i *Interceptor) GetCounter(name string) *Counter {
 }
 
 // TODO(brett19): This is called "AddHook" but technically is more like "SetHook"
-func (i *Interceptor) AddHook(hook *internal_hooks_v1.Hook) {
+func (i *HooksContext) AddHook(hook *internal_hooks_v1.Hook) {
 	i.lock.Lock()
 	defer i.lock.Unlock()
 
 	i.hooks[hook.TargetMethod] = hook
 }
 
-func (i *Interceptor) HandleUnaryCall(
+func (i *HooksContext) HandleUnaryCall(
 	ctx context.Context,
 	req interface{},
 	info *grpc.UnaryServerInfo,
@@ -61,7 +61,7 @@ func (i *Interceptor) HandleUnaryCall(
 	return rs.Run(ctx, req)
 }
 
-func (i *Interceptor) findHook(methodName string) *internal_hooks_v1.Hook {
+func (i *HooksContext) findHook(methodName string) *internal_hooks_v1.Hook {
 	i.lock.Lock()
 	defer i.lock.Unlock()
 

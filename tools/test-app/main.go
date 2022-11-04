@@ -224,17 +224,17 @@ func main() {
 		dc := data_v1.NewDataClient(conn)
 		hc := internal_hooks_v1.NewHooksClient(conn)
 
-		icptResp, err := hc.CreateInterceptor(ctx, &internal_hooks_v1.CreateInterceptorRequest{})
+		icptResp, err := hc.CreateHooksContext(ctx, &internal_hooks_v1.CreateHooksContextRequest{})
 		if err != nil {
-			log.Fatalf("could not create interceptor: %s", err)
+			log.Fatalf("could not create hooks context: %s", err)
 		}
 
-		interceptorID := icptResp.InterceptorId
-		log.Printf("created interceptor: %s", interceptorID)
+		hooksContextID := icptResp.HooksContextId
+		log.Printf("created hooks context: %s", hooksContextID)
 
 		// register a hook
 		hc.AddHooks(ctx, &internal_hooks_v1.AddHooksRequest{
-			InterceptorId: interceptorID,
+			HooksContextId: hooksContextID,
 			Hooks: []*internal_hooks_v1.Hook{
 				{
 					Name:         "test",
@@ -269,8 +269,8 @@ func main() {
 		go func() {
 			watchCtx, watchCancel := context.WithCancel(ctx)
 			watchSrv, err := hc.WatchCounter(watchCtx, &internal_hooks_v1.WatchCounterRequest{
-				InterceptorId: interceptorID,
-				CounterId:     "latch-client",
+				HooksContextId: hooksContextID,
+				CounterId:      "latch-client",
 			})
 			if err != nil {
 				log.Fatalf("failed to watch counter: %s", err)
@@ -289,9 +289,9 @@ func main() {
 				if watchResp.Value == 1 {
 					// set the server latch
 					_, err := hc.UpdateCounter(ctx, &internal_hooks_v1.UpdateCounterRequest{
-						InterceptorId: interceptorID,
-						CounterId:     "latch-server",
-						Delta:         +1,
+						HooksContextId: hooksContextID,
+						CounterId:      "latch-server",
+						Delta:          +1,
 					})
 					if err != nil {
 						log.Fatalf("failed to update counter: %s", err)
@@ -309,7 +309,7 @@ func main() {
 
 		// perform the upsert
 		log.Printf("executing hooked upsert call")
-		upsertCtx := metadata.AppendToOutgoingContext(ctx, "X-Hooks-ID", interceptorID)
+		upsertCtx := metadata.AppendToOutgoingContext(ctx, "X-Hooks-ID", hooksContextID)
 		upsertResp, err := dc.Upsert(upsertCtx, &data_v1.UpsertRequest{
 			BucketName:     "default",
 			ScopeName:      "",
@@ -322,9 +322,9 @@ func main() {
 
 		log.Printf("hooked upsert resp: %+v", upsertResp)
 
-		hc.DestroyInterceptor(ctx, &internal_hooks_v1.DestroyInterceptorRequest{
-			InterceptorId: interceptorID,
+		hc.DestroyHooksContext(ctx, &internal_hooks_v1.DestroyHooksContextRequest{
+			HooksContextId: hooksContextID,
 		})
-		log.Printf("destroyed interceptor")
+		log.Printf("destroyed hooks context")
 	}
 }
