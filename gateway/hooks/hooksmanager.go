@@ -5,7 +5,6 @@ import (
 	"sync"
 
 	"github.com/couchbase/stellar-nebula/genproto/internal_hooks_v1"
-	"github.com/google/uuid"
 	"google.golang.org/grpc"
 )
 
@@ -20,16 +19,19 @@ func NewHooksManager() *HooksManager {
 	}
 }
 
-func (m *HooksManager) CreateHooksContext() string {
+func (m *HooksManager) CreateHooksContext(hooksContextID string) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
-	hooksContextID := uuid.NewString()
+	_, ok := m.hooksContexts[hooksContextID]
+	if ok {
+		return errors.New("existing hooks context already exists")
+	}
 
 	hooksContext := newHooksContext()
 	m.hooksContexts[hooksContextID] = hooksContext
 
-	return hooksContextID
+	return nil
 }
 
 func (m *HooksManager) GetHooksContext(hooksContextID string) *HooksContext {

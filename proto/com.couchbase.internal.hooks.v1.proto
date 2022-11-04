@@ -18,11 +18,11 @@ service Hooks {
   rpc WatchCounter(WatchCounterRequest) returns (stream WatchCounterResponse) {}
 }
 
-message CreateHooksContextRequest {}
+message CreateHooksContextRequest { string id = 1; }
 
-message CreateHooksContextResponse { string hooks_context_id = 1; }
+message CreateHooksContextResponse {}
 
-message DestroyHooksContextRequest { string hooks_context_id = 1; }
+message DestroyHooksContextRequest { string id = 1; }
 
 message DestroyHooksContextResponse {}
 

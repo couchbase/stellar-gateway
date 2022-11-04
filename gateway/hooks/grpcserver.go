@@ -20,18 +20,19 @@ func (s *grpcHooksServer) CreateHooksContext(
 	ctx context.Context,
 	req *internal_hooks_v1.CreateHooksContextRequest,
 ) (*internal_hooks_v1.CreateHooksContextResponse, error) {
-	hooksContextID := s.manager.CreateHooksContext()
+	err := s.manager.CreateHooksContext(req.Id)
+	if err != nil {
+		return nil, err
+	}
 
-	return &internal_hooks_v1.CreateHooksContextResponse{
-		HooksContextId: hooksContextID,
-	}, nil
+	return &internal_hooks_v1.CreateHooksContextResponse{}, nil
 }
 
 func (s *grpcHooksServer) DestroyHooksContext(
 	ctx context.Context,
 	req *internal_hooks_v1.DestroyHooksContextRequest,
 ) (*internal_hooks_v1.DestroyHooksContextResponse, error) {
-	s.manager.DestroyHooksContext(req.HooksContextId)
+	s.manager.DestroyHooksContext(req.Id)
 
 	return &internal_hooks_v1.DestroyHooksContextResponse{}, nil
 }

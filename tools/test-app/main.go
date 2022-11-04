@@ -11,6 +11,7 @@ import (
 	"github.com/couchbase/stellar-nebula/genproto/internal_hooks_v1"
 	"github.com/couchbase/stellar-nebula/genproto/routing_v1"
 	"github.com/couchbase/stellar-nebula/genproto/transactions_v1"
+	"github.com/google/uuid"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 
@@ -224,12 +225,14 @@ func main() {
 		dc := data_v1.NewDataClient(conn)
 		hc := internal_hooks_v1.NewHooksClient(conn)
 
-		icptResp, err := hc.CreateHooksContext(ctx, &internal_hooks_v1.CreateHooksContextRequest{})
+		hooksContextID := uuid.NewString()
+
+		_, err := hc.CreateHooksContext(ctx, &internal_hooks_v1.CreateHooksContextRequest{
+			Id: hooksContextID,
+		})
 		if err != nil {
 			log.Fatalf("could not create hooks context: %s", err)
 		}
-
-		hooksContextID := icptResp.HooksContextId
 		log.Printf("created hooks context: %s", hooksContextID)
 
 		// register a hook
@@ -323,7 +326,7 @@ func main() {
 		log.Printf("hooked upsert resp: %+v", upsertResp)
 
 		hc.DestroyHooksContext(ctx, &internal_hooks_v1.DestroyHooksContextRequest{
-			HooksContextId: hooksContextID,
+			Id: hooksContextID,
 		})
 		log.Printf("destroyed hooks context")
 	}
