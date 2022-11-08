@@ -24,11 +24,7 @@ func newHooksContext() *HooksContext {
 	}
 }
 
-// Gets a Counter by name, creating it if it does not exist.
-func (i *HooksContext) GetCounter(name string) *Counter {
-	i.lock.Lock()
-	defer i.lock.Unlock()
-
+func (i *HooksContext) getCounterLocked(name string) *Counter {
 	counter := i.counters[name]
 	if counter == nil {
 		counter = newCounter()
@@ -38,11 +34,15 @@ func (i *HooksContext) GetCounter(name string) *Counter {
 	return counter
 }
 
-// Gets a Barrier by name, creating it if it does not exist.
-func (i *HooksContext) GetBarrier(name string) *Barrier {
+// Gets a Counter by name, creating it if it does not exist.
+func (i *HooksContext) GetCounter(name string) *Counter {
 	i.lock.Lock()
 	defer i.lock.Unlock()
 
+	return i.getCounterLocked(name)
+}
+
+func (i *HooksContext) getBarrierLocked(name string) *Barrier {
 	barrier := i.barriers[name]
 	if barrier == nil {
 		barrier = newBarrier()
@@ -50,6 +50,14 @@ func (i *HooksContext) GetBarrier(name string) *Barrier {
 	}
 
 	return barrier
+}
+
+// Gets a Barrier by name, creating it if it does not exist.
+func (i *HooksContext) GetBarrier(name string) *Barrier {
+	i.lock.Lock()
+	defer i.lock.Unlock()
+
+	return i.getBarrierLocked(name)
 }
 
 // TODO(brett19): This is called "AddHook" but technically is more like "SetHook"
@@ -82,4 +90,15 @@ func (i *HooksContext) findHook(methodName string) *internal_hooks_v1.Hook {
 	defer i.lock.Unlock()
 
 	return i.hooks[methodName]
+}
+
+func (i *HooksContext) acquireRunLock(ctx context.Context) error {
+	// TODO(brett19): This needs to watch ctx and return an error
+	// if the context is cancelled before we manage to aquire the lock...
+	i.lock.Lock()
+	return nil
+}
+
+func (i *HooksContext) releaseRunLock() {
+	i.lock.Unlock()
 }

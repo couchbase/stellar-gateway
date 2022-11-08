@@ -38,7 +38,14 @@ func newRunState(
 }
 
 func (s *runState) Run(ctx context.Context, req interface{}) (interface{}, error) {
+	err := s.HooksContext.acquireRunLock(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	resp, err := s.runActions(ctx, req, s.Hook.Actions)
+
+	s.HooksContext.releaseRunLock()
 
 	// if the actions did not produce a valid output, we need to run the original
 	// handler by default to generate that output.
@@ -191,7 +198,7 @@ func (s *runState) runAction(
 	ctx context.Context,
 	req interface{},
 	actions *internal_hooks_v1.HookAction,
-) (resp interface{}, err error) {
+) (interface{}, error) {
 	switch action := actions.Action.(type) {
 	case *internal_hooks_v1.HookAction_If_:
 		return s.runAction_If(ctx, req, action.If)
@@ -215,7 +222,7 @@ func (s *runState) runAction_If(
 	ctx context.Context,
 	req interface{},
 	action *internal_hooks_v1.HookAction_If,
-) (resp interface{}, err error) {
+) (interface{}, error) {
 	ok, err := s.checkConditions(ctx, req, action.Cond)
 	if err != nil {
 		return nil, err
@@ -232,10 +239,10 @@ func (s *runState) runAction_Counter(
 	ctx context.Context,
 	req interface{},
 	action *internal_hooks_v1.HookAction_Counter,
-) (resp interface{}, err error) {
+) (interface{}, error) {
 	log.Printf("hook incrementing counter: %+v", action)
 
-	counter := s.HooksContext.GetCounter(action.CounterId)
+	counter := s.HooksContext.getCounterLocked(action.CounterId)
 	counter.Update(action.Delta)
 
 	log.Printf("hook incremented counter: %+v", action)
@@ -247,11 +254,21 @@ func (s *runState) runAction_WaitOnBarrier(
 	ctx context.Context,
 	req interface{},
 	action *internal_hooks_v1.HookAction_WaitOnBarrier,
-) (resp interface{}, err error) {
+) (interface{}, error) {
 	log.Printf("hook waiting for barrier: %+v", action)
 
-	barrier := s.HooksContext.GetBarrier(action.BarrierId)
+	barrier := s.HooksContext.getBarrierLocked(action.BarrierId)
+
+	// we need to release the HooksContext runlock while we wait to allow
+	// other calls to run while we are blocked waiting for the barrier.
+	s.HooksContext.releaseRunLock()
+
 	barrier.Wait(ctx, s.ID, nil)
+
+	err := s.HooksContext.acquireRunLock(ctx)
+	if err != nil {
+		return nil, err
+	}
 
 	log.Printf("hook waited for barrier: %+v", action)
 
@@ -262,7 +279,7 @@ func (s *runState) runAction_SignalBarrier(
 	ctx context.Context,
 	req interface{},
 	action *internal_hooks_v1.HookAction_SignalBarrier,
-) (resp interface{}, err error) {
+) (interface{}, error) {
 	log.Printf("hook signalling barrier: %+v", action)
 
 	barrier := s.HooksContext.GetBarrier(action.BarrierId)
