@@ -245,19 +245,9 @@ func main() {
 					TargetMethod: "/com.couchbase.data.v1.Data/Upsert",
 					Actions: []*internal_hooks_v1.HookAction{
 						{
-							Action: &internal_hooks_v1.HookAction_Counter_{
-								Counter: &internal_hooks_v1.HookAction_Counter{
-									CounterId: "latch-client",
-									Delta:     +1,
-								},
-							},
-						},
-						{
-							Action: &internal_hooks_v1.HookAction_WaitForCounter_{
-								WaitForCounter: &internal_hooks_v1.HookAction_WaitForCounter{
-									CounterId: "latch-server",
-									Operator:  internal_hooks_v1.ComparisonOperator_EQUAL,
-									Value:     1,
+							Action: &internal_hooks_v1.HookAction_WaitOnBarrier_{
+								WaitOnBarrier: &internal_hooks_v1.HookAction_WaitOnBarrier{
+									BarrierId: "test-latch",
 								},
 							},
 						},
@@ -271,14 +261,14 @@ func main() {
 		log.Printf("starting latch watcher")
 		go func() {
 			watchCtx, watchCancel := context.WithCancel(ctx)
-			watchSrv, err := hc.WatchCounter(watchCtx, &internal_hooks_v1.WatchCounterRequest{
+			watchSrv, err := hc.WatchBarrier(watchCtx, &internal_hooks_v1.WatchBarrierRequest{
 				HooksContextId: hooksContextID,
-				CounterId:      "latch-client",
+				BarrierId:      "test-latch",
 			})
 			if err != nil {
-				log.Fatalf("failed to watch counter: %s", err)
+				log.Fatalf("failed to watch barrier: %s", err)
 			}
-			log.Printf("started counter watch")
+			log.Printf("started barrier watch")
 
 			for {
 				watchResp, err := watchSrv.Recv()
@@ -287,22 +277,18 @@ func main() {
 					break
 				}
 
-				log.Printf("counter watch updated: %v", watchResp.Value)
+				log.Printf("barrier saw new waiter: %v", watchResp)
 
-				if watchResp.Value == 1 {
-					// set the server latch
-					_, err := hc.UpdateCounter(ctx, &internal_hooks_v1.UpdateCounterRequest{
-						HooksContextId: hooksContextID,
-						CounterId:      "latch-server",
-						Delta:          +1,
-					})
-					if err != nil {
-						log.Fatalf("failed to update counter: %s", err)
-					}
-
-					// stop watching
-					watchCancel()
+				_, err = hc.SignalBarrier(ctx, &internal_hooks_v1.SignalBarrierRequest{
+					HooksContextId: hooksContextID,
+					BarrierId:      "test-latch",
+					WaitId:         &watchResp.WaitId,
+				})
+				if err != nil {
+					log.Fatalf("failed to signal barrier: %s", err)
 				}
+
+				log.Printf("signaled barrier: %v", watchResp)
 			}
 
 			watchCancel()

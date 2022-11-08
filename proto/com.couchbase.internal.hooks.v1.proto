@@ -14,8 +14,8 @@ service Hooks {
 
   rpc AddHooks(AddHooksRequest) returns (AddHooksResponse) {}
 
-  rpc UpdateCounter(UpdateCounterRequest) returns (UpdateCounterResponse) {}
-  rpc WatchCounter(WatchCounterRequest) returns (stream WatchCounterResponse) {}
+  rpc WatchBarrier(WatchBarrierRequest) returns (stream WatchBarrierResponse) {}
+  rpc SignalBarrier(SignalBarrierRequest) returns (SignalBarrierResponse) {}
 }
 
 message CreateHooksContextRequest { string id = 1; }
@@ -61,10 +61,11 @@ message HookAction {
     int64 delta = 2;
   }
 
-  message WaitForCounter {
-    string counter_id = 1;
-    ComparisonOperator operator = 2;
-    int64 value = 3;
+  message WaitOnBarrier { string barrier_id = 1; }
+
+  message SignalBarrier {
+    string barrier_id = 1;
+    bool signal_all = 2;
   }
 
   message SetResponse { google.protobuf.Any value = 1; }
@@ -78,9 +79,10 @@ message HookAction {
   oneof action {
     If if = 1;
     Counter counter = 2;
-    WaitForCounter wait_for_counter = 3;
-    SetResponse set_response = 4;
-    ReturnError return_error = 5;
+    WaitOnBarrier wait_on_barrier = 3;
+    SignalBarrier signal_barrier = 4;
+    SetResponse set_response = 5;
+    ReturnError return_error = 6;
   }
 }
 
@@ -98,17 +100,17 @@ message AddHooksRequest {
 
 message AddHooksResponse {}
 
-message UpdateCounterRequest {
+message WatchBarrierRequest {
   string hooks_context_id = 1;
-  string counter_id = 2;
-  int64 delta = 3;
+  string barrier_id = 2;
 }
 
-message UpdateCounterResponse { int64 value = 1; }
+message WatchBarrierResponse { string wait_id = 2; }
 
-message WatchCounterRequest {
+message SignalBarrierRequest {
   string hooks_context_id = 1;
-  string counter_id = 2;
+  string barrier_id = 2;
+  optional string wait_id = 3;
 }
 
-message WatchCounterResponse { int64 value = 1; }
+message SignalBarrierResponse {}

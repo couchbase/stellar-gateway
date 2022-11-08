@@ -5,7 +5,6 @@ import (
 	"log"
 
 	"github.com/couchbase/stellar-nebula/genproto/internal_hooks_v1"
-	"github.com/couchbase/stellar-nebula/utils/latestonlychannel"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -54,26 +53,9 @@ func (s *grpcHooksServer) AddHooks(
 	return &internal_hooks_v1.AddHooksResponse{}, nil
 }
 
-func (s *grpcHooksServer) UpdateCounter(
-	ctx context.Context,
-	req *internal_hooks_v1.UpdateCounterRequest,
-) (*internal_hooks_v1.UpdateCounterResponse, error) {
-	hooksContext := s.manager.GetHooksContext(req.HooksContextId)
-	if hooksContext == nil {
-		return nil, status.Errorf(codes.NotFound, "invalid hooks context id")
-	}
-
-	counter := hooksContext.GetCounter(req.CounterId)
-	newValue := counter.Update(req.Delta)
-
-	return &internal_hooks_v1.UpdateCounterResponse{
-		Value: newValue,
-	}, nil
-}
-
-func (s *grpcHooksServer) WatchCounter(
-	req *internal_hooks_v1.WatchCounterRequest,
-	stream internal_hooks_v1.Hooks_WatchCounterServer,
+func (s *grpcHooksServer) WatchBarrier(
+	req *internal_hooks_v1.WatchBarrierRequest,
+	stream internal_hooks_v1.Hooks_WatchBarrierServer,
 ) error {
 	hooksContext := s.manager.GetHooksContext(req.HooksContextId)
 	if hooksContext == nil {
@@ -82,38 +64,65 @@ func (s *grpcHooksServer) WatchCounter(
 
 	log.Printf("starting counter watcher")
 
-	counter := hooksContext.GetCounter(req.CounterId)
-	watchCh := counter.Watch(stream.Context())
+	barrier := hooksContext.GetBarrier(req.BarrierId)
+	watchCtx, watchCancel := context.WithCancel(stream.Context())
+	watchCh := barrier.Watch(watchCtx)
 
-	log.Printf("started counter watcher")
+	log.Printf("started barrier watcher")
 
-	// we need to guarentee that we don't block the channel, so we wrap it in
-	// a watcher that only returns the latest values in case the writer blocks
-	firstValue := <-watchCh
-	latestWatchCh := latestonlychannel.Wrap(watchCh)
+	// we need to guarentee that we don't block the watch channel, so we move the data
+	// into a buffered channel with 1024 slots, if the buffered channel becomes too filled,
+	// we close the watcher connection because its being too slow.
+	bufWatchCh := make(chan *BarrierWaiter, 1024)
+	go func() {
+		for {
+			newWaiter := <-watchCh
 
-	// write the first value first, then loop for the rest
-	log.Printf("sending initial counter watch value: %v", firstValue)
-	err := stream.Send(&internal_hooks_v1.WatchCounterResponse{
-		Value: firstValue,
-	})
-	if err != nil {
-		log.Printf("failed to write watched counter value: %s", err)
-		return err
-	}
-	log.Printf("sent initial counter watch value: %v", firstValue)
+			select {
+			case bufWatchCh <- newWaiter:
+			default:
+				// client is too slow
+				watchCancel()
+				close(bufWatchCh)
+			}
+		}
+	}()
 
 	for {
-		newValue := <-latestWatchCh
+		newWaiter := <-bufWatchCh
 
-		log.Printf("sending counter watch value: %v", newValue)
-		err := stream.Send(&internal_hooks_v1.WatchCounterResponse{
-			Value: newValue,
+		log.Printf("sending barrier watch value: %v", newWaiter)
+		err := stream.Send(&internal_hooks_v1.WatchBarrierResponse{
+			WaitId: newWaiter.ID,
 		})
 		if err != nil {
-			log.Printf("failed to write watched counter value: %s", err)
+			log.Printf("failed to write barrier watch value: %s", err)
 			return err
 		}
-		log.Printf("sent counter watch value: %v", newValue)
+		log.Printf("sent barrier watch value: %v", newWaiter)
 	}
+}
+
+func (s *grpcHooksServer) SignalBarrier(
+	ctx context.Context,
+	req *internal_hooks_v1.SignalBarrierRequest,
+) (*internal_hooks_v1.SignalBarrierResponse, error) {
+	log.Printf("grpc signalling barrier: %+v", req)
+
+	hooksContext := s.manager.GetHooksContext(req.HooksContextId)
+	if hooksContext == nil {
+		return nil, status.Errorf(codes.NotFound, "invalid hooks context id")
+	}
+
+	barrier := hooksContext.GetBarrier(req.BarrierId)
+
+	if req.WaitId == nil {
+		barrier.TrySignalAny(nil)
+	} else {
+		barrier.TrySignal(*req.WaitId, nil)
+	}
+
+	log.Printf("grpc signaled barrier: %+v", req)
+
+	return &internal_hooks_v1.SignalBarrierResponse{}, nil
 }

@@ -12,12 +12,14 @@ import (
 type HooksContext struct {
 	lock     sync.Mutex
 	counters map[string]*Counter
+	barriers map[string]*Barrier
 	hooks    map[string]*internal_hooks_v1.Hook
 }
 
 func newHooksContext() *HooksContext {
 	return &HooksContext{
 		counters: make(map[string]*Counter),
+		barriers: make(map[string]*Barrier),
 		hooks:    make(map[string]*internal_hooks_v1.Hook),
 	}
 }
@@ -34,6 +36,20 @@ func (i *HooksContext) GetCounter(name string) *Counter {
 	}
 
 	return counter
+}
+
+// Gets a Barrier by name, creating it if it does not exist.
+func (i *HooksContext) GetBarrier(name string) *Barrier {
+	i.lock.Lock()
+	defer i.lock.Unlock()
+
+	barrier := i.barriers[name]
+	if barrier == nil {
+		barrier = newBarrier()
+		i.barriers[name] = barrier
+	}
+
+	return barrier
 }
 
 // TODO(brett19): This is called "AddHook" but technically is more like "SetHook"

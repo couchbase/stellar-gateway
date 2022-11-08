@@ -8,6 +8,7 @@ import (
 
 	"github.com/couchbase/stellar-nebula/contrib/govalcmp"
 	"github.com/couchbase/stellar-nebula/genproto/internal_hooks_v1"
+	"github.com/google/uuid"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -17,6 +18,7 @@ import (
 // potentially maintain stateful debugging information about how the hooks are
 // being executed
 type runState struct {
+	ID           string
 	HooksContext *HooksContext
 	Handler      grpc.UnaryHandler
 	Hook         *internal_hooks_v1.Hook
@@ -28,6 +30,7 @@ func newRunState(
 	hook *internal_hooks_v1.Hook,
 ) *runState {
 	return &runState{
+		ID:           uuid.NewString(),
 		HooksContext: hooksContext,
 		Handler:      handler,
 		Hook:         hook,
@@ -194,8 +197,10 @@ func (s *runState) runAction(
 		return s.runAction_If(ctx, req, action.If)
 	case *internal_hooks_v1.HookAction_Counter_:
 		return s.runAction_Counter(ctx, req, action.Counter)
-	case *internal_hooks_v1.HookAction_WaitForCounter_:
-		return s.runAction_WaitForCounter(ctx, req, action.WaitForCounter)
+	case *internal_hooks_v1.HookAction_WaitOnBarrier_:
+		return s.runAction_WaitOnBarrier(ctx, req, action.WaitOnBarrier)
+	case *internal_hooks_v1.HookAction_SignalBarrier_:
+		return s.runAction_SignalBarrier(ctx, req, action.SignalBarrier)
 	case *internal_hooks_v1.HookAction_SetResponse_:
 		return s.runAction_SetResponse(ctx, req, action.SetResponse)
 	case *internal_hooks_v1.HookAction_ReturnError_:
@@ -238,38 +243,36 @@ func (s *runState) runAction_Counter(
 	return nil, nil
 }
 
-func (s *runState) runAction_WaitForCounter(
+func (s *runState) runAction_WaitOnBarrier(
 	ctx context.Context,
 	req interface{},
-	action *internal_hooks_v1.HookAction_WaitForCounter,
+	action *internal_hooks_v1.HookAction_WaitOnBarrier,
 ) (resp interface{}, err error) {
-	log.Printf("hook waiting for counter: %+v", action)
+	log.Printf("hook waiting for barrier: %+v", action)
 
-	counter := s.HooksContext.GetCounter(action.CounterId)
+	barrier := s.HooksContext.GetBarrier(action.BarrierId)
+	barrier.Wait(ctx, s.ID, nil)
 
-	watchCtx, watchCancel := context.WithCancel(ctx)
-	watchCh := counter.Watch(watchCtx)
-	for {
-		newValue := <-watchCh
-		if ctx.Err() != nil {
-			watchCancel()
-			return nil, ctx.Err()
-		}
+	log.Printf("hook waited for barrier: %+v", action)
 
-		ok, err := s.compare(newValue, action.Operator, action.Value)
-		if err != nil {
-			watchCancel()
-			return nil, err
-		}
+	return nil, nil
+}
 
-		if ok {
-			break
-		}
+func (s *runState) runAction_SignalBarrier(
+	ctx context.Context,
+	req interface{},
+	action *internal_hooks_v1.HookAction_SignalBarrier,
+) (resp interface{}, err error) {
+	log.Printf("hook signalling barrier: %+v", action)
+
+	barrier := s.HooksContext.GetBarrier(action.BarrierId)
+	if action.SignalAll {
+		barrier.SignalAll(nil)
+	} else {
+		barrier.TrySignalAny(nil)
 	}
 
-	watchCancel()
-
-	log.Printf("hook waited for counter: %+v", action)
+	log.Printf("hook signaled for barrier: %+v", action)
 
 	return nil, nil
 }
