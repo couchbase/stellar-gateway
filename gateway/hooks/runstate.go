@@ -22,6 +22,9 @@ type runState struct {
 	HooksContext *HooksContext
 	Handler      grpc.UnaryHandler
 	Hook         *internal_hooks_v1.Hook
+
+	ExecResult interface{}
+	ExecError  error
 }
 
 func newRunState(
@@ -38,22 +41,31 @@ func newRunState(
 }
 
 func (s *runState) Run(ctx context.Context, req interface{}) (interface{}, error) {
+	// actions run synchronously in respect to all hooks for this HooksContext, so we
+	// need to acquire the run lock to be able to run...
 	err := s.HooksContext.acquireRunLock(ctx)
 	if err != nil {
 		return nil, err
 	}
 
+	// run the actions
 	resp, err := s.runActions(ctx, req, s.Hook.Actions)
 
+	// release the run lock before finishing up
 	s.HooksContext.releaseRunLock()
 
-	// if the actions did not produce a valid output, we need to run the original
-	// handler by default to generate that output.
-	if resp == nil && err == nil {
-		return s.Handler(ctx, req)
+	// if the actions directly produced a result or error, we can return that
+	if resp != nil || err != nil {
+		return resp, err
 	}
 
-	return resp, err
+	// if the actions explicitly executed the underlying function, return its value
+	if s.ExecResult != nil || s.ExecError != nil {
+		return s.ExecResult, s.ExecError
+	}
+
+	// otherwise we need to implicitly execute the underlying function and return that
+	return s.Handler(ctx, req)
 }
 
 func (s *runState) compare(
@@ -208,10 +220,12 @@ func (s *runState) runAction(
 		return s.runAction_WaitOnBarrier(ctx, req, action.WaitOnBarrier)
 	case *internal_hooks_v1.HookAction_SignalBarrier_:
 		return s.runAction_SignalBarrier(ctx, req, action.SignalBarrier)
-	case *internal_hooks_v1.HookAction_SetResponse_:
-		return s.runAction_SetResponse(ctx, req, action.SetResponse)
+	case *internal_hooks_v1.HookAction_ReturnResponse_:
+		return s.runAction_ReturnResponse(ctx, req, action.ReturnResponse)
 	case *internal_hooks_v1.HookAction_ReturnError_:
 		return s.runAction_ReturnError(ctx, req, action.ReturnError)
+	case *internal_hooks_v1.HookAction_Execute_:
+		return s.runAction_Execute(ctx, req, action.Execute)
 
 	}
 
@@ -294,10 +308,10 @@ func (s *runState) runAction_SignalBarrier(
 	return nil, nil
 }
 
-func (s *runState) runAction_SetResponse(
+func (s *runState) runAction_ReturnResponse(
 	ctx context.Context,
 	req interface{},
-	action *internal_hooks_v1.HookAction_SetResponse,
+	action *internal_hooks_v1.HookAction_ReturnResponse,
 ) (interface{}, error) {
 	return action.Value, nil
 }
@@ -313,4 +327,14 @@ func (s *runState) runAction_ReturnError(
 	}
 
 	return nil, st.Err()
+}
+
+func (s *runState) runAction_Execute(
+	ctx context.Context,
+	req interface{},
+	action *internal_hooks_v1.HookAction_Execute,
+) (interface{}, error) {
+	s.ExecResult, s.ExecError = s.Handler(ctx, req)
+
+	return nil, nil
 }

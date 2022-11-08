@@ -68,7 +68,7 @@ message HookAction {
     bool signal_all = 2;
   }
 
-  message SetResponse { google.protobuf.Any value = 1; }
+  message ReturnResponse { google.protobuf.Any value = 1; }
 
   message ReturnError {
     int32 code = 1;
@@ -76,13 +76,16 @@ message HookAction {
     repeated google.protobuf.Any details = 3;
   }
 
+  message Execute {}
+
   oneof action {
     If if = 1;
     Counter counter = 2;
     WaitOnBarrier wait_on_barrier = 3;
     SignalBarrier signal_barrier = 4;
-    SetResponse set_response = 5;
+    ReturnResponse return_response = 5;
     ReturnError return_error = 6;
+    Execute execute = 7;
   }
 }
 
