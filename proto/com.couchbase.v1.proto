@@ -12,11 +12,3 @@ message MutationToken {
 }
 
 message MutationState { repeated MutationToken tokens = 1; }
-
-service Couchbase {
-  rpc Hello(HelloRequest) returns (HelloResponse) {}
-}
-
-message HelloRequest {}
-
-message HelloResponse {}

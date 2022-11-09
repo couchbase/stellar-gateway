@@ -1,15 +1,12 @@
 package gocbps
 
 import (
-	"context"
 	"crypto/x509"
-	"log"
 	"strings"
 
 	"github.com/couchbase/stellar-nebula/genproto/view_v1"
 
 	"github.com/couchbase/stellar-nebula/genproto/analytics_v1"
-	"github.com/couchbase/stellar-nebula/genproto/couchbase_v1"
 	"github.com/couchbase/stellar-nebula/genproto/data_v1"
 	"github.com/couchbase/stellar-nebula/genproto/query_v1"
 	"github.com/couchbase/stellar-nebula/genproto/routing_v1"
@@ -21,7 +18,6 @@ import (
 
 type Client struct {
 	conn            *grpc.ClientConn
-	couchbaseClient couchbase_v1.CouchbaseClient
 	routingClient   routing_v1.RoutingClient
 	dataClient      data_v1.DataClient
 	queryClient     query_v1.QueryClient
@@ -75,7 +71,6 @@ func Connect(connStr string, opts *ConnectOptions) (*Client, error) {
 		return nil, err
 	}
 
-	couchbaseClient := couchbase_v1.NewCouchbaseClient(conn)
 	routingClient := routing_v1.NewRoutingClient(conn)
 	dataClient := data_v1.NewDataClient(conn)
 	queryClient := query_v1.NewQueryClient(conn)
@@ -83,20 +78,8 @@ func Connect(connStr string, opts *ConnectOptions) (*Client, error) {
 	analyticsClient := analytics_v1.NewAnalyticsClient(conn)
 	viewClient := view_v1.NewViewClient(conn)
 
-	// this is our version of checking auth credentials
-	_, err = couchbaseClient.Hello(context.Background(), &couchbase_v1.HelloRequest{})
-	if err != nil {
-		closeErr := conn.Close()
-		if closeErr != nil {
-			log.Printf("failed to close connection after error: %s", closeErr)
-		}
-
-		return nil, err
-	}
-
 	return &Client{
 		conn:            conn,
-		couchbaseClient: couchbaseClient,
 		routingClient:   routingClient,
 		dataClient:      dataClient,
 		queryClient:     queryClient,

@@ -15,7 +15,6 @@ type NewOptions struct {
 }
 
 type Servers struct {
-	CouchbaseV1Server    *server_v1.CouchbaseServer
 	DataV1Server         *server_v1.DataServer
 	QueryV1Server        *server_v1.QueryServer
 	SearchV1Server       *server_v1.SearchServer
@@ -26,7 +25,6 @@ type Servers struct {
 
 func New(opts *NewOptions) *Servers {
 	return &Servers{
-		CouchbaseV1Server:    server_v1.NewCouchbaseServer(),
 		DataV1Server:         server_v1.NewDataServer(opts.CbClient),
 		QueryV1Server:        server_v1.NewQueryServer(opts.CbClient),
 		SearchV1Server:       server_v1.NewSearchServer(opts.CbClient),
