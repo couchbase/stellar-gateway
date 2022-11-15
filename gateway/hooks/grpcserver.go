@@ -31,7 +31,10 @@ func (s *grpcHooksServer) DestroyHooksContext(
 	ctx context.Context,
 	req *internal_hooks_v1.DestroyHooksContextRequest,
 ) (*internal_hooks_v1.DestroyHooksContextResponse, error) {
-	s.manager.DestroyHooksContext(req.Id)
+	err := s.manager.DestroyHooksContext(req.Id)
+	if err != nil {
+		return nil, err
+	}
 
 	return &internal_hooks_v1.DestroyHooksContextResponse{}, nil
 }

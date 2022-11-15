@@ -236,7 +236,7 @@ func main() {
 		log.Printf("created hooks context: %s", hooksContextID)
 
 		// register a hook
-		hc.AddHooks(ctx, &internal_hooks_v1.AddHooksRequest{
+		_, err = hc.AddHooks(ctx, &internal_hooks_v1.AddHooksRequest{
 			HooksContextId: hooksContextID,
 			Hooks: []*internal_hooks_v1.Hook{
 				{
@@ -255,7 +255,7 @@ func main() {
 				},
 			},
 		})
-		log.Printf("registered hook")
+		log.Printf("registered hook: %s", err)
 
 		// start a goroutine waiting for the client latch, and set the server latch in response
 		log.Printf("starting latch watcher")
@@ -311,9 +311,9 @@ func main() {
 
 		log.Printf("hooked upsert resp: %+v", upsertResp)
 
-		hc.DestroyHooksContext(ctx, &internal_hooks_v1.DestroyHooksContextRequest{
+		_, err = hc.DestroyHooksContext(ctx, &internal_hooks_v1.DestroyHooksContextRequest{
 			Id: hooksContextID,
 		})
-		log.Printf("destroyed hooks context")
+		log.Printf("destroyed hooks context: %s", err)
 	}
 }
