@@ -12,8 +12,8 @@ import (
 	"github.com/couchbase/stellar-nebula/gateway/sdimpl"
 	"github.com/couchbase/stellar-nebula/genproto/admin_bucket_v1"
 	"github.com/couchbase/stellar-nebula/genproto/analytics_v1"
-	"github.com/couchbase/stellar-nebula/genproto/data_v1"
 	"github.com/couchbase/stellar-nebula/genproto/internal_hooks_v1"
+	"github.com/couchbase/stellar-nebula/genproto/kv_v1"
 	"github.com/couchbase/stellar-nebula/genproto/query_v1"
 	"github.com/couchbase/stellar-nebula/genproto/routing_v1"
 	"github.com/couchbase/stellar-nebula/genproto/search_v1"
@@ -46,7 +46,7 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 		grpc.UnaryInterceptor(hooksManager.UnaryInterceptor()),
 	)
 	internal_hooks_v1.RegisterHooksServer(dataSrv, hooksManager.Server())
-	data_v1.RegisterDataServer(dataSrv, dataImpl.DataV1Server)
+	kv_v1.RegisterKvServer(dataSrv, dataImpl.KvV1Server)
 	query_v1.RegisterQueryServer(dataSrv, dataImpl.QueryV1Server)
 	search_v1.RegisterSearchServer(dataSrv, dataImpl.SearchV1Server)
 	analytics_v1.RegisterAnalyticsServer(dataSrv, dataImpl.AnalyticsV1Server)

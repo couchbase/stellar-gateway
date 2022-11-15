@@ -9,7 +9,7 @@ import (
 
 	"github.com/couchbase/gocbcore/v10/memd"
 	"github.com/couchbase/stellar-nebula/contrib/scramserver"
-	"github.com/couchbase/stellar-nebula/genproto/data_v1"
+	"github.com/couchbase/stellar-nebula/genproto/kv_v1"
 	"github.com/couchbase/stellar-nebula/legacybridge/topology"
 	"go.uber.org/zap"
 )
@@ -18,7 +18,7 @@ type KvServerClientOptions struct {
 	Logger           *zap.Logger
 	ParentServer     *KvServer
 	TopologyProvider topology.Provider
-	DataClient       data_v1.DataClient
+	KvClient         kv_v1.KvClient
 	Conn             net.Conn
 }
 
@@ -26,7 +26,7 @@ type KvServerClient struct {
 	logger           *zap.Logger
 	parentServer     *KvServer
 	topologyProvider topology.Provider
-	dataClient       data_v1.DataClient
+	kvClient         kv_v1.KvClient
 	conn             net.Conn
 
 	memdConn       *memd.Conn
@@ -53,7 +53,7 @@ func NewKvServerClient(opts *KvServerClientOptions) (*KvServerClient, error) {
 	client := &KvServerClient{
 		logger:           opts.Logger,
 		parentServer:     opts.ParentServer,
-		dataClient:       opts.DataClient,
+		kvClient:         opts.KvClient,
 		topologyProvider: opts.TopologyProvider,
 		conn:             opts.Conn,
 	}

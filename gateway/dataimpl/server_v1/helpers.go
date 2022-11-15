@@ -8,7 +8,7 @@ import (
 
 	"github.com/couchbase/gocb/v2"
 	"github.com/couchbase/stellar-nebula/genproto/couchbase_v1"
-	"github.com/couchbase/stellar-nebula/genproto/data_v1"
+	"github.com/couchbase/stellar-nebula/genproto/kv_v1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/runtime/protoiface"
@@ -58,17 +58,17 @@ func tokenToPs(token *gocb.MutationToken) *couchbase_v1.MutationToken {
 	}
 }
 
-func durabilityLevelFromPs(dl *data_v1.DurabilityLevel) (gocb.DurabilityLevel, *status.Status) {
+func durabilityLevelFromPs(dl *kv_v1.DurabilityLevel) (gocb.DurabilityLevel, *status.Status) {
 	if dl == nil {
 		return gocb.DurabilityLevelNone, nil
 	}
 
 	switch *dl {
-	case data_v1.DurabilityLevel_MAJORITY:
+	case kv_v1.DurabilityLevel_MAJORITY:
 		return gocb.DurabilityLevelMajority, nil
-	case data_v1.DurabilityLevel_MAJORITY_AND_PERSIST_TO_ACTIVE:
+	case kv_v1.DurabilityLevel_MAJORITY_AND_PERSIST_TO_ACTIVE:
 		return gocb.DurabilityLevelMajorityAndPersistOnMaster, nil
-	case data_v1.DurabilityLevel_PERSIST_TO_MAJORITY:
+	case kv_v1.DurabilityLevel_PERSIST_TO_MAJORITY:
 		return gocb.DurabilityLevelPersistToMajority, nil
 	}
 

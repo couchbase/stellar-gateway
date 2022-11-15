@@ -7,7 +7,7 @@ import (
 	"net"
 	"sync"
 
-	"github.com/couchbase/stellar-nebula/genproto/data_v1"
+	"github.com/couchbase/stellar-nebula/genproto/kv_v1"
 	"github.com/couchbase/stellar-nebula/genproto/query_v1"
 	"github.com/couchbase/stellar-nebula/genproto/routing_v1"
 )
@@ -135,8 +135,8 @@ func (c *RoutingClient) RoutingV1() routing_v1.RoutingClient {
 	return &routingImpl_RoutingV1{c}
 }
 
-func (c *RoutingClient) DataV1() data_v1.DataClient {
-	return &routingImpl_DataV1{c}
+func (c *RoutingClient) KvV1() kv_v1.KvClient {
+	return &routingImpl_KvV1{c}
 }
 
 func (c *RoutingClient) QueryV1() query_v1.QueryClient {

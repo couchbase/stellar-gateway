@@ -3,7 +3,7 @@ package client
 import (
 	"crypto/x509"
 
-	"github.com/couchbase/stellar-nebula/genproto/data_v1"
+	"github.com/couchbase/stellar-nebula/genproto/kv_v1"
 	"github.com/couchbase/stellar-nebula/genproto/query_v1"
 	"github.com/couchbase/stellar-nebula/genproto/routing_v1"
 	"google.golang.org/grpc"
@@ -20,7 +20,7 @@ type routingConnOptions struct {
 type routingConn struct {
 	conn      *grpc.ClientConn
 	routingV1 routing_v1.RoutingClient
-	dataV1    data_v1.DataClient
+	kvV1      kv_v1.KvClient
 	queryV1   query_v1.QueryClient
 }
 
@@ -60,7 +60,7 @@ func dialRoutingConn(address string, opts *routingConnOptions) (*routingConn, er
 	return &routingConn{
 		conn:      conn,
 		routingV1: routing_v1.NewRoutingClient(conn),
-		dataV1:    data_v1.NewDataClient(conn),
+		kvV1:      kv_v1.NewKvClient(conn),
 		queryV1:   query_v1.NewQueryClient(conn),
 	}, nil
 }
@@ -69,8 +69,8 @@ func (c *routingConn) RoutingV1() routing_v1.RoutingClient {
 	return c.routingV1
 }
 
-func (c *routingConn) DataV1() data_v1.DataClient {
-	return c.dataV1
+func (c *routingConn) KvV1() kv_v1.KvClient {
+	return c.kvV1
 }
 
 func (c *routingConn) QueryV1() query_v1.QueryClient {

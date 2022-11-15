@@ -15,7 +15,7 @@ type NewOptions struct {
 }
 
 type Servers struct {
-	DataV1Server         *server_v1.DataServer
+	KvV1Server           *server_v1.KvServer
 	QueryV1Server        *server_v1.QueryServer
 	SearchV1Server       *server_v1.SearchServer
 	AnalyticsV1Server    *server_v1.AnalyticsServer
@@ -25,7 +25,7 @@ type Servers struct {
 
 func New(opts *NewOptions) *Servers {
 	return &Servers{
-		DataV1Server:         server_v1.NewDataServer(opts.CbClient),
+		KvV1Server:           server_v1.NewKvServer(opts.CbClient),
 		QueryV1Server:        server_v1.NewQueryServer(opts.CbClient),
 		SearchV1Server:       server_v1.NewSearchServer(opts.CbClient),
 		AnalyticsV1Server:    server_v1.NewAnalyticsServer(opts.CbClient),

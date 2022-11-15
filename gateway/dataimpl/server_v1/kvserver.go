@@ -6,18 +6,18 @@ import (
 	"time"
 
 	"github.com/couchbase/gocb/v2"
-	"github.com/couchbase/stellar-nebula/genproto/data_v1"
+	"github.com/couchbase/stellar-nebula/genproto/kv_v1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
-type DataServer struct {
-	data_v1.UnimplementedDataServer
+type KvServer struct {
+	kv_v1.UnimplementedKvServer
 
 	cbClient *gocb.Cluster
 }
 
-func (s *DataServer) getCollection(ctx context.Context, bucketName, scopeName, collectionName string) *gocb.Collection {
+func (s *KvServer) getCollection(ctx context.Context, bucketName, scopeName, collectionName string) *gocb.Collection {
 	client := s.cbClient
 	bucket := client.Bucket(bucketName)
 	scope := bucket.Scope(scopeName)
@@ -25,7 +25,7 @@ func (s *DataServer) getCollection(ctx context.Context, bucketName, scopeName, c
 	return collection
 }
 
-func (s *DataServer) Get(ctx context.Context, in *data_v1.GetRequest) (*data_v1.GetResponse, error) {
+func (s *KvServer) Get(ctx context.Context, in *kv_v1.GetRequest) (*kv_v1.GetResponse, error) {
 	coll := s.getCollection(ctx, in.BucketName, in.ScopeName, in.CollectionName)
 
 	var opts gocb.GetOptions
@@ -43,7 +43,7 @@ func (s *DataServer) Get(ctx context.Context, in *data_v1.GetRequest) (*data_v1.
 		return nil, cbErrToPs(err)
 	}
 
-	return &data_v1.GetResponse{
+	return &kv_v1.GetResponse{
 		Content:     contentData.ContentBytes,
 		ContentType: contentData.ContentType,
 		Cas:         casToPs(result.Cas()),
@@ -51,7 +51,7 @@ func (s *DataServer) Get(ctx context.Context, in *data_v1.GetRequest) (*data_v1.
 	}, nil
 }
 
-func (s *DataServer) Insert(ctx context.Context, in *data_v1.InsertRequest) (*data_v1.InsertResponse, error) {
+func (s *KvServer) Insert(ctx context.Context, in *kv_v1.InsertRequest) (*kv_v1.InsertResponse, error) {
 	coll := s.getCollection(ctx, in.BucketName, in.ScopeName, in.CollectionName)
 
 	var contentData psTranscodeData
@@ -67,11 +67,11 @@ func (s *DataServer) Insert(ctx context.Context, in *data_v1.InsertRequest) (*da
 	}
 
 	if in.DurabilitySpec != nil {
-		if legacySpec, ok := in.DurabilitySpec.(*data_v1.InsertRequest_LegacyDurabilitySpec); ok {
+		if legacySpec, ok := in.DurabilitySpec.(*kv_v1.InsertRequest_LegacyDurabilitySpec); ok {
 			opts.PersistTo = uint(legacySpec.LegacyDurabilitySpec.NumPersisted)
 			opts.ReplicateTo = uint(legacySpec.LegacyDurabilitySpec.NumReplicated)
 		}
-		if levelSpec, ok := in.DurabilitySpec.(*data_v1.InsertRequest_DurabilityLevel); ok {
+		if levelSpec, ok := in.DurabilitySpec.(*kv_v1.InsertRequest_DurabilityLevel); ok {
 			dl, errSt := durabilityLevelFromPs(&levelSpec.DurabilityLevel)
 			if errSt != nil {
 				return nil, errSt.Err()
@@ -85,13 +85,13 @@ func (s *DataServer) Insert(ctx context.Context, in *data_v1.InsertRequest) (*da
 		return nil, cbErrToPs(err)
 	}
 
-	return &data_v1.InsertResponse{
+	return &kv_v1.InsertResponse{
 		Cas:           casToPs(result.Cas()),
 		MutationToken: tokenToPs(result.MutationToken()),
 	}, nil
 }
 
-func (s *DataServer) Upsert(ctx context.Context, in *data_v1.UpsertRequest) (*data_v1.UpsertResponse, error) {
+func (s *KvServer) Upsert(ctx context.Context, in *kv_v1.UpsertRequest) (*kv_v1.UpsertResponse, error) {
 	coll := s.getCollection(ctx, in.BucketName, in.ScopeName, in.CollectionName)
 
 	var contentData psTranscodeData
@@ -109,11 +109,11 @@ func (s *DataServer) Upsert(ctx context.Context, in *data_v1.UpsertRequest) (*da
 	}
 
 	if in.DurabilitySpec != nil {
-		if legacySpec, ok := in.DurabilitySpec.(*data_v1.UpsertRequest_LegacyDurabilitySpec); ok {
+		if legacySpec, ok := in.DurabilitySpec.(*kv_v1.UpsertRequest_LegacyDurabilitySpec); ok {
 			opts.PersistTo = uint(legacySpec.LegacyDurabilitySpec.NumPersisted)
 			opts.ReplicateTo = uint(legacySpec.LegacyDurabilitySpec.NumReplicated)
 		}
-		if levelSpec, ok := in.DurabilitySpec.(*data_v1.UpsertRequest_DurabilityLevel); ok {
+		if levelSpec, ok := in.DurabilitySpec.(*kv_v1.UpsertRequest_DurabilityLevel); ok {
 			dl, errSt := durabilityLevelFromPs(&levelSpec.DurabilityLevel)
 			if errSt != nil {
 				return nil, errSt.Err()
@@ -127,13 +127,13 @@ func (s *DataServer) Upsert(ctx context.Context, in *data_v1.UpsertRequest) (*da
 		return nil, cbErrToPs(err)
 	}
 
-	return &data_v1.UpsertResponse{
+	return &kv_v1.UpsertResponse{
 		Cas:           casToPs(result.Cas()),
 		MutationToken: tokenToPs(result.MutationToken()),
 	}, nil
 }
 
-func (s *DataServer) Replace(ctx context.Context, in *data_v1.ReplaceRequest) (*data_v1.ReplaceResponse, error) {
+func (s *KvServer) Replace(ctx context.Context, in *kv_v1.ReplaceRequest) (*kv_v1.ReplaceResponse, error) {
 	coll := s.getCollection(ctx, in.BucketName, in.ScopeName, in.CollectionName)
 
 	var contentData psTranscodeData
@@ -155,11 +155,11 @@ func (s *DataServer) Replace(ctx context.Context, in *data_v1.ReplaceRequest) (*
 	}
 
 	if in.DurabilitySpec != nil {
-		if legacySpec, ok := in.DurabilitySpec.(*data_v1.ReplaceRequest_LegacyDurabilitySpec); ok {
+		if legacySpec, ok := in.DurabilitySpec.(*kv_v1.ReplaceRequest_LegacyDurabilitySpec); ok {
 			opts.PersistTo = uint(legacySpec.LegacyDurabilitySpec.NumPersisted)
 			opts.ReplicateTo = uint(legacySpec.LegacyDurabilitySpec.NumReplicated)
 		}
-		if levelSpec, ok := in.DurabilitySpec.(*data_v1.ReplaceRequest_DurabilityLevel); ok {
+		if levelSpec, ok := in.DurabilitySpec.(*kv_v1.ReplaceRequest_DurabilityLevel); ok {
 			dl, errSt := durabilityLevelFromPs(&levelSpec.DurabilityLevel)
 			if errSt != nil {
 				return nil, errSt.Err()
@@ -173,13 +173,13 @@ func (s *DataServer) Replace(ctx context.Context, in *data_v1.ReplaceRequest) (*
 		return nil, cbErrToPs(err)
 	}
 
-	return &data_v1.ReplaceResponse{
+	return &kv_v1.ReplaceResponse{
 		Cas:           casToPs(result.Cas()),
 		MutationToken: tokenToPs(result.MutationToken()),
 	}, nil
 }
 
-func (s *DataServer) Remove(ctx context.Context, in *data_v1.RemoveRequest) (*data_v1.RemoveResponse, error) {
+func (s *KvServer) Remove(ctx context.Context, in *kv_v1.RemoveRequest) (*kv_v1.RemoveResponse, error) {
 	coll := s.getCollection(ctx, in.BucketName, in.ScopeName, in.CollectionName)
 
 	var opts gocb.RemoveOptions
@@ -190,11 +190,11 @@ func (s *DataServer) Remove(ctx context.Context, in *data_v1.RemoveRequest) (*da
 	}
 
 	if in.DurabilitySpec != nil {
-		if legacySpec, ok := in.DurabilitySpec.(*data_v1.RemoveRequest_LegacyDurabilitySpec); ok {
+		if legacySpec, ok := in.DurabilitySpec.(*kv_v1.RemoveRequest_LegacyDurabilitySpec); ok {
 			opts.PersistTo = uint(legacySpec.LegacyDurabilitySpec.NumPersisted)
 			opts.ReplicateTo = uint(legacySpec.LegacyDurabilitySpec.NumReplicated)
 		}
-		if levelSpec, ok := in.DurabilitySpec.(*data_v1.RemoveRequest_DurabilityLevel); ok {
+		if levelSpec, ok := in.DurabilitySpec.(*kv_v1.RemoveRequest_DurabilityLevel); ok {
 			dl, errSt := durabilityLevelFromPs(&levelSpec.DurabilityLevel)
 			if errSt != nil {
 				return nil, errSt.Err()
@@ -208,13 +208,13 @@ func (s *DataServer) Remove(ctx context.Context, in *data_v1.RemoveRequest) (*da
 		return nil, cbErrToPs(err)
 	}
 
-	return &data_v1.RemoveResponse{
+	return &kv_v1.RemoveResponse{
 		Cas:           casToPs(result.Cas()),
 		MutationToken: tokenToPs(result.MutationToken()),
 	}, nil
 }
 
-func (s *DataServer) Increment(ctx context.Context, in *data_v1.IncrementRequest) (*data_v1.IncrementResponse, error) {
+func (s *KvServer) Increment(ctx context.Context, in *kv_v1.IncrementRequest) (*kv_v1.IncrementResponse, error) {
 	coll := s.getCollection(ctx, in.BucketName, in.ScopeName, in.CollectionName)
 
 	var opts gocb.IncrementOptions
@@ -226,11 +226,11 @@ func (s *DataServer) Increment(ctx context.Context, in *data_v1.IncrementRequest
 	}
 
 	if in.DurabilitySpec != nil {
-		if legacySpec, ok := in.DurabilitySpec.(*data_v1.IncrementRequest_LegacyDurabilitySpec); ok {
+		if legacySpec, ok := in.DurabilitySpec.(*kv_v1.IncrementRequest_LegacyDurabilitySpec); ok {
 			opts.PersistTo = uint(legacySpec.LegacyDurabilitySpec.NumPersisted)
 			opts.ReplicateTo = uint(legacySpec.LegacyDurabilitySpec.NumReplicated)
 		}
-		if levelSpec, ok := in.DurabilitySpec.(*data_v1.IncrementRequest_DurabilityLevel); ok {
+		if levelSpec, ok := in.DurabilitySpec.(*kv_v1.IncrementRequest_DurabilityLevel); ok {
 			dl, errSt := durabilityLevelFromPs(&levelSpec.DurabilityLevel)
 			if errSt != nil {
 				return nil, errSt.Err()
@@ -248,14 +248,14 @@ func (s *DataServer) Increment(ctx context.Context, in *data_v1.IncrementRequest
 		return nil, cbErrToPs(err)
 	}
 
-	return &data_v1.IncrementResponse{
+	return &kv_v1.IncrementResponse{
 		Cas:           casToPs(result.Cas()),
 		Content:       int64(result.Content()),
 		MutationToken: tokenToPs(result.MutationToken()),
 	}, nil
 }
 
-func (s *DataServer) Decrement(ctx context.Context, in *data_v1.DecrementRequest) (*data_v1.DecrementResponse, error) {
+func (s *KvServer) Decrement(ctx context.Context, in *kv_v1.DecrementRequest) (*kv_v1.DecrementResponse, error) {
 	coll := s.getCollection(ctx, in.BucketName, in.ScopeName, in.CollectionName)
 
 	var opts gocb.DecrementOptions
@@ -267,11 +267,11 @@ func (s *DataServer) Decrement(ctx context.Context, in *data_v1.DecrementRequest
 	}
 
 	if in.DurabilitySpec != nil {
-		if legacySpec, ok := in.DurabilitySpec.(*data_v1.DecrementRequest_LegacyDurabilitySpec); ok {
+		if legacySpec, ok := in.DurabilitySpec.(*kv_v1.DecrementRequest_LegacyDurabilitySpec); ok {
 			opts.PersistTo = uint(legacySpec.LegacyDurabilitySpec.NumPersisted)
 			opts.ReplicateTo = uint(legacySpec.LegacyDurabilitySpec.NumReplicated)
 		}
-		if levelSpec, ok := in.DurabilitySpec.(*data_v1.DecrementRequest_DurabilityLevel); ok {
+		if levelSpec, ok := in.DurabilitySpec.(*kv_v1.DecrementRequest_DurabilityLevel); ok {
 			dl, errSt := durabilityLevelFromPs(&levelSpec.DurabilityLevel)
 			if errSt != nil {
 				return nil, errSt.Err()
@@ -289,14 +289,14 @@ func (s *DataServer) Decrement(ctx context.Context, in *data_v1.DecrementRequest
 		return nil, cbErrToPs(err)
 	}
 
-	return &data_v1.DecrementResponse{
+	return &kv_v1.DecrementResponse{
 		Cas:           casToPs(result.Cas()),
 		Content:       int64(result.Content()),
 		MutationToken: tokenToPs(result.MutationToken()),
 	}, nil
 }
 
-func (s *DataServer) Append(ctx context.Context, in *data_v1.AppendRequest) (*data_v1.AppendResponse, error) {
+func (s *KvServer) Append(ctx context.Context, in *kv_v1.AppendRequest) (*kv_v1.AppendResponse, error) {
 	coll := s.getCollection(ctx, in.BucketName, in.ScopeName, in.CollectionName)
 
 	var contentData psTranscodeData
@@ -310,11 +310,11 @@ func (s *DataServer) Append(ctx context.Context, in *data_v1.AppendRequest) (*da
 	}
 
 	if in.DurabilitySpec != nil {
-		if legacySpec, ok := in.DurabilitySpec.(*data_v1.AppendRequest_LegacyDurabilitySpec); ok {
+		if legacySpec, ok := in.DurabilitySpec.(*kv_v1.AppendRequest_LegacyDurabilitySpec); ok {
 			opts.PersistTo = uint(legacySpec.LegacyDurabilitySpec.NumPersisted)
 			opts.ReplicateTo = uint(legacySpec.LegacyDurabilitySpec.NumReplicated)
 		}
-		if levelSpec, ok := in.DurabilitySpec.(*data_v1.AppendRequest_DurabilityLevel); ok {
+		if levelSpec, ok := in.DurabilitySpec.(*kv_v1.AppendRequest_DurabilityLevel); ok {
 			dl, errSt := durabilityLevelFromPs(&levelSpec.DurabilityLevel)
 			if errSt != nil {
 				return nil, errSt.Err()
@@ -328,13 +328,13 @@ func (s *DataServer) Append(ctx context.Context, in *data_v1.AppendRequest) (*da
 		return nil, cbErrToPs(err)
 	}
 
-	return &data_v1.AppendResponse{
+	return &kv_v1.AppendResponse{
 		Cas:           casToPs(result.Cas()),
 		MutationToken: tokenToPs(result.MutationToken()),
 	}, nil
 }
 
-func (s *DataServer) Prepend(ctx context.Context, in *data_v1.PrependRequest) (*data_v1.PrependResponse, error) {
+func (s *KvServer) Prepend(ctx context.Context, in *kv_v1.PrependRequest) (*kv_v1.PrependResponse, error) {
 	coll := s.getCollection(ctx, in.BucketName, in.ScopeName, in.CollectionName)
 
 	var contentData psTranscodeData
@@ -348,11 +348,11 @@ func (s *DataServer) Prepend(ctx context.Context, in *data_v1.PrependRequest) (*
 	}
 
 	if in.DurabilitySpec != nil {
-		if legacySpec, ok := in.DurabilitySpec.(*data_v1.PrependRequest_LegacyDurabilitySpec); ok {
+		if legacySpec, ok := in.DurabilitySpec.(*kv_v1.PrependRequest_LegacyDurabilitySpec); ok {
 			opts.PersistTo = uint(legacySpec.LegacyDurabilitySpec.NumPersisted)
 			opts.ReplicateTo = uint(legacySpec.LegacyDurabilitySpec.NumReplicated)
 		}
-		if levelSpec, ok := in.DurabilitySpec.(*data_v1.PrependRequest_DurabilityLevel); ok {
+		if levelSpec, ok := in.DurabilitySpec.(*kv_v1.PrependRequest_DurabilityLevel); ok {
 			dl, errSt := durabilityLevelFromPs(&levelSpec.DurabilityLevel)
 			if errSt != nil {
 				return nil, errSt.Err()
@@ -366,13 +366,13 @@ func (s *DataServer) Prepend(ctx context.Context, in *data_v1.PrependRequest) (*
 		return nil, cbErrToPs(err)
 	}
 
-	return &data_v1.PrependResponse{
+	return &kv_v1.PrependResponse{
 		Cas:           casToPs(result.Cas()),
 		MutationToken: tokenToPs(result.MutationToken()),
 	}, nil
 }
 
-func (s *DataServer) LookupIn(ctx context.Context, in *data_v1.LookupInRequest) (*data_v1.LookupInResponse, error) {
+func (s *KvServer) LookupIn(ctx context.Context, in *kv_v1.LookupInRequest) (*kv_v1.LookupInResponse, error) {
 	coll := s.getCollection(ctx, in.BucketName, in.ScopeName, in.CollectionName)
 
 	var opts gocb.LookupInOptions
@@ -381,7 +381,7 @@ func (s *DataServer) LookupIn(ctx context.Context, in *data_v1.LookupInRequest) 
 	var specs []gocb.LookupInSpec
 	for _, spec := range in.Specs {
 		switch spec.Operation {
-		case data_v1.LookupInRequest_Spec_GET:
+		case kv_v1.LookupInRequest_Spec_GET:
 			specOpts := gocb.GetSpecOptions{}
 			if spec.Flags != nil {
 				if spec.Flags.Xattr != nil {
@@ -389,7 +389,7 @@ func (s *DataServer) LookupIn(ctx context.Context, in *data_v1.LookupInRequest) 
 				}
 			}
 			specs = append(specs, gocb.GetSpec(spec.Path, &specOpts))
-		case data_v1.LookupInRequest_Spec_EXISTS:
+		case kv_v1.LookupInRequest_Spec_EXISTS:
 			specOpts := gocb.ExistsSpecOptions{}
 			if spec.Flags != nil {
 				if spec.Flags.Xattr != nil {
@@ -397,7 +397,7 @@ func (s *DataServer) LookupIn(ctx context.Context, in *data_v1.LookupInRequest) 
 				}
 			}
 			specs = append(specs, gocb.ExistsSpec(spec.Path, &specOpts))
-		case data_v1.LookupInRequest_Spec_COUNT:
+		case kv_v1.LookupInRequest_Spec_COUNT:
 			specOpts := gocb.CountSpecOptions{}
 			if spec.Flags != nil {
 				if spec.Flags.Xattr != nil {
@@ -413,31 +413,31 @@ func (s *DataServer) LookupIn(ctx context.Context, in *data_v1.LookupInRequest) 
 		return nil, cbErrToPs(err)
 	}
 
-	var respSpecs []*data_v1.LookupInResponse_Spec
+	var respSpecs []*kv_v1.LookupInResponse_Spec
 
 	for specIdx := range specs {
 		var contentBytes json.RawMessage
 		err := result.ContentAt(uint(specIdx), &contentBytes)
 		if err != nil {
-			respSpecs = append(respSpecs, &data_v1.LookupInResponse_Spec{
+			respSpecs = append(respSpecs, &kv_v1.LookupInResponse_Spec{
 				// Status:  cbErrToPsStatus(err),
 				Content: nil,
 			})
 			continue
 		}
 
-		respSpecs = append(respSpecs, &data_v1.LookupInResponse_Spec{
+		respSpecs = append(respSpecs, &kv_v1.LookupInResponse_Spec{
 			Content: []byte(contentBytes),
 		})
 	}
 
-	return &data_v1.LookupInResponse{
+	return &kv_v1.LookupInResponse{
 		Specs: respSpecs,
 		Cas:   casToPs(result.Cas()),
 	}, nil
 }
 
-func (s *DataServer) MutateIn(ctx context.Context, in *data_v1.MutateInRequest) (*data_v1.MutateInResponse, error) {
+func (s *KvServer) MutateIn(ctx context.Context, in *kv_v1.MutateInRequest) (*kv_v1.MutateInResponse, error) {
 	coll := s.getCollection(ctx, in.BucketName, in.ScopeName, in.CollectionName)
 
 	var opts gocb.MutateInOptions
@@ -446,7 +446,7 @@ func (s *DataServer) MutateIn(ctx context.Context, in *data_v1.MutateInRequest) 
 	var specs []gocb.MutateInSpec
 	for _, spec := range in.Specs {
 		switch spec.Operation {
-		case data_v1.MutateInRequest_Spec_INSERT:
+		case kv_v1.MutateInRequest_Spec_INSERT:
 			specOpts := gocb.InsertSpecOptions{}
 			if spec.Flags != nil {
 				if spec.Flags.CreatePath != nil {
@@ -457,7 +457,7 @@ func (s *DataServer) MutateIn(ctx context.Context, in *data_v1.MutateInRequest) 
 				}
 			}
 			specs = append(specs, gocb.InsertSpec(spec.Path, json.RawMessage(spec.Content), &specOpts))
-		case data_v1.MutateInRequest_Spec_UPSERT:
+		case kv_v1.MutateInRequest_Spec_UPSERT:
 			specOpts := gocb.UpsertSpecOptions{}
 			if spec.Flags != nil {
 				if spec.Flags.CreatePath != nil {
@@ -468,7 +468,7 @@ func (s *DataServer) MutateIn(ctx context.Context, in *data_v1.MutateInRequest) 
 				}
 			}
 			specs = append(specs, gocb.UpsertSpec(spec.Path, json.RawMessage(spec.Content), &specOpts))
-		case data_v1.MutateInRequest_Spec_REPLACE:
+		case kv_v1.MutateInRequest_Spec_REPLACE:
 			specOpts := gocb.ReplaceSpecOptions{}
 			if spec.Flags != nil {
 				if spec.Flags.Xattr != nil {
@@ -476,7 +476,7 @@ func (s *DataServer) MutateIn(ctx context.Context, in *data_v1.MutateInRequest) 
 				}
 			}
 			specs = append(specs, gocb.ReplaceSpec(spec.Path, json.RawMessage(spec.Content), &specOpts))
-		case data_v1.MutateInRequest_Spec_REMOVE:
+		case kv_v1.MutateInRequest_Spec_REMOVE:
 			if spec.Content != nil {
 				return nil, status.New(codes.InvalidArgument, "cannot specify content for remove spec").Err()
 			}
@@ -488,7 +488,7 @@ func (s *DataServer) MutateIn(ctx context.Context, in *data_v1.MutateInRequest) 
 				}
 			}
 			specs = append(specs, gocb.RemoveSpec(spec.Path, &specOpts))
-		case data_v1.MutateInRequest_Spec_ARRAY_APPEND:
+		case kv_v1.MutateInRequest_Spec_ARRAY_APPEND:
 			specOpts := gocb.ArrayAppendSpecOptions{}
 			if spec.Flags != nil {
 				if spec.Flags.CreatePath != nil {
@@ -499,7 +499,7 @@ func (s *DataServer) MutateIn(ctx context.Context, in *data_v1.MutateInRequest) 
 				}
 			}
 			specs = append(specs, gocb.ArrayAppendSpec(spec.Path, json.RawMessage(spec.Content), &specOpts))
-		case data_v1.MutateInRequest_Spec_ARRAY_PREPEND:
+		case kv_v1.MutateInRequest_Spec_ARRAY_PREPEND:
 			specOpts := gocb.ArrayPrependSpecOptions{}
 			if spec.Flags != nil {
 				if spec.Flags.CreatePath != nil {
@@ -510,7 +510,7 @@ func (s *DataServer) MutateIn(ctx context.Context, in *data_v1.MutateInRequest) 
 				}
 			}
 			specs = append(specs, gocb.ArrayPrependSpec(spec.Path, json.RawMessage(spec.Content), &specOpts))
-		case data_v1.MutateInRequest_Spec_ARRAY_INSERT:
+		case kv_v1.MutateInRequest_Spec_ARRAY_INSERT:
 			specOpts := gocb.ArrayInsertSpecOptions{}
 			if spec.Flags != nil {
 				if spec.Flags.CreatePath != nil {
@@ -521,7 +521,7 @@ func (s *DataServer) MutateIn(ctx context.Context, in *data_v1.MutateInRequest) 
 				}
 			}
 			specs = append(specs, gocb.ArrayInsertSpec(spec.Path, json.RawMessage(spec.Content), &specOpts))
-		case data_v1.MutateInRequest_Spec_ARRAY_ADD_UNIQUE:
+		case kv_v1.MutateInRequest_Spec_ARRAY_ADD_UNIQUE:
 			specOpts := gocb.ArrayAddUniqueSpecOptions{}
 			if spec.Flags != nil {
 				if spec.Flags.CreatePath != nil {
@@ -532,7 +532,7 @@ func (s *DataServer) MutateIn(ctx context.Context, in *data_v1.MutateInRequest) 
 				}
 			}
 			specs = append(specs, gocb.ArrayAddUniqueSpec(spec.Path, json.RawMessage(spec.Content), &specOpts))
-		case data_v1.MutateInRequest_Spec_COUNTER:
+		case kv_v1.MutateInRequest_Spec_COUNTER:
 			specOpts := gocb.CounterSpecOptions{}
 			if spec.Flags != nil {
 				if spec.Flags.CreatePath != nil {
@@ -556,11 +556,11 @@ func (s *DataServer) MutateIn(ctx context.Context, in *data_v1.MutateInRequest) 
 	}
 
 	if in.DurabilitySpec != nil {
-		if legacySpec, ok := in.DurabilitySpec.(*data_v1.MutateInRequest_LegacyDurabilitySpec); ok {
+		if legacySpec, ok := in.DurabilitySpec.(*kv_v1.MutateInRequest_LegacyDurabilitySpec); ok {
 			opts.PersistTo = uint(legacySpec.LegacyDurabilitySpec.NumPersisted)
 			opts.ReplicateTo = uint(legacySpec.LegacyDurabilitySpec.NumReplicated)
 		}
-		if levelSpec, ok := in.DurabilitySpec.(*data_v1.MutateInRequest_DurabilityLevel); ok {
+		if levelSpec, ok := in.DurabilitySpec.(*kv_v1.MutateInRequest_DurabilityLevel); ok {
 			dl, errSt := durabilityLevelFromPs(&levelSpec.DurabilityLevel)
 			if errSt != nil {
 				return nil, errSt.Err()
@@ -574,7 +574,7 @@ func (s *DataServer) MutateIn(ctx context.Context, in *data_v1.MutateInRequest) 
 		return nil, cbErrToPs(err)
 	}
 
-	var respSpecs []*data_v1.MutateInResponse_Spec
+	var respSpecs []*kv_v1.MutateInResponse_Spec
 
 	for specIdx := range specs {
 		var contentBytes json.RawMessage
@@ -582,26 +582,26 @@ func (s *DataServer) MutateIn(ctx context.Context, in *data_v1.MutateInRequest) 
 		if err != nil {
 			// if we get an error, we just put nil bytes
 			// TODO(brett19): check if we need to handle mutatein spec errors
-			respSpecs = append(respSpecs, &data_v1.MutateInResponse_Spec{
+			respSpecs = append(respSpecs, &kv_v1.MutateInResponse_Spec{
 				Content: nil,
 			})
 			continue
 		}
 
-		respSpecs = append(respSpecs, &data_v1.MutateInResponse_Spec{
+		respSpecs = append(respSpecs, &kv_v1.MutateInResponse_Spec{
 			Content: []byte(contentBytes),
 		})
 	}
 
-	return &data_v1.MutateInResponse{
+	return &kv_v1.MutateInResponse{
 		Specs:         respSpecs,
 		Cas:           casToPs(result.Cas()),
 		MutationToken: tokenToPs(result.MutationToken()),
 	}, nil
 }
 
-func NewDataServer(cbClient *gocb.Cluster) *DataServer {
-	return &DataServer{
+func NewKvServer(cbClient *gocb.Cluster) *KvServer {
+	return &KvServer{
 		cbClient: cbClient,
 	}
 }

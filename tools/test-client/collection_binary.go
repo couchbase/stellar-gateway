@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/couchbase/stellar-nebula/genproto/data_v1"
+	"github.com/couchbase/stellar-nebula/genproto/kv_v1"
 )
 
 type CollectionBinary struct {
@@ -37,7 +37,7 @@ func (c *CollectionBinary) Append(ctx context.Context, id string, content []byte
 		cas = &protoCas
 	}
 
-	req := &data_v1.AppendRequest{
+	req := &kv_v1.AppendRequest{
 		BucketName:     bucketName,
 		ScopeName:      scopeName,
 		CollectionName: collName,
@@ -47,20 +47,20 @@ func (c *CollectionBinary) Append(ctx context.Context, id string, content []byte
 	}
 
 	if opts.DurabilityLevel != DurabilityLevelUnknown {
-		req.DurabilitySpec = &data_v1.AppendRequest_DurabilityLevel{
+		req.DurabilitySpec = &kv_v1.AppendRequest_DurabilityLevel{
 			DurabilityLevel: *opts.DurabilityLevel.toProto(),
 		}
 	}
 	if opts.ReplicateTo > 0 || opts.PersistTo > 0 {
-		req.DurabilitySpec = &data_v1.AppendRequest_LegacyDurabilitySpec{
-			LegacyDurabilitySpec: &data_v1.LegacyDurabilitySpec{
+		req.DurabilitySpec = &kv_v1.AppendRequest_LegacyDurabilitySpec{
+			LegacyDurabilitySpec: &kv_v1.LegacyDurabilitySpec{
 				NumPersisted:  opts.PersistTo,
 				NumReplicated: opts.ReplicateTo,
 			},
 		}
 	}
 
-	resp, err := client.dataClient.Append(ctx, req)
+	resp, err := client.kvClient.Append(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -91,7 +91,7 @@ func (c *CollectionBinary) Prepend(ctx context.Context, id string, content []byt
 		cas = &protoCas
 	}
 
-	req := &data_v1.PrependRequest{
+	req := &kv_v1.PrependRequest{
 		BucketName:     bucketName,
 		ScopeName:      scopeName,
 		CollectionName: collName,
@@ -101,20 +101,20 @@ func (c *CollectionBinary) Prepend(ctx context.Context, id string, content []byt
 	}
 
 	if opts.DurabilityLevel != DurabilityLevelUnknown {
-		req.DurabilitySpec = &data_v1.PrependRequest_DurabilityLevel{
+		req.DurabilitySpec = &kv_v1.PrependRequest_DurabilityLevel{
 			DurabilityLevel: *opts.DurabilityLevel.toProto(),
 		}
 	}
 	if opts.ReplicateTo > 0 || opts.PersistTo > 0 {
-		req.DurabilitySpec = &data_v1.PrependRequest_LegacyDurabilitySpec{
-			LegacyDurabilitySpec: &data_v1.LegacyDurabilitySpec{
+		req.DurabilitySpec = &kv_v1.PrependRequest_LegacyDurabilitySpec{
+			LegacyDurabilitySpec: &kv_v1.LegacyDurabilitySpec{
 				NumPersisted:  opts.PersistTo,
 				NumReplicated: opts.ReplicateTo,
 			},
 		}
 	}
 
-	resp, err := client.dataClient.Prepend(ctx, req)
+	resp, err := client.kvClient.Prepend(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -147,7 +147,7 @@ func (c *CollectionBinary) Increment(ctx context.Context, id string, opts *Incre
 	}
 	client, bucketName, scopeName, collName := c.collection.getClient()
 
-	req := &data_v1.IncrementRequest{
+	req := &kv_v1.IncrementRequest{
 		BucketName:     bucketName,
 		ScopeName:      scopeName,
 		CollectionName: collName,
@@ -157,13 +157,13 @@ func (c *CollectionBinary) Increment(ctx context.Context, id string, opts *Incre
 	}
 
 	if opts.DurabilityLevel != DurabilityLevelUnknown {
-		req.DurabilitySpec = &data_v1.IncrementRequest_DurabilityLevel{
+		req.DurabilitySpec = &kv_v1.IncrementRequest_DurabilityLevel{
 			DurabilityLevel: *opts.DurabilityLevel.toProto(),
 		}
 	}
 	if opts.ReplicateTo > 0 || opts.PersistTo > 0 {
-		req.DurabilitySpec = &data_v1.IncrementRequest_LegacyDurabilitySpec{
-			LegacyDurabilitySpec: &data_v1.LegacyDurabilitySpec{
+		req.DurabilitySpec = &kv_v1.IncrementRequest_LegacyDurabilitySpec{
+			LegacyDurabilitySpec: &kv_v1.LegacyDurabilitySpec{
 				NumPersisted:  opts.PersistTo,
 				NumReplicated: opts.ReplicateTo,
 			},
@@ -173,7 +173,7 @@ func (c *CollectionBinary) Increment(ctx context.Context, id string, opts *Incre
 		req.Initial = opts.Initial
 	}
 
-	resp, err := client.dataClient.Increment(ctx, req)
+	resp, err := client.kvClient.Increment(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -201,7 +201,7 @@ func (c *CollectionBinary) Decrement(ctx context.Context, id string, opts *Decre
 	}
 	client, bucketName, scopeName, collName := c.collection.getClient()
 
-	req := &data_v1.DecrementRequest{
+	req := &kv_v1.DecrementRequest{
 		BucketName:     bucketName,
 		ScopeName:      scopeName,
 		CollectionName: collName,
@@ -211,13 +211,13 @@ func (c *CollectionBinary) Decrement(ctx context.Context, id string, opts *Decre
 	}
 
 	if opts.DurabilityLevel != DurabilityLevelUnknown {
-		req.DurabilitySpec = &data_v1.DecrementRequest_DurabilityLevel{
+		req.DurabilitySpec = &kv_v1.DecrementRequest_DurabilityLevel{
 			DurabilityLevel: *opts.DurabilityLevel.toProto(),
 		}
 	}
 	if opts.ReplicateTo > 0 || opts.PersistTo > 0 {
-		req.DurabilitySpec = &data_v1.DecrementRequest_LegacyDurabilitySpec{
-			LegacyDurabilitySpec: &data_v1.LegacyDurabilitySpec{
+		req.DurabilitySpec = &kv_v1.DecrementRequest_LegacyDurabilitySpec{
+			LegacyDurabilitySpec: &kv_v1.LegacyDurabilitySpec{
 				NumPersisted:  opts.PersistTo,
 				NumReplicated: opts.ReplicateTo,
 			},
@@ -227,7 +227,7 @@ func (c *CollectionBinary) Decrement(ctx context.Context, id string, opts *Decre
 		req.Initial = opts.Initial
 	}
 
-	resp, err := client.dataClient.Decrement(ctx, req)
+	resp, err := client.kvClient.Decrement(ctx, req)
 	if err != nil {
 		return nil, err
 	}

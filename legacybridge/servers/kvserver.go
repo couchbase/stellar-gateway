@@ -5,7 +5,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/couchbase/stellar-nebula/genproto/data_v1"
+	"github.com/couchbase/stellar-nebula/genproto/kv_v1"
 	"github.com/couchbase/stellar-nebula/legacybridge/topology"
 	"go.uber.org/zap"
 )
@@ -13,13 +13,13 @@ import (
 type KvServerOptions struct {
 	Logger           *zap.Logger
 	TopologyProvider topology.Provider
-	DataClient       data_v1.DataClient
+	KvClient         kv_v1.KvClient
 }
 
 type KvServer struct {
 	logger           *zap.Logger
 	topologyProvider topology.Provider
-	dataClient       data_v1.DataClient
+	kvClient         kv_v1.KvClient
 
 	lock    sync.Mutex
 	clients []*KvServerClient
@@ -28,7 +28,7 @@ type KvServer struct {
 func NewKvServer(opts *KvServerOptions) (*KvServer, error) {
 	server := &KvServer{
 		logger:           opts.Logger,
-		dataClient:       opts.DataClient,
+		kvClient:         opts.KvClient,
 		topologyProvider: opts.TopologyProvider,
 	}
 
@@ -72,7 +72,7 @@ func (s *KvServer) handleNewConnection(conn net.Conn) {
 			zap.Stringer("address", conn.RemoteAddr()),
 		),
 		ParentServer:     s,
-		DataClient:       s.dataClient,
+		KvClient:         s.kvClient,
 		TopologyProvider: s.topologyProvider,
 		Conn:             conn,
 	})

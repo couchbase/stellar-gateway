@@ -4,12 +4,12 @@ import (
 	"errors"
 
 	"github.com/couchbase/gocbcore/v10"
-	"github.com/couchbase/stellar-nebula/genproto/data_v1"
+	"github.com/couchbase/stellar-nebula/genproto/kv_v1"
 )
 
 type psTranscodeData struct {
 	ContentBytes []byte
-	ContentType  data_v1.DocumentContentType
+	ContentType  kv_v1.DocumentContentType
 }
 
 type customTranscoder struct {
@@ -32,18 +32,18 @@ func (t customTranscoder) Decode(bytes []byte, flags uint32, out interface{}) er
 	// Normal types of decoding
 	if valueType == gocbcore.BinaryType {
 		typedOut.ContentBytes = bytes
-		typedOut.ContentType = data_v1.DocumentContentType_BINARY
+		typedOut.ContentType = kv_v1.DocumentContentType_BINARY
 		return nil
 	} else if valueType == gocbcore.StringType {
 		// we don't support string data types in this case and instead just
 		// handle them as raw binary data instead...
 		// TODO(brett19): Decide how to handle string transcoding better.
 		typedOut.ContentBytes = bytes
-		typedOut.ContentType = data_v1.DocumentContentType_BINARY
+		typedOut.ContentType = kv_v1.DocumentContentType_BINARY
 		return nil
 	} else if valueType == gocbcore.JSONType {
 		typedOut.ContentBytes = bytes
-		typedOut.ContentType = data_v1.DocumentContentType_JSON
+		typedOut.ContentType = kv_v1.DocumentContentType_JSON
 		return nil
 	}
 
@@ -57,9 +57,9 @@ func (t customTranscoder) Encode(value interface{}) ([]byte, uint32, error) {
 		return nil, 0, errors.New("expected psTranscodeData pointer as input structure")
 	}
 
-	if typedValue.ContentType == data_v1.DocumentContentType_BINARY {
+	if typedValue.ContentType == kv_v1.DocumentContentType_BINARY {
 		return typedValue.ContentBytes, gocbcore.EncodeCommonFlags(gocbcore.BinaryType, gocbcore.NoCompression), nil
-	} else if typedValue.ContentType == data_v1.DocumentContentType_JSON {
+	} else if typedValue.ContentType == kv_v1.DocumentContentType_JSON {
 		return typedValue.ContentBytes, gocbcore.EncodeCommonFlags(gocbcore.JSONType, gocbcore.NoCompression), nil
 	}
 

@@ -7,7 +7,7 @@ import (
 
 	"github.com/couchbase/gocbcore/v10"
 	"github.com/couchbase/gocbcore/v10/memd"
-	"github.com/couchbase/stellar-nebula/genproto/data_v1"
+	"github.com/couchbase/stellar-nebula/genproto/kv_v1"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -28,27 +28,27 @@ func (c *KvServerClient) getOpContext(pak *memd.Packet) (context.Context, string
 	return ctx, c.selectedBucket, "", ""
 }
 
-func (c *KvServerClient) durabilityLevelToPs(dl memd.DurabilityLevel) (data_v1.DurabilityLevel, memd.StatusCode) {
+func (c *KvServerClient) durabilityLevelToPs(dl memd.DurabilityLevel) (kv_v1.DurabilityLevel, memd.StatusCode) {
 	switch dl {
 	case memd.DurabilityLevelMajority:
-		return data_v1.DurabilityLevel_MAJORITY, memd.StatusSuccess
+		return kv_v1.DurabilityLevel_MAJORITY, memd.StatusSuccess
 	case memd.DurabilityLevelMajorityAndPersistOnMaster:
-		return data_v1.DurabilityLevel_MAJORITY_AND_PERSIST_TO_ACTIVE, memd.StatusSuccess
+		return kv_v1.DurabilityLevel_MAJORITY_AND_PERSIST_TO_ACTIVE, memd.StatusSuccess
 	case memd.DurabilityLevelPersistToMajority:
-		return data_v1.DurabilityLevel_PERSIST_TO_MAJORITY, memd.StatusSuccess
+		return kv_v1.DurabilityLevel_PERSIST_TO_MAJORITY, memd.StatusSuccess
 	}
 
 	return 0, memd.StatusDurabilityInvalidLevel
 }
 
-func (c *KvServerClient) flagsToPsContentType(flags uint32) data_v1.DocumentContentType {
+func (c *KvServerClient) flagsToPsContentType(flags uint32) kv_v1.DocumentContentType {
 	switch gocbcore.DataType(flags) {
 	case gocbcore.BinaryType:
-		return data_v1.DocumentContentType_BINARY
+		return kv_v1.DocumentContentType_BINARY
 	case gocbcore.JSONType:
-		return data_v1.DocumentContentType_JSON
+		return kv_v1.DocumentContentType_JSON
 	default:
-		return data_v1.DocumentContentType_UNKNOWN
+		return kv_v1.DocumentContentType_UNKNOWN
 	}
 }
 
@@ -60,7 +60,7 @@ func (c *KvServerClient) sendGrpcError(pak *memd.Packet, err error) {
 func (c *KvServerClient) handleCmdGetReq(pak *memd.Packet) {
 	ctx, bucketName, scopeName, collectionName := c.getOpContext(pak)
 
-	resp, err := c.dataClient.Get(ctx, &data_v1.GetRequest{
+	resp, err := c.kvClient.Get(ctx, &kv_v1.GetRequest{
 		BucketName:     bucketName,
 		ScopeName:      scopeName,
 		CollectionName: collectionName,
@@ -92,7 +92,7 @@ func (c *KvServerClient) handleCmdGetReq(pak *memd.Packet) {
 func (c *KvServerClient) handleCmdSetReq(pak *memd.Packet) {
 	ctx, bucketName, scopeName, collectionName := c.getOpContext(pak)
 
-	req := &data_v1.UpsertRequest{
+	req := &kv_v1.UpsertRequest{
 		BucketName:     bucketName,
 		ScopeName:      scopeName,
 		CollectionName: collectionName,
@@ -105,7 +105,7 @@ func (c *KvServerClient) handleCmdSetReq(pak *memd.Packet) {
 			c.sendBasicReply(pak, s, nil, nil, nil)
 			return
 		}
-		req.DurabilitySpec = &data_v1.UpsertRequest_DurabilityLevel{
+		req.DurabilitySpec = &kv_v1.UpsertRequest_DurabilityLevel{
 			DurabilityLevel: dl,
 		}
 	}
@@ -119,7 +119,7 @@ func (c *KvServerClient) handleCmdSetReq(pak *memd.Packet) {
 		}
 	}
 
-	resp, err := c.dataClient.Upsert(ctx, req)
+	resp, err := c.kvClient.Upsert(ctx, req)
 	if err != nil {
 		c.sendGrpcError(pak, err)
 		return
@@ -146,7 +146,7 @@ func (c *KvServerClient) handleCmdSetReq(pak *memd.Packet) {
 func (c *KvServerClient) handleCmdDeleteReq(pak *memd.Packet) {
 	ctx, bucketName, scopeName, collectionName := c.getOpContext(pak)
 
-	req := &data_v1.RemoveRequest{
+	req := &kv_v1.RemoveRequest{
 		BucketName:     bucketName,
 		ScopeName:      scopeName,
 		CollectionName: collectionName,
@@ -158,12 +158,12 @@ func (c *KvServerClient) handleCmdDeleteReq(pak *memd.Packet) {
 			c.sendBasicReply(pak, s, nil, nil, nil)
 			return
 		}
-		req.DurabilitySpec = &data_v1.RemoveRequest_DurabilityLevel{
+		req.DurabilitySpec = &kv_v1.RemoveRequest_DurabilityLevel{
 			DurabilityLevel: dl,
 		}
 	}
 
-	resp, err := c.dataClient.Remove(ctx, req)
+	resp, err := c.kvClient.Remove(ctx, req)
 	if err != nil {
 		c.sendGrpcError(pak, err)
 		return

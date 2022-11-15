@@ -7,8 +7,8 @@ import (
 	"log"
 	"time"
 
-	"github.com/couchbase/stellar-nebula/genproto/data_v1"
 	"github.com/couchbase/stellar-nebula/genproto/internal_hooks_v1"
+	"github.com/couchbase/stellar-nebula/genproto/kv_v1"
 	"github.com/couchbase/stellar-nebula/genproto/routing_v1"
 	"github.com/couchbase/stellar-nebula/genproto/transactions_v1"
 	"github.com/google/uuid"
@@ -222,7 +222,7 @@ func main() {
 	// hooks tests
 	{
 		conn := client.GetConn()
-		dc := data_v1.NewDataClient(conn)
+		dc := kv_v1.NewKvClient(conn)
 		hc := internal_hooks_v1.NewHooksClient(conn)
 
 		hooksContextID := uuid.NewString()
@@ -299,7 +299,7 @@ func main() {
 		// perform the upsert
 		log.Printf("executing hooked upsert call")
 		upsertCtx := metadata.AppendToOutgoingContext(ctx, "X-Hooks-ID", hooksContextID)
-		upsertResp, err := dc.Upsert(upsertCtx, &data_v1.UpsertRequest{
+		upsertResp, err := dc.Upsert(upsertCtx, &kv_v1.UpsertRequest{
 			BucketName:     "default",
 			ScopeName:      "",
 			CollectionName: "",

@@ -1,13 +1,13 @@
 syntax = "proto3";
 
-option go_package = "github.com/couchbase/stellar-nebula/genproto/data_v1;data_v1";
+option go_package = "github.com/couchbase/stellar-nebula/genproto/kv_v1;kv_v1";
 
-package com.couchbase.data.v1;
+package com.couchbase.kv.v1;
 
 import "google/protobuf/timestamp.proto";
 import "proto/com.couchbase.v1.proto";
 
-service Data {
+service Kv {
   rpc Get(GetRequest) returns (GetResponse) {}
   rpc GetAndTouch(GetAndTouchRequest) returns (GetResponse) {}
   rpc GetAndLock(GetAndLockRequest) returns (GetResponse) {}

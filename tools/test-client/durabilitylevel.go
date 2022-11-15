@@ -1,7 +1,7 @@
 package gocbps
 
 import (
-	"github.com/couchbase/stellar-nebula/genproto/data_v1"
+	"github.com/couchbase/stellar-nebula/genproto/kv_v1"
 )
 
 // DurabilityLevel specifies the level of synchronous replication to use.
@@ -26,15 +26,15 @@ const (
 	DurabilityLevelPersistToMajority
 )
 
-func (dl DurabilityLevel) toProto() *data_v1.DurabilityLevel {
-	var durability data_v1.DurabilityLevel
+func (dl DurabilityLevel) toProto() *kv_v1.DurabilityLevel {
+	var durability kv_v1.DurabilityLevel
 	switch dl {
 	case DurabilityLevelMajority:
-		durability = data_v1.DurabilityLevel_MAJORITY
+		durability = kv_v1.DurabilityLevel_MAJORITY
 	case DurabilityLevelMajorityAndPersistOnMaster:
-		durability = data_v1.DurabilityLevel_MAJORITY_AND_PERSIST_TO_ACTIVE
+		durability = kv_v1.DurabilityLevel_MAJORITY_AND_PERSIST_TO_ACTIVE
 	case DurabilityLevelPersistToMajority:
-		durability = data_v1.DurabilityLevel_PERSIST_TO_MAJORITY
+		durability = kv_v1.DurabilityLevel_PERSIST_TO_MAJORITY
 	default:
 		return nil
 	}

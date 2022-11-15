@@ -35,7 +35,7 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 
 	kvServer, err := servers.NewKvServer(&servers.KvServerOptions{
 		Logger:           opts.Logger,
-		DataClient:       opts.Client.DataV1(),
+		KvClient:         opts.Client.KvV1(),
 		TopologyProvider: opts.TopologyProvider,
 	})
 	if err != nil {

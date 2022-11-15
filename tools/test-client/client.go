@@ -7,7 +7,7 @@ import (
 	"github.com/couchbase/stellar-nebula/genproto/view_v1"
 
 	"github.com/couchbase/stellar-nebula/genproto/analytics_v1"
-	"github.com/couchbase/stellar-nebula/genproto/data_v1"
+	"github.com/couchbase/stellar-nebula/genproto/kv_v1"
 	"github.com/couchbase/stellar-nebula/genproto/query_v1"
 	"github.com/couchbase/stellar-nebula/genproto/routing_v1"
 	"github.com/couchbase/stellar-nebula/genproto/search_v1"
@@ -19,7 +19,7 @@ import (
 type Client struct {
 	conn            *grpc.ClientConn
 	routingClient   routing_v1.RoutingClient
-	dataClient      data_v1.DataClient
+	kvClient        kv_v1.KvClient
 	queryClient     query_v1.QueryClient
 	searchClient    search_v1.SearchClient
 	analyticsClient analytics_v1.AnalyticsClient
@@ -72,7 +72,7 @@ func Connect(connStr string, opts *ConnectOptions) (*Client, error) {
 	}
 
 	routingClient := routing_v1.NewRoutingClient(conn)
-	dataClient := data_v1.NewDataClient(conn)
+	kvClient := kv_v1.NewKvClient(conn)
 	queryClient := query_v1.NewQueryClient(conn)
 	searchClient := search_v1.NewSearchClient(conn)
 	analyticsClient := analytics_v1.NewAnalyticsClient(conn)
@@ -81,7 +81,7 @@ func Connect(connStr string, opts *ConnectOptions) (*Client, error) {
 	return &Client{
 		conn:            conn,
 		routingClient:   routingClient,
-		dataClient:      dataClient,
+		kvClient:        kvClient,
 		queryClient:     queryClient,
 		searchClient:    searchClient,
 		analyticsClient: analyticsClient,

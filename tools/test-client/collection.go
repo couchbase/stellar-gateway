@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/couchbase/stellar-nebula/genproto/data_v1"
+	"github.com/couchbase/stellar-nebula/genproto/kv_v1"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -36,14 +36,14 @@ func (c *Collection) Get(ctx context.Context, id string, opts *GetOptions) (*Get
 	*/
 	client, bucketName, scopeName, collName := c.getClient()
 
-	req := &data_v1.GetRequest{
+	req := &kv_v1.GetRequest{
 		BucketName:     bucketName,
 		ScopeName:      scopeName,
 		CollectionName: collName,
 		Key:            id,
 	}
 
-	resp, err := client.dataClient.Get(ctx, req)
+	resp, err := client.kvClient.Get(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -70,14 +70,14 @@ func (c *Collection) Exists(ctx context.Context, id string, opts *ExistsOptions)
 	*/
 	client, bucketName, scopeName, collName := c.getClient()
 
-	req := &data_v1.ExistsRequest{
+	req := &kv_v1.ExistsRequest{
 		BucketName:     bucketName,
 		ScopeName:      scopeName,
 		CollectionName: collName,
 		Key:            id,
 	}
 
-	resp, err := client.dataClient.Exists(ctx, req)
+	resp, err := client.kvClient.Exists(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -99,7 +99,7 @@ func (c *Collection) GetAndTouch(ctx context.Context, id string, expiry time.Dur
 	*/
 	client, bucketName, scopeName, collName := c.getClient()
 
-	req := &data_v1.GetAndTouchRequest{
+	req := &kv_v1.GetAndTouchRequest{
 		BucketName:     bucketName,
 		ScopeName:      scopeName,
 		CollectionName: collName,
@@ -107,7 +107,7 @@ func (c *Collection) GetAndTouch(ctx context.Context, id string, expiry time.Dur
 		Expiry:         durationToTimestamp(expiry),
 	}
 
-	resp, err := client.dataClient.GetAndTouch(ctx, req)
+	resp, err := client.kvClient.GetAndTouch(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -129,7 +129,7 @@ func (c *Collection) GetAndLock(ctx context.Context, id string, lockTime time.Du
 	*/
 	client, bucketName, scopeName, collName := c.getClient()
 
-	req := &data_v1.GetAndLockRequest{
+	req := &kv_v1.GetAndLockRequest{
 		BucketName:     bucketName,
 		ScopeName:      scopeName,
 		CollectionName: collName,
@@ -137,7 +137,7 @@ func (c *Collection) GetAndLock(ctx context.Context, id string, lockTime time.Du
 		LockTime:       uint32(lockTime / time.Second),
 	}
 
-	resp, err := client.dataClient.GetAndLock(ctx, req)
+	resp, err := client.kvClient.GetAndLock(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -159,7 +159,7 @@ func (c *Collection) Unlock(ctx context.Context, id string, cas Cas, opts *Unloc
 	*/
 	client, bucketName, scopeName, collName := c.getClient()
 
-	req := &data_v1.UnlockRequest{
+	req := &kv_v1.UnlockRequest{
 		BucketName:     bucketName,
 		ScopeName:      scopeName,
 		CollectionName: collName,
@@ -167,7 +167,7 @@ func (c *Collection) Unlock(ctx context.Context, id string, cas Cas, opts *Unloc
 		Cas:            uint64(cas),
 	}
 
-	_, err := client.dataClient.Unlock(ctx, req)
+	_, err := client.kvClient.Unlock(ctx, req)
 	if err != nil {
 		return err
 	}
@@ -193,30 +193,30 @@ func (c *Collection) Upsert(ctx context.Context, id string, content []byte, opts
 	}
 	client, bucketName, scopeName, collName := c.getClient()
 
-	req := &data_v1.UpsertRequest{
+	req := &kv_v1.UpsertRequest{
 		BucketName:     bucketName,
 		ScopeName:      scopeName,
 		CollectionName: collName,
 		Key:            id,
 		Content:        content,
-		ContentType:    data_v1.DocumentContentType_JSON,
+		ContentType:    kv_v1.DocumentContentType_JSON,
 		Expiry:         durationToTimestamp(opts.Expiry),
 	}
 
 	if opts.DurabilityLevel != DurabilityLevelUnknown {
-		req.DurabilitySpec = &data_v1.UpsertRequest_DurabilityLevel{
+		req.DurabilitySpec = &kv_v1.UpsertRequest_DurabilityLevel{
 			DurabilityLevel: *opts.DurabilityLevel.toProto(),
 		}
 	}
 	if opts.ReplicateTo > 0 || opts.PersistTo > 0 {
-		req.DurabilitySpec = &data_v1.UpsertRequest_LegacyDurabilitySpec{
-			LegacyDurabilitySpec: &data_v1.LegacyDurabilitySpec{
+		req.DurabilitySpec = &kv_v1.UpsertRequest_LegacyDurabilitySpec{
+			LegacyDurabilitySpec: &kv_v1.LegacyDurabilitySpec{
 				NumPersisted:  opts.PersistTo,
 				NumReplicated: opts.ReplicateTo,
 			},
 		}
 	}
-	resp, err := client.dataClient.Upsert(ctx, req)
+	resp, err := client.kvClient.Upsert(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -240,31 +240,31 @@ func (c *Collection) Insert(ctx context.Context, id string, content []byte, opts
 	}
 	client, bucketName, scopeName, collName := c.getClient()
 
-	req := &data_v1.InsertRequest{
+	req := &kv_v1.InsertRequest{
 		BucketName:     bucketName,
 		ScopeName:      scopeName,
 		CollectionName: collName,
 		Key:            id,
 		Content:        content,
-		ContentType:    data_v1.DocumentContentType_JSON,
+		ContentType:    kv_v1.DocumentContentType_JSON,
 		Expiry:         durationToTimestamp(opts.Expiry),
 	}
 
 	if opts.DurabilityLevel != DurabilityLevelUnknown {
-		req.DurabilitySpec = &data_v1.InsertRequest_DurabilityLevel{
+		req.DurabilitySpec = &kv_v1.InsertRequest_DurabilityLevel{
 			DurabilityLevel: *opts.DurabilityLevel.toProto(),
 		}
 	}
 	if opts.ReplicateTo > 0 || opts.PersistTo > 0 {
-		req.DurabilitySpec = &data_v1.InsertRequest_LegacyDurabilitySpec{
-			LegacyDurabilitySpec: &data_v1.LegacyDurabilitySpec{
+		req.DurabilitySpec = &kv_v1.InsertRequest_LegacyDurabilitySpec{
+			LegacyDurabilitySpec: &kv_v1.LegacyDurabilitySpec{
 				NumPersisted:  opts.PersistTo,
 				NumReplicated: opts.ReplicateTo,
 			},
 		}
 	}
 
-	resp, err := client.dataClient.Insert(ctx, req)
+	resp, err := client.kvClient.Insert(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -295,32 +295,32 @@ func (c *Collection) Replace(ctx context.Context, id string, content []byte, opt
 		cas = &protoCas
 	}
 
-	req := &data_v1.ReplaceRequest{
+	req := &kv_v1.ReplaceRequest{
 		BucketName:     bucketName,
 		ScopeName:      scopeName,
 		CollectionName: collName,
 		Key:            id,
 		Content:        content,
-		ContentType:    data_v1.DocumentContentType_JSON,
+		ContentType:    kv_v1.DocumentContentType_JSON,
 		Expiry:         durationToTimestamp(opts.Expiry),
 		Cas:            cas,
 	}
 
 	if opts.DurabilityLevel != DurabilityLevelUnknown {
-		req.DurabilitySpec = &data_v1.ReplaceRequest_DurabilityLevel{
+		req.DurabilitySpec = &kv_v1.ReplaceRequest_DurabilityLevel{
 			DurabilityLevel: *opts.DurabilityLevel.toProto(),
 		}
 	}
 	if opts.ReplicateTo > 0 || opts.PersistTo > 0 {
-		req.DurabilitySpec = &data_v1.ReplaceRequest_LegacyDurabilitySpec{
-			LegacyDurabilitySpec: &data_v1.LegacyDurabilitySpec{
+		req.DurabilitySpec = &kv_v1.ReplaceRequest_LegacyDurabilitySpec{
+			LegacyDurabilitySpec: &kv_v1.LegacyDurabilitySpec{
 				NumPersisted:  opts.PersistTo,
 				NumReplicated: opts.ReplicateTo,
 			},
 		}
 	}
 
-	resp, err := client.dataClient.Replace(ctx, req)
+	resp, err := client.kvClient.Replace(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -350,7 +350,7 @@ func (c *Collection) Remove(ctx context.Context, id string, opts *RemoveOptions)
 		cas = &protoCas
 	}
 
-	req := &data_v1.RemoveRequest{
+	req := &kv_v1.RemoveRequest{
 		BucketName:     bucketName,
 		ScopeName:      scopeName,
 		CollectionName: collName,
@@ -359,20 +359,20 @@ func (c *Collection) Remove(ctx context.Context, id string, opts *RemoveOptions)
 	}
 
 	if opts.DurabilityLevel != DurabilityLevelUnknown {
-		req.DurabilitySpec = &data_v1.RemoveRequest_DurabilityLevel{
+		req.DurabilitySpec = &kv_v1.RemoveRequest_DurabilityLevel{
 			DurabilityLevel: *opts.DurabilityLevel.toProto(),
 		}
 	}
 	if opts.ReplicateTo > 0 || opts.PersistTo > 0 {
-		req.DurabilitySpec = &data_v1.RemoveRequest_LegacyDurabilitySpec{
-			LegacyDurabilitySpec: &data_v1.LegacyDurabilitySpec{
+		req.DurabilitySpec = &kv_v1.RemoveRequest_LegacyDurabilitySpec{
+			LegacyDurabilitySpec: &kv_v1.LegacyDurabilitySpec{
 				NumPersisted:  opts.PersistTo,
 				NumReplicated: opts.ReplicateTo,
 			},
 		}
 	}
 
-	resp, err := client.dataClient.Remove(ctx, req)
+	resp, err := client.kvClient.Remove(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -394,7 +394,7 @@ func (c *Collection) Touch(ctx context.Context, id string, expiry time.Duration,
 	*/
 	client, bucketName, scopeName, collName := c.getClient()
 
-	req := &data_v1.TouchRequest{
+	req := &kv_v1.TouchRequest{
 		BucketName:     bucketName,
 		ScopeName:      scopeName,
 		CollectionName: collName,
@@ -402,7 +402,7 @@ func (c *Collection) Touch(ctx context.Context, id string, expiry time.Duration,
 		Expiry:         durationToTimestamp(expiry),
 	}
 
-	resp, err := client.dataClient.Touch(ctx, req)
+	resp, err := client.kvClient.Touch(ctx, req)
 	if err != nil {
 		return nil, err
 	}
