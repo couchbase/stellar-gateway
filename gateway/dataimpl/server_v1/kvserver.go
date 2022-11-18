@@ -420,7 +420,7 @@ func (s *KvServer) LookupIn(ctx context.Context, in *kv_v1.LookupInRequest) (*kv
 		err := result.ContentAt(uint(specIdx), &contentBytes)
 		if err != nil {
 			respSpecs = append(respSpecs, &kv_v1.LookupInResponse_Spec{
-				// Status:  cbErrToPsStatus(err),
+				Status:  cbErrToPsStatus(err).Proto(),
 				Content: nil,
 			})
 			continue

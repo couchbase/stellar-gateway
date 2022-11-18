@@ -4,6 +4,7 @@ option go_package = "github.com/couchbase/stellar-nebula/genproto/kv_v1;kv_v1";
 
 package com.couchbase.kv.v1;
 
+import "contrib/googleapis/google/rpc/status.proto";
 import "google/protobuf/timestamp.proto";
 import "proto/com.couchbase.v1.proto";
 
@@ -311,7 +312,7 @@ message LookupInRequest {
 
 message LookupInResponse {
   message Spec {
-    // google.rpc.Status status = 1;
+    google.rpc.Status status = 1;
     bytes content = 2;
   }
   repeated Spec specs = 1;
