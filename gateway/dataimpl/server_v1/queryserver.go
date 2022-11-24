@@ -90,7 +90,7 @@ func (s *QueryServer) Query(in *query_v1.QueryRequest, out query_v1.Query_QueryS
 		for k, param := range named {
 			var p interface{}
 			if err := json.Unmarshal(param, &p); err != nil {
-				return cbErrToPs(err)
+				return cbGenericErrToPsStatus(err).Err()
 			}
 
 			params[k] = p
@@ -102,7 +102,7 @@ func (s *QueryServer) Query(in *query_v1.QueryRequest, out query_v1.Query_QueryS
 		for i, param := range pos {
 			var p interface{}
 			if err := json.Unmarshal(param, &p); err != nil {
-				return cbErrToPs(err)
+				return cbGenericErrToPsStatus(err).Err()
 			}
 
 			params[i] = p
@@ -124,7 +124,7 @@ func (s *QueryServer) Query(in *query_v1.QueryRequest, out query_v1.Query_QueryS
 
 	result, err := s.cbClient.Query(in.Statement, &opts)
 	if err != nil {
-		return cbErrToPs(err)
+		return cbGenericErrToPsStatus(err).Err()
 	}
 
 	var rowCache [][]byte
@@ -135,7 +135,7 @@ func (s *QueryServer) Query(in *query_v1.QueryRequest, out query_v1.Query_QueryS
 		var rowBytes json.RawMessage
 		err := result.Row(&rowBytes)
 		if err != nil {
-			return cbErrToPs(err)
+			return cbGenericErrToPsStatus(err).Err()
 		}
 		rowNumBytes := len(rowBytes)
 
@@ -147,7 +147,7 @@ func (s *QueryServer) Query(in *query_v1.QueryRequest, out query_v1.Query_QueryS
 				MetaData: nil,
 			})
 			if err != nil {
-				return cbErrToPs(err)
+				return cbGenericErrToPsStatus(err).Err()
 			}
 
 			rowCache = nil
@@ -235,13 +235,13 @@ func (s *QueryServer) Query(in *query_v1.QueryRequest, out query_v1.Query_QueryS
 			MetaData: psMetaData,
 		})
 		if err != nil {
-			return cbErrToPs(err)
+			return cbGenericErrToPsStatus(err).Err()
 		}
 	}
 
 	err = result.Err()
 	if err != nil {
-		return cbErrToPs(err)
+		return cbGenericErrToPsStatus(err).Err()
 	}
 
 	return nil

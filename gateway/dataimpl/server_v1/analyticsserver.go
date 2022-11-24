@@ -47,7 +47,7 @@ func (s *AnalyticsServer) AnalyticsQuery(in *analytics_v1.AnalyticsQueryRequest,
 		for k, param := range named {
 			var p interface{}
 			if err := json.Unmarshal(param, &p); err != nil {
-				return cbErrToPs(err)
+				return cbGenericErrToPsStatus(err).Err()
 			}
 
 			params[k] = p
@@ -59,7 +59,7 @@ func (s *AnalyticsServer) AnalyticsQuery(in *analytics_v1.AnalyticsQueryRequest,
 		for i, param := range pos {
 			var p interface{}
 			if err := json.Unmarshal(param, &p); err != nil {
-				return cbErrToPs(err)
+				return cbGenericErrToPsStatus(err).Err()
 			}
 
 			params[i] = p
@@ -69,7 +69,7 @@ func (s *AnalyticsServer) AnalyticsQuery(in *analytics_v1.AnalyticsQueryRequest,
 
 	result, err := s.cbClient.AnalyticsQuery(in.Statement, &opts)
 	if err != nil {
-		return cbErrToPs(err)
+		return cbGenericErrToPsStatus(err).Err()
 	}
 
 	var rowCache [][]byte
@@ -80,7 +80,7 @@ func (s *AnalyticsServer) AnalyticsQuery(in *analytics_v1.AnalyticsQueryRequest,
 		var rowBytes json.RawMessage
 		err := result.Row(&rowBytes)
 		if err != nil {
-			return cbErrToPs(err)
+			return cbGenericErrToPsStatus(err).Err()
 		}
 
 		rowNumBytes := len(rowBytes)
@@ -93,7 +93,7 @@ func (s *AnalyticsServer) AnalyticsQuery(in *analytics_v1.AnalyticsQueryRequest,
 				MetaData: nil,
 			})
 			if err != nil {
-				return cbErrToPs(err)
+				return cbGenericErrToPsStatus(err).Err()
 			}
 
 			rowCache = nil
@@ -150,13 +150,13 @@ func (s *AnalyticsServer) AnalyticsQuery(in *analytics_v1.AnalyticsQueryRequest,
 			MetaData: psMetaData,
 		})
 		if err != nil {
-			return cbErrToPs(err)
+			return cbGenericErrToPsStatus(err).Err()
 		}
 	}
 
 	err = result.Err()
 	if err != nil {
-		return cbErrToPs(err)
+		return cbGenericErrToPsStatus(err).Err()
 	}
 
 	return nil

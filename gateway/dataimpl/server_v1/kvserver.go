@@ -3,9 +3,12 @@ package server_v1
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"log"
 	"time"
 
 	"github.com/couchbase/gocb/v2"
+	"github.com/couchbase/gocbcore/v10"
 	"github.com/couchbase/stellar-nebula/genproto/kv_v1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -17,12 +20,39 @@ type KvServer struct {
 	cbClient *gocb.Cluster
 }
 
-func (s *KvServer) getCollection(ctx context.Context, bucketName, scopeName, collectionName string) *gocb.Collection {
+func (s *KvServer) getCollection(
+	ctx context.Context,
+	bucketName, scopeName, collectionName string,
+) *gocb.Collection {
 	client := s.cbClient
 	bucket := client.Bucket(bucketName)
 	scope := bucket.Scope(scopeName)
 	collection := scope.Collection(collectionName)
 	return collection
+}
+
+func (s *KvServer) getResultToContent(
+	ctx context.Context,
+	result *gocb.GetResult,
+) (psTranscodeData, *status.Status) {
+	var contentData psTranscodeData
+	err := result.Content(&contentData)
+	if err != nil {
+		// The transcoder that we implement in the gateway should not be possible
+		// to lead to errors being produced here.  If they are produced, this is
+		// considered a serious internal error, so we report that error and then
+		// return an INTERNAL error to the client.
+
+		log.Printf("Unexpected transcoder failure: %s", err)
+
+		// TODO(brett19): We should conditionally attach debug information here to
+		// indicate what the actual transcoding error was.
+		return psTranscodeData{}, status.New(
+			codes.Internal,
+			"An unexpected internal transcoding failure occurred.")
+	}
+
+	return contentData, nil
 }
 
 func (s *KvServer) Get(ctx context.Context, in *kv_v1.GetRequest) (*kv_v1.GetResponse, error) {
@@ -34,13 +64,18 @@ func (s *KvServer) Get(ctx context.Context, in *kv_v1.GetRequest) (*kv_v1.GetRes
 	opts.Context = ctx
 	result, err := coll.Get(in.Key, &opts)
 	if err != nil {
-		return nil, cbErrToPs(err)
+		if errors.Is(err, gocb.ErrDocumentNotFound) {
+			return nil, newDocMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+		} else if errors.Is(err, gocbcore.ErrMemdAccessError) {
+			// TODO(brett19): Need to confirm ErrMemdAccessError works here.
+			return nil, newCollectionNoReadAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+		}
+		return nil, cbGenericErrToPsStatus(err).Err()
 	}
 
-	var contentData psTranscodeData
-	err = result.Content(&contentData)
-	if err != nil {
-		return nil, cbErrToPs(err)
+	contentData, errSt := s.getResultToContent(ctx, result)
+	if errSt != nil {
+		return nil, errSt.Err()
 	}
 
 	return &kv_v1.GetResponse{
@@ -82,7 +117,13 @@ func (s *KvServer) Insert(ctx context.Context, in *kv_v1.InsertRequest) (*kv_v1.
 
 	result, err := coll.Insert(in.Key, contentData, &opts)
 	if err != nil {
-		return nil, cbErrToPs(err)
+		if errors.Is(err, gocb.ErrDocumentExists) {
+			return nil, newDocExistsStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+		} else if errors.Is(err, gocbcore.ErrMemdAccessError) {
+			// TODO(brett19): Need to confirm ErrMemdAccessError works here.
+			return nil, newCollectionNoWriteAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+		}
+		return nil, cbGenericErrToPsStatus(err).Err()
 	}
 
 	return &kv_v1.InsertResponse{
@@ -124,7 +165,16 @@ func (s *KvServer) Upsert(ctx context.Context, in *kv_v1.UpsertRequest) (*kv_v1.
 
 	result, err := coll.Upsert(in.Key, contentData, &opts)
 	if err != nil {
-		return nil, cbErrToPs(err)
+		if errors.Is(err, gocb.ErrDocumentExists) {
+			// TODO(brett19): Need to confirm this is the right error for CAS mismatch
+			return nil, newDocCasMismatchStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+		} else if errors.Is(err, gocb.ErrDocumentLocked) {
+			return nil, newDocLockedStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+		} else if errors.Is(err, gocbcore.ErrMemdAccessError) {
+			// TODO(brett19): Need to confirm ErrMemdAccessError works here.
+			return nil, newCollectionNoWriteAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+		}
+		return nil, cbGenericErrToPsStatus(err).Err()
 	}
 
 	return &kv_v1.UpsertResponse{
@@ -170,7 +220,18 @@ func (s *KvServer) Replace(ctx context.Context, in *kv_v1.ReplaceRequest) (*kv_v
 
 	result, err := coll.Replace(in.Key, contentData, &opts)
 	if err != nil {
-		return nil, cbErrToPs(err)
+		if errors.Is(err, gocb.ErrDocumentNotFound) {
+			return nil, newDocMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+		} else if errors.Is(err, gocb.ErrDocumentExists) {
+			// TODO(brett19): Need to confirm this is the right error for CAS mismatch
+			return nil, newDocCasMismatchStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+		} else if errors.Is(err, gocb.ErrDocumentLocked) {
+			return nil, newDocLockedStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+		} else if errors.Is(err, gocbcore.ErrMemdAccessError) {
+			// TODO(brett19): Need to confirm ErrMemdAccessError works here.
+			return nil, newCollectionNoWriteAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+		}
+		return nil, cbGenericErrToPsStatus(err).Err()
 	}
 
 	return &kv_v1.ReplaceResponse{
@@ -205,7 +266,18 @@ func (s *KvServer) Remove(ctx context.Context, in *kv_v1.RemoveRequest) (*kv_v1.
 
 	result, err := coll.Remove(in.Key, &opts)
 	if err != nil {
-		return nil, cbErrToPs(err)
+		if errors.Is(err, gocb.ErrDocumentNotFound) {
+			return nil, newDocMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+		} else if errors.Is(err, gocb.ErrDocumentExists) {
+			// TODO(brett19): Need to confirm this is the right error for CAS mismatch
+			return nil, newDocCasMismatchStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+		} else if errors.Is(err, gocb.ErrDocumentLocked) {
+			return nil, newDocLockedStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+		} else if errors.Is(err, gocbcore.ErrMemdAccessError) {
+			// TODO(brett19): Need to confirm ErrMemdAccessError works here.
+			return nil, newCollectionNoWriteAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+		}
+		return nil, cbGenericErrToPsStatus(err).Err()
 	}
 
 	return &kv_v1.RemoveResponse{
@@ -245,7 +317,21 @@ func (s *KvServer) Increment(ctx context.Context, in *kv_v1.IncrementRequest) (*
 
 	result, err := coll.Binary().Increment(in.Key, &opts)
 	if err != nil {
-		return nil, cbErrToPs(err)
+		if errors.Is(err, gocb.ErrDocumentNotFound) {
+			return nil, newDocMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+		} else if errors.Is(err, gocb.ErrDocumentExists) {
+			// TODO(brett19): Need to confirm this is the right error for CAS mismatch
+			return nil, newDocCasMismatchStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+		} else if errors.Is(err, gocb.ErrDocumentLocked) {
+			return nil, newDocLockedStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+		} else if errors.Is(err, gocbcore.ErrMemdBadDelta) {
+			// TODO(brett19): Need to confirm ErrMemdBadDelta works here.
+			return nil, newDocNotNumericContentStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+		} else if errors.Is(err, gocbcore.ErrMemdAccessError) {
+			// TODO(brett19): Need to confirm ErrMemdAccessError works here.
+			return nil, newCollectionNoWriteAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+		}
+		return nil, cbGenericErrToPsStatus(err).Err()
 	}
 
 	return &kv_v1.IncrementResponse{
@@ -286,7 +372,21 @@ func (s *KvServer) Decrement(ctx context.Context, in *kv_v1.DecrementRequest) (*
 
 	result, err := coll.Binary().Decrement(in.Key, &opts)
 	if err != nil {
-		return nil, cbErrToPs(err)
+		if errors.Is(err, gocb.ErrDocumentNotFound) {
+			return nil, newDocMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+		} else if errors.Is(err, gocb.ErrDocumentExists) {
+			// TODO(brett19): Need to confirm this is the right error for CAS mismatch
+			return nil, newDocCasMismatchStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+		} else if errors.Is(err, gocb.ErrDocumentLocked) {
+			return nil, newDocLockedStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+		} else if errors.Is(err, gocbcore.ErrMemdBadDelta) {
+			// TODO(brett19): Need to confirm ErrMemdBadDelta works here.
+			return nil, newDocNotNumericContentStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+		} else if errors.Is(err, gocbcore.ErrMemdAccessError) {
+			// TODO(brett19): Need to confirm ErrMemdAccessError works here.
+			return nil, newCollectionNoWriteAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+		}
+		return nil, cbGenericErrToPsStatus(err).Err()
 	}
 
 	return &kv_v1.DecrementResponse{
@@ -325,7 +425,18 @@ func (s *KvServer) Append(ctx context.Context, in *kv_v1.AppendRequest) (*kv_v1.
 
 	result, err := coll.Binary().Append(in.Key, in.Content, &opts)
 	if err != nil {
-		return nil, cbErrToPs(err)
+		if errors.Is(err, gocb.ErrDocumentNotFound) {
+			return nil, newDocMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+		} else if errors.Is(err, gocb.ErrDocumentExists) {
+			// TODO(brett19): Need to confirm this is the right error for CAS mismatch
+			return nil, newDocCasMismatchStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+		} else if errors.Is(err, gocb.ErrDocumentLocked) {
+			return nil, newDocLockedStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+		} else if errors.Is(err, gocbcore.ErrMemdAccessError) {
+			// TODO(brett19): Need to confirm ErrMemdAccessError works here.
+			return nil, newCollectionNoWriteAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+		}
+		return nil, cbGenericErrToPsStatus(err).Err()
 	}
 
 	return &kv_v1.AppendResponse{
@@ -363,7 +474,18 @@ func (s *KvServer) Prepend(ctx context.Context, in *kv_v1.PrependRequest) (*kv_v
 
 	result, err := coll.Binary().Prepend(in.Key, in.Content, &opts)
 	if err != nil {
-		return nil, cbErrToPs(err)
+		if errors.Is(err, gocb.ErrDocumentNotFound) {
+			return nil, newDocMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+		} else if errors.Is(err, gocb.ErrDocumentExists) {
+			// TODO(brett19): Need to confirm this is the right error for CAS mismatch
+			return nil, newDocCasMismatchStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+		} else if errors.Is(err, gocb.ErrDocumentLocked) {
+			return nil, newDocLockedStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+		} else if errors.Is(err, gocbcore.ErrMemdAccessError) {
+			// TODO(brett19): Need to confirm ErrMemdAccessError works here.
+			return nil, newCollectionNoWriteAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+		}
+		return nil, cbGenericErrToPsStatus(err).Err()
 	}
 
 	return &kv_v1.PrependResponse{
@@ -410,7 +532,13 @@ func (s *KvServer) LookupIn(ctx context.Context, in *kv_v1.LookupInRequest) (*kv
 
 	result, err := coll.LookupIn(in.Key, specs, &opts)
 	if err != nil {
-		return nil, cbErrToPs(err)
+		if errors.Is(err, gocb.ErrDocumentNotFound) {
+			return nil, newDocMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+		} else if errors.Is(err, gocbcore.ErrMemdAccessError) {
+			// TODO(brett19): Need to confirm ErrMemdAccessError works here.
+			return nil, newCollectionNoReadAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+		}
+		return nil, cbGenericErrToPsStatus(err).Err()
 	}
 
 	var respSpecs []*kv_v1.LookupInResponse_Spec
@@ -419,16 +547,27 @@ func (s *KvServer) LookupIn(ctx context.Context, in *kv_v1.LookupInRequest) (*kv
 		var contentBytes json.RawMessage
 		err := result.ContentAt(uint(specIdx), &contentBytes)
 		if err != nil {
-			respSpecs = append(respSpecs, &kv_v1.LookupInResponse_Spec{
-				Status:  cbErrToPsStatus(err).Proto(),
-				Content: nil,
-			})
-			continue
-		}
+			var errSt *status.Status
+			if errors.Is(err, gocb.ErrPathNotFound) {
+				errSt = newSdPathNotFoundStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key, in.Specs[specIdx].Path)
+			} else if errors.Is(err, gocb.ErrPathMismatch) {
+				errSt = newSdPathMismatchStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key, in.Specs[specIdx].Path)
+			} else if errors.Is(err, gocb.ErrPathInvalid) {
+				// Note that this is INVALID_ARGUMENTS not FAILED_PRECONDITION
+				return nil, newSdPathEinvalStatus(err, in.Specs[specIdx].Path).Err()
+			} else {
+				// TODO(brett19): Need to implement remaining possible sub-document errors.
+				errSt = newUnknownStatus(err)
+			}
 
-		respSpecs = append(respSpecs, &kv_v1.LookupInResponse_Spec{
-			Content: []byte(contentBytes),
-		})
+			respSpecs = append(respSpecs, &kv_v1.LookupInResponse_Spec{
+				Status: errSt.Proto(),
+			})
+		} else {
+			respSpecs = append(respSpecs, &kv_v1.LookupInResponse_Spec{
+				Content: []byte(contentBytes),
+			})
+		}
 	}
 
 	return &kv_v1.LookupInResponse{
@@ -545,7 +684,8 @@ func (s *KvServer) MutateIn(ctx context.Context, in *kv_v1.MutateInRequest) (*kv
 
 			var count int64
 			if err := json.Unmarshal(spec.Content, &count); err != nil {
-				return nil, cbErrToPs(err)
+				// TODO(brett19): Need to add additional context for which spec failed.
+				return nil, status.New(codes.InvalidArgument, "Invalid counter delta specified.").Err()
 			}
 			specs = append(specs, gocb.IncrementSpec(spec.Path, count, &specOpts))
 		}
@@ -571,7 +711,18 @@ func (s *KvServer) MutateIn(ctx context.Context, in *kv_v1.MutateInRequest) (*kv
 
 	result, err := coll.MutateIn(in.Key, specs, &opts)
 	if err != nil {
-		return nil, cbErrToPs(err)
+		if errors.Is(err, gocb.ErrDocumentNotFound) {
+			return nil, newDocMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+		} else if errors.Is(err, gocb.ErrDocumentExists) {
+			// TODO(brett19): Need to confirm this is the right error for CAS mismatch
+			return nil, newDocCasMismatchStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+		} else if errors.Is(err, gocb.ErrDocumentLocked) {
+			return nil, newDocLockedStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+		} else if errors.Is(err, gocbcore.ErrMemdAccessError) {
+			// TODO(brett19): Need to confirm ErrMemdAccessError works here.
+			return nil, newCollectionNoWriteAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+		}
+		return nil, cbGenericErrToPsStatus(err).Err()
 	}
 
 	var respSpecs []*kv_v1.MutateInResponse_Spec
@@ -580,12 +731,20 @@ func (s *KvServer) MutateIn(ctx context.Context, in *kv_v1.MutateInRequest) (*kv
 		var contentBytes json.RawMessage
 		err := result.ContentAt(uint(specIdx), &contentBytes)
 		if err != nil {
-			// if we get an error, we just put nil bytes
-			// TODO(brett19): check if we need to handle mutatein spec errors
-			respSpecs = append(respSpecs, &kv_v1.MutateInResponse_Spec{
-				Content: nil,
-			})
-			continue
+			// An error occuring during a mutateIn operation causes the entire operation
+			// to fail, so we just return an entire operation failure in that case.
+			if errors.Is(err, gocb.ErrPathNotFound) {
+				return nil, newSdPathNotFoundStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key, in.Specs[specIdx].Path).Err()
+			} else if errors.Is(err, gocb.ErrPathMismatch) {
+				return nil, newSdPathMismatchStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key, in.Specs[specIdx].Path).Err()
+			} else if errors.Is(err, gocb.ErrPathInvalid) {
+				// Note that this is INVALID_ARGUMENTS not FAILED_PRECONDITION
+				return nil, newSdPathEinvalStatus(err, in.Specs[specIdx].Path).Err()
+			}
+			// TODO(brett19): Need to implement remaining possible sub-document errors.
+			// Implementing the other errors is complicated because it does not appear that gocb
+			// is properly exporting all the possible errors that can occur here...
+			return nil, cbGenericErrToPsStatus(err).Err()
 		}
 
 		respSpecs = append(respSpecs, &kv_v1.MutateInResponse_Spec{

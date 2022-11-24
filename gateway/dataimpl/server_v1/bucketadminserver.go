@@ -20,7 +20,7 @@ func (s *BucketAdminServer) ListCollections(context context.Context, in *admin_b
 		Context: context,
 	})
 	if err != nil {
-		return nil, cbErrToPs(err)
+		return nil, cbGenericErrToPsStatus(err).Err()
 	}
 
 	var scopes []*admin_bucket_v1.ListCollectionsResponse_Scope
@@ -51,7 +51,7 @@ func (s *BucketAdminServer) CreateScope(context context.Context, in *admin_bucke
 		Context: context,
 	})
 	if err != nil {
-		return nil, cbErrToPs(err)
+		return nil, cbGenericErrToPsStatus(err).Err()
 	}
 
 	return &admin_bucket_v1.CreateScopeResponse{}, nil
@@ -64,7 +64,7 @@ func (s *BucketAdminServer) DeleteScope(context context.Context, in *admin_bucke
 		Context: context,
 	})
 	if err != nil {
-		return nil, cbErrToPs(err)
+		return nil, cbGenericErrToPsStatus(err).Err()
 	}
 
 	return &admin_bucket_v1.DeleteScopeResponse{}, nil
@@ -81,7 +81,7 @@ func (s *BucketAdminServer) CreateCollection(context context.Context, in *admin_
 		Context: context,
 	})
 	if err != nil {
-		return nil, cbErrToPs(err)
+		return nil, cbGenericErrToPsStatus(err).Err()
 	}
 
 	return &admin_bucket_v1.CreateCollectionResponse{}, nil
@@ -97,7 +97,7 @@ func (s *BucketAdminServer) DeleteCollection(context context.Context, in *admin_
 		Context: context,
 	})
 	if err != nil {
-		return nil, cbErrToPs(err)
+		return nil, cbGenericErrToPsStatus(err).Err()
 	}
 
 	return &admin_bucket_v1.DeleteCollectionResponse{}, nil

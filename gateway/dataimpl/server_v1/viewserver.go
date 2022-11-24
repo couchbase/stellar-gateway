@@ -59,7 +59,7 @@ func (s *ViewsServer) ViewQuery(in *view_v1.ViewQueryRequest, out view_v1.View_V
 	if len(in.Key) > 0 {
 		var key interface{}
 		if err := json.Unmarshal(in.Key, &key); err != nil {
-			return cbErrToPs(err)
+			return cbGenericErrToPsStatus(err).Err()
 		}
 		opts.Key = key
 	}
@@ -68,7 +68,7 @@ func (s *ViewsServer) ViewQuery(in *view_v1.ViewQueryRequest, out view_v1.View_V
 		for i, k := range in.Keys {
 			var key interface{}
 			if err := json.Unmarshal(k, &key); err != nil {
-				return cbErrToPs(err)
+				return cbGenericErrToPsStatus(err).Err()
 			}
 
 			keys[i] = key
@@ -78,14 +78,14 @@ func (s *ViewsServer) ViewQuery(in *view_v1.ViewQueryRequest, out view_v1.View_V
 	if len(in.StartKey) > 0 {
 		var key interface{}
 		if err := json.Unmarshal(in.StartKey, &key); err != nil {
-			return cbErrToPs(err)
+			return cbGenericErrToPsStatus(err).Err()
 		}
 		opts.StartKey = key
 	}
 	if len(in.EndKey) > 0 {
 		var key interface{}
 		if err := json.Unmarshal(in.EndKey, &key); err != nil {
-			return cbErrToPs(err)
+			return cbGenericErrToPsStatus(err).Err()
 		}
 		opts.EndKey = key
 	}
@@ -114,7 +114,7 @@ func (s *ViewsServer) ViewQuery(in *view_v1.ViewQueryRequest, out view_v1.View_V
 
 	result, err := s.cbClient.Bucket(in.BucketName).ViewQuery(in.DesignDocumentName, in.ViewName, &opts)
 	if err != nil {
-		return cbErrToPs(err)
+		return cbGenericErrToPsStatus(err).Err()
 	}
 
 	var rowCache []*view_v1.ViewQueryResponse_Row
@@ -127,12 +127,12 @@ func (s *ViewsServer) ViewQuery(in *view_v1.ViewQueryRequest, out view_v1.View_V
 		var rowKeyBytes json.RawMessage
 		err := row.Key(&rowKeyBytes)
 		if err != nil {
-			return cbErrToPs(err)
+			return cbGenericErrToPsStatus(err).Err()
 		}
 		var rowValBytes json.RawMessage
 		err = row.Value(&rowValBytes)
 		if err != nil {
-			return cbErrToPs(err)
+			return cbGenericErrToPsStatus(err).Err()
 		}
 
 		rowNumBytes := len(rowKeyBytes) + len(rowValBytes) + len(row.ID)
@@ -145,7 +145,7 @@ func (s *ViewsServer) ViewQuery(in *view_v1.ViewQueryRequest, out view_v1.View_V
 				MetaData: nil,
 			})
 			if err != nil {
-				return cbErrToPs(err)
+				return cbGenericErrToPsStatus(err).Err()
 			}
 
 			rowCache = nil
@@ -182,13 +182,13 @@ func (s *ViewsServer) ViewQuery(in *view_v1.ViewQueryRequest, out view_v1.View_V
 			MetaData: psMetaData,
 		})
 		if err != nil {
-			return cbErrToPs(err)
+			return cbGenericErrToPsStatus(err).Err()
 		}
 	}
 
 	err = result.Err()
 	if err != nil {
-		return cbErrToPs(err)
+		return cbGenericErrToPsStatus(err).Err()
 	}
 
 	return nil
