@@ -15,6 +15,7 @@ import (
 
 var numInstances = flag.Uint("num-instances", 3, "how many instances to run")
 var noDefaultPorts = flag.Bool("no-default-ports", false, "whether to avoid using default ports")
+var noLegacyDev = flag.Bool("no-legacy", false, "whether to disable the legacy bridge")
 var cbHost = flag.String("cb-host", "127.0.0.1", "the couchbase server host")
 var cbUser = flag.String("cb-user", "Administrator", "the couchbase server username")
 var cbPass = flag.String("cb-pass", "password", "the couchbase server password")
@@ -67,48 +68,50 @@ func main() {
 	gatewayAddr := <-gatewayConnStrCh
 	logger.Info("debug setup got a gateway address", zap.String("addr", gatewayAddr))
 
-	wg.Add(1)
-	go func() {
-		bindPorts := legacybridge.ServicePorts{}
-		tlsBindPorts := legacybridge.ServicePorts{}
+	if !*noLegacyDev {
+		wg.Add(1)
+		go func() {
+			bindPorts := legacybridge.ServicePorts{}
+			tlsBindPorts := legacybridge.ServicePorts{}
 
-		if !*noDefaultPorts {
-			bindPorts = legacybridge.ServicePorts{
-				Mgmt:      8091,
-				KV:        11210,
-				Views:     8092,
-				Query:     8093,
-				Search:    8094,
-				Analytics: 8095,
+			if !*noDefaultPorts {
+				bindPorts = legacybridge.ServicePorts{
+					Mgmt:      8091,
+					KV:        11210,
+					Views:     8092,
+					Query:     8093,
+					Search:    8094,
+					Analytics: 8095,
+				}
+
+				// TODO(brett19): Add a default TLS config and uncomment below.
+				/*
+					tlsBindPorts = legacybridge.ServicePorts{
+						Mgmt:      18091,
+						KV:        11207,
+						Views:     18092,
+						Query:     18093,
+						Search:    18094,
+						Analytics: 18095,
+					}
+				*/
 			}
 
-			// TODO(brett19): Add a default TLS config and uncomment below.
-			/*
-				tlsBindPorts = legacybridge.ServicePorts{
-					Mgmt:      18091,
-					KV:        11207,
-					Views:     18092,
-					Query:     18093,
-					Search:    18094,
-					Analytics: 18095,
-				}
-			*/
-		}
+			err := legacybridge.Run(context.Background(), &legacybridge.Config{
+				Logger:       logger.Named("bridge"),
+				ConnStr:      gatewayAddr,
+				BindPorts:    bindPorts,
+				TLSBindPorts: tlsBindPorts,
+				NumInstances: *numInstances,
+			})
+			if err != nil {
+				log.Printf("failed to initialize the legacy bridge: %s", err)
+				os.Exit(1)
+			}
 
-		err := legacybridge.Run(context.Background(), &legacybridge.Config{
-			Logger:       logger.Named("bridge"),
-			ConnStr:      gatewayAddr,
-			BindPorts:    bindPorts,
-			TLSBindPorts: tlsBindPorts,
-			NumInstances: *numInstances,
-		})
-		if err != nil {
-			log.Printf("failed to initialize the legacy bridge: %s", err)
-			os.Exit(1)
-		}
-
-		wg.Done()
-	}()
+			wg.Done()
+		}()
+	}
 
 	wg.Wait()
 }
