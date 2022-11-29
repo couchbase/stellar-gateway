@@ -6,7 +6,7 @@ option ruby_package = "Couchbase::StellarNebula::Generated::Query::V1";
 package com.couchbase.query.v1;
 
 import "google/protobuf/duration.proto";
-import "proto/com.couchbase.v1.proto";
+import "couchbase/common.v1.proto";
 
 service Query {
   rpc Query(QueryRequest) returns (stream QueryResponse) {}

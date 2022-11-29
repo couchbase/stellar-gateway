@@ -5,9 +5,9 @@ option ruby_package = "Couchbase::StellarNebula::Generated::KV::V1";
 
 package com.couchbase.kv.v1;
 
-import "contrib/googleapis/google/rpc/status.proto";
+import "google/rpc/status.proto";
 import "google/protobuf/timestamp.proto";
-import "proto/com.couchbase.v1.proto";
+import "couchbase/common.v1.proto";
 
 service Kv {
   rpc Get(GetRequest) returns (GetResponse) {}
