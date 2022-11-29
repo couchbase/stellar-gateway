@@ -6,7 +6,7 @@ option ruby_package = "Couchbase::StellarNebula::Generated::Query::V1";
 package couchbase.query.v1;
 
 import "google/protobuf/duration.proto";
-import "couchbase/common.v1.proto";
+import "couchbase/kv.v1.proto";
 
 service Query {
   rpc Query(QueryRequest) returns (stream QueryResponse) {}
@@ -41,7 +41,7 @@ message QueryRequest {
   map<string, bytes> named_parameters = 10;
   optional bool flex_index = 11;
   optional bool preserve_expiry = 12;
-  optional couchbase.v1.MutationState consistent_with = 13;
+  repeated couchbase.kv.v1.MutationToken consistent_with = 13;
 
   enum QueryProfileMode {
     OFF = 0;

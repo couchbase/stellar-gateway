@@ -1,7 +1,7 @@
 package gocbps
 
 import (
-	"github.com/couchbase/stellar-nebula/genproto/couchbase_v1"
+	"github.com/couchbase/stellar-nebula/genproto/kv_v1"
 )
 
 type MutationToken struct {
@@ -15,7 +15,7 @@ type MutationState struct {
 	Tokens []MutationToken
 }
 
-func mutationTokenFromPs(token *couchbase_v1.MutationToken) *MutationToken {
+func mutationTokenFromPs(token *kv_v1.MutationToken) *MutationToken {
 	if token == nil {
 		return nil
 	}

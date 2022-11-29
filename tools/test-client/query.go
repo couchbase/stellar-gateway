@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/couchbase/stellar-nebula/genproto/couchbase_v1"
+	"github.com/couchbase/stellar-nebula/genproto/kv_v1"
 	"github.com/couchbase/stellar-nebula/genproto/query_v1"
 	"google.golang.org/protobuf/types/known/durationpb"
 )
@@ -283,18 +283,16 @@ func (c *Client) Query(ctx context.Context, statement string, opts *QueryOptions
 	req.TuningOptions.DisableMetrics = &disableMetrics
 
 	if opts.ConsistentWith != nil {
-		tokens := make([]*couchbase_v1.MutationToken, len(opts.ConsistentWith.Tokens))
+		tokens := make([]*kv_v1.MutationToken, len(opts.ConsistentWith.Tokens))
 		for i, token := range opts.ConsistentWith.Tokens {
-			tokens[i] = &couchbase_v1.MutationToken{
+			tokens[i] = &kv_v1.MutationToken{
 				BucketName:  token.BucketName,
 				VbucketId:   uint32(token.VbID),
 				VbucketUuid: token.VbUUID,
 				SeqNo:       token.SeqNo,
 			}
 		}
-		req.ConsistentWith = &couchbase_v1.MutationState{
-			Tokens: tokens,
-		}
+		req.ConsistentWith = tokens
 	}
 
 	res, err := c.queryClient.Query(ctx, req)

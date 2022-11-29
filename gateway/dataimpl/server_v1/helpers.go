@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/couchbase/gocb/v2"
-	"github.com/couchbase/stellar-nebula/genproto/couchbase_v1"
 	"github.com/couchbase/stellar-nebula/genproto/kv_v1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -39,12 +38,12 @@ func durationFromPs(d *durationpb.Duration) time.Duration {
 	return d.AsDuration()
 }
 
-func tokenToPs(token *gocb.MutationToken) *couchbase_v1.MutationToken {
+func tokenToPs(token *gocb.MutationToken) *kv_v1.MutationToken {
 	if token == nil {
 		return nil
 	}
 
-	return &couchbase_v1.MutationToken{
+	return &kv_v1.MutationToken{
 		BucketName:  token.BucketName(),
 		VbucketId:   uint32(token.PartitionID()),
 		VbucketUuid: token.PartitionUUID(),
