@@ -3,7 +3,7 @@ syntax = "proto3";
 option go_package = "github.com/couchbase/stellar-nebula/genproto/query_v1;query_v1";
 option ruby_package = "Couchbase::StellarNebula::Generated::Query::V1";
 
-package com.couchbase.query.v1;
+package couchbase.query.v1;
 
 import "google/protobuf/duration.proto";
 import "couchbase/common.v1.proto";
@@ -41,7 +41,7 @@ message QueryRequest {
   map<string, bytes> named_parameters = 10;
   optional bool flex_index = 11;
   optional bool preserve_expiry = 12;
-  optional com.couchbase.v1.MutationState consistent_with = 13;
+  optional couchbase.v1.MutationState consistent_with = 13;
 
   enum QueryProfileMode {
     OFF = 0;

@@ -3,7 +3,7 @@ syntax = "proto3";
 option go_package = "github.com/couchbase/stellar-nebula/genproto/analytics_v1;analytics_v1";
 option ruby_package = "Couchbase::StellarNebula::Generated::Analytics::V1";
 
-package com.couchbase.analytics.v1;
+package couchbase.analytics.v1;
 
 import "google/protobuf/duration.proto";
 

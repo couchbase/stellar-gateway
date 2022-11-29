@@ -3,7 +3,7 @@ syntax = "proto3";
 option go_package = "github.com/couchbase/stellar-nebula/genproto/search_v1;search_v1";
 option ruby_package = "Couchbase::StellarNebula::Generated::Search::V1";
 
-package com.couchbase.search.v1;
+package couchbase.search.v1;
 
 import "google/protobuf/duration.proto";
 

@@ -3,7 +3,7 @@ syntax = "proto3";
 option go_package = "github.com/couchbase/stellar-nebula/genproto/kv_v1;kv_v1";
 option ruby_package = "Couchbase::StellarNebula::Generated::KV::V1";
 
-package com.couchbase.kv.v1;
+package couchbase.kv.v1;
 
 import "google/rpc/status.proto";
 import "google/protobuf/timestamp.proto";
@@ -119,7 +119,7 @@ message TouchRequest {
 
 message TouchResponse {
   uint64 cas = 1;
-  com.couchbase.v1.MutationToken mutation_token = 2;
+  couchbase.v1.MutationToken mutation_token = 2;
 }
 
 message ExistsRequest {
@@ -150,7 +150,7 @@ message InsertRequest {
 
 message InsertResponse {
   uint64 cas = 1;
-  com.couchbase.v1.MutationToken mutation_token = 2;
+  couchbase.v1.MutationToken mutation_token = 2;
 }
 
 message UpsertRequest {
@@ -169,7 +169,7 @@ message UpsertRequest {
 
 message UpsertResponse {
   uint64 cas = 1;
-  com.couchbase.v1.MutationToken mutation_token = 2;
+  couchbase.v1.MutationToken mutation_token = 2;
 }
 
 message ReplaceRequest {
@@ -189,7 +189,7 @@ message ReplaceRequest {
 
 message ReplaceResponse {
   uint64 cas = 1;
-  com.couchbase.v1.MutationToken mutation_token = 2;
+  couchbase.v1.MutationToken mutation_token = 2;
 }
 
 message RemoveRequest {
@@ -206,7 +206,7 @@ message RemoveRequest {
 
 message RemoveResponse {
   uint64 cas = 1;
-  com.couchbase.v1.MutationToken mutation_token = 2;
+  couchbase.v1.MutationToken mutation_token = 2;
 }
 
 message IncrementRequest {
@@ -226,7 +226,7 @@ message IncrementRequest {
 message IncrementResponse {
   uint64 cas = 1;
   int64 content = 2;
-  com.couchbase.v1.MutationToken mutation_token = 3;
+  couchbase.v1.MutationToken mutation_token = 3;
 }
 
 message DecrementRequest {
@@ -246,7 +246,7 @@ message DecrementRequest {
 message DecrementResponse {
   uint64 cas = 1;
   int64 content = 2;
-  com.couchbase.v1.MutationToken mutation_token = 3;
+  couchbase.v1.MutationToken mutation_token = 3;
 }
 
 message AppendRequest {
@@ -264,7 +264,7 @@ message AppendRequest {
 
 message AppendResponse {
   uint64 cas = 1;
-  com.couchbase.v1.MutationToken mutation_token = 2;
+  couchbase.v1.MutationToken mutation_token = 2;
 }
 
 message PrependRequest {
@@ -282,7 +282,7 @@ message PrependRequest {
 
 message PrependResponse {
   uint64 cas = 1;
-  com.couchbase.v1.MutationToken mutation_token = 2;
+  couchbase.v1.MutationToken mutation_token = 2;
 }
 
 message LookupInRequest {
@@ -376,7 +376,7 @@ message MutateInResponse {
   repeated Spec specs = 1;
 
   uint64 cas = 2;
-  com.couchbase.v1.MutationToken mutation_token = 3;
+  couchbase.v1.MutationToken mutation_token = 3;
 }
 
 message RangeScanRequest {

@@ -3,7 +3,7 @@ syntax = "proto3";
 option go_package = "github.com/couchbase/stellar-nebula/genproto/view_v1;view_v1";
 option ruby_package = "Couchbase::StellarNebula::Generated::View::V1";
 
-package com.couchbase.view.v1;
+package couchbase.view.v1;
 
 service View {
   rpc ViewQuery(ViewQueryRequest) returns (stream ViewQueryResponse) {}

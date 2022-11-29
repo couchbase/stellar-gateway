@@ -3,7 +3,7 @@ syntax = "proto3";
 option go_package = "github.com/couchbase/stellar-nebula/genproto/routing_v1;routing_v1";
 option ruby_package = "Couchbase::StellarNebula::Generated::Routing::V1";
 
-package com.couchbase.routing.v1;
+package couchbase.routing.v1;
 
 service Routing {
   rpc WatchRouting(WatchRoutingRequest) returns (stream WatchRoutingResponse) {}

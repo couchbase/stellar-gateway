@@ -242,7 +242,7 @@ func main() {
 				{
 					Name:         "test",
 					Description:  "test description",
-					TargetMethod: "/com.couchbase.data.v1.Data/Upsert",
+					TargetMethod: "/couchbase.data.v1.Data/Upsert",
 					Actions: []*internal_hooks_v1.HookAction{
 						{
 							Action: &internal_hooks_v1.HookAction_WaitOnBarrier_{
