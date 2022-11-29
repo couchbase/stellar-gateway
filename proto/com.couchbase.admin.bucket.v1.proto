@@ -1,6 +1,7 @@
 syntax = "proto3";
 
 option go_package = "github.com/couchbase/stellar-nebula/genproto/admin_bucket_v1;admin_bucket_v1";
+option ruby_package = "Couchbase::StellarNebula::Generated::Bucket::V1";
 
 package com.couchbase.admin.bucket.v1;
 
