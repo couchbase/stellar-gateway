@@ -209,7 +209,7 @@ message Sorting {
 }
 
 service Search {
-  rpc SearchQuery(SearchQueryRequest) returns (stream SearchQueryResponse) {}
+  rpc search_query(SearchQueryRequest) returns (stream SearchQueryResponse) {}
 }
 
 message SearchQueryRequest {

@@ -8,7 +8,7 @@ import "google/protobuf/duration.proto";
 import "proto/com.couchbase.v1.proto";
 
 service Query {
-  rpc Query(QueryRequest) returns (stream QueryResponse) {}
+  rpc query(QueryRequest) returns (stream QueryResponse) {}
 }
 
 message QueryRequest {

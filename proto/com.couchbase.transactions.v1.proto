@@ -5,20 +5,14 @@ option go_package = "github.com/couchbase/stellar-nebula/genproto/transactions_v
 package com.couchbase.transactions.v1;
 
 service Transactions {
-  rpc TransactionBeginAttempt(TransactionBeginAttemptRequest)
-      returns (TransactionBeginAttemptResponse) {}
-  rpc TransactionCommit(TransactionCommitRequest)
-      returns (TransactionCommitResponse) {}
-  rpc TransactionRollback(TransactionRollbackRequest)
-      returns (TransactionRollbackResponse) {}
+  rpc transaction_begin_attempt(TransactionBeginAttemptRequest) returns (TransactionBeginAttemptResponse) {}
+  rpc transaction_commit(TransactionCommitRequest) returns (TransactionCommitResponse) {}
+  rpc transaction_rollback(TransactionRollbackRequest) returns (TransactionRollbackResponse) {}
 
-  rpc TransactionGet(TransactionGetRequest) returns (TransactionGetResponse) {}
-  rpc TransactionInsert(TransactionInsertRequest)
-      returns (TransactionInsertResponse) {}
-  rpc TransactionReplace(TransactionReplaceRequest)
-      returns (TransactionReplaceResponse) {}
-  rpc TransactionRemove(TransactionRemoveRequest)
-      returns (TransactionRemoveResponse) {}
+  rpc transaction_get(TransactionGetRequest) returns (TransactionGetResponse) {}
+  rpc transaction_insert(TransactionInsertRequest) returns (TransactionInsertResponse) {}
+  rpc transaction_replace(TransactionReplaceRequest) returns (TransactionReplaceResponse) {}
+  rpc transaction_remove(TransactionRemoveRequest) returns (TransactionRemoveResponse) {}
 }
 
 message TransactionBeginAttemptRequest {

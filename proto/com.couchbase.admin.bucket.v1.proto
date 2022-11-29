@@ -5,15 +5,12 @@ option go_package = "github.com/couchbase/stellar-nebula/genproto/admin_bucket_v
 package com.couchbase.admin.bucket.v1;
 
 service BucketAdmin {
-  rpc ListCollections(ListCollectionsRequest)
-      returns (ListCollectionsResponse) {}
+  rpc list_collections(ListCollectionsRequest) returns (ListCollectionsResponse) {}
 
-  rpc CreateScope(CreateScopeRequest) returns (CreateScopeResponse) {}
-  rpc DeleteScope(DeleteScopeRequest) returns (DeleteScopeResponse) {}
-  rpc CreateCollection(CreateCollectionRequest)
-      returns (CreateCollectionResponse) {}
-  rpc DeleteCollection(DeleteCollectionRequest)
-      returns (DeleteCollectionResponse) {}
+  rpc create_scope(CreateScopeRequest) returns (CreateScopeResponse) {}
+  rpc delete_scope(DeleteScopeRequest) returns (DeleteScopeResponse) {}
+  rpc create_collection(CreateCollectionRequest) returns (CreateCollectionResponse) {}
+  rpc delete_collection(DeleteCollectionRequest) returns (DeleteCollectionResponse) {}
 }
 
 message ListCollectionsRequest { string bucket_name = 1; }

@@ -5,7 +5,7 @@ option go_package = "github.com/couchbase/stellar-nebula/genproto/view_v1;view_v
 package com.couchbase.view.v1;
 
 service View {
-  rpc ViewQuery(ViewQueryRequest) returns (stream ViewQueryResponse) {}
+  rpc view_query(ViewQueryRequest) returns (stream ViewQueryResponse) {}
 }
 
 message ViewQueryRequest {

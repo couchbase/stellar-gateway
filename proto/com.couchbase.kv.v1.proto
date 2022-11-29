@@ -9,26 +9,26 @@ import "google/protobuf/timestamp.proto";
 import "proto/com.couchbase.v1.proto";
 
 service Kv {
-  rpc Get(GetRequest) returns (GetResponse) {}
-  rpc GetAndTouch(GetAndTouchRequest) returns (GetResponse) {}
-  rpc GetAndLock(GetAndLockRequest) returns (GetResponse) {}
-  rpc Unlock(UnlockRequest) returns (UnlockResponse) {}
-  rpc GetReplica(GetReplicaRequest) returns (GetResponse) {}
-  rpc Touch(TouchRequest) returns (TouchResponse) {}
-  rpc Exists(ExistsRequest) returns (ExistsResponse) {}
+  rpc get(GetRequest) returns (GetResponse) {}
+  rpc get_and_touch(GetAndTouchRequest) returns (GetResponse) {}
+  rpc get_and_lock(GetAndLockRequest) returns (GetResponse) {}
+  rpc unlock(UnlockRequest) returns (UnlockResponse) {}
+  rpc get_replica(GetReplicaRequest) returns (GetResponse) {}
+  rpc touch(TouchRequest) returns (TouchResponse) {}
+  rpc exists(ExistsRequest) returns (ExistsResponse) {}
 
-  rpc Insert(InsertRequest) returns (InsertResponse) {}
-  rpc Upsert(UpsertRequest) returns (UpsertResponse) {}
-  rpc Replace(ReplaceRequest) returns (ReplaceResponse) {}
-  rpc Remove(RemoveRequest) returns (RemoveResponse) {}
-  rpc Increment(IncrementRequest) returns (IncrementResponse) {}
-  rpc Decrement(DecrementRequest) returns (DecrementResponse) {}
-  rpc Append(AppendRequest) returns (AppendResponse) {}
-  rpc Prepend(PrependRequest) returns (PrependResponse) {}
-  rpc LookupIn(LookupInRequest) returns (LookupInResponse) {}
-  rpc MutateIn(MutateInRequest) returns (MutateInResponse) {}
+  rpc insert(InsertRequest) returns (InsertResponse) {}
+  rpc upsert(UpsertRequest) returns (UpsertResponse) {}
+  rpc replace(ReplaceRequest) returns (ReplaceResponse) {}
+  rpc remove(RemoveRequest) returns (RemoveResponse) {}
+  rpc increment(IncrementRequest) returns (IncrementResponse) {}
+  rpc decrement(DecrementRequest) returns (DecrementResponse) {}
+  rpc append(AppendRequest) returns (AppendResponse) {}
+  rpc prepend(PrependRequest) returns (PrependResponse) {}
+  rpc lookup_in(LookupInRequest) returns (LookupInResponse) {}
+  rpc mutate_in(MutateInRequest) returns (MutateInResponse) {}
 
-  rpc RangeScan(RangeScanRequest) returns (RangeScanResponse) {}
+  rpc range_scan(RangeScanRequest) returns (RangeScanResponse) {}
 }
 
 enum DurabilityLevel {

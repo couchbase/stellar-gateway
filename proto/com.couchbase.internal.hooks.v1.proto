@@ -7,15 +7,13 @@ package com.couchbase.internal.hooks.v1;
 import "google/protobuf/any.proto";
 
 service Hooks {
-  rpc CreateHooksContext(CreateHooksContextRequest)
-      returns (CreateHooksContextResponse) {}
-  rpc DestroyHooksContext(DestroyHooksContextRequest)
-      returns (DestroyHooksContextResponse) {}
+  rpc create_hooks_context(CreateHooksContextRequest) returns (CreateHooksContextResponse) {}
+  rpc destroy_hooks_context(DestroyHooksContextRequest) returns (DestroyHooksContextResponse) {}
 
-  rpc AddHooks(AddHooksRequest) returns (AddHooksResponse) {}
+  rpc add_hooks(AddHooksRequest) returns (AddHooksResponse) {}
 
-  rpc WatchBarrier(WatchBarrierRequest) returns (stream WatchBarrierResponse) {}
-  rpc SignalBarrier(SignalBarrierRequest) returns (SignalBarrierResponse) {}
+  rpc watch_barrier(WatchBarrierRequest) returns (stream WatchBarrierResponse) {}
+  rpc signal_barrier(SignalBarrierRequest) returns (SignalBarrierResponse) {}
 }
 
 message CreateHooksContextRequest { string id = 1; }

@@ -5,7 +5,7 @@ option go_package = "github.com/couchbase/stellar-nebula/genproto/routing_v1;rou
 package com.couchbase.routing.v1;
 
 service Routing {
-  rpc WatchRouting(WatchRoutingRequest) returns (stream WatchRoutingResponse) {}
+  rpc watch_routing(WatchRoutingRequest) returns (stream WatchRoutingResponse) {}
 }
 
 message RoutingEndpoint {
