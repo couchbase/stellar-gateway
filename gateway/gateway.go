@@ -122,7 +122,7 @@ func Run(ctx context.Context, config *Config) error {
 		})
 
 		log.Printf("initializing protostellar system")
-		legacySys, err := system.NewSystem(&system.SystemOptions{
+		gatewaySys, err := system.NewSystem(&system.SystemOptions{
 			Logger:   config.Logger,
 			DataImpl: dataImpl,
 			SdImpl:   sdImpl,
@@ -140,7 +140,7 @@ func Run(ctx context.Context, config *Config) error {
 			sdPort = 0
 		}
 
-		legacyLis, err := system.NewListeners(&system.ListenersOptions{
+		gatewayLis, err := system.NewListeners(&system.ListenersOptions{
 			Address:  config.BindAddress,
 			DataPort: dataPort,
 			SdPort:   sdPort,
@@ -166,8 +166,8 @@ func Run(ctx context.Context, config *Config) error {
 			return boundPort
 		}
 		advertisePorts := clustering.ServicePorts{
-			PS: pickPort(config.AdvertisePorts.PS, legacyLis.BoundDataPort()),
-			SD: pickPort(config.AdvertisePorts.SD, legacyLis.BoundSdPort()),
+			PS: pickPort(config.AdvertisePorts.PS, gatewayLis.BoundDataPort()),
+			SD: pickPort(config.AdvertisePorts.SD, gatewayLis.BoundSdPort()),
 		}
 
 		localMemberData := &clustering.Member{
@@ -196,7 +196,7 @@ func Run(ctx context.Context, config *Config) error {
 		}
 
 		log.Printf("starting to run protostellar system")
-		err = legacySys.Serve(ctx, legacyLis)
+		err = gatewaySys.Serve(ctx, gatewayLis)
 
 		if err != nil {
 			log.Printf("failed to serve protostellar system: %s", err)
