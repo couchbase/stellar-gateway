@@ -71,6 +71,12 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 func (s *System) Serve(ctx context.Context, l *Listeners) error {
 	var wg sync.WaitGroup
 
+	go func() {
+		<-ctx.Done()
+		s.dataServer.Stop()
+		s.sdServer.Stop()
+	}()
+
 	if l.dataListener != nil {
 		wg.Add(1)
 		go func() {
