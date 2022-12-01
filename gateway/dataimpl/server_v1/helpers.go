@@ -20,6 +20,13 @@ func casFromPs(cas *uint64) gocb.Cas {
 }
 
 func timeToPs(when time.Time) *timestamppb.Timestamp {
+	// This is a workaround for a bug in Go where its Zero return values are not
+	// actually matched with IsZero().
+	// TODO(brett19): Remove this workaround when gocbcore is fixed.
+	if when.Equal(time.Unix(0, 0)) {
+		return nil
+	}
+
 	if when.IsZero() {
 		return nil
 	}
