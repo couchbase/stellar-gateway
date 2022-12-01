@@ -3,6 +3,7 @@ package client
 import (
 	"crypto/x509"
 
+	"github.com/couchbase/stellar-nebula/contrib/grpcheaderauth"
 	"github.com/couchbase/stellar-nebula/genproto/kv_v1"
 	"github.com/couchbase/stellar-nebula/genproto/query_v1"
 	"github.com/couchbase/stellar-nebula/genproto/routing_v1"
@@ -35,7 +36,7 @@ func dialRoutingConn(address string, opts *routingConnOptions) (*routingConn, er
 		transportDialOpt = grpc.WithTransportCredentials(credentials.NewClientTLSFromCert(opts.ClientCertificate, ""))
 		perRpcDialOpt = nil
 	} else if opts.Username != "" && opts.Password != "" {
-		basicAuthCreds, err := newGrpcBasicAuth(opts.Username, opts.Password)
+		basicAuthCreds, err := grpcheaderauth.NewGrpcBasicAuth(opts.Username, opts.Password)
 		if err != nil {
 			return nil, err
 		}

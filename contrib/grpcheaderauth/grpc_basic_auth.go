@@ -1,4 +1,4 @@
-package client
+package grpcheaderauth
 
 import (
 	"context"
@@ -7,23 +7,23 @@ import (
 	"google.golang.org/grpc/credentials"
 )
 
-type grpcBasicAuth struct {
+type GrpcBasicAuth struct {
 	EncodedData string
 }
 
 // NewJWTAccessFromKey creates PerRPCCredentials from the given jsonKey.
-func newGrpcBasicAuth(username, password string) (credentials.PerRPCCredentials, error) {
+func NewGrpcBasicAuth(username, password string) (credentials.PerRPCCredentials, error) {
 	basicAuth := username + ":" + password
 	authValue := base64.StdEncoding.EncodeToString([]byte(basicAuth))
-	return grpcBasicAuth{authValue}, nil
+	return GrpcBasicAuth{authValue}, nil
 }
 
-func (j grpcBasicAuth) GetRequestMetadata(ctx context.Context, uri ...string) (map[string]string, error) {
+func (j GrpcBasicAuth) GetRequestMetadata(ctx context.Context, uri ...string) (map[string]string, error) {
 	return map[string]string{
 		"authorization": "Basic " + j.EncodedData,
 	}, nil
 }
 
-func (j grpcBasicAuth) RequireTransportSecurity() bool {
+func (j GrpcBasicAuth) RequireTransportSecurity() bool {
 	return false
 }
