@@ -11,6 +11,7 @@ import (
 	"github.com/couchbase/stellar-nebula/gateway/hooks"
 	"github.com/couchbase/stellar-nebula/gateway/sdimpl"
 	"github.com/couchbase/stellar-nebula/genproto/admin_bucket_v1"
+	"github.com/couchbase/stellar-nebula/genproto/admin_collection_v1"
 	"github.com/couchbase/stellar-nebula/genproto/analytics_v1"
 	"github.com/couchbase/stellar-nebula/genproto/internal_hooks_v1"
 	"github.com/couchbase/stellar-nebula/genproto/kv_v1"
@@ -51,6 +52,7 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 	search_v1.RegisterSearchServer(dataSrv, dataImpl.SearchV1Server)
 	analytics_v1.RegisterAnalyticsServer(dataSrv, dataImpl.AnalyticsV1Server)
 	admin_bucket_v1.RegisterBucketAdminServer(dataSrv, dataImpl.AdminBucketV1Server)
+	admin_collection_v1.RegisterCollectionAdminServer(dataSrv, dataImpl.AdminCollectionV1Server)
 	transactions_v1.RegisterTransactionsServer(dataSrv, dataImpl.TransactionsV1Server)
 
 	sdSrv := grpc.NewServer(
