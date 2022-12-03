@@ -59,6 +59,32 @@ func newUnknownStatus(baseErr error) *status.Status {
 	return st
 }
 
+func newBucketMissingStatus(baseErr error, bucketName string) *status.Status {
+	st := status.New(codes.NotFound,
+		fmt.Sprintf("Bucket '%s' was not found.",
+			bucketName))
+	st = tryAttachStatusDetails(st, &epb.ResourceInfo{
+		ResourceType: "bucket",
+		ResourceName: bucketName,
+		Description:  "",
+	})
+	st = tryAttachCbContext(st, baseErr)
+	return st
+}
+
+func newBucketExistsStatus(baseErr error, bucketName string) *status.Status {
+	st := status.New(codes.AlreadyExists,
+		fmt.Sprintf("Bucket '%s' already existed.",
+			bucketName))
+	st = tryAttachStatusDetails(st, &epb.ResourceInfo{
+		ResourceType: "bucket",
+		ResourceName: bucketName,
+		Description:  "",
+	})
+	st = tryAttachCbContext(st, baseErr)
+	return st
+}
+
 func newDocMissingStatus(baseErr error, bucketName, scopeName, collectionName, docId string) *status.Status {
 	st := status.New(codes.NotFound,
 		fmt.Sprintf("Document '%s' not found in '%s/%s/%s'.",
