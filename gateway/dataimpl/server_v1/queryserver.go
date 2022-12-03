@@ -56,7 +56,7 @@ func (s *QueryServer) Query(in *query_v1.QueryRequest, out query_v1.Query_QueryS
 			opts.PipelineCap = *in.TuningOptions.PipelineCap
 		}
 		if in.TuningOptions.ScanWait != nil {
-			opts.ScanWait = durationFromPs(in.TuningOptions.ScanWait)
+			opts.ScanWait = durationToGo(in.TuningOptions.ScanWait)
 		}
 		if in.TuningOptions.ScanCap != nil {
 			opts.ScanCap = *in.TuningOptions.ScanCap
@@ -169,8 +169,8 @@ func (s *QueryServer) Query(in *query_v1.QueryRequest, out query_v1.Query_QueryS
 
 		if opts.Metrics {
 			psMetrics := &query_v1.QueryResponse_MetaData_Metrics{
-				ElapsedTime:   durationToPs(metaData.Metrics.ElapsedTime),
-				ExecutionTime: durationToPs(metaData.Metrics.ExecutionTime),
+				ElapsedTime:   durationFromGo(metaData.Metrics.ElapsedTime),
+				ExecutionTime: durationFromGo(metaData.Metrics.ExecutionTime),
 				ResultCount:   metaData.Metrics.ResultCount,
 				ResultSize:    metaData.Metrics.ResultSize,
 				MutationCount: metaData.Metrics.MutationCount,

@@ -11,15 +11,15 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-func casToPs(cas gocb.Cas) uint64 {
+func casFromGocb(cas gocb.Cas) uint64 {
 	return uint64(cas)
 }
 
-func casFromPs(cas *uint64) gocb.Cas {
+func casToGocb(cas *uint64) gocb.Cas {
 	return gocb.Cas(*cas)
 }
 
-func timeToPs(when time.Time) *timestamppb.Timestamp {
+func timeFromGo(when time.Time) *timestamppb.Timestamp {
 	// This is a workaround for a bug in Go where its Zero return values are not
 	// actually matched with IsZero().
 	// TODO(brett19): Remove this workaround when gocbcore is fixed.
@@ -33,19 +33,19 @@ func timeToPs(when time.Time) *timestamppb.Timestamp {
 	return timestamppb.New(when)
 }
 
-func timeFromPs(ts *timestamppb.Timestamp) time.Time {
+func timeToGo(ts *timestamppb.Timestamp) time.Time {
 	return ts.AsTime()
 }
 
-func durationToPs(dura time.Duration) *durationpb.Duration {
+func durationFromGo(dura time.Duration) *durationpb.Duration {
 	return durationpb.New(dura)
 }
 
-func durationFromPs(d *durationpb.Duration) time.Duration {
+func durationToGo(d *durationpb.Duration) time.Duration {
 	return d.AsDuration()
 }
 
-func tokenToPs(token *gocb.MutationToken) *kv_v1.MutationToken {
+func tokenFromGocb(token *gocb.MutationToken) *kv_v1.MutationToken {
 	if token == nil {
 		return nil
 	}
@@ -58,12 +58,8 @@ func tokenToPs(token *gocb.MutationToken) *kv_v1.MutationToken {
 	}
 }
 
-func durabilityLevelFromPs(dl *kv_v1.DurabilityLevel) (gocb.DurabilityLevel, *status.Status) {
-	if dl == nil {
-		return gocb.DurabilityLevelNone, nil
-	}
-
-	switch *dl {
+func durabilityLevelToGocb(dl kv_v1.DurabilityLevel) (gocb.DurabilityLevel, *status.Status) {
+	switch dl {
 	case kv_v1.DurabilityLevel_MAJORITY:
 		return gocb.DurabilityLevelMajority, nil
 	case kv_v1.DurabilityLevel_MAJORITY_AND_PERSIST_TO_ACTIVE:
@@ -74,5 +70,5 @@ func durabilityLevelFromPs(dl *kv_v1.DurabilityLevel) (gocb.DurabilityLevel, *st
 
 	// TODO(brett19): We should attach the field reference information here indicating
 	// what specific field the user incorrectly specified.
-	return gocb.DurabilityLevelNone, status.New(codes.InvalidArgument, "invalid durability level options specified")
+	return gocb.DurabilityLevel(0), status.New(codes.InvalidArgument, "invalid durability level specified")
 }

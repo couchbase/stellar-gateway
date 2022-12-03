@@ -81,8 +81,8 @@ func (s *KvServer) Get(ctx context.Context, in *kv_v1.GetRequest) (*kv_v1.GetRes
 	return &kv_v1.GetResponse{
 		Content:     contentData.ContentBytes,
 		ContentType: contentData.ContentType,
-		Cas:         casToPs(result.Cas()),
-		Expiry:      timeToPs(result.ExpiryTime()),
+		Cas:         casFromGocb(result.Cas()),
+		Expiry:      timeFromGo(result.ExpiryTime()),
 	}, nil
 }
 
@@ -98,7 +98,7 @@ func (s *KvServer) Insert(ctx context.Context, in *kv_v1.InsertRequest) (*kv_v1.
 	opts.Context = ctx
 
 	if in.Expiry != nil {
-		opts.Expiry = time.Until(timeFromPs(in.Expiry))
+		opts.Expiry = time.Until(timeToGo(in.Expiry))
 	}
 
 	if in.DurabilitySpec != nil {
@@ -107,7 +107,7 @@ func (s *KvServer) Insert(ctx context.Context, in *kv_v1.InsertRequest) (*kv_v1.
 			opts.ReplicateTo = uint(legacySpec.LegacyDurabilitySpec.NumReplicated)
 		}
 		if levelSpec, ok := in.DurabilitySpec.(*kv_v1.InsertRequest_DurabilityLevel); ok {
-			dl, errSt := durabilityLevelFromPs(&levelSpec.DurabilityLevel)
+			dl, errSt := durabilityLevelToGocb(levelSpec.DurabilityLevel)
 			if errSt != nil {
 				return nil, errSt.Err()
 			}
@@ -127,8 +127,8 @@ func (s *KvServer) Insert(ctx context.Context, in *kv_v1.InsertRequest) (*kv_v1.
 	}
 
 	return &kv_v1.InsertResponse{
-		Cas:           casToPs(result.Cas()),
-		MutationToken: tokenToPs(result.MutationToken()),
+		Cas:           casFromGocb(result.Cas()),
+		MutationToken: tokenFromGocb(result.MutationToken()),
 	}, nil
 }
 
@@ -146,7 +146,7 @@ func (s *KvServer) Upsert(ctx context.Context, in *kv_v1.UpsertRequest) (*kv_v1.
 	if in.Expiry == nil {
 		opts.PreserveExpiry = true
 	} else {
-		opts.Expiry = time.Until(timeFromPs(in.Expiry))
+		opts.Expiry = time.Until(timeToGo(in.Expiry))
 	}
 
 	if in.DurabilitySpec != nil {
@@ -155,7 +155,7 @@ func (s *KvServer) Upsert(ctx context.Context, in *kv_v1.UpsertRequest) (*kv_v1.
 			opts.ReplicateTo = uint(legacySpec.LegacyDurabilitySpec.NumReplicated)
 		}
 		if levelSpec, ok := in.DurabilitySpec.(*kv_v1.UpsertRequest_DurabilityLevel); ok {
-			dl, errSt := durabilityLevelFromPs(&levelSpec.DurabilityLevel)
+			dl, errSt := durabilityLevelToGocb(levelSpec.DurabilityLevel)
 			if errSt != nil {
 				return nil, errSt.Err()
 			}
@@ -178,8 +178,8 @@ func (s *KvServer) Upsert(ctx context.Context, in *kv_v1.UpsertRequest) (*kv_v1.
 	}
 
 	return &kv_v1.UpsertResponse{
-		Cas:           casToPs(result.Cas()),
-		MutationToken: tokenToPs(result.MutationToken()),
+		Cas:           casFromGocb(result.Cas()),
+		MutationToken: tokenFromGocb(result.MutationToken()),
 	}, nil
 }
 
@@ -195,13 +195,13 @@ func (s *KvServer) Replace(ctx context.Context, in *kv_v1.ReplaceRequest) (*kv_v
 	opts.Context = ctx
 
 	if in.Cas != nil {
-		opts.Cas = casFromPs(in.Cas)
+		opts.Cas = casToGocb(in.Cas)
 	}
 
 	if in.Expiry == nil {
 		opts.PreserveExpiry = true
 	} else {
-		opts.Expiry = time.Until(timeFromPs(in.Expiry))
+		opts.Expiry = time.Until(timeToGo(in.Expiry))
 	}
 
 	if in.DurabilitySpec != nil {
@@ -210,7 +210,7 @@ func (s *KvServer) Replace(ctx context.Context, in *kv_v1.ReplaceRequest) (*kv_v
 			opts.ReplicateTo = uint(legacySpec.LegacyDurabilitySpec.NumReplicated)
 		}
 		if levelSpec, ok := in.DurabilitySpec.(*kv_v1.ReplaceRequest_DurabilityLevel); ok {
-			dl, errSt := durabilityLevelFromPs(&levelSpec.DurabilityLevel)
+			dl, errSt := durabilityLevelToGocb(levelSpec.DurabilityLevel)
 			if errSt != nil {
 				return nil, errSt.Err()
 			}
@@ -235,8 +235,8 @@ func (s *KvServer) Replace(ctx context.Context, in *kv_v1.ReplaceRequest) (*kv_v
 	}
 
 	return &kv_v1.ReplaceResponse{
-		Cas:           casToPs(result.Cas()),
-		MutationToken: tokenToPs(result.MutationToken()),
+		Cas:           casFromGocb(result.Cas()),
+		MutationToken: tokenFromGocb(result.MutationToken()),
 	}, nil
 }
 
@@ -247,7 +247,7 @@ func (s *KvServer) Remove(ctx context.Context, in *kv_v1.RemoveRequest) (*kv_v1.
 	opts.Context = ctx
 
 	if in.Cas != nil {
-		opts.Cas = casFromPs(in.Cas)
+		opts.Cas = casToGocb(in.Cas)
 	}
 
 	if in.DurabilitySpec != nil {
@@ -256,7 +256,7 @@ func (s *KvServer) Remove(ctx context.Context, in *kv_v1.RemoveRequest) (*kv_v1.
 			opts.ReplicateTo = uint(legacySpec.LegacyDurabilitySpec.NumReplicated)
 		}
 		if levelSpec, ok := in.DurabilitySpec.(*kv_v1.RemoveRequest_DurabilityLevel); ok {
-			dl, errSt := durabilityLevelFromPs(&levelSpec.DurabilityLevel)
+			dl, errSt := durabilityLevelToGocb(levelSpec.DurabilityLevel)
 			if errSt != nil {
 				return nil, errSt.Err()
 			}
@@ -281,8 +281,8 @@ func (s *KvServer) Remove(ctx context.Context, in *kv_v1.RemoveRequest) (*kv_v1.
 	}
 
 	return &kv_v1.RemoveResponse{
-		Cas:           casToPs(result.Cas()),
-		MutationToken: tokenToPs(result.MutationToken()),
+		Cas:           casFromGocb(result.Cas()),
+		MutationToken: tokenFromGocb(result.MutationToken()),
 	}, nil
 }
 
@@ -294,7 +294,7 @@ func (s *KvServer) Increment(ctx context.Context, in *kv_v1.IncrementRequest) (*
 	opts.Delta = in.Delta
 
 	if in.Expiry != nil {
-		opts.Expiry = time.Until(timeFromPs(in.Expiry))
+		opts.Expiry = time.Until(timeToGo(in.Expiry))
 	}
 
 	if in.DurabilitySpec != nil {
@@ -303,7 +303,7 @@ func (s *KvServer) Increment(ctx context.Context, in *kv_v1.IncrementRequest) (*
 			opts.ReplicateTo = uint(legacySpec.LegacyDurabilitySpec.NumReplicated)
 		}
 		if levelSpec, ok := in.DurabilitySpec.(*kv_v1.IncrementRequest_DurabilityLevel); ok {
-			dl, errSt := durabilityLevelFromPs(&levelSpec.DurabilityLevel)
+			dl, errSt := durabilityLevelToGocb(levelSpec.DurabilityLevel)
 			if errSt != nil {
 				return nil, errSt.Err()
 			}
@@ -335,9 +335,9 @@ func (s *KvServer) Increment(ctx context.Context, in *kv_v1.IncrementRequest) (*
 	}
 
 	return &kv_v1.IncrementResponse{
-		Cas:           casToPs(result.Cas()),
+		Cas:           casFromGocb(result.Cas()),
 		Content:       int64(result.Content()),
-		MutationToken: tokenToPs(result.MutationToken()),
+		MutationToken: tokenFromGocb(result.MutationToken()),
 	}, nil
 }
 
@@ -349,7 +349,7 @@ func (s *KvServer) Decrement(ctx context.Context, in *kv_v1.DecrementRequest) (*
 	opts.Delta = in.Delta
 
 	if in.Expiry != nil {
-		opts.Expiry = time.Until(timeFromPs(in.Expiry))
+		opts.Expiry = time.Until(timeToGo(in.Expiry))
 	}
 
 	if in.DurabilitySpec != nil {
@@ -358,7 +358,7 @@ func (s *KvServer) Decrement(ctx context.Context, in *kv_v1.DecrementRequest) (*
 			opts.ReplicateTo = uint(legacySpec.LegacyDurabilitySpec.NumReplicated)
 		}
 		if levelSpec, ok := in.DurabilitySpec.(*kv_v1.DecrementRequest_DurabilityLevel); ok {
-			dl, errSt := durabilityLevelFromPs(&levelSpec.DurabilityLevel)
+			dl, errSt := durabilityLevelToGocb(levelSpec.DurabilityLevel)
 			if errSt != nil {
 				return nil, errSt.Err()
 			}
@@ -390,9 +390,9 @@ func (s *KvServer) Decrement(ctx context.Context, in *kv_v1.DecrementRequest) (*
 	}
 
 	return &kv_v1.DecrementResponse{
-		Cas:           casToPs(result.Cas()),
+		Cas:           casFromGocb(result.Cas()),
 		Content:       int64(result.Content()),
-		MutationToken: tokenToPs(result.MutationToken()),
+		MutationToken: tokenFromGocb(result.MutationToken()),
 	}, nil
 }
 
@@ -406,7 +406,7 @@ func (s *KvServer) Append(ctx context.Context, in *kv_v1.AppendRequest) (*kv_v1.
 	opts.Context = ctx
 
 	if in.Cas != nil {
-		opts.Cas = casFromPs(in.Cas)
+		opts.Cas = casToGocb(in.Cas)
 	}
 
 	if in.DurabilitySpec != nil {
@@ -415,7 +415,7 @@ func (s *KvServer) Append(ctx context.Context, in *kv_v1.AppendRequest) (*kv_v1.
 			opts.ReplicateTo = uint(legacySpec.LegacyDurabilitySpec.NumReplicated)
 		}
 		if levelSpec, ok := in.DurabilitySpec.(*kv_v1.AppendRequest_DurabilityLevel); ok {
-			dl, errSt := durabilityLevelFromPs(&levelSpec.DurabilityLevel)
+			dl, errSt := durabilityLevelToGocb(levelSpec.DurabilityLevel)
 			if errSt != nil {
 				return nil, errSt.Err()
 			}
@@ -440,8 +440,8 @@ func (s *KvServer) Append(ctx context.Context, in *kv_v1.AppendRequest) (*kv_v1.
 	}
 
 	return &kv_v1.AppendResponse{
-		Cas:           casToPs(result.Cas()),
-		MutationToken: tokenToPs(result.MutationToken()),
+		Cas:           casFromGocb(result.Cas()),
+		MutationToken: tokenFromGocb(result.MutationToken()),
 	}, nil
 }
 
@@ -455,7 +455,7 @@ func (s *KvServer) Prepend(ctx context.Context, in *kv_v1.PrependRequest) (*kv_v
 	opts.Context = ctx
 
 	if in.Cas != nil {
-		opts.Cas = casFromPs(in.Cas)
+		opts.Cas = casToGocb(in.Cas)
 	}
 
 	if in.DurabilitySpec != nil {
@@ -464,7 +464,7 @@ func (s *KvServer) Prepend(ctx context.Context, in *kv_v1.PrependRequest) (*kv_v
 			opts.ReplicateTo = uint(legacySpec.LegacyDurabilitySpec.NumReplicated)
 		}
 		if levelSpec, ok := in.DurabilitySpec.(*kv_v1.PrependRequest_DurabilityLevel); ok {
-			dl, errSt := durabilityLevelFromPs(&levelSpec.DurabilityLevel)
+			dl, errSt := durabilityLevelToGocb(levelSpec.DurabilityLevel)
 			if errSt != nil {
 				return nil, errSt.Err()
 			}
@@ -489,8 +489,8 @@ func (s *KvServer) Prepend(ctx context.Context, in *kv_v1.PrependRequest) (*kv_v
 	}
 
 	return &kv_v1.PrependResponse{
-		Cas:           casToPs(result.Cas()),
-		MutationToken: tokenToPs(result.MutationToken()),
+		Cas:           casFromGocb(result.Cas()),
+		MutationToken: tokenFromGocb(result.MutationToken()),
 	}, nil
 }
 
@@ -572,7 +572,7 @@ func (s *KvServer) LookupIn(ctx context.Context, in *kv_v1.LookupInRequest) (*kv
 
 	return &kv_v1.LookupInResponse{
 		Specs: respSpecs,
-		Cas:   casToPs(result.Cas()),
+		Cas:   casFromGocb(result.Cas()),
 	}, nil
 }
 
@@ -692,7 +692,7 @@ func (s *KvServer) MutateIn(ctx context.Context, in *kv_v1.MutateInRequest) (*kv
 	}
 
 	if in.Cas != nil {
-		opts.Cas = casFromPs(in.Cas)
+		opts.Cas = casToGocb(in.Cas)
 	}
 
 	if in.DurabilitySpec != nil {
@@ -701,7 +701,7 @@ func (s *KvServer) MutateIn(ctx context.Context, in *kv_v1.MutateInRequest) (*kv
 			opts.ReplicateTo = uint(legacySpec.LegacyDurabilitySpec.NumReplicated)
 		}
 		if levelSpec, ok := in.DurabilitySpec.(*kv_v1.MutateInRequest_DurabilityLevel); ok {
-			dl, errSt := durabilityLevelFromPs(&levelSpec.DurabilityLevel)
+			dl, errSt := durabilityLevelToGocb(levelSpec.DurabilityLevel)
 			if errSt != nil {
 				return nil, errSt.Err()
 			}
@@ -754,8 +754,8 @@ func (s *KvServer) MutateIn(ctx context.Context, in *kv_v1.MutateInRequest) (*kv
 
 	return &kv_v1.MutateInResponse{
 		Specs:         respSpecs,
-		Cas:           casToPs(result.Cas()),
-		MutationToken: tokenToPs(result.MutationToken()),
+		Cas:           casFromGocb(result.Cas()),
+		MutationToken: tokenFromGocb(result.MutationToken()),
 	}, nil
 }
 

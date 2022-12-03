@@ -109,8 +109,8 @@ func (s *AnalyticsServer) AnalyticsQuery(in *analytics_v1.AnalyticsQueryRequest,
 	metaData, err := result.MetaData()
 	if err == nil {
 		psMetrics := &analytics_v1.AnalyticsQueryResponse_Metrics{
-			ElapsedTime:      durationToPs(metaData.Metrics.ElapsedTime),
-			ExecutionTime:    durationToPs(metaData.Metrics.ExecutionTime),
+			ElapsedTime:      durationFromGo(metaData.Metrics.ElapsedTime),
+			ExecutionTime:    durationFromGo(metaData.Metrics.ExecutionTime),
 			ResultCount:      metaData.Metrics.ResultCount,
 			ResultSize:       metaData.Metrics.ResultSize,
 			MutationCount:    metaData.Metrics.MutationCount,
