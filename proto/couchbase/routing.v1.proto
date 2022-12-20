@@ -2,6 +2,7 @@ syntax = "proto3";
 
 option go_package = "github.com/couchbase/stellar-nebula/genproto/routing_v1;routing_v1";
 option ruby_package = "Couchbase::StellarNebula::Generated::Routing::V1";
+option php_namespace = "Couchbase\\StellarNebula\\Generated\\Routing\\V1";
 
 package couchbase.routing.v1;
 
