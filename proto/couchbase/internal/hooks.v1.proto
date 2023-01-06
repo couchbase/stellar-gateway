@@ -115,7 +115,7 @@ message WatchBarrierResponse { string wait_id = 2; }
 message SignalBarrierRequest {
   string hooks_context_id = 1;
   string barrier_id = 2;
-  optional string wait_id = 3;
+  /* optional */ string wait_id = 3;
 }
 
 message SignalBarrierResponse {}

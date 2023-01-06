@@ -103,7 +103,7 @@ message GetResponse {
   DocumentContentType content_type = 2;
   DocumentCompressionType compression_type = 5;
   uint64 cas = 3;
-  google.protobuf.Timestamp expiry = 4;
+  /* optional */ google.protobuf.Timestamp expiry = 4;
 }
 
 message UnlockRequest {
@@ -148,7 +148,7 @@ message InsertRequest {
   string key = 4;
   bytes content = 5;
   DocumentContentType content_type = 6;
-  google.protobuf.Timestamp expiry = 7;
+  /* optional */ google.protobuf.Timestamp expiry = 7;
   oneof durability_spec {
     LegacyDurabilitySpec legacy_durability_spec = 8;
     DurabilityLevel durability_level = 9;
@@ -167,7 +167,7 @@ message UpsertRequest {
   string key = 4;
   bytes content = 5;
   DocumentContentType content_type = 6;
-  google.protobuf.Timestamp expiry = 7;
+  /* optional */ google.protobuf.Timestamp expiry = 7;
   oneof durability_spec {
     LegacyDurabilitySpec legacy_durability_spec = 8;
     DurabilityLevel durability_level = 9;
@@ -186,8 +186,8 @@ message ReplaceRequest {
   string key = 4;
   bytes content = 5;
   DocumentContentType content_type = 6;
-  uint64 cas = 7;
-  google.protobuf.Timestamp expiry = 8;
+  /* optional */ uint64 cas = 7;
+  /* optional */ google.protobuf.Timestamp expiry = 8;
   oneof durability_spec {
     LegacyDurabilitySpec legacy_durability_spec = 9;
     DurabilityLevel durability_level = 10;
@@ -204,7 +204,7 @@ message RemoveRequest {
   string scope_name = 2;
   string collection_name = 3;
   string key = 4;
-  uint64 cas = 5;
+  /* optional */ uint64 cas = 5;
   oneof durability_spec {
     LegacyDurabilitySpec legacy_durability_spec = 6;
     DurabilityLevel durability_level = 7;
@@ -222,8 +222,8 @@ message IncrementRequest {
   string collection_name = 3;
   string key = 4;
   uint64 delta = 5;
-  google.protobuf.Timestamp expiry = 6;
-  int64 initial = 7;
+  /* optional */ google.protobuf.Timestamp expiry = 6;
+  /* optional */ int64 initial = 7;
   oneof durability_spec {
     LegacyDurabilitySpec legacy_durability_spec = 8;
     DurabilityLevel durability_level = 9;
@@ -242,8 +242,8 @@ message DecrementRequest {
   string collection_name = 3;
   string key = 4;
   uint64 delta = 5;
-  google.protobuf.Timestamp expiry = 6;
-  int64 initial = 7;
+  /* optional */ google.protobuf.Timestamp expiry = 6;
+  /* optional */ int64 initial = 7;
   oneof durability_spec {
     LegacyDurabilitySpec legacy_durability_spec = 8;
     DurabilityLevel durability_level = 9;
@@ -262,7 +262,7 @@ message AppendRequest {
   string collection_name = 3;
   string key = 4;
   bytes content = 5;
-  uint64 cas = 6;
+  /* optional */ uint64 cas = 6;
   oneof durability_spec {
     LegacyDurabilitySpec legacy_durability_spec = 7;
     DurabilityLevel durability_level = 8;
@@ -280,7 +280,7 @@ message PrependRequest {
   string collection_name = 3;
   string key = 4;
   bytes content = 5;
-  uint64 cas = 6;
+  /* optional */ uint64 cas = 6;
   oneof durability_spec {
     LegacyDurabilitySpec legacy_durability_spec = 7;
     DurabilityLevel durability_level = 8;
@@ -308,14 +308,14 @@ message LookupInRequest {
 
     string path = 2;
 
-    message Flags { bool xattr = 1; }
-    Flags flags = 3;
+    message Flags { /* optional */ bool xattr = 1; }
+    /* optional */ Flags flags = 3;
   }
 
   repeated Spec specs = 5;
 
-  message Flags { bool access_deleted = 1; }
-  Flags flags = 6;
+  message Flags { /* optional */ bool access_deleted = 1; }
+  /* optional */ Flags flags = 6;
 }
 
 message LookupInResponse {
@@ -352,10 +352,10 @@ message MutateInRequest {
     bytes content = 3;
 
     message Flags {
-      bool create_path = 1;
-      bool xattr = 2;
+      /* optional */ bool create_path = 1;
+      /* optional */ bool xattr = 2;
     }
-    Flags flags = 4;
+    /* optional */ Flags flags = 4;
   }
 
   repeated Spec specs = 5;
@@ -365,21 +365,21 @@ message MutateInRequest {
     UPSERT = 1;
     INSERT = 2;
   }
-  StoreSemantic store_semantic = 6;
+  /* optional */ StoreSemantic store_semantic = 6;
 
   oneof durability_spec {
     LegacyDurabilitySpec legacy_durability_spec = 7;
     DurabilityLevel durability_level = 8;
   }
 
-  uint64 cas = 9;
+  /* optional */ uint64 cas = 9;
 
-  message Flags { bool access_deleted = 1; }
-  Flags flags = 10;
+  message Flags { /* optional */ bool access_deleted = 1; }
+  /* optional */ Flags flags = 10;
 }
 
 message MutateInResponse {
-  message Spec { bytes content = 1; }
+  message Spec { /* optional */ bytes content = 1; }
   repeated Spec specs = 1;
 
   uint64 cas = 2;
@@ -419,7 +419,7 @@ message RangeScanResponse {
   message Document {
     message MetaData {
       uint32 flags = 1;
-      google.protobuf.Timestamp expiry = 2;
+      /* optional */ google.protobuf.Timestamp expiry = 2;
       uint64 seqno = 3;
       uint64 cas = 4;
       DocumentContentType content_type = 5;
@@ -427,8 +427,8 @@ message RangeScanResponse {
     }
 
     string key = 1;
-    bytes content = 2;
-    MetaData meta_data = 3;
+    /* optional */ bytes content = 2;
+    /* optional */ MetaData meta_data = 3;
   }
 
   repeated Document documents = 1;

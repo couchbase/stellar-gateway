@@ -252,5 +252,5 @@ message SearchQueryResponse {
     // errors
     // facets
   }
-  optional MetaData meta_data = 2;
+  /* optional */ MetaData meta_data = 2;
 }

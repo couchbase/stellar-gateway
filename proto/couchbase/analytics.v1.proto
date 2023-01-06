@@ -14,19 +14,19 @@ service Analytics {
 }
 
 message AnalyticsQueryRequest {
-  optional string bucket_name = 8;
-  optional string scope_name = 9;
+  /* optional */ string bucket_name = 8;
+  /* optional */ string scope_name = 9;
   string statement = 1;
 
-  optional bool read_only = 2;
-  optional string client_context_id = 3;
-  optional bool priority = 4;
+  /* optional */ bool read_only = 2;
+  /* optional */ string client_context_id = 3;
+  /* optional */ bool priority = 4;
 
   enum ScanConsistency {
     NOT_BOUNDED = 0;
     REQUEST_PLUS = 1;
   }
-  optional ScanConsistency scan_consistency = 5;
+  /* optional */ ScanConsistency scan_consistency = 5;
   repeated bytes positional_parameters = 6;
   map<string, bytes> named_parameters = 7;
 }
@@ -59,5 +59,5 @@ message AnalyticsQueryResponse {
     repeated Warning warnings = 5;
     string status = 6;
   }
-  optional MetaData meta_data = 2;
+  /* optional */ MetaData meta_data = 2;
 }

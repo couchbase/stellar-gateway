@@ -37,7 +37,7 @@ message ViewsRouting { repeated ViewsRoutingEndpoint endpoints = 1; }
 
 message WatchRoutingRequest {
   // Specifies the specific bucket that will be accessed.
-  optional string bucket_name = 1;
+  /* optional */ string bucket_name = 1;
 }
 
 message WatchRoutingResponse {
@@ -56,6 +56,6 @@ message WatchRoutingResponse {
   repeated RoutingEndpoint endpoints = 2;
 
   oneof data_routing { VbucketDataRoutingStrategy vbucket_data_routing = 3; }
-  optional QueryRouting query_routing = 4;
-  optional ViewsRouting views_routing = 5;
+  /* optional */ QueryRouting query_routing = 4;
+  /* optional */ ViewsRouting views_routing = 5;
 }
