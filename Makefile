@@ -40,7 +40,7 @@ build: generate
 	for platform in linux darwin ; do \
 	 for arch in amd64 arm64 ; do \
 	   echo "Building $$platform $$arch binary " ; \
-	   GOOS=$$platform GOARCH=$$arch CGO_ENABLED=0 GO11MODULE=on go build -o bin/$$platform/stellar-nebula-gateway-$$arch -ldflags="$(LDFLAGS)" ./cmd/dev ; \
+	   GOOS=$$platform GOARCH=$$arch CGO_ENABLED=0 GO11MODULE=on go build -o bin/$$platform/stellar-nebula-gateway-$$arch -ldflags="$(LDFLAGS)" ./cmd/gateway ; \
 	 done \
 	done
 

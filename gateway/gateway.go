@@ -2,7 +2,6 @@ package gateway
 
 import (
 	"context"
-	"log"
 	"os"
 	"time"
 
@@ -61,24 +60,24 @@ func Run(ctx context.Context, config *Config) error {
 	serverGroup := config.ServerGroup
 
 	// start connecting to the underlying cluster
-	log.Printf("linking to couchbase cluster at: %s (user: %s)", config.CbConnStr, config.Username)
+	config.Logger.Info("linking to couchbase cluster", zap.String("connectionString", config.CbConnStr), zap.String("User", config.Username))
 
 	client, err := gocb.Connect(config.CbConnStr, gocb.ClusterOptions{
 		Username: config.Username,
 		Password: config.Password,
 	})
 	if err != nil {
-		log.Printf("failed to connect to couchbase cluster: %s", err)
+		config.Logger.Error("failed to connect to couchbase cluster", zap.Error(err))
 		os.Exit(1)
 	}
 
 	err = client.WaitUntilReady(10*time.Second, nil)
 	if err != nil {
-		log.Printf("failed to wait for couchbase cluster connection: %s", err)
+		config.Logger.Error("failed to wait for couchbase cluster connection", zap.Error(err))
 		os.Exit(1)
 	}
 
-	log.Printf("connected to couchbase cluster")
+	config.Logger.Info("connected to couchbase cluster")
 
 	// TODO(brett19): We should use the gocb client to fetch the topologies.
 	cbTopologyProvider, err := cbtopology.NewPollingProvider(cbtopology.PollingProviderOptions{
@@ -89,12 +88,12 @@ func Run(ctx context.Context, config *Config) error {
 		}),
 	})
 	if err != nil {
-		log.Fatalf("failed to initialize cb topology poller: %s", err)
+		config.Logger.Fatal("failed to initialize cb topology poller", zap.Error(err))
 	}
 
 	goclusteringProvider, err := goclustering.NewInProcProvider(goclustering.InProcProviderOptions{})
 	if err != nil {
-		log.Printf("failed to initialize in-proc clustering provider: %s", err)
+		config.Logger.Error("failed to initialize in-proc clustering provider",  zap.Error(err))
 		return err
 	}
 
@@ -105,7 +104,7 @@ func Run(ctx context.Context, config *Config) error {
 		RemoteTopologyProvider: cbTopologyProvider,
 	})
 	if err != nil {
-		log.Printf("failed to initialize topology manager: %s", err)
+		config.Logger.Error("failed to initialize topology manager",  zap.Error(err))
 		return err
 	}
 
@@ -121,14 +120,14 @@ func Run(ctx context.Context, config *Config) error {
 			TopologyProvider: psTopologyManager,
 		})
 
-		log.Printf("initializing protostellar system")
+		config.Logger.Info("initializing protostellar system")
 		gatewaySys, err := system.NewSystem(&system.SystemOptions{
 			Logger:   config.Logger,
 			DataImpl: dataImpl,
 			SdImpl:   sdImpl,
 		})
 		if err != nil {
-			log.Printf("error creating legacy proxy: %s", err)
+			config.Logger.Error("error creating legacy proxy", zap.Error(err))
 		}
 
 		dataPort := config.BindDataPort
@@ -146,7 +145,7 @@ func Run(ctx context.Context, config *Config) error {
 			SdPort:   sdPort,
 		})
 		if err != nil {
-			log.Printf("error creating legacy proxy listeners: %s", err)
+			config.Logger.Error("error creating legacy proxy listeners", zap.Error(err))
 			return err
 		}
 
@@ -154,7 +153,7 @@ func Run(ctx context.Context, config *Config) error {
 		if advertiseAddr == "" {
 			advertiseAddr, err = netutils.GetAdvertiseAddress(config.BindAddress)
 			if err != nil {
-				log.Printf("failed to identify advertise address: %s", err)
+				config.Logger.Error("failed to identify advertise address", zap.Error(err))
 				return err
 			}
 		}
@@ -179,7 +178,7 @@ func Run(ctx context.Context, config *Config) error {
 
 		clusterEntry, err := clusteringManager.Join(ctx, localMemberData)
 		if err != nil {
-			log.Fatalf("failed to join cluster: %s", err)
+			config.Logger.Fatal("failed to join cluster", zap.Error(err))
 			os.Exit(1)
 		}
 
@@ -195,15 +194,15 @@ func Run(ctx context.Context, config *Config) error {
 			})
 		}
 
-		log.Printf("starting to run protostellar system")
+		config.Logger.Info("starting to run protostellar system")
 		err = gatewaySys.Serve(ctx, gatewayLis)
 
 		if err != nil {
-			log.Printf("failed to serve protostellar system: %s", err)
+			config.Logger.Error("failed to serve protostellar system", zap.Error(err))
 
 			leaveErr := clusterEntry.Leave(ctx)
 			if leaveErr != nil {
-				log.Printf("failed to leave cluster: %s", err)
+				config.Logger.Error("failed to leave cluster", zap.Error(err))
 			}
 
 			return err
@@ -211,7 +210,7 @@ func Run(ctx context.Context, config *Config) error {
 
 		err = clusterEntry.Leave(ctx)
 		if err != nil {
-			log.Printf("failed to leave cluster: %s", err)
+			config.Logger.Error("failed to leave cluster", zap.Error(err))
 		}
 
 		return nil
