@@ -1,4 +1,7 @@
 *.pb.go
 stellar-nebula
-./genproto
+genproto/
 *.log
+build/
+bin/
+dist/
