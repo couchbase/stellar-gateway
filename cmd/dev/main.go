@@ -10,6 +10,7 @@ import (
 
 	"github.com/couchbase/stellar-nebula/gateway"
 	"github.com/couchbase/stellar-nebula/legacybridge"
+	"github.com/couchbase/stellar-nebula/pkg/version"
 	"go.uber.org/zap"
 )
 
@@ -28,6 +29,8 @@ func main() {
 		log.Printf("failed to initialize logging: %s", err)
 		os.Exit(1)
 	}
+	
+	logger.Info(fmt.Sprintf("Starting %s: %s", version.Application, version.WithBuildNumberAndRevision()))
 
 	// In order to start the bridge, we need to know where the gateway is running,
 	// so we use a channel and a hook in the gateway to get this.

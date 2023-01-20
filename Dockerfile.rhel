@@ -1,0 +1,33 @@
+FROM registry.access.redhat.com/ubi8/ubi-minimal
+
+ARG TARGETARCH
+
+# ubi-minimal updates frequently and has very few packages installed,
+# so no need for a "security-only" update.
+RUN microdnf update && microdnf clean all
+
+# Add licenses and help file
+RUN mkdir /license
+COPY LICENSE /licenses/LICENSE.txt
+COPY README.md /help.1
+
+ARG PROD_VERSION
+ARG PROD_BUILD
+ARG OS_BUILD
+
+# Install Couchbase Stellar Nebula
+COPY bin/linux/stellar-nebula-gateway-${TARGETARCH} /usr/local/bin/stellar-nebula-gateway
+
+LABEL name="couchbase/stellar-nebula-gateway" \
+      vendor="Couchbase" \
+      version="${PROD_VERSION}" \
+      openshift_build="${OS_BUILD}" \
+      exporter_build="${PROD_BUILD}" \
+      release="Latest" \
+      summary="Couchbase Stellar Nebula Gateway ${PROD_VERSION}" \
+      description="Couchbase Stellar Nebula Gateway ${PROD_VERSION}" \
+      architecture="${TARGETARCH}" \
+      run="docker run --rm stellar-nebula registry.connect.redhat.com/couchbase/stellar-nebula-gateway:${PROD_VERSION}-${OS_BUILD} --help" \
+      io.k8s.description="The Couchbase Stellar Nebula Gateway description goes here."
+
+ENTRYPOINT ["stellar-nebula-gateway"]
