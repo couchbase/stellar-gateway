@@ -14,6 +14,7 @@ import (
 	"github.com/couchbase/stellar-nebula/gateway/sdimpl"
 	"github.com/couchbase/stellar-nebula/gateway/system"
 	"github.com/couchbase/stellar-nebula/gateway/topology"
+	"github.com/couchbase/stellar-nebula/pkg/metrics"
 	"github.com/couchbase/stellar-nebula/utils/netutils"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -48,6 +49,8 @@ type Config struct {
 
 	NumInstances    uint
 	StartupCallback func(*StartupInfo)
+
+	SnMetrics *metrics.SnMetrics
 }
 
 func Run(ctx context.Context, config *Config) error {
@@ -125,6 +128,7 @@ func Run(ctx context.Context, config *Config) error {
 			Logger:   config.Logger,
 			DataImpl: dataImpl,
 			SdImpl:   sdImpl,
+			Metrics:  config.SnMetrics,
 		})
 		if err != nil {
 			config.Logger.Error("error creating legacy proxy", zap.Error(err))

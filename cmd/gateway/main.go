@@ -8,13 +8,19 @@ import (
 	"os"
 
 	"github.com/couchbase/stellar-nebula/gateway"
+	"github.com/couchbase/stellar-nebula/pkg/metrics"
 	"github.com/couchbase/stellar-nebula/pkg/version"
+	"github.com/couchbase/stellar-nebula/pkg/webapi"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 var cbHost = flag.String("cb-host", "127.0.0.1", "the couchbase server host")
 var cbUser = flag.String("cb-user", "Administrator", "the couchbase server username")
 var cbPass = flag.String("cb-pass", "password", "the couchbase server password")
+var dataPort = flag.Int("data-port", 18098, "the data port")
+var sdPort = flag.Int("sd-port", 18099, "the sd port")
+var webPort = flag.Int("web-port", 9091, "the web metrics/health port")
 
 func main() {
 	flag.Parse()
@@ -32,17 +38,28 @@ func main() {
 	gatewayConnStrCh := make(chan string, 100)
 
 
-	dataPort := 18098
-	sdPort := 18099
+	// Todo:  Read in log level from CLI or env var
+	logLevel := zap.NewAtomicLevel()
+	logLevel.SetLevel(zapcore.DebugLevel)
+
+	listenAddress := fmt.Sprintf("0.0.0.0:%v", *webPort)
+
+	webapi.InitializeWebServer(webapi.WebServerOptions{
+		Logger:        logger,
+		LogLevel:      &logLevel,
+		ListenAddress: listenAddress,
+	})
 
 	err = gateway.Run(context.Background(), &gateway.Config{
 		Logger:       logger.Named("gateway"),
 		CbConnStr:    *cbHost,
 		Username:     *cbUser,
 		Password:     *cbPass,
-		BindDataPort: dataPort,
-		BindSdPort:   sdPort,
+		BindDataPort: *dataPort,
+		BindSdPort:   *sdPort,
+		BindAddress: "0.0.0.0",
 		NumInstances: 1,
+		SnMetrics:    metrics.GetSnMetrics(),
 
 		StartupCallback: func(m *gateway.StartupInfo) {
 			gatewayConnStrCh <- fmt.Sprintf("%s:%d", m.AdvertiseAddr, m.AdvertisePorts.PS)
