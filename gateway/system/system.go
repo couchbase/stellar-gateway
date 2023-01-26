@@ -19,6 +19,8 @@ import (
 	"github.com/couchbase/stellar-nebula/genproto/routing_v1"
 	"github.com/couchbase/stellar-nebula/genproto/search_v1"
 	"github.com/couchbase/stellar-nebula/genproto/transactions_v1"
+	"github.com/couchbase/stellar-nebula/pkg/interceptors"
+	"github.com/couchbase/stellar-nebula/pkg/metrics"
 )
 
 // TODO(brett19): Implement the gateway system as its own component
@@ -28,6 +30,7 @@ type SystemOptions struct {
 
 	DataImpl *dataimpl.Servers
 	SdImpl   *sdimpl.Servers
+	Metrics  *metrics.SnMetrics
 }
 
 type System struct {
@@ -42,9 +45,9 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 	sdImpl := opts.SdImpl
 
 	hooksManager := hooks.NewHooksManager()
-
+	metricsInterceptor := interceptors.NewMetricsInterceptor(opts.Metrics)
 	dataSrv := grpc.NewServer(
-		grpc.UnaryInterceptor(hooksManager.UnaryInterceptor()),
+		grpc.ChainUnaryInterceptor(hooksManager.UnaryInterceptor(), metricsInterceptor.UnaryConnectionCounterInterceptor),
 	)
 	internal_hooks_v1.RegisterHooksServer(dataSrv, hooksManager.Server())
 	kv_v1.RegisterKvServer(dataSrv, dataImpl.KvV1Server)
@@ -56,7 +59,7 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 	transactions_v1.RegisterTransactionsServer(dataSrv, dataImpl.TransactionsV1Server)
 
 	sdSrv := grpc.NewServer(
-		grpc.UnaryInterceptor(hooksManager.UnaryInterceptor()),
+		grpc.ChainUnaryInterceptor(hooksManager.UnaryInterceptor(), metricsInterceptor.UnaryConnectionCounterInterceptor),
 	)
 	internal_hooks_v1.RegisterHooksServer(sdSrv, hooksManager.Server())
 	routing_v1.RegisterRoutingServer(sdSrv, sdImpl.RoutingV1Server)
