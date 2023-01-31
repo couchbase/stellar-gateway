@@ -19,8 +19,8 @@ Provides translation capabilities for Protostellar to legacy protocols.
 
 ```
 > go generate
-> go build ./cmd/gateway
-> ./gateway
+> go build -o stellar-nebula-gateway ./cmd/gateway
+> ./stellar-nebula-gateway
 ```
 
 ### Executing the legacy bridge
