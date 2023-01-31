@@ -37,7 +37,6 @@ func main() {
 	// so we use a channel and a hook in the gateway to get this.
 	gatewayConnStrCh := make(chan string, 100)
 
-
 	// Todo:  Read in log level from CLI or env var
 	logLevel := zap.NewAtomicLevel()
 	logLevel.SetLevel(zapcore.DebugLevel)
@@ -50,26 +49,21 @@ func main() {
 		ListenAddress: listenAddress,
 	})
 
-	err = gateway.Run(context.Background(), &gateway.Config{
+	gatewayConfig := &gateway.Config{
 		Logger:       logger.Named("gateway"),
 		CbConnStr:    *cbHost,
 		Username:     *cbUser,
 		Password:     *cbPass,
 		BindDataPort: *dataPort,
 		BindSdPort:   *sdPort,
-		BindAddress: "0.0.0.0",
+		BindAddress:  "0.0.0.0",
 		NumInstances: 1,
 		SnMetrics:    metrics.GetSnMetrics(),
 
 		StartupCallback: func(m *gateway.StartupInfo) {
 			gatewayConnStrCh <- fmt.Sprintf("%s:%d", m.AdvertiseAddr, m.AdvertisePorts.PS)
 		},
-	})
-	if err != nil {
-		logger.Error("failed to initialize the gateway: %s", zap.Error(err))
-		os.Exit(1)
 	}
 
-	gatewayAddr := <-gatewayConnStrCh
-	logger.Info("debug setup got a gateway address", zap.String("addr", gatewayAddr))
+	gateway.Run(context.Background(), gatewayConfig)
 }
