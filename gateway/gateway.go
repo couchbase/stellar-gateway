@@ -2,6 +2,7 @@ package gateway
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"time"
 
@@ -39,6 +40,7 @@ type Config struct {
 	CbConnStr string
 	Username  string
 	Password  string
+	ConnTimeout int
 
 	BindAddress      string
 	BindDataPort     int
@@ -71,7 +73,7 @@ func Run(ctx context.Context, config *Config) error {
 		os.Exit(1)
 	}
 
-	err = client.WaitUntilReady(10*time.Second, nil)
+	err = client.WaitUntilReady(time.Duration(config.ConnTimeout) * time.Second, nil)
 	if err != nil {
 		config.Logger.Error("failed to wait for couchbase cluster connection", zap.Error(err))
 		os.Exit(1)

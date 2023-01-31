@@ -15,6 +15,7 @@ import (
 var cbHost = flag.String("cb-host", "127.0.0.1", "the couchbase server host")
 var cbUser = flag.String("cb-user", "Administrator", "the couchbase server username")
 var cbPass = flag.String("cb-pass", "password", "the couchbase server password")
+var cbConnTimeout = flag.Int("cb-timeout", 10, "the couchbase server connection timeout")
 
 func main() {
 	flag.Parse()
@@ -35,11 +36,16 @@ func main() {
 	dataPort := 18098
 	sdPort := 18099
 
+	if *cbConnTimeout < 10 {
+		*cbConnTimeout = 10
+	}
+
 	err = gateway.Run(context.Background(), &gateway.Config{
 		Logger:       logger.Named("gateway"),
 		CbConnStr:    *cbHost,
 		Username:     *cbUser,
 		Password:     *cbPass,
+		ConnTimeout: *cbConnTimeout,
 		BindDataPort: dataPort,
 		BindSdPort:   sdPort,
 		NumInstances: 1,
