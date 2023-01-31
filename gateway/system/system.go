@@ -13,6 +13,7 @@ import (
 	"github.com/couchbase/stellar-nebula/genproto/admin_bucket_v1"
 	"github.com/couchbase/stellar-nebula/genproto/admin_collection_v1"
 	"github.com/couchbase/stellar-nebula/genproto/analytics_v1"
+	"github.com/couchbase/stellar-nebula/genproto/health_v1"
 	"github.com/couchbase/stellar-nebula/genproto/internal_hooks_v1"
 	"github.com/couchbase/stellar-nebula/genproto/kv_v1"
 	"github.com/couchbase/stellar-nebula/genproto/query_v1"
@@ -57,6 +58,9 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 	admin_bucket_v1.RegisterBucketAdminServer(dataSrv, dataImpl.AdminBucketV1Server)
 	admin_collection_v1.RegisterCollectionAdminServer(dataSrv, dataImpl.AdminCollectionV1Server)
 	transactions_v1.RegisterTransactionsServer(dataSrv, dataImpl.TransactionsV1Server)
+
+	// health check
+	health_v1.RegisterHealthServer(dataSrv, HealthV1Server{})
 
 	sdSrv := grpc.NewServer(
 		grpc.ChainUnaryInterceptor(hooksManager.UnaryInterceptor(), metricsInterceptor.UnaryConnectionCounterInterceptor),
