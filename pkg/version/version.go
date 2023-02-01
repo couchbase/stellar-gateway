@@ -3,7 +3,7 @@ package version
 import (
 	"fmt"
 
-	"github.com/couchbase/stellar-nebula/pkg/revision"
+	"github.com/couchbase/stellar-gateway/pkg/revision"
 )
 
 const Application = "Stellar Nebula"

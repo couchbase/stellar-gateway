@@ -5,8 +5,8 @@ import (
 	"log"
 
 	"github.com/couchbase/goprotostellar/genproto/routing_v1"
-	"github.com/couchbase/stellar-nebula/gateway/topology"
-	"github.com/couchbase/stellar-nebula/utils/latestonlychannel"
+	"github.com/couchbase/stellar-gateway/gateway/topology"
+	"github.com/couchbase/stellar-gateway/utils/latestonlychannel"
 )
 
 type RoutingServer struct {

@@ -4,9 +4,9 @@ import (
 	"context"
 	"log"
 
-	"github.com/couchbase/stellar-nebula/client"
-	"github.com/couchbase/stellar-nebula/legacybridge/clustering"
-	"github.com/couchbase/stellar-nebula/utils/channelmerge"
+	"github.com/couchbase/stellar-gateway/client"
+	"github.com/couchbase/stellar-gateway/legacybridge/clustering"
+	"github.com/couchbase/stellar-gateway/utils/channelmerge"
 )
 
 type RemoteTopologyProvider interface {

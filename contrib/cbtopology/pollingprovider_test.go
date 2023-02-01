@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/couchbase/stellar-nebula/contrib/cbconfig"
+	"github.com/couchbase/stellar-gateway/contrib/cbconfig"
 )
 
 func TestWatchClusterConfig(t *testing.T) {

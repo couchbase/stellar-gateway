@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"log"
 
-	"github.com/couchbase/stellar-nebula/contrib/goclustering"
+	"github.com/couchbase/stellar-gateway/contrib/goclustering"
 )
 
 type Membership struct {

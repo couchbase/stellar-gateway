@@ -4,9 +4,9 @@ import (
 	"context"
 	"log"
 
-	"github.com/couchbase/stellar-nebula/contrib/cbtopology"
-	"github.com/couchbase/stellar-nebula/gateway/clustering"
-	"github.com/couchbase/stellar-nebula/utils/channelmerge"
+	"github.com/couchbase/stellar-gateway/contrib/cbtopology"
+	"github.com/couchbase/stellar-gateway/gateway/clustering"
+	"github.com/couchbase/stellar-gateway/utils/channelmerge"
 )
 
 type ManagerOptions struct {
