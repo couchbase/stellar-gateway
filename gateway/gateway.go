@@ -35,6 +35,7 @@ type Config struct {
 	Logger      *zap.Logger
 	NodeID      string
 	ServerGroup string
+	Daemon bool
 
 	CbConnStr string
 	Username  string
@@ -249,7 +250,12 @@ func gatewayStartup(ctx context.Context, config *Config) error {
 func Run(ctx context.Context, config *Config) {
 	startupCount := 1
 	err := gatewayStartup(context.Background(), config)
+	//TODO(malscent): daemon mode should start up grpc servers and return errors to client specifying issues connecting to underlying service instead of just restarting whole process
 	for err != nil {
+		if !config.Daemon {
+			config.Logger.Warn("Daemon mode disabled, exiting.", zap.Error(err))
+			return
+		}
 		config.Logger.Warn("Startup of gateway failed.  Retrying...", zap.Int("attempts", startupCount), zap.Duration("interval", time.Second*time.Duration(startupCount)), zap.Error(err))
 		time.Sleep(time.Second * time.Duration(startupCount))
 		startupCount++

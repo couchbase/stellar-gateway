@@ -21,6 +21,7 @@ var cbPass = flag.String("cb-pass", "password", "the couchbase server password")
 var dataPort = flag.Int("data-port", 18098, "the data port")
 var sdPort = flag.Int("sd-port", 18099, "the sd port")
 var webPort = flag.Int("web-port", 9091, "the web metrics/health port")
+var daemon = flag.Bool("daemon", false, "When in daemon mode, stellar-gateway will restart on failure")
 
 func main() {
 	flag.Parse()
@@ -54,6 +55,7 @@ func main() {
 		CbConnStr:    *cbHost,
 		Username:     *cbUser,
 		Password:     *cbPass,
+		Daemon:       *daemon,
 		BindDataPort: *dataPort,
 		BindSdPort:   *sdPort,
 		BindAddress:  "0.0.0.0",
