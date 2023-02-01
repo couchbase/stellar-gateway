@@ -1,7 +1,7 @@
 package gocbps
 
 import (
-	"github.com/couchbase/stellar-nebula/genproto/kv_v1"
+	"github.com/couchbase/goprotostellar/genproto/kv_v1"
 )
 
 // DurabilityLevel specifies the level of synchronous replication to use.

@@ -7,7 +7,7 @@ import (
 	"io"
 	"time"
 
-	"github.com/couchbase/stellar-nebula/genproto/analytics_v1"
+	"github.com/couchbase/goprotostellar/genproto/analytics_v1"
 )
 
 type AnalyticsScanConsistency uint

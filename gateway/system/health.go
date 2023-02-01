@@ -3,7 +3,7 @@ package system
 import (
 	"context"
 
-	"github.com/couchbase/stellar-nebula/genproto/health_v1"
+	"github.com/couchbase/goprotostellar/genproto/health_v1"
 )
 
 // health server, it piggy backs on data since its publically exposed.

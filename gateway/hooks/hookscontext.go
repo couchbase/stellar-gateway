@@ -5,7 +5,7 @@ import (
 	"log"
 	"sync"
 
-	"github.com/couchbase/stellar-nebula/genproto/internal_hooks_v1"
+	"github.com/couchbase/goprotostellar/genproto/internal_hooks_v1"
 	"google.golang.org/grpc"
 )
 

@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/couchbase/goprotostellar/genproto/kv_v1"
 	"github.com/couchbase/stellar-nebula/contrib/grpcheaderauth"
 	"github.com/couchbase/stellar-nebula/gateway"
-	"github.com/couchbase/stellar-nebula/genproto/kv_v1"
 	"github.com/couchbase/stellar-nebula/testutils"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"

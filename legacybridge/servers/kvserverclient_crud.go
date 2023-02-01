@@ -7,7 +7,7 @@ import (
 
 	"github.com/couchbase/gocbcore/v10"
 	"github.com/couchbase/gocbcore/v10/memd"
-	"github.com/couchbase/stellar-nebula/genproto/kv_v1"
+	"github.com/couchbase/goprotostellar/genproto/kv_v1"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/types/known/timestamppb"

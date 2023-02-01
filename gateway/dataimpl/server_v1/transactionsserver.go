@@ -8,7 +8,7 @@ import (
 
 	"github.com/couchbase/gocb/v2"
 	"github.com/couchbase/gocbcore/v10"
-	"github.com/couchbase/stellar-nebula/genproto/transactions_v1"
+	"github.com/couchbase/goprotostellar/genproto/transactions_v1"
 )
 
 type TransactionsServer struct {
