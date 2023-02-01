@@ -1,4 +1,4 @@
-module github.com/couchbase/stellar-nebula
+module github.com/couchbase/stellar-gateway
 
 go 1.18
 

@@ -6,16 +6,16 @@ import (
 	"time"
 
 	"github.com/couchbase/gocb/v2"
-	"github.com/couchbase/stellar-nebula/contrib/cbconfig"
-	"github.com/couchbase/stellar-nebula/contrib/cbtopology"
-	"github.com/couchbase/stellar-nebula/contrib/goclustering"
-	"github.com/couchbase/stellar-nebula/gateway/clustering"
-	"github.com/couchbase/stellar-nebula/gateway/dataimpl"
-	"github.com/couchbase/stellar-nebula/gateway/sdimpl"
-	"github.com/couchbase/stellar-nebula/gateway/system"
-	"github.com/couchbase/stellar-nebula/gateway/topology"
-	"github.com/couchbase/stellar-nebula/pkg/metrics"
-	"github.com/couchbase/stellar-nebula/utils/netutils"
+	"github.com/couchbase/stellar-gateway/contrib/cbconfig"
+	"github.com/couchbase/stellar-gateway/contrib/cbtopology"
+	"github.com/couchbase/stellar-gateway/contrib/goclustering"
+	"github.com/couchbase/stellar-gateway/gateway/clustering"
+	"github.com/couchbase/stellar-gateway/gateway/dataimpl"
+	"github.com/couchbase/stellar-gateway/gateway/sdimpl"
+	"github.com/couchbase/stellar-gateway/gateway/system"
+	"github.com/couchbase/stellar-gateway/gateway/topology"
+	"github.com/couchbase/stellar-gateway/pkg/metrics"
+	"github.com/couchbase/stellar-gateway/utils/netutils"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
@@ -96,7 +96,7 @@ func Run(ctx context.Context, config *Config) error {
 
 	goclusteringProvider, err := goclustering.NewInProcProvider(goclustering.InProcProviderOptions{})
 	if err != nil {
-		config.Logger.Error("failed to initialize in-proc clustering provider",  zap.Error(err))
+		config.Logger.Error("failed to initialize in-proc clustering provider", zap.Error(err))
 		return err
 	}
 
@@ -107,7 +107,7 @@ func Run(ctx context.Context, config *Config) error {
 		RemoteTopologyProvider: cbTopologyProvider,
 	})
 	if err != nil {
-		config.Logger.Error("failed to initialize topology manager",  zap.Error(err))
+		config.Logger.Error("failed to initialize topology manager", zap.Error(err))
 		return err
 	}
 

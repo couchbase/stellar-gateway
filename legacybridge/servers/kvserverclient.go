@@ -9,8 +9,8 @@ import (
 
 	"github.com/couchbase/gocbcore/v10/memd"
 	"github.com/couchbase/goprotostellar/genproto/kv_v1"
-	"github.com/couchbase/stellar-nebula/contrib/scramserver"
-	"github.com/couchbase/stellar-nebula/legacybridge/topology"
+	"github.com/couchbase/stellar-gateway/contrib/scramserver"
+	"github.com/couchbase/stellar-gateway/legacybridge/topology"
 	"go.uber.org/zap"
 )
 

@@ -6,7 +6,7 @@ import (
 	"sync"
 
 	"github.com/couchbase/goprotostellar/genproto/kv_v1"
-	"github.com/couchbase/stellar-nebula/legacybridge/topology"
+	"github.com/couchbase/stellar-gateway/legacybridge/topology"
 	"go.uber.org/zap"
 )
 

@@ -7,10 +7,10 @@ import (
 	"log"
 	"os"
 
-	"github.com/couchbase/stellar-nebula/gateway"
-	"github.com/couchbase/stellar-nebula/pkg/metrics"
-	"github.com/couchbase/stellar-nebula/pkg/version"
-	"github.com/couchbase/stellar-nebula/pkg/webapi"
+	"github.com/couchbase/stellar-gateway/gateway"
+	"github.com/couchbase/stellar-gateway/pkg/metrics"
+	"github.com/couchbase/stellar-gateway/pkg/version"
+	"github.com/couchbase/stellar-gateway/pkg/webapi"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -37,7 +37,6 @@ func main() {
 	// so we use a channel and a hook in the gateway to get this.
 	gatewayConnStrCh := make(chan string, 100)
 
-
 	// Todo:  Read in log level from CLI or env var
 	logLevel := zap.NewAtomicLevel()
 	logLevel.SetLevel(zapcore.DebugLevel)
@@ -57,7 +56,7 @@ func main() {
 		Password:     *cbPass,
 		BindDataPort: *dataPort,
 		BindSdPort:   *sdPort,
-		BindAddress: "0.0.0.0",
+		BindAddress:  "0.0.0.0",
 		NumInstances: 1,
 		SnMetrics:    metrics.GetSnMetrics(),
 

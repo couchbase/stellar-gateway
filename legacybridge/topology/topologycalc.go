@@ -1,9 +1,9 @@
 package topology
 
 import (
-	"github.com/couchbase/stellar-nebula/client"
-	"github.com/couchbase/stellar-nebula/contrib/revisionarr"
-	"github.com/couchbase/stellar-nebula/legacybridge/clustering"
+	"github.com/couchbase/stellar-gateway/client"
+	"github.com/couchbase/stellar-gateway/contrib/revisionarr"
+	"github.com/couchbase/stellar-gateway/legacybridge/clustering"
 )
 
 func ComputeTopology(

@@ -16,9 +16,9 @@ GOLINT_VERSION := v1.50.1
 # that a binary came from.
 LDFLAGS = \
   -s -w \
-  -X github.com/couchbase/stellar-nebula/pkg/version.Version=$(version) \
-  -X github.com/couchbase/stellar-nebula/pkg/version.BuildNumber=$(bldNum) \
-  -X github.com/couchbase/stellar-nebula/pkg/revision.gitRevision=$(REVISION)
+  -X github.com/couchbase/stellar-gateway/pkg/version.Version=$(version) \
+  -X github.com/couchbase/stellar-gateway/pkg/version.BuildNumber=$(bldNum) \
+  -X github.com/couchbase/stellar-gateway/pkg/revision.gitRevision=$(REVISION)
 
 all: lint test build container
 
@@ -33,7 +33,7 @@ lint:
 
 check: generate lint test
 
-generate: genproto
+generate:
 	go generate
 
 build: generate

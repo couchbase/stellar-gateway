@@ -15,7 +15,7 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 
-	gocbps "github.com/couchbase/stellar-nebula/tools/test-client"
+	gocbps "github.com/couchbase/stellar-gateway/tools/test-client"
 	epb "google.golang.org/genproto/googleapis/rpc/errdetails"
 )
 

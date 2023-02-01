@@ -7,7 +7,7 @@ import (
 	"log"
 
 	"github.com/couchbase/goprotostellar/genproto/internal_hooks_v1"
-	"github.com/couchbase/stellar-nebula/contrib/govalcmp"
+	"github.com/couchbase/stellar-gateway/contrib/govalcmp"
 	"github.com/google/uuid"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"

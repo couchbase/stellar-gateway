@@ -4,7 +4,7 @@ import (
 	"strings"
 
 	"github.com/couchbase/gocbcore/v10/memd"
-	"github.com/couchbase/stellar-nebula/contrib/scramserver"
+	"github.com/couchbase/stellar-gateway/contrib/scramserver"
 	"go.uber.org/zap"
 )
 

@@ -6,12 +6,12 @@ import (
 	"os"
 	"time"
 
-	"github.com/couchbase/stellar-nebula/client"
-	"github.com/couchbase/stellar-nebula/contrib/goclustering"
-	"github.com/couchbase/stellar-nebula/legacybridge/clustering"
-	"github.com/couchbase/stellar-nebula/legacybridge/system"
-	"github.com/couchbase/stellar-nebula/legacybridge/topology"
-	"github.com/couchbase/stellar-nebula/utils/netutils"
+	"github.com/couchbase/stellar-gateway/client"
+	"github.com/couchbase/stellar-gateway/contrib/goclustering"
+	"github.com/couchbase/stellar-gateway/legacybridge/clustering"
+	"github.com/couchbase/stellar-gateway/legacybridge/system"
+	"github.com/couchbase/stellar-gateway/legacybridge/topology"
+	"github.com/couchbase/stellar-gateway/utils/netutils"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 

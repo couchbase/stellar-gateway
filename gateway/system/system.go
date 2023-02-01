@@ -17,11 +17,11 @@ import (
 	"github.com/couchbase/goprotostellar/genproto/routing_v1"
 	"github.com/couchbase/goprotostellar/genproto/search_v1"
 	"github.com/couchbase/goprotostellar/genproto/transactions_v1"
-	"github.com/couchbase/stellar-nebula/gateway/dataimpl"
-	"github.com/couchbase/stellar-nebula/gateway/hooks"
-	"github.com/couchbase/stellar-nebula/gateway/sdimpl"
-	"github.com/couchbase/stellar-nebula/pkg/interceptors"
-	"github.com/couchbase/stellar-nebula/pkg/metrics"
+	"github.com/couchbase/stellar-gateway/gateway/dataimpl"
+	"github.com/couchbase/stellar-gateway/gateway/hooks"
+	"github.com/couchbase/stellar-gateway/gateway/sdimpl"
+	"github.com/couchbase/stellar-gateway/pkg/interceptors"
+	"github.com/couchbase/stellar-gateway/pkg/metrics"
 )
 
 // TODO(brett19): Implement the gateway system as its own component

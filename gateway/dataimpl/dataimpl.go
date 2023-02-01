@@ -2,8 +2,8 @@ package dataimpl
 
 import (
 	"github.com/couchbase/gocb/v2"
-	"github.com/couchbase/stellar-nebula/gateway/dataimpl/server_v1"
-	"github.com/couchbase/stellar-nebula/gateway/topology"
+	"github.com/couchbase/stellar-gateway/gateway/dataimpl/server_v1"
+	"github.com/couchbase/stellar-gateway/gateway/topology"
 	"go.uber.org/zap"
 )
 

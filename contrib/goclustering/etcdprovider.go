@@ -4,7 +4,7 @@ import (
 	"context"
 	"log"
 
-	"github.com/couchbase/stellar-nebula/contrib/etcdmemberlist"
+	"github.com/couchbase/stellar-gateway/contrib/etcdmemberlist"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
 

@@ -1,10 +1,10 @@
 package topology
 
 import (
-	"github.com/couchbase/stellar-nebula/contrib/cbtopology"
-	"github.com/couchbase/stellar-nebula/contrib/revisionarr"
-	"github.com/couchbase/stellar-nebula/gateway/clustering"
-	"github.com/couchbase/stellar-nebula/utils/sliceutils"
+	"github.com/couchbase/stellar-gateway/contrib/cbtopology"
+	"github.com/couchbase/stellar-gateway/contrib/revisionarr"
+	"github.com/couchbase/stellar-gateway/gateway/clustering"
+	"github.com/couchbase/stellar-gateway/utils/sliceutils"
 	"golang.org/x/exp/slices"
 )
 
