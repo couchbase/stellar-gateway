@@ -1,8 +1,8 @@
 package sdimpl
 
 import (
-	"github.com/couchbase/stellar-nebula/gateway/sdimpl/server_v1"
-	"github.com/couchbase/stellar-nebula/gateway/topology"
+	"github.com/couchbase/stellar-gateway/gateway/sdimpl/server_v1"
+	"github.com/couchbase/stellar-gateway/gateway/topology"
 	"go.uber.org/zap"
 )
 

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/couchbase/stellar-nebula/genproto/kv_v1"
+	"github.com/couchbase/goprotostellar/genproto/kv_v1"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

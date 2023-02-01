@@ -18,6 +18,7 @@ Provides translation capabilities for Protostellar to legacy protocols.
 ### Executing the gateway
 
 ```
+> git submodule update --recursive --init
 > go generate
 > go build ./cmd/gateway
 > ./gateway
@@ -25,7 +26,10 @@ Provides translation capabilities for Protostellar to legacy protocols.
 
 ### Executing the legacy bridge
 
+Note: This is not currently implemented.
+
 ```
+> git submodule update --recursive --init
 > go generate
 > go build ./cmd/bridge
 > ./bridge
@@ -37,6 +41,7 @@ This (by default) starts 3 instances of the gateway and 3 instances
 of the legacy bridge running on the local system on default ports.
 
 ```
+> git submodule update --recursive --init
 > go generate
 > go run ./cmd/dev
 ```

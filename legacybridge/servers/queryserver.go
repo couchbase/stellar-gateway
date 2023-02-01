@@ -4,7 +4,7 @@ import (
 	"net"
 	"net/http"
 
-	"github.com/couchbase/stellar-nebula/genproto/query_v1"
+	"github.com/couchbase/goprotostellar/genproto/query_v1"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 )

@@ -6,7 +6,7 @@ import (
 	"time"
 
 	backoff "github.com/cenkalti/backoff/v4"
-	"github.com/couchbase/stellar-nebula/genproto/routing_v1"
+	"github.com/couchbase/goprotostellar/genproto/routing_v1"
 )
 
 func (p *RoutingClient) translateTopology(t *routing_v1.WatchRoutingResponse) *Topology {

@@ -6,7 +6,7 @@ import (
 	"errors"
 	"io"
 
-	"github.com/couchbase/stellar-nebula/genproto/view_v1"
+	"github.com/couchbase/goprotostellar/genproto/view_v1"
 )
 
 type ViewScanConsistency uint

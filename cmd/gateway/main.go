@@ -7,10 +7,10 @@ import (
 	"log"
 	"os"
 
-	"github.com/couchbase/stellar-nebula/gateway"
-	"github.com/couchbase/stellar-nebula/pkg/metrics"
-	"github.com/couchbase/stellar-nebula/pkg/version"
-	"github.com/couchbase/stellar-nebula/pkg/webapi"
+	"github.com/couchbase/stellar-gateway/gateway"
+	"github.com/couchbase/stellar-gateway/pkg/metrics"
+	"github.com/couchbase/stellar-gateway/pkg/version"
+	"github.com/couchbase/stellar-gateway/pkg/webapi"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )

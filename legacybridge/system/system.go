@@ -4,9 +4,9 @@ import (
 	"context"
 	"sync"
 
-	"github.com/couchbase/stellar-nebula/client"
-	"github.com/couchbase/stellar-nebula/legacybridge/servers"
-	"github.com/couchbase/stellar-nebula/legacybridge/topology"
+	"github.com/couchbase/stellar-gateway/client"
+	"github.com/couchbase/stellar-gateway/legacybridge/servers"
+	"github.com/couchbase/stellar-gateway/legacybridge/topology"
 	"go.uber.org/zap"
 )
 

@@ -4,7 +4,7 @@ import (
 	"net"
 	"net/http"
 
-	"github.com/couchbase/stellar-nebula/legacybridge/topology"
+	"github.com/couchbase/stellar-gateway/legacybridge/topology"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 )

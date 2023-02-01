@@ -1,5 +1,5 @@
-//go:generate mkdir -p ./genproto
-//go:generate -command protostellar protoc --proto_path=./proto --proto_path=./contrib/googleapis --go_out=./genproto --go_opt=module=github.com/couchbase/stellar-nebula/genproto --go-grpc_out=./genproto --go-grpc_opt=module=github.com/couchbase/stellar-nebula/genproto
+//go:generate mkdir -p ./contrib/goprotostellar/genproto
+//go:generate -command protostellar protoc --proto_path=./contrib/protostellar --proto_path=./contrib/googleapis --go_out=./contrib/goprotostellar/genproto --go_opt=module=github.com/couchbase/goprotostellar/genproto --go-grpc_out=./contrib/goprotostellar/genproto --go-grpc_opt=module=github.com/couchbase/goprotostellar/genproto
 //go:generate protostellar couchbase/kv.v1.proto
 //go:generate protostellar couchbase/query.v1.proto
 //go:generate protostellar couchbase/search.v1.proto

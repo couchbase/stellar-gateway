@@ -7,15 +7,15 @@ import (
 	"log"
 	"time"
 
-	"github.com/couchbase/stellar-nebula/genproto/internal_hooks_v1"
-	"github.com/couchbase/stellar-nebula/genproto/kv_v1"
-	"github.com/couchbase/stellar-nebula/genproto/routing_v1"
-	"github.com/couchbase/stellar-nebula/genproto/transactions_v1"
+	"github.com/couchbase/goprotostellar/genproto/internal_hooks_v1"
+	"github.com/couchbase/goprotostellar/genproto/kv_v1"
+	"github.com/couchbase/goprotostellar/genproto/routing_v1"
+	"github.com/couchbase/goprotostellar/genproto/transactions_v1"
 	"github.com/google/uuid"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 
-	gocbps "github.com/couchbase/stellar-nebula/tools/test-client"
+	gocbps "github.com/couchbase/stellar-gateway/tools/test-client"
 	epb "google.golang.org/genproto/googleapis/rpc/errdetails"
 )
 

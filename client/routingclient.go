@@ -7,9 +7,9 @@ import (
 	"net"
 	"sync"
 
-	"github.com/couchbase/stellar-nebula/genproto/kv_v1"
-	"github.com/couchbase/stellar-nebula/genproto/query_v1"
-	"github.com/couchbase/stellar-nebula/genproto/routing_v1"
+	"github.com/couchbase/goprotostellar/genproto/kv_v1"
+	"github.com/couchbase/goprotostellar/genproto/query_v1"
+	"github.com/couchbase/goprotostellar/genproto/routing_v1"
 )
 
 type routingClient_Bucket struct {
