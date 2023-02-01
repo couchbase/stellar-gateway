@@ -21,6 +21,7 @@ var cbPass = flag.String("cb-pass", "password", "the couchbase server password")
 var dataPort = flag.Int("data-port", 18098, "the data port")
 var sdPort = flag.Int("sd-port", 18099, "the sd port")
 var webPort = flag.Int("web-port", 9091, "the web metrics/health port")
+var daemon = flag.Bool("daemon", false, "When in daemon mode, stellar-gateway will restart on failure")
 
 func main() {
 	flag.Parse()
@@ -49,11 +50,12 @@ func main() {
 		ListenAddress: listenAddress,
 	})
 
-	err = gateway.Run(context.Background(), &gateway.Config{
+	gatewayConfig := &gateway.Config{
 		Logger:       logger.Named("gateway"),
 		CbConnStr:    *cbHost,
 		Username:     *cbUser,
 		Password:     *cbPass,
+		Daemon:       *daemon,
 		BindDataPort: *dataPort,
 		BindSdPort:   *sdPort,
 		BindAddress:  "0.0.0.0",
@@ -63,12 +65,7 @@ func main() {
 		StartupCallback: func(m *gateway.StartupInfo) {
 			gatewayConnStrCh <- fmt.Sprintf("%s:%d", m.AdvertiseAddr, m.AdvertisePorts.PS)
 		},
-	})
-	if err != nil {
-		logger.Error("failed to initialize the gateway: %s", zap.Error(err))
-		os.Exit(1)
 	}
 
-	gatewayAddr := <-gatewayConnStrCh
-	logger.Info("debug setup got a gateway address", zap.String("addr", gatewayAddr))
+	gateway.Run(context.Background(), gatewayConfig)
 }

@@ -2,7 +2,6 @@ package gateway
 
 import (
 	"context"
-	"os"
 	"time"
 
 	"github.com/couchbase/gocb/v2"
@@ -36,6 +35,7 @@ type Config struct {
 	Logger      *zap.Logger
 	NodeID      string
 	ServerGroup string
+	Daemon bool
 
 	CbConnStr string
 	Username  string
@@ -53,7 +53,7 @@ type Config struct {
 	SnMetrics *metrics.SnMetrics
 }
 
-func Run(ctx context.Context, config *Config) error {
+func gatewayStartup(ctx context.Context, config *Config) error {
 	// NodeID must not be blank, so lets generate a unique UUID if one wasn't provided...
 	nodeID := config.NodeID
 	if nodeID == "" {
@@ -70,14 +70,14 @@ func Run(ctx context.Context, config *Config) error {
 		Password: config.Password,
 	})
 	if err != nil {
-		config.Logger.Error("failed to connect to couchbase cluster", zap.Error(err))
-		os.Exit(1)
+		config.Logger.Error("failed to connect to couchbase cluster")
+		return err
 	}
 
 	err = client.WaitUntilReady(10*time.Second, nil)
 	if err != nil {
-		config.Logger.Error("failed to wait for couchbase cluster connection", zap.Error(err))
-		os.Exit(1)
+		config.Logger.Error("failed to wait for couchbase cluster connection")
+		return err
 	}
 
 	config.Logger.Info("connected to couchbase cluster")
@@ -91,12 +91,13 @@ func Run(ctx context.Context, config *Config) error {
 		}),
 	})
 	if err != nil {
-		config.Logger.Fatal("failed to initialize cb topology poller", zap.Error(err))
+		config.Logger.Error("failed to initialize cb topology poller")
+		return err
 	}
 
 	goclusteringProvider, err := goclustering.NewInProcProvider(goclustering.InProcProviderOptions{})
 	if err != nil {
-		config.Logger.Error("failed to initialize in-proc clustering provider", zap.Error(err))
+		config.Logger.Error("failed to initialize in-proc clustering provider")
 		return err
 	}
 
@@ -107,7 +108,7 @@ func Run(ctx context.Context, config *Config) error {
 		RemoteTopologyProvider: cbTopologyProvider,
 	})
 	if err != nil {
-		config.Logger.Error("failed to initialize topology manager", zap.Error(err))
+		config.Logger.Error("failed to initialize topology manager")
 		return err
 	}
 
@@ -131,7 +132,8 @@ func Run(ctx context.Context, config *Config) error {
 			Metrics:  config.SnMetrics,
 		})
 		if err != nil {
-			config.Logger.Error("error creating legacy proxy", zap.Error(err))
+			config.Logger.Error("error creating legacy proxy")
+			return err
 		}
 
 		dataPort := config.BindDataPort
@@ -149,7 +151,7 @@ func Run(ctx context.Context, config *Config) error {
 			SdPort:   sdPort,
 		})
 		if err != nil {
-			config.Logger.Error("error creating legacy proxy listeners", zap.Error(err))
+			config.Logger.Error("error creating legacy proxy listeners")
 			return err
 		}
 
@@ -157,7 +159,7 @@ func Run(ctx context.Context, config *Config) error {
 		if advertiseAddr == "" {
 			advertiseAddr, err = netutils.GetAdvertiseAddress(config.BindAddress)
 			if err != nil {
-				config.Logger.Error("failed to identify advertise address", zap.Error(err))
+				config.Logger.Error("failed to identify advertise address")
 				return err
 			}
 		}
@@ -182,8 +184,8 @@ func Run(ctx context.Context, config *Config) error {
 
 		clusterEntry, err := clusteringManager.Join(ctx, localMemberData)
 		if err != nil {
-			config.Logger.Fatal("failed to join cluster", zap.Error(err))
-			os.Exit(1)
+			config.Logger.Error("failed to join cluster")
+			return err
 		}
 
 		if instanceIdx == 0 && config.StartupCallback != nil {
@@ -202,11 +204,11 @@ func Run(ctx context.Context, config *Config) error {
 		err = gatewaySys.Serve(ctx, gatewayLis)
 
 		if err != nil {
-			config.Logger.Error("failed to serve protostellar system", zap.Error(err))
+			config.Logger.Error("failed to serve protostellar system")
 
 			leaveErr := clusterEntry.Leave(ctx)
 			if leaveErr != nil {
-				config.Logger.Error("failed to leave cluster", zap.Error(err))
+				config.Logger.Error("failed to leave cluster")
 			}
 
 			return err
@@ -214,7 +216,8 @@ func Run(ctx context.Context, config *Config) error {
 
 		err = clusterEntry.Leave(ctx)
 		if err != nil {
-			config.Logger.Error("failed to leave cluster", zap.Error(err))
+			config.Logger.Error("failed to leave cluster")
+			return err
 		}
 
 		return nil
@@ -242,4 +245,20 @@ func Run(ctx context.Context, config *Config) error {
 	}
 
 	return nil
+}
+
+func Run(ctx context.Context, config *Config) {
+	startupCount := 1
+	err := gatewayStartup(context.Background(), config)
+	//TODO(malscent): daemon mode should start up grpc servers and return errors to client specifying issues connecting to underlying service instead of just restarting whole process
+	for err != nil {
+		if !config.Daemon {
+			config.Logger.Warn("Daemon mode disabled, exiting.", zap.Error(err))
+			return
+		}
+		config.Logger.Warn("Startup of gateway failed.  Retrying...", zap.Int("attempts", startupCount), zap.Duration("interval", time.Second*time.Duration(startupCount)), zap.Error(err))
+		time.Sleep(time.Second * time.Duration(startupCount))
+		startupCount++
+		err = gatewayStartup(context.Background(), config)
+	}
 }
