@@ -25,6 +25,8 @@ Provides translation capabilities for Protostellar to legacy protocols.
 
 ### Executing the legacy bridge
 
+Note: This is not currently implemented.
+
 ```
 > go generate
 > go build ./cmd/bridge
