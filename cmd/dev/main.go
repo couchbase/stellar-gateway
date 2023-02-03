@@ -30,7 +30,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	logger.Info(fmt.Sprintf("Starting %s: %s", version.Application, version.WithBuildNumberAndRevision()))
+	logger.Info(fmt.Sprintf("starting %s: %s", version.Application, version.WithBuildNumberAndRevision()))
 
 	// In order to start the bridge, we need to know where the gateway is running,
 	// so we use a channel and a hook in the gateway to get this.
@@ -61,7 +61,7 @@ func main() {
 			},
 		})
 		if err != nil {
-			log.Printf("failed to initialize the legacy bridge: %s", err)
+			log.Printf("failed to initialize the gateway: %s", err)
 			os.Exit(1)
 		}
 

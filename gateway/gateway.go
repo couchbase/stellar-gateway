@@ -35,7 +35,7 @@ type Config struct {
 	Logger      *zap.Logger
 	NodeID      string
 	ServerGroup string
-	Daemon bool
+	Daemon      bool
 
 	CbConnStr string
 	Username  string
@@ -49,8 +49,6 @@ type Config struct {
 
 	NumInstances    uint
 	StartupCallback func(*StartupInfo)
-
-	SnMetrics *metrics.SnMetrics
 }
 
 func gatewayStartup(ctx context.Context, config *Config) error {
@@ -129,7 +127,7 @@ func gatewayStartup(ctx context.Context, config *Config) error {
 			Logger:   config.Logger,
 			DataImpl: dataImpl,
 			SdImpl:   sdImpl,
-			Metrics:  config.SnMetrics,
+			Metrics:  metrics.GetSnMetrics(),
 		})
 		if err != nil {
 			config.Logger.Error("error creating legacy proxy")
@@ -247,18 +245,36 @@ func gatewayStartup(ctx context.Context, config *Config) error {
 	return nil
 }
 
-func Run(ctx context.Context, config *Config) {
-	startupCount := 1
-	err := gatewayStartup(context.Background(), config)
-	//TODO(malscent): daemon mode should start up grpc servers and return errors to client specifying issues connecting to underlying service instead of just restarting whole process
-	for err != nil {
-		if !config.Daemon {
-			config.Logger.Warn("Daemon mode disabled, exiting.", zap.Error(err))
-			return
+func Run(ctx context.Context, config *Config) error {
+	// TODO(malscent): daemon mode should start up grpc servers and return errors
+	// to the client specifying issues connecting to underlying service instead of
+	// just restarting whole process
+	for restarts := 0; ; restarts++ {
+		startTime := time.Now()
+
+		err := gatewayStartup(context.Background(), config)
+		if err != nil {
+			if !config.Daemon {
+				return err
+			}
+
+			runTime := time.Since(startTime)
+
+			// limit automatic restarts to once every 10 seconds
+			waitTime := (10 * time.Second) - runTime
+			if waitTime < 0 {
+				waitTime = 0
+			}
+
+			config.Logger.Warn("startup of gateway failed.  retrying...",
+				zap.Error(err),
+				zap.Int("attempt", restarts),
+				zap.Duration("waitTime", waitTime))
+			time.Sleep(waitTime)
+
+			continue
 		}
-		config.Logger.Warn("Startup of gateway failed.  Retrying...", zap.Int("attempts", startupCount), zap.Duration("interval", time.Second*time.Duration(startupCount)), zap.Error(err))
-		time.Sleep(time.Second * time.Duration(startupCount))
-		startupCount++
-		err = gatewayStartup(context.Background(), config)
+
+		return nil
 	}
 }

@@ -8,7 +8,6 @@ import (
 	"os"
 
 	"github.com/couchbase/stellar-gateway/gateway"
-	"github.com/couchbase/stellar-gateway/pkg/metrics"
 	"github.com/couchbase/stellar-gateway/pkg/version"
 	"github.com/couchbase/stellar-gateway/pkg/webapi"
 	"go.uber.org/zap"
@@ -32,7 +31,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	logger.Info(fmt.Sprintf("Starting %s: %s", version.Application, version.WithBuildNumberAndRevision()))
+	logger.Info(fmt.Sprintf("starting %s: %s", version.Application, version.WithBuildNumberAndRevision()))
 
 	// In order to start the bridge, we need to know where the gateway is running,
 	// so we use a channel and a hook in the gateway to get this.
@@ -60,7 +59,6 @@ func main() {
 		BindSdPort:   *sdPort,
 		BindAddress:  "0.0.0.0",
 		NumInstances: 1,
-		SnMetrics:    metrics.GetSnMetrics(),
 
 		StartupCallback: func(m *gateway.StartupInfo) {
 			gatewayConnStrCh <- fmt.Sprintf("%s:%d", m.AdvertiseAddr, m.AdvertisePorts.PS)
