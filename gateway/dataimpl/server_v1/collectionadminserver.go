@@ -3,28 +3,46 @@ package server_v1
 import (
 	"context"
 
-	"github.com/couchbase/gocb/v2"
+	"github.com/couchbase/gocbcorex"
+	"github.com/couchbase/gocbcorex/cbmgmtx"
 	"github.com/couchbase/goprotostellar/genproto/admin_collection_v1"
+	"google.golang.org/grpc/status"
 )
 
 type CollectionAdminServer struct {
 	admin_collection_v1.UnimplementedCollectionAdminServer
 
-	cbClient *gocb.Cluster
+	cbClient *gocbcorex.AgentManager
 }
 
-func (s *CollectionAdminServer) ListCollections(context context.Context, in *admin_collection_v1.ListCollectionsRequest) (*admin_collection_v1.ListCollectionsResponse, error) {
-	collMgr := s.cbClient.Bucket(in.BucketName).Collections()
+func (s *CollectionAdminServer) getBucketAgent(
+	ctx context.Context, bucketName string,
+) (*gocbcorex.Agent, *status.Status) {
+	bucketAgent, err := s.cbClient.GetBucketAgent(ctx, bucketName)
+	if err != nil {
+		return nil, cbGenericErrToPsStatus(err)
+	}
+	return bucketAgent, nil
+}
 
-	result, err := collMgr.GetAllScopes(&gocb.GetAllScopesOptions{
-		Context: context,
+func (s *CollectionAdminServer) ListCollections(
+	ctx context.Context,
+	in *admin_collection_v1.ListCollectionsRequest,
+) (*admin_collection_v1.ListCollectionsResponse, error) {
+	bucketAgent, errSt := s.getBucketAgent(ctx, in.BucketName)
+	if errSt != nil {
+		return nil, errSt.Err()
+	}
+
+	result, err := bucketAgent.GetCollectionManifest(ctx, &cbmgmtx.GetCollectionManifestOptions{
+		BucketName: in.BucketName,
 	})
 	if err != nil {
 		return nil, cbGenericErrToPsStatus(err).Err()
 	}
 
 	var scopes []*admin_collection_v1.ListCollectionsResponse_Scope
-	for _, scope := range result {
+	for _, scope := range result.Scopes {
 		var collections []*admin_collection_v1.ListCollectionsResponse_Collection
 
 		for _, collection := range scope.Collections {
@@ -44,11 +62,18 @@ func (s *CollectionAdminServer) ListCollections(context context.Context, in *adm
 	}, nil
 }
 
-func (s *CollectionAdminServer) CreateScope(context context.Context, in *admin_collection_v1.CreateScopeRequest) (*admin_collection_v1.CreateScopeResponse, error) {
-	collMgr := s.cbClient.Bucket(in.BucketName).Collections()
+func (s *CollectionAdminServer) CreateScope(
+	ctx context.Context,
+	in *admin_collection_v1.CreateScopeRequest,
+) (*admin_collection_v1.CreateScopeResponse, error) {
+	bucketAgent, errSt := s.getBucketAgent(ctx, in.BucketName)
+	if errSt != nil {
+		return nil, errSt.Err()
+	}
 
-	err := collMgr.CreateScope(in.ScopeName, &gocb.CreateScopeOptions{
-		Context: context,
+	err := bucketAgent.CreateScope(ctx, &cbmgmtx.CreateScopeOptions{
+		BucketName: in.BucketName,
+		ScopeName:  in.ScopeName,
 	})
 	if err != nil {
 		return nil, cbGenericErrToPsStatus(err).Err()
@@ -57,11 +82,18 @@ func (s *CollectionAdminServer) CreateScope(context context.Context, in *admin_c
 	return &admin_collection_v1.CreateScopeResponse{}, nil
 }
 
-func (s *CollectionAdminServer) DeleteScope(context context.Context, in *admin_collection_v1.DeleteScopeRequest) (*admin_collection_v1.DeleteScopeResponse, error) {
-	collMgr := s.cbClient.Bucket(in.BucketName).Collections()
+func (s *CollectionAdminServer) DeleteScope(
+	ctx context.Context,
+	in *admin_collection_v1.DeleteScopeRequest,
+) (*admin_collection_v1.DeleteScopeResponse, error) {
+	bucketAgent, errSt := s.getBucketAgent(ctx, in.BucketName)
+	if errSt != nil {
+		return nil, errSt.Err()
+	}
 
-	err := collMgr.DropScope(in.ScopeName, &gocb.DropScopeOptions{
-		Context: context,
+	err := bucketAgent.DeleteScope(ctx, &cbmgmtx.DeleteScopeOptions{
+		BucketName: in.BucketName,
+		ScopeName:  in.ScopeName,
 	})
 	if err != nil {
 		return nil, cbGenericErrToPsStatus(err).Err()
@@ -70,15 +102,21 @@ func (s *CollectionAdminServer) DeleteScope(context context.Context, in *admin_c
 	return &admin_collection_v1.DeleteScopeResponse{}, nil
 }
 
-func (s *CollectionAdminServer) CreateCollection(context context.Context, in *admin_collection_v1.CreateCollectionRequest) (*admin_collection_v1.CreateCollectionResponse, error) {
-	collMgr := s.cbClient.Bucket(in.BucketName).Collections()
+func (s *CollectionAdminServer) CreateCollection(
+	ctx context.Context,
+	in *admin_collection_v1.CreateCollectionRequest,
+) (*admin_collection_v1.CreateCollectionResponse, error) {
+	bucketAgent, errSt := s.getBucketAgent(ctx, in.BucketName)
+	if errSt != nil {
+		return nil, errSt.Err()
+	}
 
-	err := collMgr.CreateCollection(gocb.CollectionSpec{
-		Name:      in.CollectionName,
-		ScopeName: in.ScopeName,
-		MaxExpiry: 0,
-	}, &gocb.CreateCollectionOptions{
-		Context: context,
+	err := bucketAgent.CreateCollection(ctx, &cbmgmtx.CreateCollectionOptions{
+		BucketName:     in.BucketName,
+		CollectionName: in.CollectionName,
+		ScopeName:      in.ScopeName,
+		// TODO(brett19): Implement collection max expiry
+		MaxTTL: 0,
 	})
 	if err != nil {
 		return nil, cbGenericErrToPsStatus(err).Err()
@@ -87,14 +125,19 @@ func (s *CollectionAdminServer) CreateCollection(context context.Context, in *ad
 	return &admin_collection_v1.CreateCollectionResponse{}, nil
 }
 
-func (s *CollectionAdminServer) DeleteCollection(context context.Context, in *admin_collection_v1.DeleteCollectionRequest) (*admin_collection_v1.DeleteCollectionResponse, error) {
-	collMgr := s.cbClient.Bucket(in.BucketName).Collections()
+func (s *CollectionAdminServer) DeleteCollection(
+	ctx context.Context,
+	in *admin_collection_v1.DeleteCollectionRequest,
+) (*admin_collection_v1.DeleteCollectionResponse, error) {
+	bucketAgent, errSt := s.getBucketAgent(ctx, in.BucketName)
+	if errSt != nil {
+		return nil, errSt.Err()
+	}
 
-	err := collMgr.DropCollection(gocb.CollectionSpec{
-		Name:      in.CollectionName,
-		ScopeName: in.ScopeName,
-	}, &gocb.DropCollectionOptions{
-		Context: context,
+	err := bucketAgent.DeleteCollection(ctx, &cbmgmtx.DeleteCollectionOptions{
+		BucketName:     in.BucketName,
+		ScopeName:      in.ScopeName,
+		CollectionName: in.CollectionName,
 	})
 	if err != nil {
 		return nil, cbGenericErrToPsStatus(err).Err()
@@ -103,7 +146,7 @@ func (s *CollectionAdminServer) DeleteCollection(context context.Context, in *ad
 	return &admin_collection_v1.DeleteCollectionResponse{}, nil
 }
 
-func NewCollectionAdminServer(cbClient *gocb.Cluster) *CollectionAdminServer {
+func NewCollectionAdminServer(cbClient *gocbcorex.AgentManager) *CollectionAdminServer {
 	return &CollectionAdminServer{
 		cbClient: cbClient,
 	}

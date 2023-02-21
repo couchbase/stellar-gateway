@@ -2,9 +2,11 @@ package gateway
 
 import (
 	"context"
+	"fmt"
 	"time"
 
-	"github.com/couchbase/gocb/v2"
+	"github.com/couchbase/cbauth"
+	"github.com/couchbase/gocbcorex"
 	"github.com/couchbase/stellar-gateway/contrib/cbconfig"
 	"github.com/couchbase/stellar-gateway/contrib/cbtopology"
 	"github.com/couchbase/stellar-gateway/contrib/goclustering"
@@ -63,20 +65,41 @@ func gatewayStartup(ctx context.Context, config *Config) error {
 	// start connecting to the underlying cluster
 	config.Logger.Info("linking to couchbase cluster", zap.String("connectionString", config.CbConnStr), zap.String("User", config.Username))
 
-	client, err := gocb.Connect(config.CbConnStr, gocb.ClusterOptions{
-		Username: config.Username,
-		Password: config.Password,
-	})
+	kvHostPort := fmt.Sprintf("%s:11210", config.CbConnStr)
+	mgmtHostPort := fmt.Sprintf("%s:8091", config.CbConnStr)
+
+	_, err := cbauth.InternalRetryDefaultInitWithService("stg", mgmtHostPort, config.Username, config.Password)
 	if err != nil {
-		config.Logger.Error("failed to connect to couchbase cluster")
+		config.Logger.Error("failed to initialize cbauth connection",
+			zap.Error(err),
+			zap.String("hostPort", mgmtHostPort),
+			zap.String("user", config.Username))
 		return err
 	}
 
-	err = client.WaitUntilReady(10*time.Second, nil)
+	agentMgr, err := gocbcorex.CreateAgentManager(ctx, gocbcorex.AgentManagerOptions{
+		Logger:    config.Logger.Named("gocbcorex"),
+		TLSConfig: nil,
+		Authenticator: &gocbcorex.PasswordAuthenticator{
+			Username: config.Username,
+			Password: config.Password,
+		},
+		SeedConfig: gocbcorex.SeedConfig{
+			HTTPAddrs: []string{mgmtHostPort},
+			MemdAddrs: []string{kvHostPort},
+		},
+	})
 	if err != nil {
-		config.Logger.Error("failed to wait for couchbase cluster connection")
+		config.Logger.Error("failed to connect to couchbase cluster",
+			zap.Error(err),
+			zap.String("httpAddr", mgmtHostPort),
+			zap.String("memdAddr", kvHostPort),
+			zap.String("user", config.Username))
 		return err
 	}
+
+	config.Logger.Info("connected agent manager",
+		zap.Any("agent", agentMgr))
 
 	config.Logger.Info("connected to couchbase cluster")
 
@@ -114,7 +137,7 @@ func gatewayStartup(ctx context.Context, config *Config) error {
 		dataImpl := dataimpl.New(&dataimpl.NewOptions{
 			Logger:           config.Logger,
 			TopologyProvider: psTopologyManager,
-			CbClient:         client,
+			CbClient:         agentMgr,
 		})
 
 		sdImpl := sdimpl.New(&sdimpl.NewOptions{

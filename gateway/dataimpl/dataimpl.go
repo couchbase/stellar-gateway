@@ -1,7 +1,7 @@
 package dataimpl
 
 import (
-	"github.com/couchbase/gocb/v2"
+	"github.com/couchbase/gocbcorex"
 	"github.com/couchbase/stellar-gateway/gateway/dataimpl/server_v1"
 	"github.com/couchbase/stellar-gateway/gateway/topology"
 	"go.uber.org/zap"
@@ -11,7 +11,7 @@ type NewOptions struct {
 	Logger *zap.Logger
 
 	TopologyProvider topology.Provider
-	CbClient         *gocb.Cluster
+	CbClient         *gocbcorex.AgentManager
 }
 
 type Servers struct {
