@@ -1,3 +1,6 @@
 [submodule "contrib/protostellar"]
 	path = contrib/protostellar
 	url = git@github.com:couchbase/protostellar.git
+[submodule "contrib/gocbcorex"]
+	path = contrib/gocbcorex
+	url = git@github.com:couchbase/gocbcorex.git
