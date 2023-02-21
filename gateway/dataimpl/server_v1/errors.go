@@ -213,6 +213,18 @@ func newSdPathMismatchStatus(baseErr error, bucketName, scopeName, collectionNam
 	return st
 }
 
+func newUnsupportedFieldStatus(fieldPath string) *status.Status {
+	st := status.New(codes.Unimplemented,
+		fmt.Sprintf("The '%s' field is not currently supported", fieldPath))
+	st = tryAttachStatusDetails(st, &epb.BadRequest{
+		FieldViolations: []*epb.BadRequest_FieldViolation{{
+			Field:       "PATH_MISMATCH",
+			Description: "",
+		}},
+	})
+	return st
+}
+
 func newSdPathEinvalStatus(baseErr error, sdPath string) *status.Status {
 	st := status.New(codes.InvalidArgument,
 		fmt.Sprintf("Invalid subdocument path syntax '%s'.", sdPath))

@@ -5,7 +5,8 @@ import (
 	"errors"
 	"time"
 
-	"github.com/couchbase/gocb/v2"
+	"github.com/couchbase/gocbcorex"
+	"github.com/couchbase/gocbcorex/cbmgmtx"
 	"github.com/couchbase/goprotostellar/genproto/admin_bucket_v1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -14,59 +15,62 @@ import (
 type BucketAdminServer struct {
 	admin_bucket_v1.UnimplementedBucketAdminServer
 
-	cbClient *gocb.Cluster
+	cbClient *gocbcorex.AgentManager
 }
 
-func (s *BucketAdminServer) ListBuckets(ctx context.Context, req *admin_bucket_v1.ListBucketsRequest) (*admin_bucket_v1.ListBucketsResponse, error) {
-	bktMgr := s.cbClient.Buckets()
+func (s *BucketAdminServer) ListBuckets(
+	ctx context.Context,
+	in *admin_bucket_v1.ListBucketsRequest,
+) (*admin_bucket_v1.ListBucketsResponse, error) {
+	agent := s.cbClient.GetClusterAgent()
 
-	result, err := bktMgr.GetAllBuckets(&gocb.GetAllBucketsOptions{})
+	result, err := agent.GetAllBuckets(ctx, &cbmgmtx.GetAllBucketsOptions{})
 	if err != nil {
 		return nil, cbGenericErrToPsStatus(err).Err()
 	}
 
 	var buckets []*admin_bucket_v1.ListBucketsResponse_Bucket
-	for bucketName, bucket := range result {
-		bucketType, errSt := bucketTypeFromGocb(bucket.BucketType)
+	for _, bucket := range result {
+		bucketType, errSt := bucketTypeFromCbmgmtx(bucket.BucketType)
 		if errSt != nil {
 			return nil, errSt.Err()
 		}
 
-		evictionMode, errSt := evictionModeFromGocb(bucket.EvictionPolicy)
+		evictionMode, errSt := evictionModeFromCbmgmtx(bucket.EvictionPolicy)
 		if errSt != nil {
 			return nil, errSt.Err()
 		}
 
-		compressionMode, errSt := compressionModeFromGocb(bucket.CompressionMode)
+		compressionMode, errSt := compressionModeFromCbmgmtx(bucket.CompressionMode)
 		if errSt != nil {
 			return nil, errSt.Err()
 		}
 
-		minimumDurabilityLevel, errSt := durabilityLevelFromGocb(bucket.MinimumDurabilityLevel)
+		minimumDurabilityLevel, errSt := durabilityLevelFromCbmgmtx(bucket.DurabilityMinLevel)
 		if errSt != nil {
 			return nil, errSt.Err()
 		}
 
-		storageBackend, errSt := storageBackendFromGocb(bucket.StorageBackend)
+		storageBackend, errSt := storageBackendFromCbmgmtx(bucket.StorageBackend)
 		if errSt != nil {
 			return nil, errSt.Err()
 		}
 
 		// TODO(brett19): Fix conflict resolution type in list buckets to return the proper value once gocb is fixed.
-		conflictResolutionType, errSt := conflictResolutionTypeFromGocb(gocb.ConflictResolutionTypeTimestamp)
+		conflictResolutionType, errSt := conflictResolutionTypeFromCbmgmtx(bucket.ConflictResolutionType)
 		if errSt != nil {
 			return nil, errSt.Err()
 		}
 
 		buckets = append(buckets, &admin_bucket_v1.ListBucketsResponse_Bucket{
-			BucketName:             bucketName,
+			BucketName:             bucket.Name,
 			FlushEnabled:           bucket.FlushEnabled,
 			RamQuotaBytes:          bucket.RAMQuotaMB * 1024 * 1024,
-			NumReplicas:            bucket.NumReplicas,
+			NumReplicas:            bucket.ReplicaNumber,
 			ReplicaIndexes:         !bucket.ReplicaIndexDisabled,
 			BucketType:             bucketType,
 			EvictionMode:           evictionMode,
-			MaxExpirySecs:          uint32(bucket.MaxExpiry / time.Second),
+			MaxExpirySecs:          uint32(bucket.MaxTTL / time.Second),
 			CompressionMode:        compressionMode,
 			MinimumDurabilityLevel: minimumDurabilityLevel,
 			StorageBackend:         storageBackend,
@@ -79,87 +83,91 @@ func (s *BucketAdminServer) ListBuckets(ctx context.Context, req *admin_bucket_v
 	}, nil
 }
 
-func (s *BucketAdminServer) CreateBucket(ctx context.Context, req *admin_bucket_v1.CreateBucketRequest) (*admin_bucket_v1.CreateBucketResponse, error) {
-	bktMgr := s.cbClient.Buckets()
+func (s *BucketAdminServer) CreateBucket(
+	ctx context.Context,
+	in *admin_bucket_v1.CreateBucketRequest,
+) (*admin_bucket_v1.CreateBucketResponse, error) {
+	agent := s.cbClient.GetClusterAgent()
 
 	flushEnabled := false
-	if req.FlushEnabled != nil {
-		flushEnabled = *req.FlushEnabled
+	if in.FlushEnabled != nil {
+		flushEnabled = *in.FlushEnabled
 	}
 
 	replicaIndexes := false
-	if req.ReplicaIndexes != nil {
-		replicaIndexes = *req.ReplicaIndexes
+	if in.ReplicaIndexes != nil {
+		replicaIndexes = *in.ReplicaIndexes
 	}
 
-	bucketType, errSt := bucketTypeToGocb(req.BucketType)
+	bucketType, errSt := bucketTypeToCbmgmtx(in.BucketType)
 	if errSt != nil {
 		return nil, errSt.Err()
 	}
 
 	// TODO(brett19): Figure out how to properly handle default eviction type
-	evictionPolicy := gocb.EvictionPolicyType("")
-	if req.EvictionMode != nil {
-		evictionPolicy, errSt = evictionModeToGocb(*req.EvictionMode)
+	evictionPolicy := cbmgmtx.EvictionPolicyType("")
+	if in.EvictionMode != nil {
+		evictionPolicy, errSt = evictionModeToCbmgmtx(*in.EvictionMode)
 		if errSt != nil {
 			return nil, errSt.Err()
 		}
 	}
 
 	maxExpiry := 0 * time.Second
-	if req.MaxExpirySecs != nil {
-		maxExpiry = (time.Duration)(*req.MaxExpirySecs) * time.Second
+	if in.MaxExpirySecs != nil {
+		maxExpiry = (time.Duration)(*in.MaxExpirySecs) * time.Second
 	}
 
-	compressionMode := gocb.CompressionModePassive
-	if req.CompressionMode != nil {
-		compressionMode, errSt = compressionModeToGocb(*req.CompressionMode)
+	compressionMode := cbmgmtx.CompressionModePassive
+	if in.CompressionMode != nil {
+		compressionMode, errSt = compressionModeToCbmgmtx(*in.CompressionMode)
 		if errSt != nil {
 			return nil, errSt.Err()
 		}
 	}
 
-	minimumDurabilityLevel := gocb.DurabilityLevelNone
-	if req.MinimumDurabilityLevel != nil {
-		minimumDurabilityLevel, errSt = durabilityLevelToGocb(*req.MinimumDurabilityLevel)
+	minimumDurabilityLevel := cbmgmtx.DurabilityLevelNone
+	if in.MinimumDurabilityLevel != nil {
+		minimumDurabilityLevel, errSt = durabilityLevelToCbmgmtx(*in.MinimumDurabilityLevel)
 		if errSt != nil {
 			return nil, errSt.Err()
 		}
 	}
 
-	storageBackend := gocb.StorageBackendCouchstore
-	if req.StorageBackend != nil {
-		storageBackend, errSt = storageBackendToGocb(*req.StorageBackend)
+	storageBackend := cbmgmtx.StorageBackendCouchstore
+	if in.StorageBackend != nil {
+		storageBackend, errSt = storageBackendToCbmgmtx(*in.StorageBackend)
 		if errSt != nil {
 			return nil, errSt.Err()
 		}
 	}
 
-	conflictResolutionType, errSt := conflictResolutionTypeToGocb(*req.ConflictResolutionType)
+	conflictResolutionType, errSt := conflictResolutionTypeToCbmgmtx(*in.ConflictResolutionType)
 	if errSt != nil {
 		return nil, errSt.Err()
 	}
 
-	err := bktMgr.CreateBucket(gocb.CreateBucketSettings{
-		BucketSettings: gocb.BucketSettings{
-			Name:                 req.BucketName,
-			FlushEnabled:         flushEnabled,
-			ReplicaIndexDisabled: replicaIndexes,
-			// TODO(brett19): Fix this once we can properly specify the size here...
-			RAMQuotaMB:             req.RamQuotaBytes / 1024 / 1024,
-			NumReplicas:            req.NumReplicas,
-			BucketType:             bucketType,
-			EvictionPolicy:         evictionPolicy,
-			MaxExpiry:              maxExpiry,
-			CompressionMode:        compressionMode,
-			MinimumDurabilityLevel: minimumDurabilityLevel,
-			StorageBackend:         storageBackend,
+	err := agent.CreateBucket(ctx, &cbmgmtx.CreateBucketOptions{
+		BucketName: in.BucketName,
+		BucketSettings: cbmgmtx.BucketSettings{
+			MutableBucketSettings: cbmgmtx.MutableBucketSettings{
+				FlushEnabled:         flushEnabled,
+				ReplicaIndexDisabled: replicaIndexes,
+				RAMQuotaMB:           in.RamQuotaBytes / 1024 / 1024,
+				ReplicaNumber:        in.NumReplicas,
+				BucketType:           bucketType,
+				EvictionPolicy:       evictionPolicy,
+				MaxTTL:               maxExpiry,
+				CompressionMode:      compressionMode,
+				DurabilityMinLevel:   minimumDurabilityLevel,
+				StorageBackend:       storageBackend,
+			},
+			ConflictResolutionType: conflictResolutionType,
 		},
-		ConflictResolutionType: conflictResolutionType,
-	}, nil)
+	})
 	if err != nil {
-		if errors.Is(err, gocb.ErrBucketExists) {
-			return nil, newBucketExistsStatus(err, req.BucketName).Err()
+		if errors.Is(err, cbmgmtx.ErrBucketExists) {
+			return nil, newBucketExistsStatus(err, in.BucketName).Err()
 		}
 		return nil, cbGenericErrToPsStatus(err).Err()
 	}
@@ -167,71 +175,79 @@ func (s *BucketAdminServer) CreateBucket(ctx context.Context, req *admin_bucket_
 	return &admin_bucket_v1.CreateBucketResponse{}, nil
 }
 
-func (s *BucketAdminServer) UpdateBucket(ctx context.Context, req *admin_bucket_v1.UpdateBucketRequest) (*admin_bucket_v1.UpdateBucketResponse, error) {
-	bktMgr := s.cbClient.Buckets()
+func (s *BucketAdminServer) UpdateBucket(
+	ctx context.Context,
+	in *admin_bucket_v1.UpdateBucketRequest,
+) (*admin_bucket_v1.UpdateBucketResponse, error) {
+	agent := s.cbClient.GetClusterAgent()
 
-	bucket, err := bktMgr.GetBucket(req.BucketName, nil)
+	bucket, err := agent.GetBucket(ctx, &cbmgmtx.GetBucketOptions{
+		BucketName: in.BucketName,
+	})
 	if err != nil {
-		if errors.Is(err, gocb.ErrBucketNotFound) {
-			return nil, newBucketMissingStatus(err, req.BucketName).Err()
+		if errors.Is(err, cbmgmtx.ErrBucketNotFound) {
+			return nil, newBucketMissingStatus(err, in.BucketName).Err()
 		}
 		return nil, cbGenericErrToPsStatus(err).Err()
 	}
 
-	newBucket := *bucket
+	newBucket := bucket.MutableBucketSettings
 
 	var errSt *status.Status
 
-	if req.FlushEnabled != nil {
-		newBucket.FlushEnabled = *req.FlushEnabled
+	if in.FlushEnabled != nil {
+		newBucket.FlushEnabled = *in.FlushEnabled
 	}
 
-	if req.RamQuotaBytes != nil {
-		newBucket.RAMQuotaMB = *req.RamQuotaBytes / 1024 / 1024
+	if in.RamQuotaBytes != nil {
+		newBucket.RAMQuotaMB = *in.RamQuotaBytes / 1024 / 1024
 	}
 
-	if req.NumReplicas != nil {
-		newBucket.NumReplicas = *req.NumReplicas
+	if in.NumReplicas != nil {
+		newBucket.ReplicaNumber = *in.NumReplicas
 	}
 
-	if req.ReplicaIndexes != nil {
-		newBucket.ReplicaIndexDisabled = !*req.ReplicaIndexes
+	if in.ReplicaIndexes != nil {
+		newBucket.ReplicaIndexDisabled = !*in.ReplicaIndexes
 	}
 
-	if req.EvictionMode != nil {
-		newBucket.EvictionPolicy, errSt = evictionModeToGocb(*req.EvictionMode)
+	if in.EvictionMode != nil {
+		newBucket.EvictionPolicy, errSt = evictionModeToCbmgmtx(*in.EvictionMode)
 		if errSt != nil {
 			return nil, errSt.Err()
 		}
 	}
 
-	if req.MaxExpirySecs != nil {
-		newBucket.MaxExpiry = time.Duration(*req.MaxExpirySecs) * time.Second
+	if in.MaxExpirySecs != nil {
+		newBucket.MaxTTL = time.Duration(*in.MaxExpirySecs) * time.Second
 	}
 
-	if req.CompressionMode != nil {
-		newBucket.CompressionMode, errSt = compressionModeToGocb(*req.CompressionMode)
+	if in.CompressionMode != nil {
+		newBucket.CompressionMode, errSt = compressionModeToCbmgmtx(*in.CompressionMode)
 		if errSt != nil {
 			return nil, errSt.Err()
 		}
 	}
 
-	if req.MinimumDurabilityLevel != nil {
-		newBucket.MinimumDurabilityLevel, errSt = durabilityLevelToGocb(*req.MinimumDurabilityLevel)
+	if in.MinimumDurabilityLevel != nil {
+		newBucket.DurabilityMinLevel, errSt = durabilityLevelToCbmgmtx(*in.MinimumDurabilityLevel)
 		if errSt != nil {
 			return nil, errSt.Err()
 		}
 	}
 
-	if req.ConflictResolutionType != nil {
+	if in.ConflictResolutionType != nil {
 		// TODO(brett19): Implement correct handling of conflict resolution type when gocb bug is fixed.
 		return nil, status.Errorf(codes.Unimplemented, "conflict resolution type updates are not implemented")
 	}
 
-	err = bktMgr.UpdateBucket(newBucket, nil)
+	err = agent.UpdateBucket(ctx, &cbmgmtx.UpdateBucketOptions{
+		BucketName:            in.BucketName,
+		MutableBucketSettings: newBucket,
+	})
 	if err != nil {
-		if errors.Is(err, gocb.ErrBucketNotFound) {
-			return nil, newBucketMissingStatus(err, req.BucketName).Err()
+		if errors.Is(err, cbmgmtx.ErrBucketNotFound) {
+			return nil, newBucketMissingStatus(err, in.BucketName).Err()
 		}
 		return nil, cbGenericErrToPsStatus(err).Err()
 	}
@@ -239,13 +255,18 @@ func (s *BucketAdminServer) UpdateBucket(ctx context.Context, req *admin_bucket_
 	return &admin_bucket_v1.UpdateBucketResponse{}, nil
 }
 
-func (s *BucketAdminServer) DeleteBucket(ctx context.Context, req *admin_bucket_v1.DeleteBucketRequest) (*admin_bucket_v1.DeleteBucketResponse, error) {
-	bktMgr := s.cbClient.Buckets()
+func (s *BucketAdminServer) DeleteBucket(
+	ctx context.Context,
+	in *admin_bucket_v1.DeleteBucketRequest,
+) (*admin_bucket_v1.DeleteBucketResponse, error) {
+	agent := s.cbClient.GetClusterAgent()
 
-	err := bktMgr.DropBucket(req.BucketName, nil)
+	err := agent.DeleteBucket(ctx, &cbmgmtx.DeleteBucketOptions{
+		BucketName: in.BucketName,
+	})
 	if err != nil {
-		if errors.Is(err, gocb.ErrBucketNotFound) {
-			return nil, newBucketMissingStatus(err, req.BucketName).Err()
+		if errors.Is(err, cbmgmtx.ErrBucketNotFound) {
+			return nil, newBucketMissingStatus(err, in.BucketName).Err()
 		}
 		return nil, cbGenericErrToPsStatus(err).Err()
 	}
@@ -253,7 +274,7 @@ func (s *BucketAdminServer) DeleteBucket(ctx context.Context, req *admin_bucket_
 	return &admin_bucket_v1.DeleteBucketResponse{}, nil
 }
 
-func NewBucketAdminServer(cbClient *gocb.Cluster) *BucketAdminServer {
+func NewBucketAdminServer(cbClient *gocbcorex.AgentManager) *BucketAdminServer {
 	return &BucketAdminServer{
 		cbClient: cbClient,
 	}

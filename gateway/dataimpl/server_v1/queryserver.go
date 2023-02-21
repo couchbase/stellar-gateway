@@ -3,7 +3,8 @@ package server_v1
 import (
 	"encoding/json"
 
-	"github.com/couchbase/gocb/v2"
+	"github.com/couchbase/gocbcorex"
+	"github.com/couchbase/gocbcorex/cbqueryx"
 	"github.com/couchbase/goprotostellar/genproto/query_v1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -12,25 +13,23 @@ import (
 type QueryServer struct {
 	query_v1.UnimplementedQueryServer
 
-	cbClient *gocb.Cluster
+	cbClient *gocbcorex.AgentManager
 }
 
 func (s *QueryServer) Query(in *query_v1.QueryRequest, out query_v1.Query_QueryServer) error {
-	var opts gocb.QueryOptions
+	var opts gocbcorex.QueryOptions
+
+	opts.Statement = in.Statement
 
 	// metrics are included by default
 	opts.Metrics = true
 
 	if in.ReadOnly != nil {
-		opts.Readonly = *in.ReadOnly
-	}
-
-	if in.Prepared != nil {
-		opts.Adhoc = !*in.Prepared
+		opts.ReadOnly = *in.ReadOnly
 	}
 
 	if in.FlexIndex != nil {
-		opts.FlexIndex = *in.FlexIndex
+		opts.UseFts = *in.FlexIndex
 	}
 
 	if in.PreserveExpiry != nil {
@@ -38,11 +37,7 @@ func (s *QueryServer) Query(in *query_v1.QueryRequest, out query_v1.Query_QueryS
 	}
 
 	if in.ConsistentWith != nil {
-		opts.ConsistentWith = gocb.NewMutationState()
-		// TODO(chvck): gocb doesn't expose a way to create mutation tokens beyond json marshal/unmarshal
-		// for _, token := range in.ConsistentWith.Tokens {
-		// 	opts.ConsistentWith.Add(gocb.MutationToken{})
-		// }
+		return newUnsupportedFieldStatus("ConsistentWith").Err()
 	}
 
 	if in.TuningOptions != nil {
@@ -67,15 +62,15 @@ func (s *QueryServer) Query(in *query_v1.QueryRequest, out query_v1.Query_QueryS
 	}
 
 	if in.ClientContextId != nil {
-		opts.ClientContextID = *in.ClientContextId
+		opts.ClientContextId = *in.ClientContextId
 	}
 
 	if in.ScanConsistency != nil {
 		switch *in.ScanConsistency {
 		case query_v1.QueryRequest_NOT_BOUNDED:
-			opts.ScanConsistency = gocb.QueryScanConsistencyNotBounded
+			opts.ScanConsistency = cbqueryx.QueryScanConsistencyNotBounded
 		case query_v1.QueryRequest_REQUEST_PLUS:
-			opts.ScanConsistency = gocb.QueryScanConsistencyRequestPlus
+			opts.ScanConsistency = cbqueryx.QueryScanConsistencyRequestPlus
 		default:
 			return status.Errorf(codes.InvalidArgument, "invalid scan consistency option specified")
 		}
@@ -86,43 +81,41 @@ func (s *QueryServer) Query(in *query_v1.QueryRequest, out query_v1.Query_QueryS
 		return status.Errorf(codes.InvalidArgument, "named and positional parameters must be used exclusively")
 	}
 	if len(named) > 0 {
-		params := make(map[string]interface{}, len(named))
-		for k, param := range named {
-			var p interface{}
-			if err := json.Unmarshal(param, &p); err != nil {
-				return cbGenericErrToPsStatus(err).Err()
-			}
-
-			params[k] = p
+		params := make(map[string]json.RawMessage, len(named))
+		for k, v := range named {
+			params[k] = v
 		}
-		opts.NamedParameters = params
+		opts.NamedArgs = params
 	}
 	if len(pos) > 0 {
-		params := make([]interface{}, len(pos))
-		for i, param := range pos {
-			var p interface{}
-			if err := json.Unmarshal(param, &p); err != nil {
-				return cbGenericErrToPsStatus(err).Err()
-			}
-
+		params := make([]json.RawMessage, len(pos))
+		for i, p := range pos {
 			params[i] = p
 		}
-		opts.PositionalParameters = params
+		opts.Args = params
 	}
 	if in.ProfileMode != nil {
 		switch *in.ProfileMode {
 		case query_v1.QueryRequest_OFF:
-			opts.Profile = gocb.QueryProfileModeNone
+			opts.Profile = cbqueryx.QueryProfileModeOff
 		case query_v1.QueryRequest_PHASES:
-			opts.Profile = gocb.QueryProfileModePhases
+			opts.Profile = cbqueryx.QueryProfileModePhases
 		case query_v1.QueryRequest_TIMINGS:
-			opts.Profile = gocb.QueryProfileModeTimings
+			opts.Profile = cbqueryx.QueryProfileModeTimings
 		default:
 			return status.Errorf(codes.InvalidArgument, "invalid profile mode option specified")
 		}
 	}
 
-	result, err := s.cbClient.Query(in.Statement, &opts)
+	agent := s.cbClient.GetClusterAgent()
+
+	var result gocbcorex.QueryResultStream
+	var err error
+	if in.Prepared != nil && *in.Prepared {
+		result, err = agent.PreparedQuery(out.Context(), &opts)
+	} else {
+		result, err = agent.Query(out.Context(), &opts)
+	}
 	if err != nil {
 		return cbGenericErrToPsStatus(err).Err()
 	}
@@ -131,12 +124,16 @@ func (s *QueryServer) Query(in *query_v1.QueryRequest, out query_v1.Query_QueryS
 	var rowCacheNumBytes int = 0
 	const MAX_ROW_BYTES = 1024
 
-	for result.Next() {
-		var rowBytes json.RawMessage
-		err := result.Row(&rowBytes)
+	for {
+		rowBytes, err := result.ReadRow()
 		if err != nil {
 			return cbGenericErrToPsStatus(err).Err()
 		}
+
+		if rowBytes == nil {
+			break
+		}
+
 		rowNumBytes := len(rowBytes)
 
 		if rowCacheNumBytes+rowNumBytes > MAX_ROW_BYTES {
@@ -192,23 +189,23 @@ func (s *QueryServer) Query(in *query_v1.QueryRequest, out query_v1.Query_QueryS
 		psMetaData.Warnings = warnings
 
 		switch metaData.Status {
-		case gocb.QueryStatusRunning:
+		case cbqueryx.QueryStatusRunning:
 			psMetaData.Status = query_v1.QueryResponse_MetaData_RUNNING
-		case gocb.QueryStatusSuccess:
+		case cbqueryx.QueryStatusSuccess:
 			psMetaData.Status = query_v1.QueryResponse_MetaData_SUCCESS
-		case gocb.QueryStatusErrors:
+		case cbqueryx.QueryStatusErrors:
 			psMetaData.Status = query_v1.QueryResponse_MetaData_ERRORS
-		case gocb.QueryStatusCompleted:
+		case cbqueryx.QueryStatusCompleted:
 			psMetaData.Status = query_v1.QueryResponse_MetaData_COMPLETED
-		case gocb.QueryStatusStopped:
+		case cbqueryx.QueryStatusStopped:
 			psMetaData.Status = query_v1.QueryResponse_MetaData_STOPPED
-		case gocb.QueryStatusTimeout:
+		case cbqueryx.QueryStatusTimeout:
 			psMetaData.Status = query_v1.QueryResponse_MetaData_TIMEOUT
-		case gocb.QueryStatusClosed:
+		case cbqueryx.QueryStatusClosed:
 			psMetaData.Status = query_v1.QueryResponse_MetaData_CLOSED
-		case gocb.QueryStatusFatal:
+		case cbqueryx.QueryStatusFatal:
 			psMetaData.Status = query_v1.QueryResponse_MetaData_FATAL
-		case gocb.QueryStatusAborted:
+		case cbqueryx.QueryStatusAborted:
 			psMetaData.Status = query_v1.QueryResponse_MetaData_ABORTED
 		default:
 			psMetaData.Status = query_v1.QueryResponse_MetaData_UNKNOWN
@@ -239,15 +236,10 @@ func (s *QueryServer) Query(in *query_v1.QueryRequest, out query_v1.Query_QueryS
 		}
 	}
 
-	err = result.Err()
-	if err != nil {
-		return cbGenericErrToPsStatus(err).Err()
-	}
-
 	return nil
 }
 
-func NewQueryServer(cbClient *gocb.Cluster) *QueryServer {
+func NewQueryServer(cbClient *gocbcorex.AgentManager) *QueryServer {
 	return &QueryServer{
 		cbClient: cbClient,
 	}

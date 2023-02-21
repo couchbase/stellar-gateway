@@ -35,7 +35,7 @@ func main() {
 	defer cancel()
 
 	// testing some transactions stuff
-	{
+	if false {
 		conn := client.GetConn()
 		tc := transactions_v1.NewTransactionsClient(conn)
 
@@ -107,7 +107,7 @@ func main() {
 	}
 
 	// testing of some routing stuff
-	{
+	if false {
 		conn := client.GetConn()
 		rc := routing_v1.NewRoutingClient(conn)
 
