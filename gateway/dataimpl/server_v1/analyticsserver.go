@@ -5,14 +5,19 @@ import (
 
 	"github.com/couchbase/gocb/v2"
 	"github.com/couchbase/goprotostellar/genproto/analytics_v1"
+	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
 type AnalyticsServer struct {
 	analytics_v1.UnimplementedAnalyticsServer
-
+	log      *zap.Logger
 	cbClient *gocb.Cluster
+}
+
+func (s *AnalyticsServer) UpdateClient(client *gocb.Cluster) {
+	s.cbClient = client
 }
 
 func (s *AnalyticsServer) AnalyticsQuery(in *analytics_v1.AnalyticsQueryRequest, out analytics_v1.Analytics_AnalyticsQueryServer) error {
@@ -47,7 +52,7 @@ func (s *AnalyticsServer) AnalyticsQuery(in *analytics_v1.AnalyticsQueryRequest,
 		for k, param := range named {
 			var p interface{}
 			if err := json.Unmarshal(param, &p); err != nil {
-				return cbGenericErrToPsStatus(err).Err()
+				return cbGenericErrToPsStatus(err, s.log).Err()
 			}
 
 			params[k] = p
@@ -59,7 +64,7 @@ func (s *AnalyticsServer) AnalyticsQuery(in *analytics_v1.AnalyticsQueryRequest,
 		for i, param := range pos {
 			var p interface{}
 			if err := json.Unmarshal(param, &p); err != nil {
-				return cbGenericErrToPsStatus(err).Err()
+				return cbGenericErrToPsStatus(err, s.log).Err()
 			}
 
 			params[i] = p
@@ -69,7 +74,7 @@ func (s *AnalyticsServer) AnalyticsQuery(in *analytics_v1.AnalyticsQueryRequest,
 
 	result, err := s.cbClient.AnalyticsQuery(in.Statement, &opts)
 	if err != nil {
-		return cbGenericErrToPsStatus(err).Err()
+		return cbGenericErrToPsStatus(err, s.log).Err()
 	}
 
 	var rowCache [][]byte
@@ -80,7 +85,7 @@ func (s *AnalyticsServer) AnalyticsQuery(in *analytics_v1.AnalyticsQueryRequest,
 		var rowBytes json.RawMessage
 		err := result.Row(&rowBytes)
 		if err != nil {
-			return cbGenericErrToPsStatus(err).Err()
+			return cbGenericErrToPsStatus(err, s.log).Err()
 		}
 
 		rowNumBytes := len(rowBytes)
@@ -93,7 +98,7 @@ func (s *AnalyticsServer) AnalyticsQuery(in *analytics_v1.AnalyticsQueryRequest,
 				MetaData: nil,
 			})
 			if err != nil {
-				return cbGenericErrToPsStatus(err).Err()
+				return cbGenericErrToPsStatus(err, s.log).Err()
 			}
 
 			rowCache = nil
@@ -150,20 +155,21 @@ func (s *AnalyticsServer) AnalyticsQuery(in *analytics_v1.AnalyticsQueryRequest,
 			MetaData: psMetaData,
 		})
 		if err != nil {
-			return cbGenericErrToPsStatus(err).Err()
+			return cbGenericErrToPsStatus(err, s.log).Err()
 		}
 	}
 
 	err = result.Err()
 	if err != nil {
-		return cbGenericErrToPsStatus(err).Err()
+		return cbGenericErrToPsStatus(err, s.log).Err()
 	}
 
 	return nil
 }
 
-func NewAnalyticsServer(cbClient *gocb.Cluster) *AnalyticsServer {
+func NewAnalyticsServer(cbClient *gocb.Cluster, logger *zap.Logger) *AnalyticsServer {
 	return &AnalyticsServer{
 		cbClient: cbClient,
+		log:      logger,
 	}
 }

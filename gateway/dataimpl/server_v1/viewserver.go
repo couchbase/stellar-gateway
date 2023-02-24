@@ -3,6 +3,7 @@ package server_v1
 import (
 	"encoding/json"
 
+	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -12,8 +13,12 @@ import (
 
 type ViewsServer struct {
 	view_v1.UnimplementedViewServer
-
+	log      *zap.Logger
 	cbClient *gocb.Cluster
+}
+
+func (s *ViewsServer) UpdateClient(client *gocb.Cluster) {
+	s.cbClient = client
 }
 
 func (s *ViewsServer) ViewQuery(in *view_v1.ViewQueryRequest, out view_v1.View_ViewQueryServer) error {
@@ -59,7 +64,7 @@ func (s *ViewsServer) ViewQuery(in *view_v1.ViewQueryRequest, out view_v1.View_V
 	if len(in.Key) > 0 {
 		var key interface{}
 		if err := json.Unmarshal(in.Key, &key); err != nil {
-			return cbGenericErrToPsStatus(err).Err()
+			return cbGenericErrToPsStatus(err, s.log).Err()
 		}
 		opts.Key = key
 	}
@@ -68,7 +73,7 @@ func (s *ViewsServer) ViewQuery(in *view_v1.ViewQueryRequest, out view_v1.View_V
 		for i, k := range in.Keys {
 			var key interface{}
 			if err := json.Unmarshal(k, &key); err != nil {
-				return cbGenericErrToPsStatus(err).Err()
+				return cbGenericErrToPsStatus(err, s.log).Err()
 			}
 
 			keys[i] = key
@@ -78,14 +83,14 @@ func (s *ViewsServer) ViewQuery(in *view_v1.ViewQueryRequest, out view_v1.View_V
 	if len(in.StartKey) > 0 {
 		var key interface{}
 		if err := json.Unmarshal(in.StartKey, &key); err != nil {
-			return cbGenericErrToPsStatus(err).Err()
+			return cbGenericErrToPsStatus(err, s.log).Err()
 		}
 		opts.StartKey = key
 	}
 	if len(in.EndKey) > 0 {
 		var key interface{}
 		if err := json.Unmarshal(in.EndKey, &key); err != nil {
-			return cbGenericErrToPsStatus(err).Err()
+			return cbGenericErrToPsStatus(err, s.log).Err()
 		}
 		opts.EndKey = key
 	}
@@ -114,7 +119,7 @@ func (s *ViewsServer) ViewQuery(in *view_v1.ViewQueryRequest, out view_v1.View_V
 
 	result, err := s.cbClient.Bucket(in.BucketName).ViewQuery(in.DesignDocumentName, in.ViewName, &opts)
 	if err != nil {
-		return cbGenericErrToPsStatus(err).Err()
+		return cbGenericErrToPsStatus(err, s.log).Err()
 	}
 
 	var rowCache []*view_v1.ViewQueryResponse_Row
@@ -127,12 +132,12 @@ func (s *ViewsServer) ViewQuery(in *view_v1.ViewQueryRequest, out view_v1.View_V
 		var rowKeyBytes json.RawMessage
 		err := row.Key(&rowKeyBytes)
 		if err != nil {
-			return cbGenericErrToPsStatus(err).Err()
+			return cbGenericErrToPsStatus(err, s.log).Err()
 		}
 		var rowValBytes json.RawMessage
 		err = row.Value(&rowValBytes)
 		if err != nil {
-			return cbGenericErrToPsStatus(err).Err()
+			return cbGenericErrToPsStatus(err, s.log).Err()
 		}
 
 		rowNumBytes := len(rowKeyBytes) + len(rowValBytes) + len(row.ID)
@@ -145,7 +150,7 @@ func (s *ViewsServer) ViewQuery(in *view_v1.ViewQueryRequest, out view_v1.View_V
 				MetaData: nil,
 			})
 			if err != nil {
-				return cbGenericErrToPsStatus(err).Err()
+				return cbGenericErrToPsStatus(err, s.log).Err()
 			}
 
 			rowCache = nil
@@ -182,20 +187,21 @@ func (s *ViewsServer) ViewQuery(in *view_v1.ViewQueryRequest, out view_v1.View_V
 			MetaData: psMetaData,
 		})
 		if err != nil {
-			return cbGenericErrToPsStatus(err).Err()
+			return cbGenericErrToPsStatus(err, s.log).Err()
 		}
 	}
 
 	err = result.Err()
 	if err != nil {
-		return cbGenericErrToPsStatus(err).Err()
+		return cbGenericErrToPsStatus(err, s.log).Err()
 	}
 
 	return nil
 }
 
-func NewViewServer(cbClient *gocb.Cluster) *ViewsServer {
+func NewViewServer(cbClient *gocb.Cluster, logger *zap.Logger) *ViewsServer {
 	return &ViewsServer{
 		cbClient: cbClient,
+		log:      logger,
 	}
 }

@@ -4,9 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 
 	"github.com/couchbase/gocb/v2"
+	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/runtime/protoiface"
@@ -221,8 +221,8 @@ func newSdPathEinvalStatus(baseErr error, sdPath string) *status.Status {
 	return st
 }
 
-func cbGenericErrToPsStatus(err error) *status.Status {
-	log.Printf("handling generic error: %+v", err)
+func cbGenericErrToPsStatus(err error, log *zap.Logger) *status.Status {
+	log.Error("handling generic error", zap.Error(err))
 
 	if errors.Is(err, context.Canceled) {
 		return status.New(codes.Canceled, "The request was cancelled.")

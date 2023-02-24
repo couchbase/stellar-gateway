@@ -13,47 +13,13 @@ import (
 	"github.com/couchbase/stellar-gateway/gateway/sdimpl"
 	"github.com/couchbase/stellar-gateway/gateway/system"
 	"github.com/couchbase/stellar-gateway/gateway/topology"
-	"github.com/couchbase/stellar-gateway/pkg/metrics"
+	"github.com/couchbase/stellar-gateway/pkg/app_config"
 	"github.com/couchbase/stellar-gateway/utils/netutils"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
 
-type ServicePorts struct {
-	PS int `json:"p,omitempty"`
-	SD int `json:"s,omitempty"`
-}
-
-type StartupInfo struct {
-	MemberID       string
-	ServerGroup    string
-	AdvertiseAddr  string
-	AdvertisePorts ServicePorts
-}
-
-type Config struct {
-	Logger      *zap.Logger
-	NodeID      string
-	ServerGroup string
-	Daemon bool
-
-	CbConnStr string
-	Username  string
-	Password  string
-
-	BindAddress      string
-	BindDataPort     int
-	BindSdPort       int
-	AdvertiseAddress string
-	AdvertisePorts   ServicePorts
-
-	NumInstances    uint
-	StartupCallback func(*StartupInfo)
-
-	SnMetrics *metrics.SnMetrics
-}
-
-func gatewayStartup(ctx context.Context, config *Config) error {
+func gatewayStartup(ctx context.Context, config *app_config.Config) error {
 	// NodeID must not be blank, so lets generate a unique UUID if one wasn't provided...
 	nodeID := config.NodeID
 	if nodeID == "" {
@@ -63,50 +29,17 @@ func gatewayStartup(ctx context.Context, config *Config) error {
 	serverGroup := config.ServerGroup
 
 	// start connecting to the underlying cluster
-	config.Logger.Info("linking to couchbase cluster", zap.String("connectionString", config.CbConnStr), zap.String("User", config.Username))
+	config.Logger.Info("linking to couchbase cluster", zap.String("connectionString", config.Config.ConnectionString), zap.String("User", config.Credentials.Username))
 
-	client, err := gocb.Connect(config.CbConnStr, gocb.ClusterOptions{
-		Username: config.Username,
-		Password: config.Password,
-	})
+	client, err := getReadyCbClient(config.Config.ConnectionString, config.Credentials, config.Logger)
 	if err != nil {
 		config.Logger.Error("failed to connect to couchbase cluster")
 		return err
 	}
 
-	err = client.WaitUntilReady(10*time.Second, nil)
-	if err != nil {
-		config.Logger.Error("failed to wait for couchbase cluster connection")
-		return err
-	}
-
 	config.Logger.Info("connected to couchbase cluster")
 
-	// TODO(brett19): We should use the gocb client to fetch the topologies.
-	cbTopologyProvider, err := cbtopology.NewPollingProvider(cbtopology.PollingProviderOptions{
-		Fetcher: cbconfig.NewFetcher(cbconfig.FetcherOptions{
-			Host:     config.CbConnStr,
-			Username: config.Username,
-			Password: config.Password,
-		}),
-	})
-	if err != nil {
-		config.Logger.Error("failed to initialize cb topology poller")
-		return err
-	}
-
-	goclusteringProvider, err := goclustering.NewInProcProvider(goclustering.InProcProviderOptions{})
-	if err != nil {
-		config.Logger.Error("failed to initialize in-proc clustering provider")
-		return err
-	}
-
-	clusteringManager := &clustering.Manager{Provider: goclusteringProvider}
-
-	psTopologyManager, err := topology.NewManager(&topology.ManagerOptions{
-		LocalTopologyProvider:  clusteringManager,
-		RemoteTopologyProvider: cbTopologyProvider,
-	})
+	psTopologyManager, topologyManager, err := getTopologyManagers(config)
 	if err != nil {
 		config.Logger.Error("failed to initialize topology manager")
 		return err
@@ -118,6 +51,14 @@ func gatewayStartup(ctx context.Context, config *Config) error {
 			TopologyProvider: psTopologyManager,
 			CbClient:         client,
 		})
+
+		if config.CredentialsWatcher != nil {
+			watchCredentials(config, dataImpl)
+		}
+
+		if config.ConfigWatcher != nil {
+			watchConfig(config, dataImpl)
+		}
 
 		sdImpl := sdimpl.New(&sdimpl.NewOptions{
 			Logger:           config.Logger,
@@ -136,8 +77,8 @@ func gatewayStartup(ctx context.Context, config *Config) error {
 			return err
 		}
 
-		dataPort := config.BindDataPort
-		sdPort := config.BindSdPort
+		dataPort := config.Config.DataPort
+		sdPort := config.Config.SdPort
 
 		// the non-0 instance uses randomized ports
 		if instanceIdx > 0 {
@@ -146,7 +87,7 @@ func gatewayStartup(ctx context.Context, config *Config) error {
 		}
 
 		gatewayLis, err := system.NewListeners(&system.ListenersOptions{
-			Address:  config.BindAddress,
+			Address:  config.Config.BindAddress,
 			DataPort: dataPort,
 			SdPort:   sdPort,
 		})
@@ -157,19 +98,13 @@ func gatewayStartup(ctx context.Context, config *Config) error {
 
 		advertiseAddr := config.AdvertiseAddress
 		if advertiseAddr == "" {
-			advertiseAddr, err = netutils.GetAdvertiseAddress(config.BindAddress)
+			advertiseAddr, err = netutils.GetAdvertiseAddress(config.Config.BindAddress)
 			if err != nil {
 				config.Logger.Error("failed to identify advertise address")
 				return err
 			}
 		}
 
-		pickPort := func(advertisePort int, boundPort int) int {
-			if advertisePort != 0 {
-				return advertisePort
-			}
-			return boundPort
-		}
 		advertisePorts := clustering.ServicePorts{
 			PS: pickPort(config.AdvertisePorts.PS, gatewayLis.BoundDataPort()),
 			SD: pickPort(config.AdvertisePorts.SD, gatewayLis.BoundSdPort()),
@@ -182,18 +117,18 @@ func gatewayStartup(ctx context.Context, config *Config) error {
 			AdvertisePorts: advertisePorts,
 		}
 
-		clusterEntry, err := clusteringManager.Join(ctx, localMemberData)
+		clusterEntry, err := topologyManager.Join(ctx, localMemberData)
 		if err != nil {
 			config.Logger.Error("failed to join cluster")
 			return err
 		}
 
 		if instanceIdx == 0 && config.StartupCallback != nil {
-			config.StartupCallback(&StartupInfo{
+			config.StartupCallback(&app_config.StartupInfo{
 				MemberID:      nodeID,
 				ServerGroup:   serverGroup,
 				AdvertiseAddr: advertiseAddr,
-				AdvertisePorts: ServicePorts{
+				AdvertisePorts: app_config.ServicePorts{
 					PS: advertisePorts.PS,
 					SD: advertisePorts.SD,
 				},
@@ -247,18 +182,125 @@ func gatewayStartup(ctx context.Context, config *Config) error {
 	return nil
 }
 
-func Run(ctx context.Context, config *Config) {
+func Run(ctx context.Context, config *app_config.Config) {
 	startupCount := 1
+
 	err := gatewayStartup(context.Background(), config)
 	//TODO(malscent): daemon mode should start up grpc servers and return errors to client specifying issues connecting to underlying service instead of just restarting whole process
 	for err != nil {
-		if !config.Daemon {
+		if !config.Config.Daemon {
 			config.Logger.Warn("Daemon mode disabled, exiting.", zap.Error(err))
 			return
 		}
 		config.Logger.Warn("Startup of gateway failed.  Retrying...", zap.Int("attempts", startupCount), zap.Duration("interval", time.Second*time.Duration(startupCount)), zap.Error(err))
 		time.Sleep(time.Second * time.Duration(startupCount))
 		startupCount++
+		config.Logger.Debug("Wait over, restarting...")
 		err = gatewayStartup(context.Background(), config)
 	}
+}
+
+func getReadyCbClient(connectionString string, credentials *app_config.CredentialsConfig, logger *zap.Logger) (*gocb.Cluster, error) {
+	client, err := gocb.Connect(connectionString, gocb.ClusterOptions{
+		Username: credentials.Username,
+		Password: credentials.Password,
+	})
+	if err != nil {
+		logger.Error("failed to initialize cb connection")
+	}
+
+	err = client.WaitUntilReady(10*time.Second, nil)
+	if err != nil {
+		logger.Error("failed to wait for couchbase cluster connection")
+	}
+	return client, err
+}
+
+func getTopologyManagers(config *app_config.Config) (*topology.Manager, *clustering.Manager, error) {
+	// TODO(brett19): We should use the gocb client to fetch the topologies.
+	cbTopologyProvider, err := cbtopology.NewPollingProvider(cbtopology.PollingProviderOptions{
+		Fetcher: cbconfig.NewFetcher(cbconfig.FetcherOptions{
+			Host:               config.Config.ConnectionString,
+			Username:           config.Credentials.Username,
+			Password:           config.Credentials.Password,
+			Logger:             config.Logger.Named("topology-fetcher"),
+			CredentialsWatcher: config.CredentialsWatcher,
+			ConfigWatcher:      config.ConfigWatcher,
+		}), 
+		Logger: config.Logger.Named("topology-provider"),
+	})
+	if err != nil {
+		config.Logger.Error("failed to initialize cb topology poller")
+		return nil, nil, err
+	}
+
+	goclusteringProvider, err := goclustering.NewInProcProvider(goclustering.InProcProviderOptions{})
+	if err != nil {
+		config.Logger.Error("failed to initialize in-proc clustering provider")
+		return nil, nil, err
+	}
+
+	clusteringManager := &clustering.Manager{
+		Provider: goclusteringProvider,
+		Logger:   config.Logger.Named("cluster-manager"),
+	}
+
+	psTopologyManager, err := topology.NewManager(&topology.ManagerOptions{
+		LocalTopologyProvider:  clusteringManager,
+		RemoteTopologyProvider: cbTopologyProvider,
+		Logger: config.Logger.Named("ps-topology-manager"),
+	})
+
+	return psTopologyManager, clusteringManager, err
+}
+
+func pickPort(advertisePort int, boundPort int) int {
+	if advertisePort != 0 {
+		return advertisePort
+	}
+	return boundPort
+}
+
+func watchCredentials(config *app_config.Config, dataImpl *dataimpl.Servers) {
+	credsChan := make(chan app_config.CredentialsConfig)
+	unsub := config.CredentialsWatcher.Subscribe(credsChan)
+	go func() {
+		defer unsub()
+		for {
+			c := <- credsChan
+			config.Logger.Info("Updating client due to credentials change", zap.String("old", config.Credentials.Username), zap.String("new", c.Username))
+			client, err := getReadyCbClient(config.Config.ConnectionString, &c, config.Logger)
+			if err != nil {
+				config.Logger.Error("Error getting ready client", zap.Error(err))
+				config.Logger.Info("Client update failed")
+				continue
+			}
+			dataImpl.UpdateClient(client)
+			config.Credentials = &c
+			config.Logger.Info("Client update successful")
+		}
+	}()
+}
+
+func watchConfig(config *app_config.Config, dataImpl *dataimpl.Servers) {
+	configChan := make(chan app_config.GeneralConfig)
+	unsub := config.ConfigWatcher.Subscribe(configChan)
+	go func() {
+		defer unsub()
+		for {
+			c := <- configChan
+			if c.ConnectionString != config.Config.ConnectionString {
+				config.Logger.Info("Updating client due to connection string change", zap.String("old", config.Config.ConnectionString), zap.String("new", c.ConnectionString))
+				client, err := getReadyCbClient(c.ConnectionString, config.Credentials, config.Logger)
+				if err != nil {
+					config.Logger.Error("Error getting ready client", zap.Error(err))
+					config.Logger.Info("Client update failed")
+					continue
+				}
+				dataImpl.UpdateClient(client)
+				config.Config = &c
+				config.Logger.Info("Client update successful")
+			}
+		}
+	}()
 }

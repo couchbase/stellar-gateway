@@ -5,14 +5,19 @@ import (
 
 	"github.com/couchbase/gocb/v2"
 	"github.com/couchbase/goprotostellar/genproto/query_v1"
+	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
 type QueryServer struct {
 	query_v1.UnimplementedQueryServer
-
+	log      *zap.Logger
 	cbClient *gocb.Cluster
+}
+
+func (s *QueryServer) UpdateClient(client *gocb.Cluster) {
+	s.cbClient = client
 }
 
 func (s *QueryServer) Query(in *query_v1.QueryRequest, out query_v1.Query_QueryServer) error {
@@ -90,7 +95,7 @@ func (s *QueryServer) Query(in *query_v1.QueryRequest, out query_v1.Query_QueryS
 		for k, param := range named {
 			var p interface{}
 			if err := json.Unmarshal(param, &p); err != nil {
-				return cbGenericErrToPsStatus(err).Err()
+				return cbGenericErrToPsStatus(err, s.log).Err()
 			}
 
 			params[k] = p
@@ -102,7 +107,7 @@ func (s *QueryServer) Query(in *query_v1.QueryRequest, out query_v1.Query_QueryS
 		for i, param := range pos {
 			var p interface{}
 			if err := json.Unmarshal(param, &p); err != nil {
-				return cbGenericErrToPsStatus(err).Err()
+				return cbGenericErrToPsStatus(err, s.log).Err()
 			}
 
 			params[i] = p
@@ -124,7 +129,7 @@ func (s *QueryServer) Query(in *query_v1.QueryRequest, out query_v1.Query_QueryS
 
 	result, err := s.cbClient.Query(in.Statement, &opts)
 	if err != nil {
-		return cbGenericErrToPsStatus(err).Err()
+		return cbGenericErrToPsStatus(err, s.log).Err()
 	}
 
 	var rowCache [][]byte
@@ -135,7 +140,7 @@ func (s *QueryServer) Query(in *query_v1.QueryRequest, out query_v1.Query_QueryS
 		var rowBytes json.RawMessage
 		err := result.Row(&rowBytes)
 		if err != nil {
-			return cbGenericErrToPsStatus(err).Err()
+			return cbGenericErrToPsStatus(err, s.log).Err()
 		}
 		rowNumBytes := len(rowBytes)
 
@@ -147,7 +152,7 @@ func (s *QueryServer) Query(in *query_v1.QueryRequest, out query_v1.Query_QueryS
 				MetaData: nil,
 			})
 			if err != nil {
-				return cbGenericErrToPsStatus(err).Err()
+				return cbGenericErrToPsStatus(err, s.log).Err()
 			}
 
 			rowCache = nil
@@ -235,20 +240,21 @@ func (s *QueryServer) Query(in *query_v1.QueryRequest, out query_v1.Query_QueryS
 			MetaData: psMetaData,
 		})
 		if err != nil {
-			return cbGenericErrToPsStatus(err).Err()
+			return cbGenericErrToPsStatus(err, s.log).Err()
 		}
 	}
 
 	err = result.Err()
 	if err != nil {
-		return cbGenericErrToPsStatus(err).Err()
+		return cbGenericErrToPsStatus(err, s.log).Err()
 	}
 
 	return nil
 }
 
-func NewQueryServer(cbClient *gocb.Cluster) *QueryServer {
+func NewQueryServer(cbClient *gocb.Cluster, logger *zap.Logger) *QueryServer {
 	return &QueryServer{
 		cbClient: cbClient,
+		log:      logger,
 	}
 }

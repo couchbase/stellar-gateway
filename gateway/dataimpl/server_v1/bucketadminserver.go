@@ -7,14 +7,19 @@ import (
 
 	"github.com/couchbase/gocb/v2"
 	"github.com/couchbase/goprotostellar/genproto/admin_bucket_v1"
+	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
 type BucketAdminServer struct {
 	admin_bucket_v1.UnimplementedBucketAdminServer
-
+	log      *zap.Logger
 	cbClient *gocb.Cluster
+}
+
+func (s *BucketAdminServer) UpdateClient(client *gocb.Cluster) {
+	s.cbClient = client
 }
 
 func (s *BucketAdminServer) ListBuckets(ctx context.Context, req *admin_bucket_v1.ListBucketsRequest) (*admin_bucket_v1.ListBucketsResponse, error) {
@@ -22,7 +27,7 @@ func (s *BucketAdminServer) ListBuckets(ctx context.Context, req *admin_bucket_v
 
 	result, err := bktMgr.GetAllBuckets(&gocb.GetAllBucketsOptions{})
 	if err != nil {
-		return nil, cbGenericErrToPsStatus(err).Err()
+		return nil, cbGenericErrToPsStatus(err, s.log).Err()
 	}
 
 	var buckets []*admin_bucket_v1.ListBucketsResponse_Bucket
@@ -161,7 +166,7 @@ func (s *BucketAdminServer) CreateBucket(ctx context.Context, req *admin_bucket_
 		if errors.Is(err, gocb.ErrBucketExists) {
 			return nil, newBucketExistsStatus(err, req.BucketName).Err()
 		}
-		return nil, cbGenericErrToPsStatus(err).Err()
+		return nil, cbGenericErrToPsStatus(err, s.log).Err()
 	}
 
 	return &admin_bucket_v1.CreateBucketResponse{}, nil
@@ -175,7 +180,7 @@ func (s *BucketAdminServer) UpdateBucket(ctx context.Context, req *admin_bucket_
 		if errors.Is(err, gocb.ErrBucketNotFound) {
 			return nil, newBucketMissingStatus(err, req.BucketName).Err()
 		}
-		return nil, cbGenericErrToPsStatus(err).Err()
+		return nil, cbGenericErrToPsStatus(err, s.log).Err()
 	}
 
 	newBucket := *bucket
@@ -233,7 +238,7 @@ func (s *BucketAdminServer) UpdateBucket(ctx context.Context, req *admin_bucket_
 		if errors.Is(err, gocb.ErrBucketNotFound) {
 			return nil, newBucketMissingStatus(err, req.BucketName).Err()
 		}
-		return nil, cbGenericErrToPsStatus(err).Err()
+		return nil, cbGenericErrToPsStatus(err, s.log).Err()
 	}
 
 	return &admin_bucket_v1.UpdateBucketResponse{}, nil
@@ -247,14 +252,15 @@ func (s *BucketAdminServer) DeleteBucket(ctx context.Context, req *admin_bucket_
 		if errors.Is(err, gocb.ErrBucketNotFound) {
 			return nil, newBucketMissingStatus(err, req.BucketName).Err()
 		}
-		return nil, cbGenericErrToPsStatus(err).Err()
+		return nil, cbGenericErrToPsStatus(err, s.log).Err()
 	}
 
 	return &admin_bucket_v1.DeleteBucketResponse{}, nil
 }
 
-func NewBucketAdminServer(cbClient *gocb.Cluster) *BucketAdminServer {
+func NewBucketAdminServer(cbClient *gocb.Cluster, logger *zap.Logger) *BucketAdminServer {
 	return &BucketAdminServer{
 		cbClient: cbClient,
+		log:      logger,
 	}
 }

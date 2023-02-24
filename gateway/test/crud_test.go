@@ -9,6 +9,7 @@ import (
 	"github.com/couchbase/goprotostellar/genproto/kv_v1"
 	"github.com/couchbase/stellar-gateway/contrib/grpcheaderauth"
 	"github.com/couchbase/stellar-gateway/gateway"
+	"github.com/couchbase/stellar-gateway/pkg/app_config"
 	"github.com/couchbase/stellar-gateway/testutils"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -85,24 +86,31 @@ func (s *GatewayOpsTestSuite) SetupSuite() {
 		s.T().Fatalf("failed to initialize test logging: %s", err)
 	}
 
-	gwStartInfoCh := make(chan *gateway.StartupInfo, 1)
+	gwStartInfoCh := make(chan *app_config.StartupInfo, 1)
 
 	gwCtx, gwCtxCancel := context.WithCancel(context.Background())
 	gwClosedCh := make(chan struct{})
 	go func() {
-		err = gateway.Run(gwCtx, &gateway.Config{
-			Logger:       logger.Named("gateway"),
-			CbConnStr:    testConfig.CbConnStr,
-			Username:     testConfig.CbUser,
-			Password:     testConfig.CbPass,
-			BindDataPort: 0,
-			BindSdPort:   0,
-			NumInstances: 1,
 
-			StartupCallback: func(m *gateway.StartupInfo) {
+		theConfig := &app_config.Config{
+			Logger:       logger.Named("gateway"),
+			Config: &app_config.GeneralConfig{
+				ConnectionString: testConfig.CbConnStr,
+				DataPort: 0,
+				SdPort: 0,
+			},
+			Credentials: &app_config.CredentialsConfig{
+				Username: testConfig.CbUser,
+				Password: testConfig.CbPass,
+			},
+			NumInstances: 1,
+	
+			StartupCallback: func(m *app_config.StartupInfo) {
 				gwStartInfoCh <- m
 			},
-		})
+		}
+	
+		gateway.Run(gwCtx, theConfig)
 
 		s.T().Logf("test gateway has shut down")
 		close(gwClosedCh)

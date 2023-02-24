@@ -5,9 +5,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"net/url"
+
+	"github.com/couchbase/stellar-gateway/pkg/app_config"
+	"go.uber.org/zap"
 )
 
 // TODO(brett19): Somehow setup sharing of the `cbconfig` stuff.
@@ -19,17 +21,23 @@ import (
 // streaming replace on the IO stream, since we will support streaming configurations.
 
 type FetcherOptions struct {
-	HttpClient *http.Client
-	Host       string
-	Username   string
-	Password   string
+	HttpClient         *http.Client
+	Host               string
+	Username           string
+	Password           string
+	CredentialsWatcher *app_config.ConfigWatcher[app_config.CredentialsConfig]
+	ConfigWatcher      *app_config.ConfigWatcher[app_config.GeneralConfig]
+	Logger             *zap.Logger
 }
 
 type Fetcher struct {
-	httpClient *http.Client
-	host       string
-	username   string
-	password   string
+	httpClient      *http.Client
+	host            string
+	username        string
+	password        string
+	logger          *zap.Logger
+	configChan      chan app_config.GeneralConfig
+	credentialsChan chan app_config.CredentialsConfig
 }
 
 func NewFetcher(opts FetcherOptions) *Fetcher {
@@ -38,12 +46,50 @@ func NewFetcher(opts FetcherOptions) *Fetcher {
 		httpClient = &http.Client{}
 	}
 
-	return &Fetcher{
+	fetcher := &Fetcher{
 		httpClient: httpClient,
 		host:       opts.Host,
 		username:   opts.Username,
 		password:   opts.Password,
+		logger:     opts.Logger,
 	}
+
+	if opts.CredentialsWatcher != nil {
+		// setup watching of the credentials
+		fetcher.credentialsChan = make(chan app_config.CredentialsConfig)
+		unsub := opts.CredentialsWatcher.Subscribe(fetcher.credentialsChan)
+		fetcher.beginCredentialsListen(unsub)
+	}
+
+	if opts.ConfigWatcher != nil {
+		// set up watching of config
+		fetcher.configChan = make(chan app_config.GeneralConfig)
+		unsub := opts.ConfigWatcher.Subscribe(fetcher.configChan)
+		fetcher.beginConfigListen(unsub)
+	}
+
+	return fetcher
+}
+
+func (f *Fetcher) beginCredentialsListen(unsub func()) {
+	defer unsub()
+	go func() {
+		for {
+			c := <- f.credentialsChan
+			f.username = c.Username
+			f.password = c .Password
+		}
+	}()
+}
+
+func (f *Fetcher) beginConfigListen(unsub func()) {
+	defer unsub()
+	go func() {
+		for {
+			c := <- f.configChan
+			f.host = c.ConnectionString
+		}
+	}()
 }
 
 // used to derive the hostname to use for $HOST replacement
@@ -94,7 +140,7 @@ func (f *Fetcher) doGetJson(ctx context.Context, path string, data any) error {
 	// make sure the body is closed
 	err = resp.Body.Close()
 	if err != nil {
-		log.Printf("unexpected close error: %s", err)
+		f.logger.Error("unexpected error", zap.Error(err))
 	}
 
 	return nil

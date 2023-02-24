@@ -4,20 +4,24 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"log"
 	"time"
 
 	"github.com/couchbase/gocb/v2"
 	"github.com/couchbase/gocbcore/v10"
 	"github.com/couchbase/goprotostellar/genproto/kv_v1"
+	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
 type KvServer struct {
 	kv_v1.UnimplementedKvServer
-
+	log      *zap.Logger
 	cbClient *gocb.Cluster
+}
+
+func (s *KvServer) UpdateClient(client *gocb.Cluster) {
+	s.cbClient = client
 }
 
 func (s *KvServer) getCollection(
@@ -43,7 +47,7 @@ func (s *KvServer) getResultToContent(
 		// considered a serious internal error, so we report that error and then
 		// return an INTERNAL error to the client.
 
-		log.Printf("Unexpected transcoder failure: %s", err)
+		s.log.Error("Unexpected transcoder failure", zap.Error(err))
 
 		// TODO(brett19): We should conditionally attach debug information here to
 		// indicate what the actual transcoding error was.
@@ -70,7 +74,7 @@ func (s *KvServer) Get(ctx context.Context, in *kv_v1.GetRequest) (*kv_v1.GetRes
 			// TODO(brett19): Need to confirm ErrMemdAccessError works here.
 			return nil, newCollectionNoReadAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
 		}
-		return nil, cbGenericErrToPsStatus(err).Err()
+		return nil, cbGenericErrToPsStatus(err, s.log).Err()
 	}
 
 	contentData, errSt := s.getResultToContent(ctx, result)
@@ -123,7 +127,7 @@ func (s *KvServer) Insert(ctx context.Context, in *kv_v1.InsertRequest) (*kv_v1.
 			// TODO(brett19): Need to confirm ErrMemdAccessError works here.
 			return nil, newCollectionNoWriteAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
 		}
-		return nil, cbGenericErrToPsStatus(err).Err()
+		return nil, cbGenericErrToPsStatus(err, s.log).Err()
 	}
 
 	return &kv_v1.InsertResponse{
@@ -174,7 +178,7 @@ func (s *KvServer) Upsert(ctx context.Context, in *kv_v1.UpsertRequest) (*kv_v1.
 			// TODO(brett19): Need to confirm ErrMemdAccessError works here.
 			return nil, newCollectionNoWriteAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
 		}
-		return nil, cbGenericErrToPsStatus(err).Err()
+		return nil, cbGenericErrToPsStatus(err, s.log).Err()
 	}
 
 	return &kv_v1.UpsertResponse{
@@ -231,7 +235,7 @@ func (s *KvServer) Replace(ctx context.Context, in *kv_v1.ReplaceRequest) (*kv_v
 			// TODO(brett19): Need to confirm ErrMemdAccessError works here.
 			return nil, newCollectionNoWriteAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
 		}
-		return nil, cbGenericErrToPsStatus(err).Err()
+		return nil, cbGenericErrToPsStatus(err, s.log).Err()
 	}
 
 	return &kv_v1.ReplaceResponse{
@@ -277,7 +281,7 @@ func (s *KvServer) Remove(ctx context.Context, in *kv_v1.RemoveRequest) (*kv_v1.
 			// TODO(brett19): Need to confirm ErrMemdAccessError works here.
 			return nil, newCollectionNoWriteAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
 		}
-		return nil, cbGenericErrToPsStatus(err).Err()
+		return nil, cbGenericErrToPsStatus(err, s.log).Err()
 	}
 
 	return &kv_v1.RemoveResponse{
@@ -331,7 +335,7 @@ func (s *KvServer) Increment(ctx context.Context, in *kv_v1.IncrementRequest) (*
 			// TODO(brett19): Need to confirm ErrMemdAccessError works here.
 			return nil, newCollectionNoWriteAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
 		}
-		return nil, cbGenericErrToPsStatus(err).Err()
+		return nil, cbGenericErrToPsStatus(err, s.log).Err()
 	}
 
 	return &kv_v1.IncrementResponse{
@@ -386,7 +390,7 @@ func (s *KvServer) Decrement(ctx context.Context, in *kv_v1.DecrementRequest) (*
 			// TODO(brett19): Need to confirm ErrMemdAccessError works here.
 			return nil, newCollectionNoWriteAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
 		}
-		return nil, cbGenericErrToPsStatus(err).Err()
+		return nil, cbGenericErrToPsStatus(err, s.log).Err()
 	}
 
 	return &kv_v1.DecrementResponse{
@@ -436,7 +440,7 @@ func (s *KvServer) Append(ctx context.Context, in *kv_v1.AppendRequest) (*kv_v1.
 			// TODO(brett19): Need to confirm ErrMemdAccessError works here.
 			return nil, newCollectionNoWriteAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
 		}
-		return nil, cbGenericErrToPsStatus(err).Err()
+		return nil, cbGenericErrToPsStatus(err, s.log).Err()
 	}
 
 	return &kv_v1.AppendResponse{
@@ -485,7 +489,7 @@ func (s *KvServer) Prepend(ctx context.Context, in *kv_v1.PrependRequest) (*kv_v
 			// TODO(brett19): Need to confirm ErrMemdAccessError works here.
 			return nil, newCollectionNoWriteAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
 		}
-		return nil, cbGenericErrToPsStatus(err).Err()
+		return nil, cbGenericErrToPsStatus(err, s.log).Err()
 	}
 
 	return &kv_v1.PrependResponse{
@@ -538,7 +542,7 @@ func (s *KvServer) LookupIn(ctx context.Context, in *kv_v1.LookupInRequest) (*kv
 			// TODO(brett19): Need to confirm ErrMemdAccessError works here.
 			return nil, newCollectionNoReadAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
 		}
-		return nil, cbGenericErrToPsStatus(err).Err()
+		return nil, cbGenericErrToPsStatus(err, s.log).Err()
 	}
 
 	var respSpecs []*kv_v1.LookupInResponse_Spec
@@ -722,7 +726,7 @@ func (s *KvServer) MutateIn(ctx context.Context, in *kv_v1.MutateInRequest) (*kv
 			// TODO(brett19): Need to confirm ErrMemdAccessError works here.
 			return nil, newCollectionNoWriteAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
 		}
-		return nil, cbGenericErrToPsStatus(err).Err()
+		return nil, cbGenericErrToPsStatus(err, s.log).Err()
 	}
 
 	var respSpecs []*kv_v1.MutateInResponse_Spec
@@ -744,7 +748,7 @@ func (s *KvServer) MutateIn(ctx context.Context, in *kv_v1.MutateInRequest) (*kv
 			// TODO(brett19): Need to implement remaining possible sub-document errors.
 			// Implementing the other errors is complicated because it does not appear that gocb
 			// is properly exporting all the possible errors that can occur here...
-			return nil, cbGenericErrToPsStatus(err).Err()
+			return nil, cbGenericErrToPsStatus(err, s.log).Err()
 		}
 
 		respSpecs = append(respSpecs, &kv_v1.MutateInResponse_Spec{
@@ -759,8 +763,9 @@ func (s *KvServer) MutateIn(ctx context.Context, in *kv_v1.MutateInRequest) (*kv
 	}, nil
 }
 
-func NewKvServer(cbClient *gocb.Cluster) *KvServer {
+func NewKvServer(cbClient *gocb.Cluster, logger *zap.Logger) *KvServer {
 	return &KvServer{
 		cbClient: cbClient,
+		log:      logger,
 	}
 }

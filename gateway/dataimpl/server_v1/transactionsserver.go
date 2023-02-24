@@ -3,21 +3,25 @@ package server_v1
 import (
 	"context"
 	"errors"
-	"log"
 	"sync"
 
 	"github.com/couchbase/gocb/v2"
 	"github.com/couchbase/gocbcore/v10"
 	"github.com/couchbase/goprotostellar/genproto/transactions_v1"
+	"go.uber.org/zap"
 )
 
 type TransactionsServer struct {
 	transactions_v1.UnimplementedTransactionsServer
-
+	log      *zap.Logger
 	cbClient *gocb.Cluster
 	txnMgr   *gocbcore.TransactionsManager
 	txns     map[string]*gocbcore.Transaction
 	txnsLock sync.Mutex
+}
+
+func (s *TransactionsServer) UpdateClient(client *gocb.Cluster) {
+	s.cbClient = client
 }
 
 func (s *TransactionsServer) getAgent(bucketName string) (*gocbcore.Agent, error) {
@@ -351,14 +355,15 @@ func (s *TransactionsServer) TransactionRemove(
 	return
 }
 
-func NewTransactionsServer(cbClient *gocb.Cluster) *TransactionsServer {
+func NewTransactionsServer(cbClient *gocb.Cluster, logger *zap.Logger) *TransactionsServer {
 	txnMgr, err := gocbcore.InitTransactions(&gocbcore.TransactionsConfig{})
 	if err != nil {
-		log.Printf("failed to initialize transactions manager: %s", err)
+		logger.Error("failed to initialize transactions manager", zap.Error(err))
 	}
 
 	return &TransactionsServer{
 		cbClient: cbClient,
+		log:      logger,
 		txnMgr:   txnMgr,
 		txns:     make(map[string]*gocbcore.Transaction),
 	}
