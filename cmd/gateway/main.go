@@ -22,6 +22,5 @@ func main() {
 	})
 
 
-
 	gateway.Run(context.Background(), mainConfig)
 }

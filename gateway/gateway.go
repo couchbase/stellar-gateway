@@ -14,6 +14,7 @@ import (
 	"github.com/couchbase/stellar-gateway/gateway/system"
 	"github.com/couchbase/stellar-gateway/gateway/topology"
 	"github.com/couchbase/stellar-gateway/pkg/app_config"
+	"github.com/couchbase/stellar-gateway/pkg/metrics"
 	"github.com/couchbase/stellar-gateway/utils/netutils"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -70,7 +71,7 @@ func gatewayStartup(ctx context.Context, config *app_config.Config) error {
 			Logger:   config.Logger,
 			DataImpl: dataImpl,
 			SdImpl:   sdImpl,
-			Metrics:  config.SnMetrics,
+			Metrics:  metrics.GetSnMetrics(),
 		})
 		if err != nil {
 			config.Logger.Error("error creating legacy proxy")
@@ -184,7 +185,6 @@ func gatewayStartup(ctx context.Context, config *app_config.Config) error {
 
 func Run(ctx context.Context, config *app_config.Config) {
 	startupCount := 1
-
 	err := gatewayStartup(context.Background(), config)
 	//TODO(malscent): daemon mode should start up grpc servers and return errors to client specifying issues connecting to underlying service instead of just restarting whole process
 	for err != nil {
@@ -195,7 +195,7 @@ func Run(ctx context.Context, config *app_config.Config) {
 		config.Logger.Warn("Startup of gateway failed.  Retrying...", zap.Int("attempts", startupCount), zap.Duration("interval", time.Second*time.Duration(startupCount)), zap.Error(err))
 		time.Sleep(time.Second * time.Duration(startupCount))
 		startupCount++
-		config.Logger.Debug("Wait over, restarting...")
+		config.Logger.Debug("Wait time expired. Attempting to restart...")
 		err = gatewayStartup(context.Background(), config)
 	}
 }
@@ -226,7 +226,7 @@ func getTopologyManagers(config *app_config.Config) (*topology.Manager, *cluster
 			Logger:             config.Logger.Named("topology-fetcher"),
 			CredentialsWatcher: config.CredentialsWatcher,
 			ConfigWatcher:      config.ConfigWatcher,
-		}), 
+		}),
 		Logger: config.Logger.Named("topology-provider"),
 	})
 	if err != nil {
@@ -248,7 +248,7 @@ func getTopologyManagers(config *app_config.Config) (*topology.Manager, *cluster
 	psTopologyManager, err := topology.NewManager(&topology.ManagerOptions{
 		LocalTopologyProvider:  clusteringManager,
 		RemoteTopologyProvider: cbTopologyProvider,
-		Logger: config.Logger.Named("ps-topology-manager"),
+		Logger:                 config.Logger.Named("ps-topology-manager"),
 	})
 
 	return psTopologyManager, clusteringManager, err
@@ -267,7 +267,7 @@ func watchCredentials(config *app_config.Config, dataImpl *dataimpl.Servers) {
 	go func() {
 		defer unsub()
 		for {
-			c := <- credsChan
+			c := <-credsChan
 			config.Logger.Info("Updating client due to credentials change", zap.String("old", config.Credentials.Username), zap.String("new", c.Username))
 			client, err := getReadyCbClient(config.Config.ConnectionString, &c, config.Logger)
 			if err != nil {
@@ -288,7 +288,7 @@ func watchConfig(config *app_config.Config, dataImpl *dataimpl.Servers) {
 	go func() {
 		defer unsub()
 		for {
-			c := <- configChan
+			c := <-configChan
 			if c.ConnectionString != config.Config.ConnectionString {
 				config.Logger.Info("Updating client due to connection string change", zap.String("old", config.Config.ConnectionString), zap.String("new", c.ConnectionString))
 				client, err := getReadyCbClient(c.ConnectionString, config.Credentials, config.Logger)
