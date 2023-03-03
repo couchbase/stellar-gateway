@@ -152,8 +152,10 @@ func (c *CollectionBinary) Increment(ctx context.Context, id string, opts *Incre
 		ScopeName:      scopeName,
 		CollectionName: collName,
 		Key:            id,
-		Expiry:         durationToTimestamp(opts.Expiry),
-		Delta:          opts.Delta,
+		Expiry: &kv_v1.IncrementRequest_ExpiryTime{
+			ExpiryTime: durationToTimestamp(opts.Expiry),
+		},
+		Delta: opts.Delta,
 	}
 
 	if opts.DurabilityLevel != DurabilityLevelUnknown {
@@ -206,8 +208,10 @@ func (c *CollectionBinary) Decrement(ctx context.Context, id string, opts *Decre
 		ScopeName:      scopeName,
 		CollectionName: collName,
 		Key:            id,
-		Expiry:         durationToTimestamp(opts.Expiry),
-		Delta:          opts.Delta,
+		Expiry: &kv_v1.DecrementRequest_ExpiryTime{
+			ExpiryTime: durationToTimestamp(opts.Expiry),
+		},
+		Delta: opts.Delta,
 	}
 
 	if opts.DurabilityLevel != DurabilityLevelUnknown {

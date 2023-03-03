@@ -44,6 +44,11 @@ func timeExpiryToGocbcorex(expiry time.Time) uint32 {
 	return uint32(expiry.Unix())
 }
 
+func secsExpiryToGocbcorex(expiry uint32) uint32 {
+	// TODO(brett19): Implement switching to Unix timestamps beyond the server limit
+	return expiry
+}
+
 func tokenFromGocbcorex(bucketName string, token gocbcorex.MutationToken) *kv_v1.MutationToken {
 	return &kv_v1.MutationToken{
 		BucketName:  bucketName,

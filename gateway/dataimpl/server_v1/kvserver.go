@@ -154,7 +154,13 @@ func (s *KvServer) Insert(ctx context.Context, in *kv_v1.InsertRequest) (*kv_v1.
 	opts.Flags = flags
 
 	if in.Expiry != nil {
-		opts.Expiry = timeExpiryToGocbcorex(timeToGo(in.Expiry))
+		if expirySpec, ok := in.Expiry.(*kv_v1.InsertRequest_ExpiryTime); ok {
+			opts.Expiry = timeExpiryToGocbcorex(timeToGo(expirySpec.ExpiryTime))
+		} else if expirySpec, ok := in.Expiry.(*kv_v1.InsertRequest_ExpirySecs); ok {
+			opts.Expiry = secsExpiryToGocbcorex(expirySpec.ExpirySecs)
+		} else {
+			return nil, status.New(codes.InvalidArgument, "Expiry time specification is unknown.").Err()
+		}
 	}
 
 	if in.DurabilitySpec != nil {
@@ -207,8 +213,14 @@ func (s *KvServer) Upsert(ctx context.Context, in *kv_v1.UpsertRequest) (*kv_v1.
 
 	if in.Expiry == nil {
 		opts.PreserveExpiry = true
-	} else {
-		opts.Expiry = timeExpiryToGocbcorex(timeToGo(in.Expiry))
+	} else if in.Expiry != nil {
+		if expirySpec, ok := in.Expiry.(*kv_v1.UpsertRequest_ExpiryTime); ok {
+			opts.Expiry = timeExpiryToGocbcorex(timeToGo(expirySpec.ExpiryTime))
+		} else if expirySpec, ok := in.Expiry.(*kv_v1.UpsertRequest_ExpirySecs); ok {
+			opts.Expiry = secsExpiryToGocbcorex(expirySpec.ExpirySecs)
+		} else {
+			return nil, status.New(codes.InvalidArgument, "Expiry time specification is unknown.").Err()
+		}
 	}
 
 	if in.DurabilitySpec != nil {
@@ -264,8 +276,14 @@ func (s *KvServer) Replace(ctx context.Context, in *kv_v1.ReplaceRequest) (*kv_v
 
 	if in.Expiry == nil {
 		opts.PreserveExpiry = true
-	} else {
-		opts.Expiry = timeExpiryToGocbcorex(timeToGo(in.Expiry))
+	} else if in.Expiry != nil {
+		if expirySpec, ok := in.Expiry.(*kv_v1.ReplaceRequest_ExpiryTime); ok {
+			opts.Expiry = timeExpiryToGocbcorex(timeToGo(expirySpec.ExpiryTime))
+		} else if expirySpec, ok := in.Expiry.(*kv_v1.ReplaceRequest_ExpirySecs); ok {
+			opts.Expiry = secsExpiryToGocbcorex(expirySpec.ExpirySecs)
+		} else {
+			return nil, status.New(codes.InvalidArgument, "Expiry time specification is unknown.").Err()
+		}
 	}
 
 	if in.DurabilitySpec != nil {
@@ -362,7 +380,13 @@ func (s *KvServer) Increment(ctx context.Context, in *kv_v1.IncrementRequest) (*
 	opts.Delta = in.Delta
 
 	if in.Expiry != nil {
-		opts.Expiry = timeExpiryToGocbcorex(timeToGo(in.Expiry))
+		if expirySpec, ok := in.Expiry.(*kv_v1.IncrementRequest_ExpiryTime); ok {
+			opts.Expiry = timeExpiryToGocbcorex(timeToGo(expirySpec.ExpiryTime))
+		} else if expirySpec, ok := in.Expiry.(*kv_v1.IncrementRequest_ExpirySecs); ok {
+			opts.Expiry = secsExpiryToGocbcorex(expirySpec.ExpirySecs)
+		} else {
+			return nil, status.New(codes.InvalidArgument, "Expiry time specification is unknown.").Err()
+		}
 	}
 
 	if in.DurabilitySpec != nil {
@@ -416,7 +440,13 @@ func (s *KvServer) Decrement(ctx context.Context, in *kv_v1.DecrementRequest) (*
 	opts.Delta = in.Delta
 
 	if in.Expiry != nil {
-		opts.Expiry = timeExpiryToGocbcorex(timeToGo(in.Expiry))
+		if expirySpec, ok := in.Expiry.(*kv_v1.DecrementRequest_ExpiryTime); ok {
+			opts.Expiry = timeExpiryToGocbcorex(timeToGo(expirySpec.ExpiryTime))
+		} else if expirySpec, ok := in.Expiry.(*kv_v1.DecrementRequest_ExpirySecs); ok {
+			opts.Expiry = secsExpiryToGocbcorex(expirySpec.ExpirySecs)
+		} else {
+			return nil, status.New(codes.InvalidArgument, "Expiry time specification is unknown.").Err()
+		}
 	}
 
 	if in.DurabilitySpec != nil {
