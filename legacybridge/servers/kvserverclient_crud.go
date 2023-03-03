@@ -115,7 +115,9 @@ func (c *KvServerClient) handleCmdSetReq(pak *memd.Packet) {
 
 		if len(pak.Extras) >= 8 {
 			expiry := binary.BigEndian.Uint32(pak.Extras[4:])
-			req.Expiry = timestamppb.New(time.Now().Add(time.Duration(expiry) * time.Second))
+			req.Expiry = &kv_v1.UpsertRequest_ExpiryTime{
+				ExpiryTime: timestamppb.New(time.Now().Add(time.Duration(expiry) * time.Second)),
+			}
 		}
 	}
 
