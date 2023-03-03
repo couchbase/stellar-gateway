@@ -2,6 +2,7 @@ package gocbps
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/couchbase/goprotostellar/genproto/kv_v1"
@@ -47,17 +48,10 @@ func (c *CollectionBinary) Append(ctx context.Context, id string, content []byte
 	}
 
 	if opts.DurabilityLevel != DurabilityLevelUnknown {
-		req.DurabilitySpec = &kv_v1.AppendRequest_DurabilityLevel{
-			DurabilityLevel: *opts.DurabilityLevel.toProto(),
-		}
+		req.DurabilityLevel = opts.DurabilityLevel.toProto()
 	}
 	if opts.ReplicateTo > 0 || opts.PersistTo > 0 {
-		req.DurabilitySpec = &kv_v1.AppendRequest_LegacyDurabilitySpec{
-			LegacyDurabilitySpec: &kv_v1.LegacyDurabilitySpec{
-				NumPersisted:  opts.PersistTo,
-				NumReplicated: opts.ReplicateTo,
-			},
-		}
+		return nil, errors.New("legacy durability is not supported")
 	}
 
 	resp, err := client.kvClient.Append(ctx, req)
@@ -101,17 +95,10 @@ func (c *CollectionBinary) Prepend(ctx context.Context, id string, content []byt
 	}
 
 	if opts.DurabilityLevel != DurabilityLevelUnknown {
-		req.DurabilitySpec = &kv_v1.PrependRequest_DurabilityLevel{
-			DurabilityLevel: *opts.DurabilityLevel.toProto(),
-		}
+		req.DurabilityLevel = opts.DurabilityLevel.toProto()
 	}
 	if opts.ReplicateTo > 0 || opts.PersistTo > 0 {
-		req.DurabilitySpec = &kv_v1.PrependRequest_LegacyDurabilitySpec{
-			LegacyDurabilitySpec: &kv_v1.LegacyDurabilitySpec{
-				NumPersisted:  opts.PersistTo,
-				NumReplicated: opts.ReplicateTo,
-			},
-		}
+		return nil, errors.New("legacy durability is not supported")
 	}
 
 	resp, err := client.kvClient.Prepend(ctx, req)
@@ -159,17 +146,10 @@ func (c *CollectionBinary) Increment(ctx context.Context, id string, opts *Incre
 	}
 
 	if opts.DurabilityLevel != DurabilityLevelUnknown {
-		req.DurabilitySpec = &kv_v1.IncrementRequest_DurabilityLevel{
-			DurabilityLevel: *opts.DurabilityLevel.toProto(),
-		}
+		req.DurabilityLevel = opts.DurabilityLevel.toProto()
 	}
 	if opts.ReplicateTo > 0 || opts.PersistTo > 0 {
-		req.DurabilitySpec = &kv_v1.IncrementRequest_LegacyDurabilitySpec{
-			LegacyDurabilitySpec: &kv_v1.LegacyDurabilitySpec{
-				NumPersisted:  opts.PersistTo,
-				NumReplicated: opts.ReplicateTo,
-			},
-		}
+		return nil, errors.New("legacy durability is not supported")
 	}
 	if opts.Initial != nil {
 		req.Initial = opts.Initial
@@ -215,17 +195,10 @@ func (c *CollectionBinary) Decrement(ctx context.Context, id string, opts *Decre
 	}
 
 	if opts.DurabilityLevel != DurabilityLevelUnknown {
-		req.DurabilitySpec = &kv_v1.DecrementRequest_DurabilityLevel{
-			DurabilityLevel: *opts.DurabilityLevel.toProto(),
-		}
+		req.DurabilityLevel = opts.DurabilityLevel.toProto()
 	}
 	if opts.ReplicateTo > 0 || opts.PersistTo > 0 {
-		req.DurabilitySpec = &kv_v1.DecrementRequest_LegacyDurabilitySpec{
-			LegacyDurabilitySpec: &kv_v1.LegacyDurabilitySpec{
-				NumPersisted:  opts.PersistTo,
-				NumReplicated: opts.ReplicateTo,
-			},
-		}
+		return nil, errors.New("legacy durability is not supported")
 	}
 	if opts.Initial != nil {
 		req.Initial = opts.Initial

@@ -2,6 +2,7 @@ package gocbps
 
 import (
 	"context"
+	"errors"
 
 	"github.com/couchbase/goprotostellar/genproto/kv_v1"
 )
@@ -199,22 +200,14 @@ func (c *Collection) MutateIn(ctx context.Context, id string, specs []MutateInSp
 	}
 
 	if opts.DurabilityLevel != DurabilityLevelUnknown {
-		req.DurabilitySpec = &kv_v1.MutateInRequest_DurabilityLevel{
-			DurabilityLevel: *opts.DurabilityLevel.toProto(),
-		}
+		req.DurabilityLevel = opts.DurabilityLevel.toProto()
 	}
 	if opts.ReplicateTo > 0 || opts.PersistTo > 0 {
-		req.DurabilitySpec = &kv_v1.MutateInRequest_LegacyDurabilitySpec{
-			LegacyDurabilitySpec: &kv_v1.LegacyDurabilitySpec{
-				NumPersisted:  opts.PersistTo,
-				NumReplicated: opts.ReplicateTo,
-			},
-		}
+		return nil, errors.New("legacy durability is not supported")
 	}
 	if opts.StoreSemantic > 0 {
 		req.StoreSemantic = opts.StoreSemantic.toProto()
 	}
-
 	if opts.AccessDeleted {
 		req.Flags = &kv_v1.MutateInRequest_Flags{
 			AccessDeleted: &opts.AccessDeleted,

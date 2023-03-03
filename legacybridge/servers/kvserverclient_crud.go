@@ -105,9 +105,7 @@ func (c *KvServerClient) handleCmdSetReq(pak *memd.Packet) {
 			c.sendBasicReply(pak, s, nil, nil, nil)
 			return
 		}
-		req.DurabilitySpec = &kv_v1.UpsertRequest_DurabilityLevel{
-			DurabilityLevel: dl,
-		}
+		req.DurabilityLevel = &dl
 	}
 	if len(pak.Extras) >= 4 {
 		flags := binary.BigEndian.Uint32(pak.Extras[0:])
@@ -160,9 +158,7 @@ func (c *KvServerClient) handleCmdDeleteReq(pak *memd.Packet) {
 			c.sendBasicReply(pak, s, nil, nil, nil)
 			return
 		}
-		req.DurabilitySpec = &kv_v1.RemoveRequest_DurabilityLevel{
-			DurabilityLevel: dl,
-		}
+		req.DurabilityLevel = &dl
 	}
 
 	resp, err := c.kvClient.Remove(ctx, req)
