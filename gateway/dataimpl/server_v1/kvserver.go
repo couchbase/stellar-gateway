@@ -163,18 +163,12 @@ func (s *KvServer) Insert(ctx context.Context, in *kv_v1.InsertRequest) (*kv_v1.
 		}
 	}
 
-	if in.DurabilitySpec != nil {
-		if _, ok := in.DurabilitySpec.(*kv_v1.InsertRequest_LegacyDurabilitySpec); ok {
-			return nil, status.New(codes.InvalidArgument, "Legacy durability is not supported.").Err()
+	if in.DurabilityLevel != nil {
+		dl, errSt := durabilityLevelToMemdx(*in.DurabilityLevel)
+		if errSt != nil {
+			return nil, errSt.Err()
 		}
-
-		if levelSpec, ok := in.DurabilitySpec.(*kv_v1.InsertRequest_DurabilityLevel); ok {
-			dl, errSt := durabilityLevelToMemdx(levelSpec.DurabilityLevel)
-			if errSt != nil {
-				return nil, errSt.Err()
-			}
-			opts.DurabilityLevel = dl
-		}
+		opts.DurabilityLevel = dl
 	}
 
 	result, err := bucketAgent.Add(ctx, &opts)
@@ -223,17 +217,12 @@ func (s *KvServer) Upsert(ctx context.Context, in *kv_v1.UpsertRequest) (*kv_v1.
 		}
 	}
 
-	if in.DurabilitySpec != nil {
-		if _, ok := in.DurabilitySpec.(*kv_v1.UpsertRequest_LegacyDurabilitySpec); ok {
-			return nil, status.New(codes.InvalidArgument, "Legacy durability is not supported.").Err()
+	if in.DurabilityLevel != nil {
+		dl, errSt := durabilityLevelToMemdx(*in.DurabilityLevel)
+		if errSt != nil {
+			return nil, errSt.Err()
 		}
-		if levelSpec, ok := in.DurabilitySpec.(*kv_v1.UpsertRequest_DurabilityLevel); ok {
-			dl, errSt := durabilityLevelToMemdx(levelSpec.DurabilityLevel)
-			if errSt != nil {
-				return nil, errSt.Err()
-			}
-			opts.DurabilityLevel = dl
-		}
+		opts.DurabilityLevel = dl
 	}
 
 	result, err := bucketAgent.Upsert(ctx, &opts)
@@ -286,17 +275,12 @@ func (s *KvServer) Replace(ctx context.Context, in *kv_v1.ReplaceRequest) (*kv_v
 		}
 	}
 
-	if in.DurabilitySpec != nil {
-		if _, ok := in.DurabilitySpec.(*kv_v1.ReplaceRequest_LegacyDurabilitySpec); ok {
-			return nil, status.New(codes.InvalidArgument, "Legacy durability is not supported.").Err()
+	if in.DurabilityLevel != nil {
+		dl, errSt := durabilityLevelToMemdx(*in.DurabilityLevel)
+		if errSt != nil {
+			return nil, errSt.Err()
 		}
-		if levelSpec, ok := in.DurabilitySpec.(*kv_v1.ReplaceRequest_DurabilityLevel); ok {
-			dl, errSt := durabilityLevelToMemdx(levelSpec.DurabilityLevel)
-			if errSt != nil {
-				return nil, errSt.Err()
-			}
-			opts.DurabilityLevel = dl
-		}
+		opts.DurabilityLevel = dl
 	}
 
 	result, err := bucketAgent.Replace(ctx, &opts)
@@ -334,17 +318,12 @@ func (s *KvServer) Remove(ctx context.Context, in *kv_v1.RemoveRequest) (*kv_v1.
 		opts.Cas = *in.Cas
 	}
 
-	if in.DurabilitySpec != nil {
-		if _, ok := in.DurabilitySpec.(*kv_v1.RemoveRequest_LegacyDurabilitySpec); ok {
-			return nil, status.New(codes.InvalidArgument, "Legacy durability is not supported.").Err()
+	if in.DurabilityLevel != nil {
+		dl, errSt := durabilityLevelToMemdx(*in.DurabilityLevel)
+		if errSt != nil {
+			return nil, errSt.Err()
 		}
-		if levelSpec, ok := in.DurabilitySpec.(*kv_v1.RemoveRequest_DurabilityLevel); ok {
-			dl, errSt := durabilityLevelToMemdx(levelSpec.DurabilityLevel)
-			if errSt != nil {
-				return nil, errSt.Err()
-			}
-			opts.DurabilityLevel = dl
-		}
+		opts.DurabilityLevel = dl
 	}
 
 	result, err := bucketAgent.Delete(ctx, &opts)
@@ -389,17 +368,12 @@ func (s *KvServer) Increment(ctx context.Context, in *kv_v1.IncrementRequest) (*
 		}
 	}
 
-	if in.DurabilitySpec != nil {
-		if _, ok := in.DurabilitySpec.(*kv_v1.IncrementRequest_LegacyDurabilitySpec); ok {
-			return nil, status.New(codes.InvalidArgument, "Legacy durability is not supported.").Err()
+	if in.DurabilityLevel != nil {
+		dl, errSt := durabilityLevelToMemdx(*in.DurabilityLevel)
+		if errSt != nil {
+			return nil, errSt.Err()
 		}
-		if levelSpec, ok := in.DurabilitySpec.(*kv_v1.IncrementRequest_DurabilityLevel); ok {
-			dl, errSt := durabilityLevelToMemdx(levelSpec.DurabilityLevel)
-			if errSt != nil {
-				return nil, errSt.Err()
-			}
-			opts.DurabilityLevel = dl
-		}
+		opts.DurabilityLevel = dl
 	}
 
 	if in.Initial != nil {
@@ -449,17 +423,12 @@ func (s *KvServer) Decrement(ctx context.Context, in *kv_v1.DecrementRequest) (*
 		}
 	}
 
-	if in.DurabilitySpec != nil {
-		if _, ok := in.DurabilitySpec.(*kv_v1.DecrementRequest_LegacyDurabilitySpec); ok {
-			return nil, status.New(codes.InvalidArgument, "Legacy durability is not supported.").Err()
+	if in.DurabilityLevel != nil {
+		dl, errSt := durabilityLevelToMemdx(*in.DurabilityLevel)
+		if errSt != nil {
+			return nil, errSt.Err()
 		}
-		if levelSpec, ok := in.DurabilitySpec.(*kv_v1.DecrementRequest_DurabilityLevel); ok {
-			dl, errSt := durabilityLevelToMemdx(levelSpec.DurabilityLevel)
-			if errSt != nil {
-				return nil, errSt.Err()
-			}
-			opts.DurabilityLevel = dl
-		}
+		opts.DurabilityLevel = dl
 	}
 
 	if in.Initial != nil {
@@ -501,17 +470,12 @@ func (s *KvServer) Append(ctx context.Context, in *kv_v1.AppendRequest) (*kv_v1.
 		opts.Cas = *in.Cas
 	}
 
-	if in.DurabilitySpec != nil {
-		if _, ok := in.DurabilitySpec.(*kv_v1.AppendRequest_LegacyDurabilitySpec); ok {
-			return nil, status.New(codes.InvalidArgument, "Legacy durability is not supported.").Err()
+	if in.DurabilityLevel != nil {
+		dl, errSt := durabilityLevelToMemdx(*in.DurabilityLevel)
+		if errSt != nil {
+			return nil, errSt.Err()
 		}
-		if levelSpec, ok := in.DurabilitySpec.(*kv_v1.AppendRequest_DurabilityLevel); ok {
-			dl, errSt := durabilityLevelToMemdx(levelSpec.DurabilityLevel)
-			if errSt != nil {
-				return nil, errSt.Err()
-			}
-			opts.DurabilityLevel = dl
-		}
+		opts.DurabilityLevel = dl
 	}
 
 	result, err := bucketAgent.Append(ctx, &opts)
@@ -550,17 +514,12 @@ func (s *KvServer) Prepend(ctx context.Context, in *kv_v1.PrependRequest) (*kv_v
 		opts.Cas = *in.Cas
 	}
 
-	if in.DurabilitySpec != nil {
-		if _, ok := in.DurabilitySpec.(*kv_v1.PrependRequest_LegacyDurabilitySpec); ok {
-			return nil, status.New(codes.InvalidArgument, "Legacy durability is not supported.").Err()
+	if in.DurabilityLevel != nil {
+		dl, errSt := durabilityLevelToMemdx(*in.DurabilityLevel)
+		if errSt != nil {
+			return nil, errSt.Err()
 		}
-		if levelSpec, ok := in.DurabilitySpec.(*kv_v1.PrependRequest_DurabilityLevel); ok {
-			dl, errSt := durabilityLevelToMemdx(levelSpec.DurabilityLevel)
-			if errSt != nil {
-				return nil, errSt.Err()
-			}
-			opts.DurabilityLevel = dl
-		}
+		opts.DurabilityLevel = dl
 	}
 
 	result, err := bucketAgent.Prepend(ctx, &opts)
