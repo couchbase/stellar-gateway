@@ -104,7 +104,9 @@ func (c *Collection) GetAndTouch(ctx context.Context, id string, expiry time.Dur
 		ScopeName:      scopeName,
 		CollectionName: collName,
 		Key:            id,
-		Expiry:         durationToTimestamp(expiry),
+		Expiry: &kv_v1.GetAndTouchRequest_ExpiryTime{
+			ExpiryTime: durationToTimestamp(expiry),
+		},
 	}
 
 	resp, err := client.kvClient.GetAndTouch(ctx, req)
@@ -200,7 +202,9 @@ func (c *Collection) Upsert(ctx context.Context, id string, content []byte, opts
 		Key:            id,
 		Content:        content,
 		ContentType:    kv_v1.DocumentContentType_JSON,
-		Expiry:         durationToTimestamp(opts.Expiry),
+		Expiry: &kv_v1.UpsertRequest_ExpiryTime{
+			ExpiryTime: durationToTimestamp(opts.Expiry),
+		},
 	}
 
 	if opts.DurabilityLevel != DurabilityLevelUnknown {
@@ -247,7 +251,9 @@ func (c *Collection) Insert(ctx context.Context, id string, content []byte, opts
 		Key:            id,
 		Content:        content,
 		ContentType:    kv_v1.DocumentContentType_JSON,
-		Expiry:         durationToTimestamp(opts.Expiry),
+		Expiry: &kv_v1.InsertRequest_ExpiryTime{
+			ExpiryTime: durationToTimestamp(opts.Expiry),
+		},
 	}
 
 	if opts.DurabilityLevel != DurabilityLevelUnknown {
@@ -302,8 +308,10 @@ func (c *Collection) Replace(ctx context.Context, id string, content []byte, opt
 		Key:            id,
 		Content:        content,
 		ContentType:    kv_v1.DocumentContentType_JSON,
-		Expiry:         durationToTimestamp(opts.Expiry),
-		Cas:            cas,
+		Expiry: &kv_v1.ReplaceRequest_ExpiryTime{
+			ExpiryTime: durationToTimestamp(opts.Expiry),
+		},
+		Cas: cas,
 	}
 
 	if opts.DurabilityLevel != DurabilityLevelUnknown {
@@ -399,7 +407,9 @@ func (c *Collection) Touch(ctx context.Context, id string, expiry time.Duration,
 		ScopeName:      scopeName,
 		CollectionName: collName,
 		Key:            id,
-		Expiry:         durationToTimestamp(expiry),
+		Expiry: &kv_v1.TouchRequest_ExpiryTime{
+			ExpiryTime: durationToTimestamp(expiry),
+		},
 	}
 
 	resp, err := client.kvClient.Touch(ctx, req)
