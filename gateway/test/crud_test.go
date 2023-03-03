@@ -447,15 +447,15 @@ func (s *GatewayOpsTestSuite) TestReplace() {
 
 	// Test doing a replace without a cas
 	repResp, err := kvClient.Replace(context.Background(), &kv_v1.ReplaceRequest{
-		BucketName:     s.bucketName,
-		ScopeName:      s.scopeName,
-		CollectionName: s.collectionName,
-		Key:            testDocId,
-		Content:        testContentRep,
-		ContentType:    kv_v1.DocumentContentType_JSON,
-		Cas:            nil,
-		Expiry:         nil,
-		DurabilitySpec: nil,
+		BucketName:      s.bucketName,
+		ScopeName:       s.scopeName,
+		CollectionName:  s.collectionName,
+		Key:             testDocId,
+		Content:         testContentRep,
+		ContentType:     kv_v1.DocumentContentType_JSON,
+		Cas:             nil,
+		Expiry:          nil,
+		DurabilityLevel: nil,
 	}, grpc.PerRPCCredentials(s.basicRpcCreds))
 	assertRpcStatus(s.T(), err, codes.OK)
 	assertValidCas(s.T(), repResp.Cas)
@@ -472,15 +472,15 @@ func (s *GatewayOpsTestSuite) TestReplace() {
 	// Test doing a replace when the document is missing
 	missingDocId := s.randomDocId("missing-doc")
 	_, err = kvClient.Replace(context.Background(), &kv_v1.ReplaceRequest{
-		BucketName:     s.bucketName,
-		ScopeName:      s.scopeName,
-		CollectionName: s.collectionName,
-		Key:            missingDocId,
-		Content:        TEST_CONTENT,
-		ContentType:    kv_v1.DocumentContentType_JSON,
-		Cas:            nil,
-		Expiry:         nil,
-		DurabilitySpec: nil,
+		BucketName:      s.bucketName,
+		ScopeName:       s.scopeName,
+		CollectionName:  s.collectionName,
+		Key:             missingDocId,
+		Content:         TEST_CONTENT,
+		ContentType:     kv_v1.DocumentContentType_JSON,
+		Cas:             nil,
+		Expiry:          nil,
+		DurabilityLevel: nil,
 	}, grpc.PerRPCCredentials(s.basicRpcCreds))
 	assertRpcStatus(s.T(), err, codes.NotFound)
 	assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
@@ -503,12 +503,12 @@ func (s *GatewayOpsTestSuite) TestRemove() {
 
 	// Test doing a remove without a cas
 	repResp, err := kvClient.Remove(context.Background(), &kv_v1.RemoveRequest{
-		BucketName:     s.bucketName,
-		ScopeName:      s.scopeName,
-		CollectionName: s.collectionName,
-		Key:            testDocId,
-		Cas:            nil,
-		DurabilitySpec: nil,
+		BucketName:      s.bucketName,
+		ScopeName:       s.scopeName,
+		CollectionName:  s.collectionName,
+		Key:             testDocId,
+		Cas:             nil,
+		DurabilityLevel: nil,
 	}, grpc.PerRPCCredentials(s.basicRpcCreds))
 	assertRpcStatus(s.T(), err, codes.OK)
 	assertValidCas(s.T(), repResp.Cas)
@@ -525,12 +525,12 @@ func (s *GatewayOpsTestSuite) TestRemove() {
 	// Test doing a remove when the document is missing
 	missingDocId := s.randomDocId("missing-doc")
 	_, err = kvClient.Remove(context.Background(), &kv_v1.RemoveRequest{
-		BucketName:     s.bucketName,
-		ScopeName:      s.scopeName,
-		CollectionName: s.collectionName,
-		Key:            missingDocId,
-		Cas:            nil,
-		DurabilitySpec: nil,
+		BucketName:      s.bucketName,
+		ScopeName:       s.scopeName,
+		CollectionName:  s.collectionName,
+		Key:             missingDocId,
+		Cas:             nil,
+		DurabilityLevel: nil,
 	}, grpc.PerRPCCredentials(s.basicRpcCreds))
 	assertRpcStatus(s.T(), err, codes.NotFound)
 	assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
