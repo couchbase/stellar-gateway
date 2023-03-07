@@ -5,7 +5,7 @@ productVersion = $(version)-$(bldNum)
 # The git revision, infinitely more useful than an arbitrary build number.
 REVISION := $(shell git rev-parse HEAD)
 
-ARTIFACTS = build/artifacts/couchbase-stellar-nebula
+ARTIFACTS = build/artifacts/couchbase-stellar-gateway
 DOCKER_TAG = v1
 DOCKER_USER = couchbase
 GOPATH := $(shell go env GOPATH)
@@ -58,9 +58,9 @@ image-artifacts: build
 dist: image-artifacts
 	rm -rf dist
 	mkdir -p dist
-	tar -C $(ARTIFACTS)/.. -czf dist/couchbase-stellar-nebula-image_$(productVersion).tgz .
+	tar -C $(ARTIFACTS)/.. -czf dist/couchbase-stellar-gateway-image_$(productVersion).tgz .
 
 container: build
-	docker build -f Dockerfile -t ${DOCKER_USER}/stellar-nebula-gateway:${DOCKER_TAG} .
+	docker build -f Dockerfile -t ${DOCKER_USER}/stellar-gateway:${DOCKER_TAG} .
 
 .PHONY: all test lint check generate build
