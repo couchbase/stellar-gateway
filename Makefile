@@ -33,8 +33,14 @@ lint:
 
 check: generate lint test
 
-generate:
-	go generate
+$(GOBIN)/protoc-gen-go-grpc:
+	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2
+
+$(GOBIN)/protoc-gen-go:
+	go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28
+
+generate: $(GOBIN)/protoc-gen-go $(GOBIN)/protoc-gen-go-grpc
+	PATH=$(GOBIN):$(PATH) go generate
 
 build: generate
 	for platform in linux darwin ; do \
