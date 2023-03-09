@@ -538,6 +538,64 @@ func (s *GatewayOpsTestSuite) TestRemove() {
 	})
 }
 
+func (s *GatewayOpsTestSuite) TestSubdoc() {
+	kvClient := kv_v1.NewKvClient(s.gatewayConn)
+
+	testDocId := s.randomDocId("subdoc")
+
+	s.createDocument(s.T(), createDocumentOptions{
+		BucketName:     s.bucketName,
+		ScopeName:      s.scopeName,
+		CollectionName: s.collectionName,
+		DocId:          testDocId,
+		Content:        TEST_CONTENT,
+	})
+
+	updatedDocContent := []byte("\"boo\"")
+
+	repResp, err := kvClient.MutateIn(context.Background(), &kv_v1.MutateInRequest{
+		BucketName:      s.bucketName,
+		ScopeName:       s.scopeName,
+		CollectionName:  s.collectionName,
+		Key:             testDocId,
+		Cas:             nil,
+		DurabilityLevel: nil,
+		Specs: []*kv_v1.MutateInRequest_Spec{
+			{
+				Operation: kv_v1.MutateInRequest_Spec_UPSERT,
+				Path:      "foo",
+				Content:   updatedDocContent,
+				Flags:     nil,
+			},
+		},
+	}, grpc.PerRPCCredentials(s.basicRpcCreds))
+	assertRpcStatus(s.T(), err, codes.OK)
+	assertValidCas(s.T(), repResp.Cas)
+	assertValidMutationToken(s.T(), repResp.MutationToken, s.bucketName)
+
+	lookupResp, err := kvClient.LookupIn(context.Background(), &kv_v1.LookupInRequest{
+		BucketName:     s.bucketName,
+		ScopeName:      s.scopeName,
+		CollectionName: s.collectionName,
+		Key:            testDocId,
+		Specs: []*kv_v1.LookupInRequest_Spec{
+			{
+				Operation: kv_v1.LookupInRequest_Spec_GET,
+				Path:      "foo",
+				Flags:     nil,
+			},
+		},
+	}, grpc.PerRPCCredentials(s.basicRpcCreds))
+	assertRpcStatus(s.T(), err, codes.OK)
+	assertValidCas(s.T(), repResp.Cas)
+
+	for _, spec := range lookupResp.Specs {
+		assert.Equal(s.T(), updatedDocContent, spec.Content)
+		assert.Nil(s.T(), spec.Status)
+	}
+
+}
+
 func TestGatewayOps(t *testing.T) {
 	suite.Run(t, new(GatewayOpsTestSuite))
 }

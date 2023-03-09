@@ -167,6 +167,44 @@ func newCollectionNoWriteAccessStatus(baseErr error, bucketName, scopeName, coll
 	return st
 }
 
+func newSdPathNotFoundStatus(baseErr error, bucketName, scopeName, collectionName, docId, sdPath string) *status.Status {
+	st := status.New(codes.FailedPrecondition,
+		fmt.Sprintf("Subdocument path '%s' was not found in '%s' in '%s/%s/%s'.",
+			sdPath, docId, bucketName, scopeName, collectionName))
+	st = tryAttachStatusDetails(st, &epb.PreconditionFailure{
+		Violations: []*epb.PreconditionFailure_Violation{{
+			Type:        "PATH_NOT_FOUND",
+			Subject:     sdPath,
+			Description: "",
+		}},
+	})
+	st = tryAttachCbContext(st, baseErr)
+	return st
+}
+
+func newSdPathMismatchStatus(baseErr error, bucketName, scopeName, collectionName, docId, sdPath string) *status.Status {
+	st := status.New(codes.FailedPrecondition,
+		fmt.Sprintf("Document structure implied by path '%s' did not match document '%s' in '%s/%s/%s'.",
+			sdPath, docId, bucketName, scopeName, collectionName))
+	st = tryAttachStatusDetails(st, &epb.PreconditionFailure{
+		Violations: []*epb.PreconditionFailure_Violation{{
+			Type:        "PATH_MISMATCH",
+			Subject:     sdPath,
+			Description: "",
+		}},
+	})
+	st = tryAttachCbContext(st, baseErr)
+	return st
+}
+
+func newSdPathEinvalStatus(baseErr error, sdPath string) *status.Status {
+	st := status.New(codes.InvalidArgument,
+		fmt.Sprintf("Invalid subdocument path syntax '%s'.", sdPath))
+	// TODO(brett19): Probably should include invalid-argument error details.
+	st = tryAttachCbContext(st, baseErr)
+	return st
+}
+
 func newUnsupportedFieldStatus(fieldPath string) *status.Status {
 	st := status.New(codes.Unimplemented,
 		fmt.Sprintf("The '%s' field is not currently supported", fieldPath))
