@@ -16,7 +16,7 @@ var globalTestConfig *Config
 func GetTestConfig(t *testing.T) *Config {
 	if globalTestConfig == nil {
 		testConfig := &Config{
-			CbConnStr: "couchbase://127.0.0.1",
+			CbConnStr: "127.0.0.1",
 			CbUser:    "Administrator",
 			CbPass:    "password",
 		}

@@ -543,11 +543,223 @@ func (s *KvServer) Prepend(ctx context.Context, in *kv_v1.PrependRequest) (*kv_v
 }
 
 func (s *KvServer) LookupIn(ctx context.Context, in *kv_v1.LookupInRequest) (*kv_v1.LookupInResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "temporarily not implemented")
+	bucketAgent, errSt := s.getBucketAgent(ctx, in.BucketName)
+	if errSt != nil {
+		return nil, errSt.Err()
+	}
+
+	var opts gocbcorex.LookupInOptions
+	opts.ScopeName = in.ScopeName
+	opts.CollectionName = in.CollectionName
+	opts.Key = []byte(in.Key)
+
+	ops := make([]memdx.LookupInOp, len(in.Specs))
+	for i, spec := range in.Specs {
+		var op memdx.LookupInOpType
+		switch spec.Operation {
+		case kv_v1.LookupInRequest_Spec_GET:
+			op = memdx.LookupInOpTypeGet
+		case kv_v1.LookupInRequest_Spec_COUNT:
+			op = memdx.LookupInOpTypeGetCount
+		case kv_v1.LookupInRequest_Spec_EXISTS:
+			op = memdx.LookupInOpTypeExists
+		default:
+			return nil, status.New(codes.InvalidArgument, "invalid lookup in op type specified").Err()
+		}
+		var flags memdx.SubdocOpFlag
+		if spec.Flags != nil {
+			if spec.Flags.GetXattr() {
+				flags = memdx.SubdocOpFlagXattrPath
+			}
+		}
+		ops[i] = memdx.LookupInOp{
+			Op:    op,
+			Flags: flags,
+			Path:  []byte(spec.Path),
+		}
+	}
+	opts.Ops = ops
+
+	if in.Flags != nil {
+		if in.Flags.GetAccessDeleted() {
+			opts.Flags = opts.Flags | memdx.SubdocDocFlagAccessDeleted
+		}
+	}
+
+	result, err := bucketAgent.LookupIn(ctx, &opts)
+	if err != nil {
+		if errors.Is(err, memdx.ErrDocNotFound) {
+			return nil, newDocMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+		} else if errors.Is(err, memdx.ErrAccessError) {
+			return nil, newCollectionNoReadAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+		}
+		return nil, cbGenericErrToPsStatus(err).Err()
+	}
+
+	resultSpecs := make([]*kv_v1.LookupInResponse_Spec, len(result.Ops))
+	for i, op := range result.Ops {
+		spec := &kv_v1.LookupInResponse_Spec{
+			Content: op.Value,
+		}
+		if op.Err != nil {
+			if errors.Is(op.Err, memdx.ErrSubDocPathNotFound) {
+				st := newSdPathNotFoundStatus(op.Err, in.BucketName, in.ScopeName, in.CollectionName, in.Key, in.Specs[i].Path)
+				spec.Status = st.Proto()
+			} else if errors.Is(op.Err, memdx.ErrSubDocPathInvalid) {
+				st := newSdPathEinvalStatus(op.Err, in.Specs[i].Path)
+				spec.Status = st.Proto()
+			} else if errors.Is(op.Err, memdx.ErrSubDocPathMismatch) {
+				st := newSdPathMismatchStatus(op.Err, in.BucketName, in.ScopeName, in.CollectionName, in.Key, in.Specs[i].Path)
+				spec.Status = st.Proto()
+			} else {
+				spec.Status = cbGenericErrToPsStatus(op.Err).Proto()
+			}
+		}
+
+		resultSpecs[i] = spec
+	}
+
+	return &kv_v1.LookupInResponse{
+		Cas:   result.Cas,
+		Specs: resultSpecs,
+	}, nil
 }
 
 func (s *KvServer) MutateIn(ctx context.Context, in *kv_v1.MutateInRequest) (*kv_v1.MutateInResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "temporarily not implemented")
+	bucketAgent, errSt := s.getBucketAgent(ctx, in.BucketName)
+	if errSt != nil {
+		return nil, errSt.Err()
+	}
+
+	var opts gocbcorex.MutateInOptions
+	opts.ScopeName = in.ScopeName
+	opts.CollectionName = in.CollectionName
+	opts.Key = []byte(in.Key)
+
+	ops := make([]memdx.MutateInOp, len(in.Specs))
+	for i, spec := range in.Specs {
+		var op memdx.MutateInOpType
+		switch spec.Operation {
+		case kv_v1.MutateInRequest_Spec_UPSERT:
+			op = memdx.MutateInOpTypeDictSet
+		case kv_v1.MutateInRequest_Spec_REPLACE:
+			op = memdx.MutateInOpTypeReplace
+		case kv_v1.MutateInRequest_Spec_REMOVE:
+			op = memdx.MutateInOpTypeDelete
+		case kv_v1.MutateInRequest_Spec_INSERT:
+			op = memdx.MutateInOpTypeDictAdd
+		case kv_v1.MutateInRequest_Spec_COUNTER:
+			op = memdx.MutateInOpTypeCounter
+		case kv_v1.MutateInRequest_Spec_ARRAY_APPEND:
+			op = memdx.MutateInOpTypeArrayPushLast
+		case kv_v1.MutateInRequest_Spec_ARRAY_ADD_UNIQUE:
+			op = memdx.MutateInOpTypeArrayAddUnique
+		case kv_v1.MutateInRequest_Spec_ARRAY_INSERT:
+			op = memdx.MutateInOpTypeArrayInsert
+		case kv_v1.MutateInRequest_Spec_ARRAY_PREPEND:
+			op = memdx.MutateInOpTypeArrayPushFirst
+		default:
+			return nil, status.New(codes.InvalidArgument, "invalid mutate in op type specified").Err()
+		}
+		var flags memdx.SubdocOpFlag
+		if spec.Flags != nil {
+			if spec.Flags.GetXattr() {
+				flags = memdx.SubdocOpFlagXattrPath
+			}
+			if spec.Flags.GetCreatePath() {
+				flags = memdx.SubdocOpFlagMkDirP
+			}
+		}
+		ops[i] = memdx.MutateInOp{
+			Op:    op,
+			Flags: flags,
+			Path:  []byte(spec.Path),
+			Value: spec.Content,
+		}
+	}
+	opts.Ops = ops
+
+	if in.Flags != nil {
+		if in.Flags.GetAccessDeleted() {
+			opts.Flags = opts.Flags | memdx.SubdocDocFlagAccessDeleted
+		}
+	}
+
+	if in.Cas != nil {
+		opts.Cas = *in.Cas
+	}
+
+	// if in.Expiry == nil {
+	// 	opts.PreserveExpiry = true
+	// } else if in.Expiry != nil {
+	// 	if expirySpec, ok := in.Expiry.(*kv_v1.ReplaceRequest_ExpiryTime); ok {
+	// 		opts.Expiry = timeExpiryToGocbcorex(timeToGo(expirySpec.ExpiryTime))
+	// 	} else if expirySpec, ok := in.Expiry.(*kv_v1.ReplaceRequest_ExpirySecs); ok {
+	// 		opts.Expiry = secsExpiryToGocbcorex(expirySpec.ExpirySecs)
+	// 	} else {
+	// 		return nil, status.New(codes.InvalidArgument, "Expiry time specification is unknown.").Err()
+	// 	}
+	// }
+
+	if in.DurabilityLevel != nil {
+		dl, errSt := durabilityLevelToMemdx(*in.DurabilityLevel)
+		if errSt != nil {
+			return nil, errSt.Err()
+		}
+		opts.DurabilityLevel = dl
+	}
+
+	if in.StoreSemantic != nil {
+		switch *in.StoreSemantic {
+		case kv_v1.MutateInRequest_REPLACE:
+			// This is just the default behaviour
+		case kv_v1.MutateInRequest_UPSERT:
+			opts.Flags = opts.Flags | memdx.SubdocDocFlagMkDoc
+		case kv_v1.MutateInRequest_INSERT:
+			opts.Flags = opts.Flags | memdx.SubdocDocFlagAddDoc
+		}
+	}
+
+	result, err := bucketAgent.MutateIn(ctx, &opts)
+	if err != nil {
+		if errors.Is(err, memdx.ErrDocNotFound) {
+			return nil, newDocMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+		} else if errors.Is(err, memdx.ErrAccessError) {
+			return nil, newCollectionNoReadAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+		} else {
+			var subdocErr *memdx.SubDocError
+			if errors.As(err, &subdocErr) {
+				if subdocErr.OpIndex > len(in.Specs) {
+					return nil, status.New(codes.Internal, "server responded with error opIndex outside of range of provided specs").Err()
+				}
+
+				if errors.Is(err, memdx.ErrSubDocPathNotFound) {
+					return nil, newSdPathNotFoundStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key, in.Specs[subdocErr.OpIndex].Path).Err()
+				} else if errors.Is(err, memdx.ErrSubDocPathInvalid) {
+					return nil, newSdPathEinvalStatus(err, in.Specs[subdocErr.OpIndex].Path).Err()
+				} else if errors.Is(err, memdx.ErrSubDocPathMismatch) {
+					return nil, newSdPathMismatchStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key, in.Specs[subdocErr.OpIndex].Path).Err()
+				}
+			}
+		}
+
+		return nil, cbGenericErrToPsStatus(err).Err()
+	}
+
+	resultSpecs := make([]*kv_v1.MutateInResponse_Spec, len(result.Ops))
+	for i, op := range result.Ops {
+		spec := &kv_v1.MutateInResponse_Spec{
+			Content: op.Value,
+		}
+
+		resultSpecs[i] = spec
+	}
+
+	return &kv_v1.MutateInResponse{
+		Cas:           result.Cas,
+		Specs:         resultSpecs,
+		MutationToken: tokenFromGocbcorex(in.BucketName, result.MutationToken),
+	}, nil
 }
 
 func NewKvServer(cbClient *gocbcorex.AgentManager) *KvServer {
