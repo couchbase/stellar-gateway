@@ -46,9 +46,13 @@ func (s *CollectionAdminServer) ListCollections(
 		var collections []*admin_collection_v1.ListCollectionsResponse_Collection
 
 		for _, collection := range scope.Collections {
-			collections = append(collections, &admin_collection_v1.ListCollectionsResponse_Collection{
+			collectionSpec := &admin_collection_v1.ListCollectionsResponse_Collection{
 				Name: collection.Name,
-			})
+			}
+			if collection.MaxTTL > 0 {
+				collectionSpec.MaxExpirySecs = &collection.MaxTTL
+			}
+			collections = append(collections, collectionSpec)
 		}
 
 		scopes = append(scopes, &admin_collection_v1.ListCollectionsResponse_Scope{
@@ -111,12 +115,16 @@ func (s *CollectionAdminServer) CreateCollection(
 		return nil, errSt.Err()
 	}
 
+	var maxTTL uint32
+	if in.MaxExpirySecs != nil {
+		maxTTL = *in.MaxExpirySecs
+	}
+
 	err := bucketAgent.CreateCollection(ctx, &cbmgmtx.CreateCollectionOptions{
 		BucketName:     in.BucketName,
 		CollectionName: in.CollectionName,
 		ScopeName:      in.ScopeName,
-		// TODO(brett19): Implement collection max expiry
-		MaxTTL: 0,
+		MaxTTL:         maxTTL,
 	})
 	if err != nil {
 		return nil, cbGenericErrToPsStatus(err).Err()
