@@ -7,11 +7,11 @@ import (
 )
 
 type protostellarWrapper struct {
-	clientWrapper
-
 	client *gocbps.Client
 	coll   *gocbps.Collection
 }
+
+var _ clientWrapper = (*protostellarWrapper)(nil)
 
 func (w *protostellarWrapper) Connect(addr, username, password string) error {
 	client, err := gocbps.Connect(addr, &gocbps.ConnectOptions{
