@@ -8,11 +8,11 @@ import (
 )
 
 type directWrapper struct {
-	clientWrapper
-
 	client *gocb.Cluster
 	coll   *gocb.Collection
 }
+
+var _ clientWrapper = (*directWrapper)(nil)
 
 func (w *directWrapper) Connect(addr, username, password string) error {
 	client, err := gocb.Connect(addr, gocb.ClusterOptions{
