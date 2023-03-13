@@ -275,7 +275,7 @@ func Run(ctx context.Context, config *Config) error {
 	for restarts := 0; ; restarts++ {
 		startTime := time.Now()
 
-		err := gatewayStartup(context.Background(), config)
+		err := gatewayStartup(ctx, config)
 		if err != nil {
 			if !config.Daemon {
 				return err
