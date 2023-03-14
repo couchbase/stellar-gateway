@@ -10,7 +10,7 @@ import (
 )
 
 type grpcHooksServer struct {
-	internal_hooks_v1.UnimplementedHooksServer
+	internal_hooks_v1.UnimplementedHooksServiceServer
 
 	manager *HooksManager
 }
@@ -58,7 +58,7 @@ func (s *grpcHooksServer) AddHooks(
 
 func (s *grpcHooksServer) WatchBarrier(
 	req *internal_hooks_v1.WatchBarrierRequest,
-	stream internal_hooks_v1.Hooks_WatchBarrierServer,
+	stream internal_hooks_v1.HooksService_WatchBarrierServer,
 ) error {
 	hooksContext := s.manager.GetHooksContext(req.HooksContextId)
 	if hooksContext == nil {

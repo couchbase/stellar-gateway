@@ -74,7 +74,7 @@ type QueryMetaData struct {
 }
 
 type QueryResult struct {
-	client query_v1.Query_QueryClient
+	client query_v1.QueryService_QueryClient
 
 	rowCounter int
 	nextRows   [][]byte
@@ -216,24 +216,24 @@ func (c *Client) Query(ctx context.Context, statement string, opts *QueryOptions
 	req.Prepared = &prepared
 
 	if opts.ScanConsistency > 0 {
-		var consistency query_v1.QueryRequest_QueryScanConsistency
+		var consistency query_v1.QueryRequest_ScanConsistency
 		switch opts.ScanConsistency {
 		case QueryScanConsistencyNotBounded:
-			consistency = query_v1.QueryRequest_NOT_BOUNDED
+			consistency = query_v1.QueryRequest_SCAN_CONSISTENCY_NOT_BOUNDED
 		case QueryScanConsistencyRequestPlus:
-			consistency = query_v1.QueryRequest_REQUEST_PLUS
+			consistency = query_v1.QueryRequest_SCAN_CONSISTENCY_REQUEST_PLUS
 		}
 		req.ScanConsistency = &consistency
 	}
 	if opts.Profile != "" {
-		var profile query_v1.QueryRequest_QueryProfileMode
+		var profile query_v1.QueryRequest_ProfileMode
 		switch opts.Profile {
 		case QueryProfileModeNone:
-			profile = query_v1.QueryRequest_OFF
+			profile = query_v1.QueryRequest_PROFILE_MODE_OFF
 		case QueryProfileModePhases:
-			profile = query_v1.QueryRequest_PHASES
+			profile = query_v1.QueryRequest_PROFILE_MODE_PHASES
 		case QueryProfileModeTimings:
-			profile = query_v1.QueryRequest_TIMINGS
+			profile = query_v1.QueryRequest_PROFILE_MODE_TIMINGS
 		}
 		req.ProfileMode = &profile
 	}

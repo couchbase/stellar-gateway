@@ -10,7 +10,7 @@ import (
 )
 
 type CollectionAdminServer struct {
-	admin_collection_v1.UnimplementedCollectionAdminServer
+	admin_collection_v1.UnimplementedCollectionAdminServiceServer
 
 	cbClient *gocbcorex.AgentManager
 }

@@ -140,14 +140,14 @@ type createDocumentOptions struct {
 }
 
 func (s *GatewayOpsTestSuite) createDocument(t *testing.T, opts createDocumentOptions) {
-	kvClient := kv_v1.NewKvClient(s.gatewayConn)
+	kvClient := kv_v1.NewKvServiceClient(s.gatewayConn)
 
 	upsertResp, err := kvClient.Upsert(context.Background(), &kv_v1.UpsertRequest{
 		BucketName:     opts.BucketName,
 		ScopeName:      opts.ScopeName,
 		CollectionName: opts.CollectionName,
 		Key:            opts.DocId,
-		ContentType:    kv_v1.DocumentContentType_JSON,
+		ContentType:    kv_v1.DocumentContentType_DOCUMENT_CONTENT_TYPE_JSON,
 		Content:        TEST_CONTENT,
 	})
 	assertRpcSuccess(s.T(), upsertResp, err)
@@ -178,11 +178,11 @@ type checkDocumentOptions struct {
 
 func (o checkDocumentOptions) ApplyMissingDefaults() checkDocumentOptions {
 	if o.contentType == nil {
-		defaultContentType := kv_v1.DocumentContentType_JSON
+		defaultContentType := kv_v1.DocumentContentType_DOCUMENT_CONTENT_TYPE_JSON
 		o.contentType = &defaultContentType
 	}
 	if o.compressionType == nil {
-		defaultCompressionType := kv_v1.DocumentCompressionType_NONE
+		defaultCompressionType := kv_v1.DocumentCompressionType_DOCUMENT_COMPRESSION_TYPE_NONE
 		o.compressionType = &defaultCompressionType
 	}
 	return o
@@ -216,7 +216,7 @@ func (o checkDocumentOptions) ExpectFutureExpiry() checkDocumentOptions {
 func (s *GatewayOpsTestSuite) checkDocument(t *testing.T, opts checkDocumentOptions) {
 	opts = opts.ApplyMissingDefaults()
 
-	kvClient := kv_v1.NewKvClient(s.gatewayConn)
+	kvClient := kv_v1.NewKvServiceClient(s.gatewayConn)
 
 	getResp, err := kvClient.Get(context.Background(), &kv_v1.GetRequest{
 		BucketName:     opts.BucketName,
@@ -280,7 +280,7 @@ func (s *GatewayOpsTestSuite) TestHelpers() {
 }
 
 func (s *GatewayOpsTestSuite) TestGet() {
-	kvClient := kv_v1.NewKvClient(s.gatewayConn)
+	kvClient := kv_v1.NewKvServiceClient(s.gatewayConn)
 
 	testDocId := s.randomDocId("basic-crud")
 
@@ -300,9 +300,9 @@ func (s *GatewayOpsTestSuite) TestGet() {
 	}, grpc.PerRPCCredentials(s.basicRpcCreds))
 	assertRpcSuccess(s.T(), getResp, err)
 	assertValidCas(s.T(), getResp.Cas)
-	assert.Equal(s.T(), getResp.CompressionType, kv_v1.DocumentCompressionType_NONE)
+	assert.Equal(s.T(), getResp.CompressionType, kv_v1.DocumentCompressionType_DOCUMENT_COMPRESSION_TYPE_NONE)
 	assert.Equal(s.T(), getResp.Content, TEST_CONTENT)
-	assert.Equal(s.T(), getResp.ContentType, kv_v1.DocumentContentType_JSON)
+	assert.Equal(s.T(), getResp.ContentType, kv_v1.DocumentContentType_DOCUMENT_CONTENT_TYPE_JSON)
 	assert.Nil(s.T(), getResp.Expiry)
 
 	// Test doing a Get where the document is missing
@@ -320,7 +320,7 @@ func (s *GatewayOpsTestSuite) TestGet() {
 }
 
 func (s *GatewayOpsTestSuite) TestInsert() {
-	kvClient := kv_v1.NewKvClient(s.gatewayConn)
+	kvClient := kv_v1.NewKvServiceClient(s.gatewayConn)
 
 	testDocId := s.randomDocId("insert-op")
 
@@ -330,7 +330,7 @@ func (s *GatewayOpsTestSuite) TestInsert() {
 		ScopeName:      s.scopeName,
 		CollectionName: s.collectionName,
 		Key:            testDocId,
-		ContentType:    kv_v1.DocumentContentType_JSON,
+		ContentType:    kv_v1.DocumentContentType_DOCUMENT_CONTENT_TYPE_JSON,
 		Content:        TEST_CONTENT,
 	})
 	assertRpcStatus(s.T(), err, codes.OK)
@@ -351,7 +351,7 @@ func (s *GatewayOpsTestSuite) TestInsert() {
 		ScopeName:      s.scopeName,
 		CollectionName: s.collectionName,
 		Key:            testDocId,
-		ContentType:    kv_v1.DocumentContentType_JSON,
+		ContentType:    kv_v1.DocumentContentType_DOCUMENT_CONTENT_TYPE_JSON,
 		Content:        TEST_CONTENT,
 	})
 	assertRpcStatus(s.T(), err, codes.AlreadyExists)
@@ -405,7 +405,7 @@ func (s *GatewayOpsTestSuite) TestInsert() {
 }
 
 func (s *GatewayOpsTestSuite) TestUpsert() {
-	kvClient := kv_v1.NewKvClient(s.gatewayConn)
+	kvClient := kv_v1.NewKvServiceClient(s.gatewayConn)
 
 	testDocId := s.randomDocId("upsert-op")
 
@@ -414,7 +414,7 @@ func (s *GatewayOpsTestSuite) TestUpsert() {
 		ScopeName:      s.scopeName,
 		CollectionName: s.collectionName,
 		Key:            testDocId,
-		ContentType:    kv_v1.DocumentContentType_JSON,
+		ContentType:    kv_v1.DocumentContentType_DOCUMENT_CONTENT_TYPE_JSON,
 		Content:        TEST_CONTENT,
 	})
 	assertRpcSuccess(s.T(), upsertResp, err)
@@ -431,7 +431,7 @@ func (s *GatewayOpsTestSuite) TestUpsert() {
 }
 
 func (s *GatewayOpsTestSuite) TestReplace() {
-	kvClient := kv_v1.NewKvClient(s.gatewayConn)
+	kvClient := kv_v1.NewKvServiceClient(s.gatewayConn)
 
 	testDocId := s.randomDocId("replace-op")
 	testContent := []byte(`{"foo": "bar"}`)
@@ -452,7 +452,7 @@ func (s *GatewayOpsTestSuite) TestReplace() {
 		CollectionName:  s.collectionName,
 		Key:             testDocId,
 		Content:         testContentRep,
-		ContentType:     kv_v1.DocumentContentType_JSON,
+		ContentType:     kv_v1.DocumentContentType_DOCUMENT_CONTENT_TYPE_JSON,
 		Cas:             nil,
 		Expiry:          nil,
 		DurabilityLevel: nil,
@@ -477,7 +477,7 @@ func (s *GatewayOpsTestSuite) TestReplace() {
 		CollectionName:  s.collectionName,
 		Key:             missingDocId,
 		Content:         TEST_CONTENT,
-		ContentType:     kv_v1.DocumentContentType_JSON,
+		ContentType:     kv_v1.DocumentContentType_DOCUMENT_CONTENT_TYPE_JSON,
 		Cas:             nil,
 		Expiry:          nil,
 		DurabilityLevel: nil,
@@ -489,7 +489,7 @@ func (s *GatewayOpsTestSuite) TestReplace() {
 }
 
 func (s *GatewayOpsTestSuite) TestRemove() {
-	kvClient := kv_v1.NewKvClient(s.gatewayConn)
+	kvClient := kv_v1.NewKvServiceClient(s.gatewayConn)
 
 	testDocId := s.randomDocId("remove-op")
 
@@ -539,7 +539,7 @@ func (s *GatewayOpsTestSuite) TestRemove() {
 }
 
 func (s *GatewayOpsTestSuite) TestSubdoc() {
-	kvClient := kv_v1.NewKvClient(s.gatewayConn)
+	kvClient := kv_v1.NewKvServiceClient(s.gatewayConn)
 
 	testDocId := s.randomDocId("subdoc")
 
@@ -562,7 +562,7 @@ func (s *GatewayOpsTestSuite) TestSubdoc() {
 		DurabilityLevel: nil,
 		Specs: []*kv_v1.MutateInRequest_Spec{
 			{
-				Operation: kv_v1.MutateInRequest_Spec_UPSERT,
+				Operation: kv_v1.MutateInRequest_Spec_OPERATION_UPSERT,
 				Path:      "foo",
 				Content:   updatedDocContent,
 				Flags:     nil,
@@ -580,7 +580,7 @@ func (s *GatewayOpsTestSuite) TestSubdoc() {
 		Key:            testDocId,
 		Specs: []*kv_v1.LookupInRequest_Spec{
 			{
-				Operation: kv_v1.LookupInRequest_Spec_GET,
+				Operation: kv_v1.LookupInRequest_Spec_OPERATION_GET,
 				Path:      "foo",
 				Flags:     nil,
 			},

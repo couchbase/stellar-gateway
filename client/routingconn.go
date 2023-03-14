@@ -20,9 +20,9 @@ type routingConnOptions struct {
 
 type routingConn struct {
 	conn      *grpc.ClientConn
-	routingV1 routing_v1.RoutingClient
-	kvV1      kv_v1.KvClient
-	queryV1   query_v1.QueryClient
+	routingV1 routing_v1.RoutingServiceClient
+	kvV1      kv_v1.KvServiceClient
+	queryV1   query_v1.QueryServiceClient
 }
 
 // Verify that routingConn implements Conn
@@ -60,20 +60,20 @@ func dialRoutingConn(address string, opts *routingConnOptions) (*routingConn, er
 
 	return &routingConn{
 		conn:      conn,
-		routingV1: routing_v1.NewRoutingClient(conn),
-		kvV1:      kv_v1.NewKvClient(conn),
-		queryV1:   query_v1.NewQueryClient(conn),
+		routingV1: routing_v1.NewRoutingServiceClient(conn),
+		kvV1:      kv_v1.NewKvServiceClient(conn),
+		queryV1:   query_v1.NewQueryServiceClient(conn),
 	}, nil
 }
 
-func (c *routingConn) RoutingV1() routing_v1.RoutingClient {
+func (c *routingConn) RoutingV1() routing_v1.RoutingServiceClient {
 	return c.routingV1
 }
 
-func (c *routingConn) KvV1() kv_v1.KvClient {
+func (c *routingConn) KvV1() kv_v1.KvServiceClient {
 	return c.kvV1
 }
 
-func (c *routingConn) QueryV1() query_v1.QueryClient {
+func (c *routingConn) QueryV1() query_v1.QueryServiceClient {
 	return c.queryV1
 }

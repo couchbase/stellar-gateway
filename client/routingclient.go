@@ -131,14 +131,14 @@ func (c *RoutingClient) fetchConnForKey(bucketName string, key string) *routingC
 	return c.fetchConn()
 }
 
-func (c *RoutingClient) RoutingV1() routing_v1.RoutingClient {
+func (c *RoutingClient) RoutingV1() routing_v1.RoutingServiceClient {
 	return &routingImpl_RoutingV1{c}
 }
 
-func (c *RoutingClient) KvV1() kv_v1.KvClient {
+func (c *RoutingClient) KvV1() kv_v1.KvServiceClient {
 	return &routingImpl_KvV1{c}
 }
 
-func (c *RoutingClient) QueryV1() query_v1.QueryClient {
+func (c *RoutingClient) QueryV1() query_v1.QueryServiceClient {
 	return &routingImpl_QueryV1{c}
 }

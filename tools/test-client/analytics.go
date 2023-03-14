@@ -52,7 +52,7 @@ type AnalyticsMetaData struct {
 }
 
 type AnalyticsQueryResult struct {
-	client analytics_v1.Analytics_AnalyticsQueryClient
+	client analytics_v1.AnalyticsService_AnalyticsQueryClient
 
 	rowCounter int
 	nextRows   [][]byte
@@ -186,9 +186,9 @@ func (c *Client) AnalyticsQuery(ctx context.Context, statement string, opts *Ana
 		var consistency analytics_v1.AnalyticsQueryRequest_ScanConsistency
 		switch opts.ScanConsistency {
 		case AnalyticsScanConsistencyNotBounded:
-			consistency = analytics_v1.AnalyticsQueryRequest_NOT_BOUNDED
+			consistency = analytics_v1.AnalyticsQueryRequest_SCAN_CONSISTENCY_NOT_BOUNDED
 		case AnalyticsScanConsistencyRequestPlus:
-			consistency = analytics_v1.AnalyticsQueryRequest_REQUEST_PLUS
+			consistency = analytics_v1.AnalyticsQueryRequest_SCAN_CONSISTENCY_REQUEST_PLUS
 		}
 		req.ScanConsistency = &consistency
 	}

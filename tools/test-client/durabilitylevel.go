@@ -30,11 +30,11 @@ func (dl DurabilityLevel) toProto() *kv_v1.DurabilityLevel {
 	var durability kv_v1.DurabilityLevel
 	switch dl {
 	case DurabilityLevelMajority:
-		durability = kv_v1.DurabilityLevel_MAJORITY
+		durability = kv_v1.DurabilityLevel_DURABILITY_LEVEL_MAJORITY
 	case DurabilityLevelMajorityAndPersistOnMaster:
-		durability = kv_v1.DurabilityLevel_MAJORITY_AND_PERSIST_TO_ACTIVE
+		durability = kv_v1.DurabilityLevel_DURABILITY_LEVEL_MAJORITY_AND_PERSIST_TO_ACTIVE
 	case DurabilityLevelPersistToMajority:
-		durability = kv_v1.DurabilityLevel_PERSIST_TO_MAJORITY
+		durability = kv_v1.DurabilityLevel_DURABILITY_LEVEL_PERSIST_TO_MAJORITY
 	default:
 		return nil
 	}
