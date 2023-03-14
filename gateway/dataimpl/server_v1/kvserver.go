@@ -135,6 +135,82 @@ func (s *KvServer) Get(ctx context.Context, in *kv_v1.GetRequest) (*kv_v1.GetRes
 	}, nil
 }
 
+func (s *KvServer) GetAndTouch(ctx context.Context, in *kv_v1.GetAndTouchRequest) (*kv_v1.GetResponse, error) {
+	bucketAgent, errSt := s.getBucketAgent(ctx, in.BucketName)
+	if errSt != nil {
+		return nil, errSt.Err()
+	}
+
+	var expiry uint32
+	switch expirySpec := in.Expiry.(type) {
+	case *kv_v1.GetAndTouchRequest_ExpiryTime:
+		expiry = timeExpiryToGocbcorex(timeToGo(expirySpec.ExpiryTime))
+	case *kv_v1.GetAndTouchRequest_ExpirySecs:
+		expiry = secsExpiryToGocbcorex(expirySpec.ExpirySecs)
+	default:
+		return nil, status.New(codes.InvalidArgument, "Expiry time specification is unknown.").Err()
+	}
+
+	result, err := bucketAgent.GetAndTouch(ctx, &gocbcorex.GetAndTouchOptions{
+		Key:            []byte(in.Key),
+		ScopeName:      in.ScopeName,
+		CollectionName: in.CollectionName,
+		Expiry:         expiry,
+	})
+	if err != nil {
+		if errors.Is(err, memdx.ErrDocNotFound) {
+			return nil, newDocMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+		} else if errors.Is(err, memdx.ErrAccessError) {
+			return nil, newCollectionNoReadAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+		}
+		return nil, cbGenericErrToPsStatus(err).Err()
+	}
+
+	contentBytes, contentType, errSt := s.parseContent(result.Value, result.Flags)
+	if errSt != nil {
+		return nil, errSt.Err()
+	}
+
+	return &kv_v1.GetResponse{
+		Content:     contentBytes,
+		ContentType: contentType,
+		Cas:         result.Cas,
+	}, nil
+}
+
+func (s *KvServer) GetAndLock(ctx context.Context, in *kv_v1.GetAndLockRequest) (*kv_v1.GetResponse, error) {
+	bucketAgent, errSt := s.getBucketAgent(ctx, in.BucketName)
+	if errSt != nil {
+		return nil, errSt.Err()
+	}
+
+	result, err := bucketAgent.GetAndLock(ctx, &gocbcorex.GetAndLockOptions{
+		Key:            []byte(in.Key),
+		ScopeName:      in.ScopeName,
+		CollectionName: in.CollectionName,
+		LockTime:       in.LockTime,
+	})
+	if err != nil {
+		if errors.Is(err, memdx.ErrDocNotFound) {
+			return nil, newDocMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+		} else if errors.Is(err, memdx.ErrAccessError) {
+			return nil, newCollectionNoReadAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+		}
+		return nil, cbGenericErrToPsStatus(err).Err()
+	}
+
+	contentBytes, contentType, errSt := s.parseContent(result.Value, result.Flags)
+	if errSt != nil {
+		return nil, errSt.Err()
+	}
+
+	return &kv_v1.GetResponse{
+		Content:     contentBytes,
+		ContentType: contentType,
+		Cas:         result.Cas,
+	}, nil
+}
+
 func (s *KvServer) Insert(ctx context.Context, in *kv_v1.InsertRequest) (*kv_v1.InsertResponse, error) {
 	bucketAgent, errSt := s.getBucketAgent(ctx, in.BucketName)
 	if errSt != nil {

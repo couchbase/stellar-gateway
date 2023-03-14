@@ -593,7 +593,90 @@ func (s *GatewayOpsTestSuite) TestSubdoc() {
 		assert.Equal(s.T(), updatedDocContent, spec.Content)
 		assert.Nil(s.T(), spec.Status)
 	}
+}
 
+func (s *GatewayOpsTestSuite) TestGetAndTouch() {
+	kvClient := kv_v1.NewKvClient(s.gatewayConn)
+
+	testDocId := s.randomDocId("get-and-touch")
+
+	s.createDocument(s.T(), createDocumentOptions{
+		BucketName:     s.bucketName,
+		ScopeName:      s.scopeName,
+		CollectionName: s.collectionName,
+		DocId:          testDocId,
+		Content:        TEST_CONTENT,
+	})
+
+	getResp, err := kvClient.GetAndTouch(context.Background(), &kv_v1.GetAndTouchRequest{
+		BucketName:     s.bucketName,
+		ScopeName:      s.scopeName,
+		CollectionName: s.collectionName,
+		Key:            testDocId,
+		Expiry:         &kv_v1.GetAndTouchRequest_ExpirySecs{ExpirySecs: 10},
+	}, grpc.PerRPCCredentials(s.basicRpcCreds))
+	assertRpcSuccess(s.T(), getResp, err)
+	assertValidCas(s.T(), getResp.Cas)
+	assert.Equal(s.T(), getResp.CompressionType, kv_v1.DocumentCompressionType_NONE)
+	assert.Equal(s.T(), getResp.Content, TEST_CONTENT)
+	assert.Equal(s.T(), getResp.ContentType, kv_v1.DocumentContentType_JSON)
+	assert.Nil(s.T(), getResp.Expiry)
+
+	// Test doing a GetAndTouch where the document is missing
+	missingDocId := s.randomDocId("missing-doc")
+	_, err = kvClient.GetAndTouch(context.Background(), &kv_v1.GetAndTouchRequest{
+		BucketName:     s.bucketName,
+		ScopeName:      s.scopeName,
+		CollectionName: s.collectionName,
+		Key:            missingDocId,
+		Expiry:         &kv_v1.GetAndTouchRequest_ExpirySecs{ExpirySecs: 10},
+	}, grpc.PerRPCCredentials(s.basicRpcCreds))
+	assertRpcStatus(s.T(), err, codes.NotFound)
+	assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
+		assert.Equal(s.T(), d.ResourceType, "document")
+	})
+}
+
+func (s *GatewayOpsTestSuite) TestGetAndLock() {
+	kvClient := kv_v1.NewKvClient(s.gatewayConn)
+
+	testDocId := s.randomDocId("get-and-lock")
+
+	s.createDocument(s.T(), createDocumentOptions{
+		BucketName:     s.bucketName,
+		ScopeName:      s.scopeName,
+		CollectionName: s.collectionName,
+		DocId:          testDocId,
+		Content:        TEST_CONTENT,
+	})
+
+	getResp, err := kvClient.GetAndLock(context.Background(), &kv_v1.GetAndLockRequest{
+		BucketName:     s.bucketName,
+		ScopeName:      s.scopeName,
+		CollectionName: s.collectionName,
+		Key:            testDocId,
+		LockTime:       5,
+	}, grpc.PerRPCCredentials(s.basicRpcCreds))
+	assertRpcSuccess(s.T(), getResp, err)
+	assertValidCas(s.T(), getResp.Cas)
+	assert.Equal(s.T(), getResp.CompressionType, kv_v1.DocumentCompressionType_NONE)
+	assert.Equal(s.T(), getResp.Content, TEST_CONTENT)
+	assert.Equal(s.T(), getResp.ContentType, kv_v1.DocumentContentType_JSON)
+	assert.Nil(s.T(), getResp.Expiry)
+
+	// Test doing a GetAndLock where the document is missing
+	missingDocId := s.randomDocId("missing-doc")
+	_, err = kvClient.GetAndLock(context.Background(), &kv_v1.GetAndLockRequest{
+		BucketName:     s.bucketName,
+		ScopeName:      s.scopeName,
+		CollectionName: s.collectionName,
+		Key:            missingDocId,
+		LockTime:       5,
+	}, grpc.PerRPCCredentials(s.basicRpcCreds))
+	assertRpcStatus(s.T(), err, codes.NotFound)
+	assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
+		assert.Equal(s.T(), d.ResourceType, "document")
+	})
 }
 
 func TestGatewayOps(t *testing.T) {
