@@ -7,7 +7,7 @@ import (
 )
 
 type Conn interface {
-	RoutingV1() routing_v1.RoutingClient
-	KvV1() kv_v1.KvClient
-	QueryV1() query_v1.QueryClient
+	RoutingV1() routing_v1.RoutingServiceClient
+	KvV1() kv_v1.KvServiceClient
+	QueryV1() query_v1.QueryServiceClient
 }

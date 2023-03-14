@@ -13,13 +13,13 @@ import (
 type KvServerOptions struct {
 	Logger           *zap.Logger
 	TopologyProvider topology.Provider
-	KvClient         kv_v1.KvClient
+	KvClient         kv_v1.KvServiceClient
 }
 
 type KvServer struct {
 	logger           *zap.Logger
 	topologyProvider topology.Provider
-	kvClient         kv_v1.KvClient
+	kvClient         kv_v1.KvServiceClient
 
 	lock    sync.Mutex
 	clients []*KvServerClient

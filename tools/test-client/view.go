@@ -70,7 +70,7 @@ type ViewRow struct {
 }
 
 type ViewResult struct {
-	client view_v1.View_ViewQueryClient
+	client view_v1.ViewService_ViewQueryClient
 
 	rowCounter int
 	nextRows   []ViewRow
@@ -159,11 +159,11 @@ func (b *Bucket) ViewQuery(ctx context.Context, designDoc string, viewName strin
 		var consistency view_v1.ViewQueryRequest_ScanConsistency
 		switch opts.ScanConsistency {
 		case ViewScanConsistencyNotBounded:
-			consistency = view_v1.ViewQueryRequest_NOT_BOUNDED
+			consistency = view_v1.ViewQueryRequest_SCAN_CONSISTENCY_NOT_BOUNDED
 		case ViewScanConsistencyRequestPlus:
-			consistency = view_v1.ViewQueryRequest_REQUEST_PLUS
+			consistency = view_v1.ViewQueryRequest_SCAN_CONSISTENCY_REQUEST_PLUS
 		case ViewScanConsistencyUpdateAfter:
-			consistency = view_v1.ViewQueryRequest_UPDATE_AFTER
+			consistency = view_v1.ViewQueryRequest_SCAN_CONSISTENCY_UPDATE_AFTER
 		}
 		req.ScanConsistency = &consistency
 	}
@@ -177,9 +177,9 @@ func (b *Bucket) ViewQuery(ctx context.Context, designDoc string, viewName strin
 		var order view_v1.ViewQueryRequest_Order
 		switch opts.Order {
 		case ViewOrderingAscending:
-			order = view_v1.ViewQueryRequest_ASCENDING
+			order = view_v1.ViewQueryRequest_ORDER_ASCENDING
 		case ViewOrderingDescending:
-			order = view_v1.ViewQueryRequest_DESCENDING
+			order = view_v1.ViewQueryRequest_ORDER_DESCENDING
 		}
 
 		req.Order = &order
@@ -227,9 +227,9 @@ func (b *Bucket) ViewQuery(ctx context.Context, designDoc string, viewName strin
 		var onError view_v1.ViewQueryRequest_ErrorMode
 		switch opts.OnError {
 		case ViewErrorModeContinue:
-			onError = view_v1.ViewQueryRequest_CONTINUE
+			onError = view_v1.ViewQueryRequest_ERROR_MODE_CONTINUE
 		case ViewErrorModeStop:
-			onError = view_v1.ViewQueryRequest_STOP
+			onError = view_v1.ViewQueryRequest_ERROR_MODE_STOP
 		}
 
 		req.OnError = &onError
@@ -238,12 +238,12 @@ func (b *Bucket) ViewQuery(ctx context.Context, designDoc string, viewName strin
 		req.Debug = &opts.Debug
 	}
 	if opts.Namespace > 0 {
-		var namespace view_v1.ViewQueryRequest_DesignDocumentNamespace
+		var namespace view_v1.ViewQueryRequest_Namespace
 		switch opts.Namespace {
 		case DesignDocumentNamespaceProduction:
-			namespace = view_v1.ViewQueryRequest_PRODUCTION
+			namespace = view_v1.ViewQueryRequest_NAMESPACE_PRODUCTION
 		case DesignDocumentNamespaceDevelopment:
-			namespace = view_v1.ViewQueryRequest_DEVELOPMENT
+			namespace = view_v1.ViewQueryRequest_NAMESPACE_DEVELOPMENT
 		}
 
 		req.Namespace = &namespace

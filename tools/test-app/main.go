@@ -37,7 +37,7 @@ func main() {
 	// testing some transactions stuff
 	if false {
 		conn := client.GetConn()
-		tc := transactions_v1.NewTransactionsClient(conn)
+		tc := transactions_v1.NewTransactionsServiceClient(conn)
 
 		testDoc1 := []byte(`{"foo":"baz"}`)
 		testDoc2 := []byte(`{"foo":"bar"}`)
@@ -109,7 +109,7 @@ func main() {
 	// testing of some routing stuff
 	if false {
 		conn := client.GetConn()
-		rc := routing_v1.NewRoutingClient(conn)
+		rc := routing_v1.NewRoutingServiceClient(conn)
 
 		bucketName := "default"
 		wr, err := rc.WatchRouting(ctx, &routing_v1.WatchRoutingRequest{
@@ -222,8 +222,8 @@ func main() {
 	// hooks tests
 	{
 		conn := client.GetConn()
-		dc := kv_v1.NewKvClient(conn)
-		hc := internal_hooks_v1.NewHooksClient(conn)
+		dc := kv_v1.NewKvServiceClient(conn)
+		hc := internal_hooks_v1.NewHooksServiceClient(conn)
 
 		hooksContextID := uuid.NewString()
 

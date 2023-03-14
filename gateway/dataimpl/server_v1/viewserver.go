@@ -10,22 +10,22 @@ import (
 	"github.com/couchbase/goprotostellar/genproto/view_v1"
 )
 
-type ViewsServer struct {
-	view_v1.UnimplementedViewServer
+type ViewServer struct {
+	view_v1.UnimplementedViewServiceServer
 
 	cbClient *gocb.Cluster
 }
 
-func (s *ViewsServer) ViewQuery(in *view_v1.ViewQueryRequest, out view_v1.View_ViewQueryServer) error {
+func (s *ViewServer) ViewQuery(in *view_v1.ViewQueryRequest, out view_v1.ViewService_ViewQueryServer) error {
 	var opts gocb.ViewOptions
 
 	if in.ScanConsistency != nil {
 		switch *in.ScanConsistency {
-		case view_v1.ViewQueryRequest_NOT_BOUNDED:
+		case view_v1.ViewQueryRequest_SCAN_CONSISTENCY_NOT_BOUNDED:
 			opts.ScanConsistency = gocb.ViewScanConsistencyNotBounded
-		case view_v1.ViewQueryRequest_REQUEST_PLUS:
+		case view_v1.ViewQueryRequest_SCAN_CONSISTENCY_REQUEST_PLUS:
 			opts.ScanConsistency = gocb.ViewScanConsistencyRequestPlus
-		case view_v1.ViewQueryRequest_UPDATE_AFTER:
+		case view_v1.ViewQueryRequest_SCAN_CONSISTENCY_UPDATE_AFTER:
 			opts.ScanConsistency = gocb.ViewScanConsistencyUpdateAfter
 		default:
 			return status.Errorf(codes.InvalidArgument, "invalid scan consistency option specified")
@@ -39,9 +39,9 @@ func (s *ViewsServer) ViewQuery(in *view_v1.ViewQueryRequest, out view_v1.View_V
 	}
 	if in.Order != nil {
 		switch *in.Order {
-		case view_v1.ViewQueryRequest_ASCENDING:
+		case view_v1.ViewQueryRequest_ORDER_ASCENDING:
 			opts.Order = gocb.ViewOrderingAscending
-		case view_v1.ViewQueryRequest_DESCENDING:
+		case view_v1.ViewQueryRequest_ORDER_DESCENDING:
 			opts.Order = gocb.ViewOrderingDescending
 		default:
 			return status.Errorf(codes.InvalidArgument, "invalid order option specified")
@@ -100,9 +100,9 @@ func (s *ViewsServer) ViewQuery(in *view_v1.ViewQueryRequest, out view_v1.View_V
 	}
 	if in.OnError != nil {
 		switch *in.OnError {
-		case view_v1.ViewQueryRequest_CONTINUE:
+		case view_v1.ViewQueryRequest_ERROR_MODE_CONTINUE:
 			opts.OnError = gocb.ViewErrorModeContinue
-		case view_v1.ViewQueryRequest_STOP:
+		case view_v1.ViewQueryRequest_ERROR_MODE_STOP:
 			opts.OnError = gocb.ViewErrorModeStop
 		default:
 			return status.Errorf(codes.InvalidArgument, "invalid on error option specified")
@@ -194,8 +194,8 @@ func (s *ViewsServer) ViewQuery(in *view_v1.ViewQueryRequest, out view_v1.View_V
 	return nil
 }
 
-func NewViewServer(cbClient *gocb.Cluster) *ViewsServer {
-	return &ViewsServer{
+func NewViewServer(cbClient *gocb.Cluster) *ViewServer {
+	return &ViewServer{
 		cbClient: cbClient,
 	}
 }

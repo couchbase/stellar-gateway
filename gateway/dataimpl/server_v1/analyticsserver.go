@@ -6,7 +6,7 @@ import (
 )
 
 type AnalyticsServer struct {
-	analytics_v1.UnimplementedAnalyticsServer
+	analytics_v1.UnimplementedAnalyticsServiceServer
 
 	cbClient *gocbcorex.AgentManager
 }

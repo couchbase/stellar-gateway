@@ -15,7 +15,7 @@ import (
 )
 
 type KvServer struct {
-	kv_v1.UnimplementedKvServer
+	kv_v1.UnimplementedKvServiceServer
 
 	cbClient *gocbcorex.AgentManager
 }
@@ -43,14 +43,14 @@ func (s *KvServer) parseContent(
 	}
 
 	if valueType == gocbcore.BinaryType {
-		return bytes, kv_v1.DocumentContentType_BINARY, nil
+		return bytes, kv_v1.DocumentContentType_DOCUMENT_CONTENT_TYPE_BINARY, nil
 	} else if valueType == gocbcore.StringType {
 		// we don't support string data types in this case and instead just
 		// handle them as raw binary data instead...
 		// TODO(brett19): Decide how to handle string transcoding better.
-		return bytes, kv_v1.DocumentContentType_BINARY, nil
+		return bytes, kv_v1.DocumentContentType_DOCUMENT_CONTENT_TYPE_BINARY, nil
 	} else if valueType == gocbcore.JSONType {
-		return bytes, kv_v1.DocumentContentType_JSON, nil
+		return bytes, kv_v1.DocumentContentType_DOCUMENT_CONTENT_TYPE_JSON, nil
 	}
 
 	return nil, 0, status.New(
@@ -61,9 +61,9 @@ func (s *KvServer) parseContent(
 func (s *KvServer) encodeContent(
 	contentBytes []byte, contentType kv_v1.DocumentContentType,
 ) ([]byte, uint32, *status.Status) {
-	if contentType == kv_v1.DocumentContentType_BINARY {
+	if contentType == kv_v1.DocumentContentType_DOCUMENT_CONTENT_TYPE_BINARY {
 		return contentBytes, gocbcore.EncodeCommonFlags(gocbcore.BinaryType, gocbcore.NoCompression), nil
-	} else if contentType == kv_v1.DocumentContentType_JSON {
+	} else if contentType == kv_v1.DocumentContentType_DOCUMENT_CONTENT_TYPE_JSON {
 		return contentBytes, gocbcore.EncodeCommonFlags(gocbcore.JSONType, gocbcore.NoCompression), nil
 	}
 
@@ -633,11 +633,11 @@ func (s *KvServer) LookupIn(ctx context.Context, in *kv_v1.LookupInRequest) (*kv
 	for i, spec := range in.Specs {
 		var op memdx.LookupInOpType
 		switch spec.Operation {
-		case kv_v1.LookupInRequest_Spec_GET:
+		case kv_v1.LookupInRequest_Spec_OPERATION_GET:
 			op = memdx.LookupInOpTypeGet
-		case kv_v1.LookupInRequest_Spec_COUNT:
+		case kv_v1.LookupInRequest_Spec_OPERATION_COUNT:
 			op = memdx.LookupInOpTypeGetCount
-		case kv_v1.LookupInRequest_Spec_EXISTS:
+		case kv_v1.LookupInRequest_Spec_OPERATION_EXISTS:
 			op = memdx.LookupInOpTypeExists
 		default:
 			return nil, status.New(codes.InvalidArgument, "invalid lookup in op type specified").Err()
@@ -716,23 +716,23 @@ func (s *KvServer) MutateIn(ctx context.Context, in *kv_v1.MutateInRequest) (*kv
 	for i, spec := range in.Specs {
 		var op memdx.MutateInOpType
 		switch spec.Operation {
-		case kv_v1.MutateInRequest_Spec_UPSERT:
+		case kv_v1.MutateInRequest_Spec_OPERATION_UPSERT:
 			op = memdx.MutateInOpTypeDictSet
-		case kv_v1.MutateInRequest_Spec_REPLACE:
+		case kv_v1.MutateInRequest_Spec_OPERATION_REPLACE:
 			op = memdx.MutateInOpTypeReplace
-		case kv_v1.MutateInRequest_Spec_REMOVE:
+		case kv_v1.MutateInRequest_Spec_OPERATION_REMOVE:
 			op = memdx.MutateInOpTypeDelete
-		case kv_v1.MutateInRequest_Spec_INSERT:
+		case kv_v1.MutateInRequest_Spec_OPERATION_INSERT:
 			op = memdx.MutateInOpTypeDictAdd
-		case kv_v1.MutateInRequest_Spec_COUNTER:
+		case kv_v1.MutateInRequest_Spec_OPERATION_COUNTER:
 			op = memdx.MutateInOpTypeCounter
-		case kv_v1.MutateInRequest_Spec_ARRAY_APPEND:
+		case kv_v1.MutateInRequest_Spec_OPERATION_ARRAY_APPEND:
 			op = memdx.MutateInOpTypeArrayPushLast
-		case kv_v1.MutateInRequest_Spec_ARRAY_ADD_UNIQUE:
+		case kv_v1.MutateInRequest_Spec_OPERATION_ARRAY_ADD_UNIQUE:
 			op = memdx.MutateInOpTypeArrayAddUnique
-		case kv_v1.MutateInRequest_Spec_ARRAY_INSERT:
+		case kv_v1.MutateInRequest_Spec_OPERATION_ARRAY_INSERT:
 			op = memdx.MutateInOpTypeArrayInsert
-		case kv_v1.MutateInRequest_Spec_ARRAY_PREPEND:
+		case kv_v1.MutateInRequest_Spec_OPERATION_ARRAY_PREPEND:
 			op = memdx.MutateInOpTypeArrayPushFirst
 		default:
 			return nil, status.New(codes.InvalidArgument, "invalid mutate in op type specified").Err()
@@ -787,11 +787,11 @@ func (s *KvServer) MutateIn(ctx context.Context, in *kv_v1.MutateInRequest) (*kv
 
 	if in.StoreSemantic != nil {
 		switch *in.StoreSemantic {
-		case kv_v1.MutateInRequest_REPLACE:
+		case kv_v1.MutateInRequest_STORE_SEMANTIC_REPLACE:
 			// This is just the default behaviour
-		case kv_v1.MutateInRequest_UPSERT:
+		case kv_v1.MutateInRequest_STORE_SEMANTIC_UPSERT:
 			opts.Flags = opts.Flags | memdx.SubdocDocFlagMkDoc
-		case kv_v1.MutateInRequest_INSERT:
+		case kv_v1.MutateInRequest_STORE_SEMANTIC_INSERT:
 			opts.Flags = opts.Flags | memdx.SubdocDocFlagAddDoc
 		}
 	}

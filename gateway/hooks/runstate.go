@@ -79,15 +79,15 @@ func (s *runState) compare(
 	}
 
 	switch op {
-	case internal_hooks_v1.ComparisonOperator_EQUAL:
+	case internal_hooks_v1.ComparisonOperator_COMPARISON_OPERATOR_EQUAL:
 		return delta == 0, nil
-	case internal_hooks_v1.ComparisonOperator_GREATER_THAN:
+	case internal_hooks_v1.ComparisonOperator_COMPARISON_OPERATOR_GREATER_THAN:
 		return delta > 0, nil
-	case internal_hooks_v1.ComparisonOperator_GREATER_THAN_OR_EQUAL:
+	case internal_hooks_v1.ComparisonOperator_COMPARISON_OPERATOR_GREATER_THAN_OR_EQUAL:
 		return delta >= 0, nil
-	case internal_hooks_v1.ComparisonOperator_LESS_THAN:
+	case internal_hooks_v1.ComparisonOperator_COMPARISON_OPERATOR_LESS_THAN:
 		return delta < 0, nil
-	case internal_hooks_v1.ComparisonOperator_LESS_THAN_OR_EQUAL:
+	case internal_hooks_v1.ComparisonOperator_COMPARISON_OPERATOR_LESS_THAN_OR_EQUAL:
 		return delta <= 0, nil
 	}
 

@@ -6,11 +6,11 @@ import (
 
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/health/grpc_health_v1"
 
 	"github.com/couchbase/goprotostellar/genproto/admin_bucket_v1"
 	"github.com/couchbase/goprotostellar/genproto/admin_collection_v1"
 	"github.com/couchbase/goprotostellar/genproto/analytics_v1"
-	"github.com/couchbase/goprotostellar/genproto/health_v1"
 	"github.com/couchbase/goprotostellar/genproto/internal_hooks_v1"
 	"github.com/couchbase/goprotostellar/genproto/kv_v1"
 	"github.com/couchbase/goprotostellar/genproto/query_v1"
@@ -50,23 +50,23 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 	dataSrv := grpc.NewServer(
 		grpc.ChainUnaryInterceptor(hooksManager.UnaryInterceptor(), metricsInterceptor.UnaryConnectionCounterInterceptor),
 	)
-	internal_hooks_v1.RegisterHooksServer(dataSrv, hooksManager.Server())
-	kv_v1.RegisterKvServer(dataSrv, dataImpl.KvV1Server)
-	query_v1.RegisterQueryServer(dataSrv, dataImpl.QueryV1Server)
-	search_v1.RegisterSearchServer(dataSrv, dataImpl.SearchV1Server)
-	analytics_v1.RegisterAnalyticsServer(dataSrv, dataImpl.AnalyticsV1Server)
-	admin_bucket_v1.RegisterBucketAdminServer(dataSrv, dataImpl.AdminBucketV1Server)
-	admin_collection_v1.RegisterCollectionAdminServer(dataSrv, dataImpl.AdminCollectionV1Server)
-	transactions_v1.RegisterTransactionsServer(dataSrv, dataImpl.TransactionsV1Server)
+	internal_hooks_v1.RegisterHooksServiceServer(dataSrv, hooksManager.Server())
+	kv_v1.RegisterKvServiceServer(dataSrv, dataImpl.KvV1Server)
+	query_v1.RegisterQueryServiceServer(dataSrv, dataImpl.QueryV1Server)
+	search_v1.RegisterSearchServiceServer(dataSrv, dataImpl.SearchV1Server)
+	analytics_v1.RegisterAnalyticsServiceServer(dataSrv, dataImpl.AnalyticsV1Server)
+	admin_bucket_v1.RegisterBucketAdminServiceServer(dataSrv, dataImpl.AdminBucketV1Server)
+	admin_collection_v1.RegisterCollectionAdminServiceServer(dataSrv, dataImpl.AdminCollectionV1Server)
+	transactions_v1.RegisterTransactionsServiceServer(dataSrv, dataImpl.TransactionsV1Server)
 
 	// health check
-	health_v1.RegisterHealthServer(dataSrv, HealthV1Server{})
+	grpc_health_v1.RegisterHealthServer(dataSrv, HealthV1Server{})
 
 	sdSrv := grpc.NewServer(
 		grpc.ChainUnaryInterceptor(hooksManager.UnaryInterceptor(), metricsInterceptor.UnaryConnectionCounterInterceptor),
 	)
-	internal_hooks_v1.RegisterHooksServer(sdSrv, hooksManager.Server())
-	routing_v1.RegisterRoutingServer(sdSrv, sdImpl.RoutingV1Server)
+	internal_hooks_v1.RegisterHooksServiceServer(sdSrv, hooksManager.Server())
+	routing_v1.RegisterRoutingServiceServer(sdSrv, sdImpl.RoutingV1Server)
 
 	s := &System{
 		logger:     opts.Logger,

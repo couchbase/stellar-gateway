@@ -4,13 +4,12 @@ import (
 	"crypto/x509"
 	"strings"
 
-	"github.com/couchbase/goprotostellar/genproto/view_v1"
-
 	"github.com/couchbase/goprotostellar/genproto/analytics_v1"
 	"github.com/couchbase/goprotostellar/genproto/kv_v1"
 	"github.com/couchbase/goprotostellar/genproto/query_v1"
 	"github.com/couchbase/goprotostellar/genproto/routing_v1"
 	"github.com/couchbase/goprotostellar/genproto/search_v1"
+	"github.com/couchbase/goprotostellar/genproto/view_v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
@@ -18,12 +17,12 @@ import (
 
 type Client struct {
 	conn            *grpc.ClientConn
-	routingClient   routing_v1.RoutingClient
-	kvClient        kv_v1.KvClient
-	queryClient     query_v1.QueryClient
-	searchClient    search_v1.SearchClient
-	analyticsClient analytics_v1.AnalyticsClient
-	viewClient      view_v1.ViewClient
+	routingClient   routing_v1.RoutingServiceClient
+	kvClient        kv_v1.KvServiceClient
+	queryClient     query_v1.QueryServiceClient
+	searchClient    search_v1.SearchServiceClient
+	analyticsClient analytics_v1.AnalyticsServiceClient
+	viewClient      view_v1.ViewServiceClient
 }
 
 type ConnectOptions struct {
@@ -71,12 +70,12 @@ func Connect(connStr string, opts *ConnectOptions) (*Client, error) {
 		return nil, err
 	}
 
-	routingClient := routing_v1.NewRoutingClient(conn)
-	kvClient := kv_v1.NewKvClient(conn)
-	queryClient := query_v1.NewQueryClient(conn)
-	searchClient := search_v1.NewSearchClient(conn)
-	analyticsClient := analytics_v1.NewAnalyticsClient(conn)
-	viewClient := view_v1.NewViewClient(conn)
+	routingClient := routing_v1.NewRoutingServiceClient(conn)
+	kvClient := kv_v1.NewKvServiceClient(conn)
+	queryClient := query_v1.NewQueryServiceClient(conn)
+	searchClient := search_v1.NewSearchServiceClient(conn)
+	analyticsClient := analytics_v1.NewAnalyticsServiceClient(conn)
+	viewClient := view_v1.NewViewServiceClient(conn)
 
 	return &Client{
 		conn:            conn,

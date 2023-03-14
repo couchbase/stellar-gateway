@@ -54,7 +54,7 @@ func (m *HooksManager) DestroyHooksContext(hooksContextID string) error {
 	return nil
 }
 
-func (m *HooksManager) Server() internal_hooks_v1.HooksServer {
+func (m *HooksManager) Server() internal_hooks_v1.HooksServiceServer {
 	return &grpcHooksServer{
 		manager: m,
 	}

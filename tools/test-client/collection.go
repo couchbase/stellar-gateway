@@ -202,7 +202,7 @@ func (c *Collection) Upsert(ctx context.Context, id string, content []byte, opts
 		CollectionName: collName,
 		Key:            id,
 		Content:        content,
-		ContentType:    kv_v1.DocumentContentType_JSON,
+		ContentType:    kv_v1.DocumentContentType_DOCUMENT_CONTENT_TYPE_JSON,
 		Expiry: &kv_v1.UpsertRequest_ExpiryTime{
 			ExpiryTime: durationToTimestamp(opts.Expiry),
 		},
@@ -245,7 +245,7 @@ func (c *Collection) Insert(ctx context.Context, id string, content []byte, opts
 		CollectionName: collName,
 		Key:            id,
 		Content:        content,
-		ContentType:    kv_v1.DocumentContentType_JSON,
+		ContentType:    kv_v1.DocumentContentType_DOCUMENT_CONTENT_TYPE_JSON,
 		Expiry: &kv_v1.InsertRequest_ExpiryTime{
 			ExpiryTime: durationToTimestamp(opts.Expiry),
 		},
@@ -295,7 +295,7 @@ func (c *Collection) Replace(ctx context.Context, id string, content []byte, opt
 		CollectionName: collName,
 		Key:            id,
 		Content:        content,
-		ContentType:    kv_v1.DocumentContentType_JSON,
+		ContentType:    kv_v1.DocumentContentType_DOCUMENT_CONTENT_TYPE_JSON,
 		Expiry: &kv_v1.ReplaceRequest_ExpiryTime{
 			ExpiryTime: durationToTimestamp(opts.Expiry),
 		},

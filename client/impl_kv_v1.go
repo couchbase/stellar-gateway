@@ -12,17 +12,17 @@ type routingImpl_KvV1 struct {
 }
 
 // Verify that RoutingClient implements Conn
-var _ kv_v1.KvClient = (*routingImpl_KvV1)(nil)
+var _ kv_v1.KvServiceClient = (*routingImpl_KvV1)(nil)
 
 func (c *routingImpl_KvV1) Get(ctx context.Context, in *kv_v1.GetRequest, opts ...grpc.CallOption) (*kv_v1.GetResponse, error) {
 	return c.client.fetchConnForKey(in.BucketName, in.Key).KvV1().Get(ctx, in, opts...)
 }
 
-func (c *routingImpl_KvV1) GetAndTouch(ctx context.Context, in *kv_v1.GetAndTouchRequest, opts ...grpc.CallOption) (*kv_v1.GetResponse, error) {
+func (c *routingImpl_KvV1) GetAndTouch(ctx context.Context, in *kv_v1.GetAndTouchRequest, opts ...grpc.CallOption) (*kv_v1.GetAndTouchResponse, error) {
 	return c.client.fetchConnForKey(in.BucketName, in.Key).KvV1().GetAndTouch(ctx, in, opts...)
 }
 
-func (c *routingImpl_KvV1) GetAndLock(ctx context.Context, in *kv_v1.GetAndLockRequest, opts ...grpc.CallOption) (*kv_v1.GetResponse, error) {
+func (c *routingImpl_KvV1) GetAndLock(ctx context.Context, in *kv_v1.GetAndLockRequest, opts ...grpc.CallOption) (*kv_v1.GetAndLockResponse, error) {
 	return c.client.fetchConnForKey(in.BucketName, in.Key).KvV1().GetAndLock(ctx, in, opts...)
 }
 
@@ -30,7 +30,7 @@ func (c *routingImpl_KvV1) Unlock(ctx context.Context, in *kv_v1.UnlockRequest, 
 	return c.client.fetchConnForKey(in.BucketName, in.Key).KvV1().Unlock(ctx, in, opts...)
 }
 
-func (c *routingImpl_KvV1) GetReplica(ctx context.Context, in *kv_v1.GetReplicaRequest, opts ...grpc.CallOption) (*kv_v1.GetResponse, error) {
+func (c *routingImpl_KvV1) GetReplica(ctx context.Context, in *kv_v1.GetReplicaRequest, opts ...grpc.CallOption) (*kv_v1.GetReplicaResponse, error) {
 	return c.client.fetchConnForKey(in.BucketName, in.Key).KvV1().GetReplica(ctx, in, opts...)
 }
 

@@ -18,7 +18,7 @@ type KvServerClientOptions struct {
 	Logger           *zap.Logger
 	ParentServer     *KvServer
 	TopologyProvider topology.Provider
-	KvClient         kv_v1.KvClient
+	KvClient         kv_v1.KvServiceClient
 	Conn             net.Conn
 }
 
@@ -26,7 +26,7 @@ type KvServerClient struct {
 	logger           *zap.Logger
 	parentServer     *KvServer
 	topologyProvider topology.Provider
-	kvClient         kv_v1.KvClient
+	kvClient         kv_v1.KvServiceClient
 	conn             net.Conn
 
 	memdConn       *memd.Conn

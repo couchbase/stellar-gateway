@@ -12,12 +12,12 @@ import (
 type QueryServerOptions struct {
 	Logger *zap.Logger
 
-	QueryClient query_v1.QueryClient
+	QueryClient query_v1.QueryServiceClient
 }
 
 type QueryServer struct {
 	logger      *zap.Logger
-	queryClient query_v1.QueryClient
+	queryClient query_v1.QueryServiceClient
 
 	httpServer *http.Server
 }

@@ -8,12 +8,12 @@ import (
 )
 
 type SearchServer struct {
-	search_v1.UnimplementedSearchServer
+	search_v1.UnimplementedSearchServiceServer
 
 	cbClient *gocbcorex.AgentManager
 }
 
-func (s *SearchServer) SearchQuery(in *search_v1.SearchQueryRequest, out search_v1.Search_SearchQueryServer) error {
+func (s *SearchServer) SearchQuery(in *search_v1.SearchQueryRequest, out search_v1.SearchService_SearchQueryServer) error {
 	return status.Errorf(codes.Unimplemented, "method SearchQuery not implemented")
 }
 

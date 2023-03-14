@@ -10,7 +10,7 @@ import (
 )
 
 type RoutingServer struct {
-	routing_v1.UnimplementedRoutingServer
+	routing_v1.UnimplementedRoutingServiceServer
 
 	topologyProvider topology.Provider
 }
@@ -21,7 +21,7 @@ func NewRoutingServer(topologyProvider topology.Provider) *RoutingServer {
 	}
 }
 
-func (s *RoutingServer) WatchRouting(in *routing_v1.WatchRoutingRequest, out routing_v1.Routing_WatchRoutingServer) error {
+func (s *RoutingServer) WatchRouting(in *routing_v1.WatchRoutingRequest, out routing_v1.RoutingService_WatchRoutingServer) error {
 	topologyCh, err := s.topologyProvider.Watch(out.Context(), in.GetBucketName())
 	if err != nil {
 		return err

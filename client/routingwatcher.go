@@ -11,13 +11,13 @@ import (
 )
 
 type routingWatcherOptions struct {
-	RoutingClient routing_v1.RoutingClient
+	RoutingClient routing_v1.RoutingServiceClient
 	BucketName    string
 	RoutingTable  *atomicRoutingTable
 }
 
 type routingWatcher struct {
-	routingClient routing_v1.RoutingClient
+	routingClient routing_v1.RoutingServiceClient
 	bucketName    string
 	routingTable  *atomicRoutingTable
 

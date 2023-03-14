@@ -6,7 +6,7 @@ import (
 )
 
 type TransactionsServer struct {
-	transactions_v1.UnimplementedTransactionsServer
+	transactions_v1.UnimplementedTransactionsServiceServer
 }
 
 func NewTransactionsServer(cbClient *gocbcorex.AgentManager) *TransactionsServer {

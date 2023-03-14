@@ -13,7 +13,7 @@ import (
 )
 
 type BucketAdminServer struct {
-	admin_bucket_v1.UnimplementedBucketAdminServer
+	admin_bucket_v1.UnimplementedBucketAdminServiceServer
 
 	cbClient *gocbcorex.AgentManager
 }

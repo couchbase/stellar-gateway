@@ -18,11 +18,11 @@ const (
 func (op LookupInOperation) toProto() kv_v1.LookupInRequest_Spec_Operation {
 	switch op {
 	case LookupInOperationGet:
-		return kv_v1.LookupInRequest_Spec_GET
+		return kv_v1.LookupInRequest_Spec_OPERATION_GET
 	case LookupInOperationExists:
-		return kv_v1.LookupInRequest_Spec_EXISTS
+		return kv_v1.LookupInRequest_Spec_OPERATION_EXISTS
 	case LookupInOperationCount:
-		return kv_v1.LookupInRequest_Spec_COUNT
+		return kv_v1.LookupInRequest_Spec_OPERATION_COUNT
 	}
 
 	return 0
@@ -117,23 +117,23 @@ const (
 func (op MutateInOperation) toProto() kv_v1.MutateInRequest_Spec_Operation {
 	switch op {
 	case MutateInOperationInsert:
-		return kv_v1.MutateInRequest_Spec_INSERT
+		return kv_v1.MutateInRequest_Spec_OPERATION_INSERT
 	case MutateInOperationUpsert:
-		return kv_v1.MutateInRequest_Spec_UPSERT
+		return kv_v1.MutateInRequest_Spec_OPERATION_UPSERT
 	case MutateInOperationReplace:
-		return kv_v1.MutateInRequest_Spec_REPLACE
+		return kv_v1.MutateInRequest_Spec_OPERATION_REPLACE
 	case MutateInOperationRemove:
-		return kv_v1.MutateInRequest_Spec_REMOVE
+		return kv_v1.MutateInRequest_Spec_OPERATION_REMOVE
 	case MutateInOperationArrayAppend:
-		return kv_v1.MutateInRequest_Spec_ARRAY_APPEND
+		return kv_v1.MutateInRequest_Spec_OPERATION_ARRAY_APPEND
 	case MutateInOperationArrayPrepend:
-		return kv_v1.MutateInRequest_Spec_ARRAY_PREPEND
+		return kv_v1.MutateInRequest_Spec_OPERATION_ARRAY_PREPEND
 	case MutateInOperationArrayInsert:
-		return kv_v1.MutateInRequest_Spec_ARRAY_INSERT
+		return kv_v1.MutateInRequest_Spec_OPERATION_ARRAY_INSERT
 	case MutateInOperationArrayAddUnique:
-		return kv_v1.MutateInRequest_Spec_ARRAY_ADD_UNIQUE
+		return kv_v1.MutateInRequest_Spec_OPERATION_ARRAY_ADD_UNIQUE
 	case MutateInOperationCounter:
-		return kv_v1.MutateInRequest_Spec_COUNTER
+		return kv_v1.MutateInRequest_Spec_OPERATION_COUNTER
 	}
 
 	return 0
@@ -151,11 +151,11 @@ func (s StoreSemantic) toProto() *kv_v1.MutateInRequest_StoreSemantic {
 	var semantic kv_v1.MutateInRequest_StoreSemantic
 	switch s {
 	case StoreSemanticReplace:
-		semantic = kv_v1.MutateInRequest_REPLACE
+		semantic = kv_v1.MutateInRequest_STORE_SEMANTIC_REPLACE
 	case StoreSemanticUpsert:
-		semantic = kv_v1.MutateInRequest_UPSERT
+		semantic = kv_v1.MutateInRequest_STORE_SEMANTIC_UPSERT
 	case StoreSemanticInsert:
-		semantic = kv_v1.MutateInRequest_INSERT
+		semantic = kv_v1.MutateInRequest_STORE_SEMANTIC_INSERT
 	}
 
 	return &semantic

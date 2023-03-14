@@ -31,11 +31,11 @@ func (c *KvServerClient) getOpContext(pak *memd.Packet) (context.Context, string
 func (c *KvServerClient) durabilityLevelToPs(dl memd.DurabilityLevel) (kv_v1.DurabilityLevel, memd.StatusCode) {
 	switch dl {
 	case memd.DurabilityLevelMajority:
-		return kv_v1.DurabilityLevel_MAJORITY, memd.StatusSuccess
+		return kv_v1.DurabilityLevel_DURABILITY_LEVEL_MAJORITY, memd.StatusSuccess
 	case memd.DurabilityLevelMajorityAndPersistOnMaster:
-		return kv_v1.DurabilityLevel_MAJORITY_AND_PERSIST_TO_ACTIVE, memd.StatusSuccess
+		return kv_v1.DurabilityLevel_DURABILITY_LEVEL_MAJORITY_AND_PERSIST_TO_ACTIVE, memd.StatusSuccess
 	case memd.DurabilityLevelPersistToMajority:
-		return kv_v1.DurabilityLevel_PERSIST_TO_MAJORITY, memd.StatusSuccess
+		return kv_v1.DurabilityLevel_DURABILITY_LEVEL_PERSIST_TO_MAJORITY, memd.StatusSuccess
 	}
 
 	return 0, memd.StatusDurabilityInvalidLevel
@@ -44,11 +44,11 @@ func (c *KvServerClient) durabilityLevelToPs(dl memd.DurabilityLevel) (kv_v1.Dur
 func (c *KvServerClient) flagsToPsContentType(flags uint32) kv_v1.DocumentContentType {
 	switch gocbcore.DataType(flags) {
 	case gocbcore.BinaryType:
-		return kv_v1.DocumentContentType_BINARY
+		return kv_v1.DocumentContentType_DOCUMENT_CONTENT_TYPE_BINARY
 	case gocbcore.JSONType:
-		return kv_v1.DocumentContentType_JSON
+		return kv_v1.DocumentContentType_DOCUMENT_CONTENT_TYPE_JSON
 	default:
-		return kv_v1.DocumentContentType_UNKNOWN
+		return kv_v1.DocumentContentType_DOCUMENT_CONTENT_TYPE_UNKNOWN
 	}
 }
 

@@ -11,12 +11,12 @@ import (
 )
 
 type QueryServer struct {
-	query_v1.UnimplementedQueryServer
+	query_v1.UnimplementedQueryServiceServer
 
 	cbClient *gocbcorex.AgentManager
 }
 
-func (s *QueryServer) Query(in *query_v1.QueryRequest, out query_v1.Query_QueryServer) error {
+func (s *QueryServer) Query(in *query_v1.QueryRequest, out query_v1.QueryService_QueryServer) error {
 	var opts gocbcorex.QueryOptions
 
 	opts.Statement = in.Statement
@@ -67,9 +67,9 @@ func (s *QueryServer) Query(in *query_v1.QueryRequest, out query_v1.Query_QueryS
 
 	if in.ScanConsistency != nil {
 		switch *in.ScanConsistency {
-		case query_v1.QueryRequest_NOT_BOUNDED:
+		case query_v1.QueryRequest_SCAN_CONSISTENCY_NOT_BOUNDED:
 			opts.ScanConsistency = cbqueryx.QueryScanConsistencyNotBounded
-		case query_v1.QueryRequest_REQUEST_PLUS:
+		case query_v1.QueryRequest_SCAN_CONSISTENCY_REQUEST_PLUS:
 			opts.ScanConsistency = cbqueryx.QueryScanConsistencyRequestPlus
 		default:
 			return status.Errorf(codes.InvalidArgument, "invalid scan consistency option specified")
@@ -96,11 +96,11 @@ func (s *QueryServer) Query(in *query_v1.QueryRequest, out query_v1.Query_QueryS
 	}
 	if in.ProfileMode != nil {
 		switch *in.ProfileMode {
-		case query_v1.QueryRequest_OFF:
+		case query_v1.QueryRequest_PROFILE_MODE_OFF:
 			opts.Profile = cbqueryx.QueryProfileModeOff
-		case query_v1.QueryRequest_PHASES:
+		case query_v1.QueryRequest_PROFILE_MODE_PHASES:
 			opts.Profile = cbqueryx.QueryProfileModePhases
-		case query_v1.QueryRequest_TIMINGS:
+		case query_v1.QueryRequest_PROFILE_MODE_TIMINGS:
 			opts.Profile = cbqueryx.QueryProfileModeTimings
 		default:
 			return status.Errorf(codes.InvalidArgument, "invalid profile mode option specified")
@@ -190,25 +190,25 @@ func (s *QueryServer) Query(in *query_v1.QueryRequest, out query_v1.Query_QueryS
 
 		switch metaData.Status {
 		case cbqueryx.QueryStatusRunning:
-			psMetaData.Status = query_v1.QueryResponse_MetaData_RUNNING
+			psMetaData.Status = query_v1.QueryResponse_MetaData_STATUS_RUNNING
 		case cbqueryx.QueryStatusSuccess:
-			psMetaData.Status = query_v1.QueryResponse_MetaData_SUCCESS
+			psMetaData.Status = query_v1.QueryResponse_MetaData_STATUS_SUCCESS
 		case cbqueryx.QueryStatusErrors:
-			psMetaData.Status = query_v1.QueryResponse_MetaData_ERRORS
+			psMetaData.Status = query_v1.QueryResponse_MetaData_STATUS_ERRORS
 		case cbqueryx.QueryStatusCompleted:
-			psMetaData.Status = query_v1.QueryResponse_MetaData_COMPLETED
+			psMetaData.Status = query_v1.QueryResponse_MetaData_STATUS_COMPLETED
 		case cbqueryx.QueryStatusStopped:
-			psMetaData.Status = query_v1.QueryResponse_MetaData_STOPPED
+			psMetaData.Status = query_v1.QueryResponse_MetaData_STATUS_STOPPED
 		case cbqueryx.QueryStatusTimeout:
-			psMetaData.Status = query_v1.QueryResponse_MetaData_TIMEOUT
+			psMetaData.Status = query_v1.QueryResponse_MetaData_STATUS_TIMEOUT
 		case cbqueryx.QueryStatusClosed:
-			psMetaData.Status = query_v1.QueryResponse_MetaData_CLOSED
+			psMetaData.Status = query_v1.QueryResponse_MetaData_STATUS_CLOSED
 		case cbqueryx.QueryStatusFatal:
-			psMetaData.Status = query_v1.QueryResponse_MetaData_FATAL
+			psMetaData.Status = query_v1.QueryResponse_MetaData_STATUS_FATAL
 		case cbqueryx.QueryStatusAborted:
-			psMetaData.Status = query_v1.QueryResponse_MetaData_ABORTED
+			psMetaData.Status = query_v1.QueryResponse_MetaData_STATUS_ABORTED
 		default:
-			psMetaData.Status = query_v1.QueryResponse_MetaData_UNKNOWN
+			psMetaData.Status = query_v1.QueryResponse_MetaData_STATUS_UNKNOWN
 		}
 
 		sig, err := json.Marshal(metaData.Signature)
