@@ -596,6 +596,64 @@ func (s *GatewayOpsTestSuite) TestSubdoc() {
 
 }
 
+func (s *GatewayOpsTestSuite) TestExists() {
+	kvClient := kv_v1.NewKvClient(s.gatewayConn)
+
+	testDocId := s.randomDocId("exists")
+
+	s.createDocument(s.T(), createDocumentOptions{
+		BucketName:     s.bucketName,
+		ScopeName:      s.scopeName,
+		CollectionName: s.collectionName,
+		DocId:          testDocId,
+		Content:        TEST_CONTENT,
+	})
+
+	existsResp, err := kvClient.Exists(context.Background(), &kv_v1.ExistsRequest{
+		BucketName:     s.bucketName,
+		ScopeName:      s.scopeName,
+		CollectionName: s.collectionName,
+		Key:            testDocId,
+	}, grpc.PerRPCCredentials(s.basicRpcCreds))
+	assertRpcSuccess(s.T(), existsResp, err)
+	assertValidCas(s.T(), existsResp.Cas)
+	assert.True(s.T(), existsResp.Result)
+
+	// Test doing a Exists where the document is missing
+	missingDocId := s.randomDocId("missing-doc")
+	existsResp, err = kvClient.Exists(context.Background(), &kv_v1.ExistsRequest{
+		BucketName:     s.bucketName,
+		ScopeName:      s.scopeName,
+		CollectionName: s.collectionName,
+		Key:            missingDocId,
+	}, grpc.PerRPCCredentials(s.basicRpcCreds))
+	assertRpcSuccess(s.T(), existsResp, err)
+	assert.Zero(s.T(), existsResp.Cas)
+	assert.False(s.T(), existsResp.Result)
+
+	// Remove the doc
+	_, err = kvClient.Remove(context.Background(), &kv_v1.RemoveRequest{
+		BucketName:      s.bucketName,
+		ScopeName:       s.scopeName,
+		CollectionName:  s.collectionName,
+		Key:             testDocId,
+		Cas:             nil,
+		DurabilityLevel: nil,
+	}, grpc.PerRPCCredentials(s.basicRpcCreds))
+	assertRpcStatus(s.T(), err, codes.OK)
+
+	// Check that it now doesn't exist
+	existsResp, err = kvClient.Exists(context.Background(), &kv_v1.ExistsRequest{
+		BucketName:     s.bucketName,
+		ScopeName:      s.scopeName,
+		CollectionName: s.collectionName,
+		Key:            testDocId,
+	}, grpc.PerRPCCredentials(s.basicRpcCreds))
+	assertRpcSuccess(s.T(), existsResp, err)
+	assert.Zero(s.T(), existsResp.Cas)
+	assert.False(s.T(), existsResp.Result)
+}
+
 func TestGatewayOps(t *testing.T) {
 	suite.Run(t, new(GatewayOpsTestSuite))
 }

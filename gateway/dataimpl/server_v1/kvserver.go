@@ -187,6 +187,39 @@ func (s *KvServer) Insert(ctx context.Context, in *kv_v1.InsertRequest) (*kv_v1.
 	}, nil
 }
 
+func (s *KvServer) Exists(ctx context.Context, in *kv_v1.ExistsRequest) (*kv_v1.ExistsResponse, error) {
+	bucketAgent, errSt := s.getBucketAgent(ctx, in.BucketName)
+	if errSt != nil {
+		return nil, errSt.Err()
+	}
+
+	result, err := bucketAgent.GetMeta(ctx, &gocbcorex.GetMetaOptions{
+		Key:            []byte(in.Key),
+		ScopeName:      in.ScopeName,
+		CollectionName: in.CollectionName,
+	})
+	if err != nil {
+		if errors.Is(err, memdx.ErrDocNotFound) {
+			return &kv_v1.ExistsResponse{
+				Result: false,
+			}, nil
+		} else if errors.Is(err, memdx.ErrAccessError) {
+			return nil, newCollectionNoReadAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+		}
+		return nil, cbGenericErrToPsStatus(err).Err()
+	}
+
+	resp := &kv_v1.ExistsResponse{
+		Result: result.Deleted == 0,
+	}
+
+	if resp.Result {
+		resp.Cas = result.Cas
+	}
+
+	return resp, nil
+}
+
 func (s *KvServer) Upsert(ctx context.Context, in *kv_v1.UpsertRequest) (*kv_v1.UpsertResponse, error) {
 	bucketAgent, errSt := s.getBucketAgent(ctx, in.BucketName)
 	if errSt != nil {
