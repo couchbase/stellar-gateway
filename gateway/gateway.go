@@ -8,6 +8,7 @@ import (
 
 	"github.com/couchbase/cbauth"
 	"github.com/couchbase/gocbcorex"
+	"github.com/couchbase/stellar-gateway/contrib/cbauthauth"
 	"github.com/couchbase/stellar-gateway/contrib/cbconfig"
 	"github.com/couchbase/stellar-gateway/contrib/cbtopology"
 	"github.com/couchbase/stellar-gateway/contrib/goclustering"
@@ -119,12 +120,9 @@ func gatewayStartup(ctx context.Context, config *Config) error {
 	}
 
 	agentMgr, err := gocbcorex.CreateAgentManager(ctx, gocbcorex.AgentManagerOptions{
-		Logger:    config.Logger.Named("gocbcorex"),
-		TLSConfig: nil,
-		Authenticator: &gocbcorex.PasswordAuthenticator{
-			Username: config.Username,
-			Password: config.Password,
-		},
+		Logger:        config.Logger.Named("gocbcorex"),
+		TLSConfig:     nil,
+		Authenticator: &cbauthauth.CbAuthAuthenticator{},
 		SeedConfig: gocbcorex.SeedConfig{
 			HTTPAddrs: []string{mgmtHostPort},
 		},
@@ -148,7 +146,7 @@ func gatewayStartup(ctx context.Context, config *Config) error {
 			Host:     config.CbConnStr,
 			Username: config.Username,
 			Password: config.Password,
-			Logger: config.Logger.Named("fetcher"),
+			Logger:   config.Logger.Named("fetcher"),
 		}),
 		Logger: config.Logger.Named("topology-provider"),
 	})
