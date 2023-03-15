@@ -2,19 +2,21 @@ package goclustering
 
 import (
 	"context"
-	"log"
 
 	"github.com/couchbase/stellar-gateway/contrib/etcdmemberlist"
 	clientv3 "go.etcd.io/etcd/client/v3"
+	"go.uber.org/zap"
 )
 
 type EtcdProviderOptions struct {
 	EtcdClient *clientv3.Client
 	KeyPrefix  string
+	Logger *zap.Logger
 }
 
 type EtcdProvider struct {
-	ml *etcdmemberlist.MemberList
+	ml     *etcdmemberlist.MemberList
+	logger *zap.Logger
 }
 
 var _ Provider = (*EtcdProvider)(nil)
@@ -30,6 +32,7 @@ func NewEtcdProvider(opts EtcdProviderOptions) (*EtcdProvider, error) {
 
 	return &EtcdProvider{
 		ml: ml,
+		logger: opts.Logger,
 	}, nil
 }
 
@@ -101,7 +104,7 @@ func (p *EtcdProvider) Watch(ctx context.Context) (chan *Snapshot, error) {
 				// break out of the read loop and close the output channel.  If the user attempts to
 				// restart the watch, they should get the proper error returned.
 				// TODO(brett19): Need to close the input watcher channel somehow...
-				log.Printf("etcd topology provider failed to parse a config from the memberlist: %s", err)
+				p.logger.Error("etcd topology provider failed to parse a config from the memberlist", zap.Error(err))
 				break
 			}
 

@@ -2,11 +2,11 @@ package client
 
 import (
 	"context"
-	"log"
 	"time"
 
 	backoff "github.com/cenkalti/backoff/v4"
 	"github.com/couchbase/goprotostellar/genproto/routing_v1"
+	"go.uber.org/zap"
 )
 
 func (p *RoutingClient) translateTopology(t *routing_v1.WatchRoutingResponse) *Topology {
@@ -76,7 +76,7 @@ func (p *RoutingClient) watchTopology(ctx context.Context, bucketName *string) (
 			})
 			if err != nil {
 				// TODO(brett19): Implement better error handling here...
-				log.Printf("failed to watch routing: %s", err)
+				p.logger.Error("failed to watch routing", zap.Error(err))
 
 				select {
 				case <-time.After(b.NextBackOff()):
@@ -89,7 +89,7 @@ func (p *RoutingClient) watchTopology(ctx context.Context, bucketName *string) (
 			for {
 				routingResp, err := routingStream.Recv()
 				if err != nil {
-					log.Printf("failed to recv updated topology: %s", err)
+					p.logger.Error("failed to recv updated topology", zap.Error(err))
 					break
 				}
 

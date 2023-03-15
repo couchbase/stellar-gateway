@@ -108,7 +108,7 @@ func main() {
 				NumInstances: *numInstances,
 			})
 			if err != nil {
-				log.Printf("failed to initialize the legacy bridge: %s", err)
+				logger.Error("failed to initialize the legacy bridge", zap.Error(err))
 				os.Exit(1)
 			}
 

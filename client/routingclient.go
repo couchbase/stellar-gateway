@@ -2,7 +2,6 @@ package client
 
 import (
 	"crypto/x509"
-	"log"
 	"math/rand"
 	"net"
 	"sync"
@@ -10,6 +9,7 @@ import (
 	"github.com/couchbase/goprotostellar/genproto/kv_v1"
 	"github.com/couchbase/goprotostellar/genproto/query_v1"
 	"github.com/couchbase/goprotostellar/genproto/routing_v1"
+	"go.uber.org/zap"
 )
 
 type routingClient_Bucket struct {
@@ -21,6 +21,7 @@ type RoutingClient struct {
 	routing *atomicRoutingTable
 	lock    sync.Mutex
 	buckets map[string]*routingClient_Bucket
+	logger  *zap.Logger
 }
 
 // Verify that RoutingClient implements Conn
@@ -30,6 +31,7 @@ type DialOptions struct {
 	ClientCertificate *x509.CertPool
 	Username          string
 	Password          string
+	Logger            *zap.Logger
 }
 
 func Dial(target string, opts *DialOptions) (*RoutingClient, error) {
@@ -59,6 +61,7 @@ func Dial(target string, opts *DialOptions) (*RoutingClient, error) {
 	return &RoutingClient{
 		routing: routing,
 		buckets: make(map[string]*routingClient_Bucket),
+		logger:  opts.Logger,
 	}, nil
 }
 
@@ -90,14 +93,14 @@ func (c *RoutingClient) CloseBucket(bucketName string) {
 	if bucket == nil {
 		// doesn't exist, thats weird...
 		c.lock.Unlock()
-		log.Printf("closed an unopened bucket")
+		c.logger.Info("closed an unopened bucket")
 		return
 	}
 
 	if bucket.RefCount == 0 {
 		// this shouldn't be possible...
 		c.lock.Unlock()
-		log.Printf("closed an unreferenced bucket")
+		c.logger.Info("closed an unreferenced bucket")
 		return
 	}
 

@@ -67,7 +67,7 @@ func main() {
 
 	err = gateway.Run(context.Background(), gatewayConfig)
 	if err != nil {
-		log.Printf("failed to initialize the gateway: %s", err)
+		logger.Error("failed to initialize the gateway", zap.Error(err))
 		os.Exit(1)
 	}
 }

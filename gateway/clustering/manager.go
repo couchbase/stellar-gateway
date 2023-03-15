@@ -3,9 +3,9 @@ package clustering
 import (
 	"context"
 	"encoding/json"
-	"log"
 
 	"github.com/couchbase/stellar-gateway/contrib/goclustering"
+	"go.uber.org/zap"
 )
 
 type Membership struct {
@@ -27,6 +27,7 @@ func (m *Membership) Leave(ctx context.Context) error {
 
 type Manager struct {
 	Provider goclustering.Provider
+	Logger *zap.Logger
 }
 
 var _ Provider = (*Manager)(nil)
@@ -53,7 +54,7 @@ func (p *Manager) procSnapshot(snap *goclustering.Snapshot) *Snapshot {
 		if err != nil {
 			// we intentionally don't bail here so that members with bad meta-data
 			// still appear in the snapshot, but just are missing all their data.
-			log.Printf("failed to unmarshal member: %s", err)
+			p.Logger.Error("failed to unmarshal member", zap.Error(err))
 		}
 
 		member.MemberID = entry.MemberID

@@ -2,9 +2,9 @@ package hooks
 
 import (
 	"context"
-	"log"
 	"sync"
 
+	"go.uber.org/zap"
 	"golang.org/x/exp/slices"
 )
 
@@ -24,10 +24,13 @@ type Barrier struct {
 	lock     sync.Mutex
 	waiters  []*BarrierWaiter
 	watchers []*barrierWatcher
+	logger   *zap.Logger
 }
 
-func newBarrier() *Barrier {
-	return &Barrier{}
+func newBarrier(logger *zap.Logger) *Barrier {
+	return &Barrier{
+		logger: logger,
+	}
 }
 
 func (c *Barrier) Wait(ctx context.Context, waiterID string, metaData []byte) []byte {
@@ -48,7 +51,7 @@ func (c *Barrier) Wait(ctx context.Context, waiterID string, metaData []byte) []
 	}
 	c.lock.Unlock()
 
-	log.Printf("starting barrier wait")
+	c.logger.Info("starting barrier wait")
 
 	var respData []byte
 	select {
@@ -56,7 +59,7 @@ func (c *Barrier) Wait(ctx context.Context, waiterID string, metaData []byte) []
 	case <-ctx.Done():
 	}
 
-	log.Printf("done barrier wait")
+	c.logger.Info("done barrier wait")
 
 	c.lock.Lock()
 	foundWaiterIdx := slices.IndexFunc(
@@ -80,7 +83,7 @@ func (c *Barrier) trySignal(waiterID *string, metaData []byte) bool {
 	}
 
 	if waiterID != nil {
-		log.Printf("trying to signal specific barrier waiter: %s %+v", *waiterID, c)
+		c.logger.Info("trying to signal specific barrier waiter", zap.String("waiterId", *waiterID), zap.Any("barrier", c))
 		foundWaiterIdx := slices.IndexFunc(
 			c.waiters,
 			func(w *BarrierWaiter) bool { return w.ID == *waiterID })
@@ -98,7 +101,7 @@ func (c *Barrier) trySignal(waiterID *string, metaData []byte) bool {
 
 	c.lock.Unlock()
 
-	log.Printf("signaling barrier channel")
+	c.logger.Info("signaling barrier channel")
 
 	foundWaiter.ch <- metaData
 	close(foundWaiter.ch)
