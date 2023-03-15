@@ -90,28 +90,29 @@ func (s *KvServer) Get(ctx context.Context, in *kv_v1.GetRequest) (*kv_v1.GetRes
 		return nil, errSt.Err()
 	}
 
-	result, err := bucketAgent.LookupIn(ctx, &gocbcorex.LookupInOptions{
-		Key:            []byte(in.Key),
-		ScopeName:      in.ScopeName,
-		CollectionName: in.CollectionName,
-		Ops: []memdx.LookupInOp{
-			{
-				Op:    memdx.LookupInOpTypeGet,
-				Flags: memdx.SubdocOpFlagXattrPath,
-				Path:  []byte("$document.exptime"),
-			},
-			{
-				Op:    memdx.LookupInOpTypeGet,
-				Flags: memdx.SubdocOpFlagXattrPath,
-				Path:  []byte("$document.flags"),
-			},
-			{
-				Op:    memdx.LookupInOpTypeGetDoc,
-				Flags: memdx.SubdocOpFlagNone,
-				Path:  nil,
-			},
+	var opts gocbcorex.LookupInOptions
+	opts.ScopeName = in.ScopeName
+	opts.CollectionName = in.CollectionName
+	opts.Key = []byte(in.Key)
+	opts.Ops = []memdx.LookupInOp{
+		{
+			Op:    memdx.LookupInOpTypeGet,
+			Flags: memdx.SubdocOpFlagXattrPath,
+			Path:  []byte("$document.exptime"),
 		},
-	})
+		{
+			Op:    memdx.LookupInOpTypeGet,
+			Flags: memdx.SubdocOpFlagXattrPath,
+			Path:  []byte("$document.flags"),
+		},
+		{
+			Op:    memdx.LookupInOpTypeGetDoc,
+			Flags: memdx.SubdocOpFlagNone,
+			Path:  nil,
+		},
+	}
+
+	result, err := bucketAgent.LookupIn(ctx, &opts)
 	if err != nil {
 		if errors.Is(err, memdx.ErrDocNotFound) {
 			return nil, newDocMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
@@ -153,22 +154,21 @@ func (s *KvServer) GetAndTouch(ctx context.Context, in *kv_v1.GetAndTouchRequest
 		return nil, errSt.Err()
 	}
 
-	var expiry uint32
+	var opts gocbcorex.GetAndTouchOptions
+	opts.ScopeName = in.ScopeName
+	opts.CollectionName = in.CollectionName
+	opts.Key = []byte(in.Key)
+
 	switch expirySpec := in.Expiry.(type) {
 	case *kv_v1.GetAndTouchRequest_ExpiryTime:
-		expiry = timeExpiryToGocbcorex(timeToGo(expirySpec.ExpiryTime))
+		opts.Expiry = timeExpiryToGocbcorex(timeToGo(expirySpec.ExpiryTime))
 	case *kv_v1.GetAndTouchRequest_ExpirySecs:
-		expiry = secsExpiryToGocbcorex(expirySpec.ExpirySecs)
+		opts.Expiry = secsExpiryToGocbcorex(expirySpec.ExpirySecs)
 	default:
 		return nil, status.New(codes.InvalidArgument, "Expiry time specification is unknown.").Err()
 	}
 
-	result, err := bucketAgent.GetAndTouch(ctx, &gocbcorex.GetAndTouchOptions{
-		Key:            []byte(in.Key),
-		ScopeName:      in.ScopeName,
-		CollectionName: in.CollectionName,
-		Expiry:         expiry,
-	})
+	result, err := bucketAgent.GetAndTouch(ctx, &opts)
 	if err != nil {
 		if errors.Is(err, memdx.ErrDocNotFound) {
 			return nil, newDocMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
@@ -196,12 +196,13 @@ func (s *KvServer) GetAndLock(ctx context.Context, in *kv_v1.GetAndLockRequest) 
 		return nil, errSt.Err()
 	}
 
-	result, err := bucketAgent.GetAndLock(ctx, &gocbcorex.GetAndLockOptions{
-		Key:            []byte(in.Key),
-		ScopeName:      in.ScopeName,
-		CollectionName: in.CollectionName,
-		LockTime:       in.LockTime,
-	})
+	var opts gocbcorex.GetAndLockOptions
+	opts.ScopeName = in.ScopeName
+	opts.CollectionName = in.CollectionName
+	opts.Key = []byte(in.Key)
+	opts.LockTime = in.LockTime
+
+	result, err := bucketAgent.GetAndLock(ctx, &opts)
 	if err != nil {
 		if errors.Is(err, memdx.ErrDocNotFound) {
 			return nil, newDocMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
@@ -281,11 +282,12 @@ func (s *KvServer) Exists(ctx context.Context, in *kv_v1.ExistsRequest) (*kv_v1.
 		return nil, errSt.Err()
 	}
 
-	result, err := bucketAgent.GetMeta(ctx, &gocbcorex.GetMetaOptions{
-		Key:            []byte(in.Key),
-		ScopeName:      in.ScopeName,
-		CollectionName: in.CollectionName,
-	})
+	var opts gocbcorex.GetMetaOptions
+	opts.ScopeName = in.ScopeName
+	opts.CollectionName = in.CollectionName
+	opts.Key = []byte(in.Key)
+
+	result, err := bucketAgent.GetMeta(ctx, &opts)
 	if err != nil {
 		if errors.Is(err, memdx.ErrDocNotFound) {
 			return &kv_v1.ExistsResponse{
