@@ -2,6 +2,7 @@ package gateway
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -17,6 +18,7 @@ import (
 	"github.com/couchbase/stellar-gateway/gateway/topology"
 	"github.com/couchbase/stellar-gateway/pkg/metrics"
 	"github.com/couchbase/stellar-gateway/utils/netutils"
+	"github.com/couchbaselabs/gocbconnstr"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
@@ -53,6 +55,42 @@ type Config struct {
 	StartupCallback func(*StartupInfo)
 }
 
+func connStrToMgmtHostPort(connStr string) (string, error) {
+	// attempt to parse the connection string
+	connSpec, err := gocbconnstr.Parse(connStr)
+	if err != nil {
+		return "", err
+	}
+
+	// if the connection string is blank, assume http
+	if connSpec.Scheme == "" {
+		connSpec.Scheme = "http"
+	}
+
+	// we use cbauth, and thus can only bootstrap with http
+	if connSpec.Scheme != "http" {
+		return "", errors.New("only the http connection string scheme is supported")
+	}
+
+	// we only support a single host to bootstrap with
+	if len(connSpec.Addresses) != 1 {
+		return "", errors.New("you must pass exactly one address in the connection string")
+	}
+
+	// grab the address
+	address := connSpec.Addresses[0]
+
+	// if the port is undefined, assume its 8091
+	if address.Port == -1 {
+		address.Port = 8091
+	}
+
+	// calculate the full host/port pair
+	hostPort := fmt.Sprintf("%s:%d", address.Host, address.Port)
+
+	return hostPort, nil
+}
+
 func gatewayStartup(ctx context.Context, config *Config) error {
 	// NodeID must not be blank, so lets generate a unique UUID if one wasn't provided...
 	nodeID := config.NodeID
@@ -65,10 +103,13 @@ func gatewayStartup(ctx context.Context, config *Config) error {
 	// start connecting to the underlying cluster
 	config.Logger.Info("linking to couchbase cluster", zap.String("connectionString", config.CbConnStr), zap.String("User", config.Username))
 
-	kvHostPort := fmt.Sprintf("%s:11210", config.CbConnStr)
-	mgmtHostPort := fmt.Sprintf("%s:8091", config.CbConnStr)
+	mgmtHostPort, err := connStrToMgmtHostPort(config.CbConnStr)
+	if err != nil {
+		config.Logger.Error("failed to parse connection string", zap.Error(err))
+		return err
+	}
 
-	_, err := cbauth.InternalRetryDefaultInitWithService("stg", mgmtHostPort, config.Username, config.Password)
+	_, err = cbauth.InternalRetryDefaultInitWithService("stg", mgmtHostPort, config.Username, config.Password)
 	if err != nil {
 		config.Logger.Error("failed to initialize cbauth connection",
 			zap.Error(err),
@@ -86,14 +127,12 @@ func gatewayStartup(ctx context.Context, config *Config) error {
 		},
 		SeedConfig: gocbcorex.SeedConfig{
 			HTTPAddrs: []string{mgmtHostPort},
-			MemdAddrs: []string{kvHostPort},
 		},
 	})
 	if err != nil {
 		config.Logger.Error("failed to connect to couchbase cluster",
 			zap.Error(err),
 			zap.String("httpAddr", mgmtHostPort),
-			zap.String("memdAddr", kvHostPort),
 			zap.String("user", config.Username))
 		return err
 	}
