@@ -596,7 +596,7 @@ func (s *GatewayOpsTestSuite) TestSubdoc() {
 }
 
 func (s *GatewayOpsTestSuite) TestGetAndTouch() {
-	kvClient := kv_v1.NewKvClient(s.gatewayConn)
+	kvClient := kv_v1.NewKvServiceClient(s.gatewayConn)
 
 	testDocId := s.randomDocId("get-and-touch")
 
@@ -617,9 +617,9 @@ func (s *GatewayOpsTestSuite) TestGetAndTouch() {
 	}, grpc.PerRPCCredentials(s.basicRpcCreds))
 	assertRpcSuccess(s.T(), getResp, err)
 	assertValidCas(s.T(), getResp.Cas)
-	assert.Equal(s.T(), getResp.CompressionType, kv_v1.DocumentCompressionType_NONE)
+	assert.Equal(s.T(), getResp.CompressionType, kv_v1.DocumentCompressionType_DOCUMENT_COMPRESSION_TYPE_NONE)
 	assert.Equal(s.T(), getResp.Content, TEST_CONTENT)
-	assert.Equal(s.T(), getResp.ContentType, kv_v1.DocumentContentType_JSON)
+	assert.Equal(s.T(), getResp.ContentType, kv_v1.DocumentContentType_DOCUMENT_CONTENT_TYPE_JSON)
 	assert.Nil(s.T(), getResp.Expiry)
 
 	// Test doing a GetAndTouch where the document is missing
@@ -638,7 +638,7 @@ func (s *GatewayOpsTestSuite) TestGetAndTouch() {
 }
 
 func (s *GatewayOpsTestSuite) TestGetAndLock() {
-	kvClient := kv_v1.NewKvClient(s.gatewayConn)
+	kvClient := kv_v1.NewKvServiceClient(s.gatewayConn)
 
 	testDocId := s.randomDocId("get-and-lock")
 
@@ -659,9 +659,9 @@ func (s *GatewayOpsTestSuite) TestGetAndLock() {
 	}, grpc.PerRPCCredentials(s.basicRpcCreds))
 	assertRpcSuccess(s.T(), getResp, err)
 	assertValidCas(s.T(), getResp.Cas)
-	assert.Equal(s.T(), getResp.CompressionType, kv_v1.DocumentCompressionType_NONE)
+	assert.Equal(s.T(), getResp.CompressionType, kv_v1.DocumentCompressionType_DOCUMENT_COMPRESSION_TYPE_NONE)
 	assert.Equal(s.T(), getResp.Content, TEST_CONTENT)
-	assert.Equal(s.T(), getResp.ContentType, kv_v1.DocumentContentType_JSON)
+	assert.Equal(s.T(), getResp.ContentType, kv_v1.DocumentContentType_DOCUMENT_CONTENT_TYPE_JSON)
 	assert.Nil(s.T(), getResp.Expiry)
 
 	// Test doing a GetAndLock where the document is missing
@@ -680,7 +680,7 @@ func (s *GatewayOpsTestSuite) TestGetAndLock() {
 }
 
 func (s *GatewayOpsTestSuite) TestExists() {
-	kvClient := kv_v1.NewKvClient(s.gatewayConn)
+	kvClient := kv_v1.NewKvServiceClient(s.gatewayConn)
 
 	testDocId := s.randomDocId("exists")
 

@@ -135,7 +135,7 @@ func (s *KvServer) Get(ctx context.Context, in *kv_v1.GetRequest) (*kv_v1.GetRes
 	}, nil
 }
 
-func (s *KvServer) GetAndTouch(ctx context.Context, in *kv_v1.GetAndTouchRequest) (*kv_v1.GetResponse, error) {
+func (s *KvServer) GetAndTouch(ctx context.Context, in *kv_v1.GetAndTouchRequest) (*kv_v1.GetAndTouchResponse, error) {
 	bucketAgent, errSt := s.getBucketAgent(ctx, in.BucketName)
 	if errSt != nil {
 		return nil, errSt.Err()
@@ -171,14 +171,14 @@ func (s *KvServer) GetAndTouch(ctx context.Context, in *kv_v1.GetAndTouchRequest
 		return nil, errSt.Err()
 	}
 
-	return &kv_v1.GetResponse{
+	return &kv_v1.GetAndTouchResponse{
 		Content:     contentBytes,
 		ContentType: contentType,
 		Cas:         result.Cas,
 	}, nil
 }
 
-func (s *KvServer) GetAndLock(ctx context.Context, in *kv_v1.GetAndLockRequest) (*kv_v1.GetResponse, error) {
+func (s *KvServer) GetAndLock(ctx context.Context, in *kv_v1.GetAndLockRequest) (*kv_v1.GetAndLockResponse, error) {
 	bucketAgent, errSt := s.getBucketAgent(ctx, in.BucketName)
 	if errSt != nil {
 		return nil, errSt.Err()
@@ -204,7 +204,7 @@ func (s *KvServer) GetAndLock(ctx context.Context, in *kv_v1.GetAndLockRequest) 
 		return nil, errSt.Err()
 	}
 
-	return &kv_v1.GetResponse{
+	return &kv_v1.GetAndLockResponse{
 		Content:     contentBytes,
 		ContentType: contentType,
 		Cas:         result.Cas,
