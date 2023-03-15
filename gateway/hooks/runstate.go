@@ -4,11 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"log"
 
 	"github.com/couchbase/goprotostellar/genproto/internal_hooks_v1"
 	"github.com/couchbase/stellar-gateway/contrib/govalcmp"
 	"github.com/google/uuid"
+	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -22,21 +22,23 @@ type runState struct {
 	HooksContext *HooksContext
 	Handler      grpc.UnaryHandler
 	Hook         *internal_hooks_v1.Hook
-
-	ExecResult interface{}
-	ExecError  error
+	Logger       *zap.Logger
+	ExecResult   interface{}
+	ExecError    error
 }
 
 func newRunState(
 	hooksContext *HooksContext,
 	handler grpc.UnaryHandler,
 	hook *internal_hooks_v1.Hook,
+	logger *zap.Logger,
 ) *runState {
 	return &runState{
 		ID:           uuid.NewString(),
 		HooksContext: hooksContext,
 		Handler:      handler,
 		Hook:         hook,
+		Logger:       logger,
 	}
 }
 
@@ -254,12 +256,12 @@ func (s *runState) runAction_Counter(
 	req interface{},
 	action *internal_hooks_v1.HookAction_Counter,
 ) (interface{}, error) {
-	log.Printf("hook incrementing counter: %+v", action)
+	s.Logger.Info("hook incrementing counter", zap.Any("action",action))
 
 	counter := s.HooksContext.getCounterLocked(action.CounterId)
 	counter.Update(action.Delta)
 
-	log.Printf("hook incremented counter: %+v", action)
+	s.Logger.Info("hook incremented counter", zap.Any("action", action))
 
 	return nil, nil
 }
@@ -269,7 +271,7 @@ func (s *runState) runAction_WaitOnBarrier(
 	req interface{},
 	action *internal_hooks_v1.HookAction_WaitOnBarrier,
 ) (interface{}, error) {
-	log.Printf("hook waiting for barrier: %+v", action)
+	s.Logger.Info("hook waiting for barrier", zap.Any("action", action))
 
 	barrier := s.HooksContext.getBarrierLocked(action.BarrierId)
 
@@ -284,7 +286,7 @@ func (s *runState) runAction_WaitOnBarrier(
 		return nil, err
 	}
 
-	log.Printf("hook waited for barrier: %+v", action)
+	s.Logger.Info("hook waited for barrier", zap.Any("action", action))
 
 	return nil, nil
 }
@@ -294,7 +296,7 @@ func (s *runState) runAction_SignalBarrier(
 	req interface{},
 	action *internal_hooks_v1.HookAction_SignalBarrier,
 ) (interface{}, error) {
-	log.Printf("hook signalling barrier: %+v", action)
+	s.Logger.Info("hook signalling barrier", zap.Any("action", action))
 
 	barrier := s.HooksContext.GetBarrier(action.BarrierId)
 	if action.SignalAll {
@@ -303,7 +305,7 @@ func (s *runState) runAction_SignalBarrier(
 		barrier.TrySignalAny(nil)
 	}
 
-	log.Printf("hook signaled for barrier: %+v", action)
+	s.Logger.Info("hook signaled for barrier", zap.Any("action", action))
 
 	return nil, nil
 }

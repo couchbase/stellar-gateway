@@ -8,13 +8,14 @@ import (
 	"github.com/couchbase/gocbcorex"
 	"github.com/couchbase/gocbcorex/cbmgmtx"
 	"github.com/couchbase/goprotostellar/genproto/admin_bucket_v1"
+	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
 type BucketAdminServer struct {
 	admin_bucket_v1.UnimplementedBucketAdminServiceServer
-
+	logger   *zap.Logger
 	cbClient *gocbcorex.AgentManager
 }
 
@@ -26,7 +27,7 @@ func (s *BucketAdminServer) ListBuckets(
 
 	result, err := agent.GetAllBuckets(ctx, &cbmgmtx.GetAllBucketsOptions{})
 	if err != nil {
-		return nil, cbGenericErrToPsStatus(err).Err()
+		return nil, cbGenericErrToPsStatus(err, s.logger).Err()
 	}
 
 	var buckets []*admin_bucket_v1.ListBucketsResponse_Bucket
@@ -169,7 +170,7 @@ func (s *BucketAdminServer) CreateBucket(
 		if errors.Is(err, cbmgmtx.ErrBucketExists) {
 			return nil, newBucketExistsStatus(err, in.BucketName).Err()
 		}
-		return nil, cbGenericErrToPsStatus(err).Err()
+		return nil, cbGenericErrToPsStatus(err, s.logger).Err()
 	}
 
 	return &admin_bucket_v1.CreateBucketResponse{}, nil
@@ -188,7 +189,7 @@ func (s *BucketAdminServer) UpdateBucket(
 		if errors.Is(err, cbmgmtx.ErrBucketNotFound) {
 			return nil, newBucketMissingStatus(err, in.BucketName).Err()
 		}
-		return nil, cbGenericErrToPsStatus(err).Err()
+		return nil, cbGenericErrToPsStatus(err, s.logger).Err()
 	}
 
 	newBucket := bucket.MutableBucketSettings
@@ -249,7 +250,7 @@ func (s *BucketAdminServer) UpdateBucket(
 		if errors.Is(err, cbmgmtx.ErrBucketNotFound) {
 			return nil, newBucketMissingStatus(err, in.BucketName).Err()
 		}
-		return nil, cbGenericErrToPsStatus(err).Err()
+		return nil, cbGenericErrToPsStatus(err, s.logger).Err()
 	}
 
 	return &admin_bucket_v1.UpdateBucketResponse{}, nil
@@ -268,14 +269,15 @@ func (s *BucketAdminServer) DeleteBucket(
 		if errors.Is(err, cbmgmtx.ErrBucketNotFound) {
 			return nil, newBucketMissingStatus(err, in.BucketName).Err()
 		}
-		return nil, cbGenericErrToPsStatus(err).Err()
+		return nil, cbGenericErrToPsStatus(err, s.logger).Err()
 	}
 
 	return &admin_bucket_v1.DeleteBucketResponse{}, nil
 }
 
-func NewBucketAdminServer(cbClient *gocbcorex.AgentManager) *BucketAdminServer {
+func NewBucketAdminServer(cbClient *gocbcorex.AgentManager, logger *zap.Logger) *BucketAdminServer {
 	return &BucketAdminServer{
 		cbClient: cbClient,
+		logger:   logger,
 	}
 }

@@ -6,13 +6,14 @@ import (
 	"github.com/couchbase/gocbcorex"
 	"github.com/couchbase/gocbcorex/cbqueryx"
 	"github.com/couchbase/goprotostellar/genproto/query_v1"
+	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
 type QueryServer struct {
 	query_v1.UnimplementedQueryServiceServer
-
+	logger   *zap.Logger
 	cbClient *gocbcorex.AgentManager
 }
 
@@ -117,7 +118,7 @@ func (s *QueryServer) Query(in *query_v1.QueryRequest, out query_v1.QueryService
 		result, err = agent.Query(out.Context(), &opts)
 	}
 	if err != nil {
-		return cbGenericErrToPsStatus(err).Err()
+		return cbGenericErrToPsStatus(err, s.logger).Err()
 	}
 
 	var rowCache [][]byte
@@ -127,7 +128,7 @@ func (s *QueryServer) Query(in *query_v1.QueryRequest, out query_v1.QueryService
 	for {
 		rowBytes, err := result.ReadRow()
 		if err != nil {
-			return cbGenericErrToPsStatus(err).Err()
+			return cbGenericErrToPsStatus(err, s.logger).Err()
 		}
 
 		if rowBytes == nil {
@@ -144,7 +145,7 @@ func (s *QueryServer) Query(in *query_v1.QueryRequest, out query_v1.QueryService
 				MetaData: nil,
 			})
 			if err != nil {
-				return cbGenericErrToPsStatus(err).Err()
+				return cbGenericErrToPsStatus(err, s.logger).Err()
 			}
 
 			rowCache = nil
@@ -232,15 +233,16 @@ func (s *QueryServer) Query(in *query_v1.QueryRequest, out query_v1.QueryService
 			MetaData: psMetaData,
 		})
 		if err != nil {
-			return cbGenericErrToPsStatus(err).Err()
+			return cbGenericErrToPsStatus(err, s.logger).Err()
 		}
 	}
 
 	return nil
 }
 
-func NewQueryServer(cbClient *gocbcorex.AgentManager) *QueryServer {
+func NewQueryServer(cbClient *gocbcorex.AgentManager, logger *zap.Logger) *QueryServer {
 	return &QueryServer{
 		cbClient: cbClient,
+		logger:   logger,
 	}
 }

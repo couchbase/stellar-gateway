@@ -2,16 +2,16 @@ package hooks
 
 import (
 	"context"
-	"log"
 
 	"github.com/couchbase/goprotostellar/genproto/internal_hooks_v1"
+	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
 type grpcHooksServer struct {
 	internal_hooks_v1.UnimplementedHooksServiceServer
-
+	logger *zap.Logger
 	manager *HooksManager
 }
 
@@ -65,13 +65,13 @@ func (s *grpcHooksServer) WatchBarrier(
 		return status.Errorf(codes.NotFound, "invalid hooks context id")
 	}
 
-	log.Printf("starting counter watcher")
+	s.logger.Info("starting counter watcher")
 
 	barrier := hooksContext.GetBarrier(req.BarrierId)
 	watchCtx, watchCancel := context.WithCancel(stream.Context())
 	watchCh := barrier.Watch(watchCtx)
 
-	log.Printf("started barrier watcher")
+	s.logger.Info("started barrier watcher")
 
 	// we need to guarentee that we don't block the watch channel, so we move the data
 	// into a buffered channel with 1024 slots, if the buffered channel becomes too filled,
@@ -94,15 +94,15 @@ func (s *grpcHooksServer) WatchBarrier(
 	for {
 		newWaiter := <-bufWatchCh
 
-		log.Printf("sending barrier watch value: %v", newWaiter)
+		s.logger.Info("sending barrier watch value", zap.Any("barrier-watch-value", newWaiter))
 		err := stream.Send(&internal_hooks_v1.WatchBarrierResponse{
 			WaitId: newWaiter.ID,
 		})
 		if err != nil {
-			log.Printf("failed to write barrier watch value: %s", err)
+			s.logger.Error("failed to write barrier watch value", zap.Error(err))
 			return err
 		}
-		log.Printf("sent barrier watch value: %v", newWaiter)
+		s.logger.Info("sent barrier watch value", zap.Any("barrier-watch-value", newWaiter))
 	}
 }
 
@@ -110,7 +110,7 @@ func (s *grpcHooksServer) SignalBarrier(
 	ctx context.Context,
 	req *internal_hooks_v1.SignalBarrierRequest,
 ) (*internal_hooks_v1.SignalBarrierResponse, error) {
-	log.Printf("grpc signalling barrier: %+v", req)
+	s.logger.Info("grpc signalling barrier", zap.Any("signal-barrier", req))
 
 	hooksContext := s.manager.GetHooksContext(req.HooksContextId)
 	if hooksContext == nil {
@@ -125,7 +125,7 @@ func (s *grpcHooksServer) SignalBarrier(
 		barrier.TrySignal(*req.WaitId, nil)
 	}
 
-	log.Printf("grpc signaled barrier: %+v", req)
+	s.logger.Info("grpc signaled barrier", zap.Any("signal-barrier", req))
 
 	return &internal_hooks_v1.SignalBarrierResponse{}, nil
 }

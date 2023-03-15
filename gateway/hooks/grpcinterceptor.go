@@ -2,13 +2,13 @@ package hooks
 
 import (
 	"context"
-	"log"
 
+	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 )
 
-func makeGrpcUnaryInterceptor(manager *HooksManager) grpc.UnaryServerInterceptor {
+func makeGrpcUnaryInterceptor(manager *HooksManager, log *zap.Logger) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
 		md, _ := metadata.FromIncomingContext(ctx)
 		if md == nil {
@@ -29,7 +29,7 @@ func makeGrpcUnaryInterceptor(manager *HooksManager) grpc.UnaryServerInterceptor
 			return handler(ctx, req)
 		}
 
-		log.Printf("calling registered hooks context: %s %+v %+v", hooksID, info, req)
+		log.Info("calling registered hooks context", zap.String("hooks-id", hooksID), zap.Any("info",info), zap.Any("req", req))
 		return hooksContext.HandleUnaryCall(ctx, req, info, handler)
 	}
 }

@@ -2,10 +2,10 @@ package client
 
 import (
 	"context"
-	"log"
 	"time"
 
 	backoff "github.com/cenkalti/backoff/v4"
+	"go.uber.org/zap"
 
 	"github.com/couchbase/goprotostellar/genproto/routing_v1"
 )
@@ -14,16 +14,17 @@ type routingWatcherOptions struct {
 	RoutingClient routing_v1.RoutingServiceClient
 	BucketName    string
 	RoutingTable  *atomicRoutingTable
+	Logger        *zap.Logger
 }
 
 type routingWatcher struct {
 	routingClient routing_v1.RoutingServiceClient
 	bucketName    string
 	routingTable  *atomicRoutingTable
-
-	ctx       context.Context
-	ctxCancel func()
-	closeCh   chan struct{}
+	logger        *zap.Logger
+	ctx           context.Context
+	ctxCancel     func()
+	closeCh       chan struct{}
 }
 
 func newRoutingWatcher(opts *routingWatcherOptions) *routingWatcher {
@@ -33,10 +34,10 @@ func newRoutingWatcher(opts *routingWatcherOptions) *routingWatcher {
 		routingClient: opts.RoutingClient,
 		bucketName:    opts.BucketName,
 		routingTable:  opts.RoutingTable,
-
-		ctx:       ctx,
-		ctxCancel: ctxCancel,
-		closeCh:   make(chan struct{}),
+		logger:        opts.Logger,
+		ctx:           ctx,
+		ctxCancel:     ctxCancel,
+		closeCh:       make(chan struct{}),
 	}
 	w.init()
 	return w
@@ -56,7 +57,7 @@ MainLoop:
 			BucketName: &w.bucketName,
 		})
 		if err != nil {
-			log.Printf("failed to watch routing: %s", err)
+			w.logger.Error("failed to watch routing", zap.Error(err))
 
 			select {
 			case <-time.After(b.NextBackOff()):
@@ -73,7 +74,7 @@ MainLoop:
 		for {
 			topologyData, err := topologyCh.Recv()
 			if err != nil {
-				log.Printf("failed to recv updated topology: %s", err)
+				w.logger.Error("failed to recv updated topology", zap.Error(err))
 				break
 			}
 

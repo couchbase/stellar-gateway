@@ -10,13 +10,14 @@ import (
 	"github.com/couchbase/gocbcorex"
 	"github.com/couchbase/gocbcorex/memdx"
 	"github.com/couchbase/goprotostellar/genproto/kv_v1"
+	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
 type KvServer struct {
 	kv_v1.UnimplementedKvServiceServer
-
+	logger   *zap.Logger
 	cbClient *gocbcorex.AgentManager
 }
 
@@ -25,7 +26,7 @@ func (s *KvServer) getBucketAgent(
 ) (*gocbcorex.Agent, *status.Status) {
 	bucketAgent, err := s.cbClient.GetBucketAgent(ctx, bucketName)
 	if err != nil {
-		return nil, cbGenericErrToPsStatus(err)
+		return nil, cbGenericErrToPsStatus(err, s.logger)
 	}
 	return bucketAgent, nil
 }
@@ -106,17 +107,17 @@ func (s *KvServer) Get(ctx context.Context, in *kv_v1.GetRequest) (*kv_v1.GetRes
 		} else if errors.Is(err, memdx.ErrAccessError) {
 			return nil, newCollectionNoReadAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
 		}
-		return nil, cbGenericErrToPsStatus(err).Err()
+		return nil, cbGenericErrToPsStatus(err, s.logger).Err()
 	}
 
 	expiryTimeSecs, err := strconv.ParseInt(string(result.Ops[0].Value), 10, 64)
 	if err != nil {
-		return nil, cbGenericErrToPsStatus(err).Err()
+		return nil, cbGenericErrToPsStatus(err, s.logger).Err()
 	}
 
 	flags, err := strconv.ParseUint(string(result.Ops[1].Value), 10, 64)
 	if err != nil {
-		return nil, cbGenericErrToPsStatus(err).Err()
+		return nil, cbGenericErrToPsStatus(err, s.logger).Err()
 	}
 
 	expiryTime := time.Unix(expiryTimeSecs, 0)
@@ -163,7 +164,7 @@ func (s *KvServer) GetAndTouch(ctx context.Context, in *kv_v1.GetAndTouchRequest
 		} else if errors.Is(err, memdx.ErrAccessError) {
 			return nil, newCollectionNoReadAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
 		}
-		return nil, cbGenericErrToPsStatus(err).Err()
+		return nil, cbGenericErrToPsStatus(err, s.logger).Err()
 	}
 
 	contentBytes, contentType, errSt := s.parseContent(result.Value, result.Flags)
@@ -196,7 +197,7 @@ func (s *KvServer) GetAndLock(ctx context.Context, in *kv_v1.GetAndLockRequest) 
 		} else if errors.Is(err, memdx.ErrAccessError) {
 			return nil, newCollectionNoReadAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
 		}
-		return nil, cbGenericErrToPsStatus(err).Err()
+		return nil, cbGenericErrToPsStatus(err, s.logger).Err()
 	}
 
 	contentBytes, contentType, errSt := s.parseContent(result.Value, result.Flags)
@@ -254,7 +255,7 @@ func (s *KvServer) Insert(ctx context.Context, in *kv_v1.InsertRequest) (*kv_v1.
 		} else if errors.Is(err, memdx.ErrAccessError) {
 			return nil, newCollectionNoWriteAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
 		}
-		return nil, cbGenericErrToPsStatus(err).Err()
+		return nil, cbGenericErrToPsStatus(err, s.logger).Err()
 	}
 
 	return &kv_v1.InsertResponse{
@@ -282,7 +283,7 @@ func (s *KvServer) Exists(ctx context.Context, in *kv_v1.ExistsRequest) (*kv_v1.
 		} else if errors.Is(err, memdx.ErrAccessError) {
 			return nil, newCollectionNoReadAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
 		}
-		return nil, cbGenericErrToPsStatus(err).Err()
+		return nil, cbGenericErrToPsStatus(err, s.logger).Err()
 	}
 
 	resp := &kv_v1.ExistsResponse{
@@ -341,7 +342,7 @@ func (s *KvServer) Upsert(ctx context.Context, in *kv_v1.UpsertRequest) (*kv_v1.
 		} else if errors.Is(err, memdx.ErrAccessError) {
 			return nil, newCollectionNoWriteAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
 		}
-		return nil, cbGenericErrToPsStatus(err).Err()
+		return nil, cbGenericErrToPsStatus(err, s.logger).Err()
 	}
 
 	return &kv_v1.UpsertResponse{
@@ -403,7 +404,7 @@ func (s *KvServer) Replace(ctx context.Context, in *kv_v1.ReplaceRequest) (*kv_v
 		} else if errors.Is(err, memdx.ErrAccessError) {
 			return nil, newCollectionNoWriteAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
 		}
-		return nil, cbGenericErrToPsStatus(err).Err()
+		return nil, cbGenericErrToPsStatus(err, s.logger).Err()
 	}
 
 	return &kv_v1.ReplaceResponse{
@@ -446,7 +447,7 @@ func (s *KvServer) Remove(ctx context.Context, in *kv_v1.RemoveRequest) (*kv_v1.
 		} else if errors.Is(err, memdx.ErrAccessError) {
 			return nil, newCollectionNoWriteAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
 		}
-		return nil, cbGenericErrToPsStatus(err).Err()
+		return nil, cbGenericErrToPsStatus(err, s.logger).Err()
 	}
 
 	return &kv_v1.RemoveResponse{
@@ -500,7 +501,7 @@ func (s *KvServer) Increment(ctx context.Context, in *kv_v1.IncrementRequest) (*
 		} else if errors.Is(err, memdx.ErrAccessError) {
 			return nil, newCollectionNoWriteAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
 		}
-		return nil, cbGenericErrToPsStatus(err).Err()
+		return nil, cbGenericErrToPsStatus(err, s.logger).Err()
 	}
 
 	return &kv_v1.IncrementResponse{
@@ -553,7 +554,7 @@ func (s *KvServer) Decrement(ctx context.Context, in *kv_v1.DecrementRequest) (*
 		} else if errors.Is(err, memdx.ErrAccessError) {
 			return nil, newCollectionNoWriteAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
 		}
-		return nil, cbGenericErrToPsStatus(err).Err()
+		return nil, cbGenericErrToPsStatus(err, s.logger).Err()
 	}
 
 	return &kv_v1.DecrementResponse{
@@ -598,7 +599,7 @@ func (s *KvServer) Append(ctx context.Context, in *kv_v1.AppendRequest) (*kv_v1.
 		} else if errors.Is(err, memdx.ErrAccessError) {
 			return nil, newCollectionNoWriteAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
 		}
-		return nil, cbGenericErrToPsStatus(err).Err()
+		return nil, cbGenericErrToPsStatus(err, s.logger).Err()
 	}
 
 	return &kv_v1.AppendResponse{
@@ -642,7 +643,7 @@ func (s *KvServer) Prepend(ctx context.Context, in *kv_v1.PrependRequest) (*kv_v
 		} else if errors.Is(err, memdx.ErrAccessError) {
 			return nil, newCollectionNoWriteAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
 		}
-		return nil, cbGenericErrToPsStatus(err).Err()
+		return nil, cbGenericErrToPsStatus(err, s.logger).Err()
 	}
 
 	return &kv_v1.PrependResponse{
@@ -702,7 +703,7 @@ func (s *KvServer) LookupIn(ctx context.Context, in *kv_v1.LookupInRequest) (*kv
 		} else if errors.Is(err, memdx.ErrAccessError) {
 			return nil, newCollectionNoReadAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
 		}
-		return nil, cbGenericErrToPsStatus(err).Err()
+		return nil, cbGenericErrToPsStatus(err, s.logger).Err()
 	}
 
 	resultSpecs := make([]*kv_v1.LookupInResponse_Spec, len(result.Ops))
@@ -721,7 +722,7 @@ func (s *KvServer) LookupIn(ctx context.Context, in *kv_v1.LookupInRequest) (*kv
 				st := newSdPathMismatchStatus(op.Err, in.BucketName, in.ScopeName, in.CollectionName, in.Key, in.Specs[i].Path)
 				spec.Status = st.Proto()
 			} else {
-				spec.Status = cbGenericErrToPsStatus(op.Err).Proto()
+				spec.Status = cbGenericErrToPsStatus(op.Err, s.logger).Proto()
 			}
 		}
 
@@ -852,7 +853,7 @@ func (s *KvServer) MutateIn(ctx context.Context, in *kv_v1.MutateInRequest) (*kv
 			}
 		}
 
-		return nil, cbGenericErrToPsStatus(err).Err()
+		return nil, cbGenericErrToPsStatus(err, s.logger).Err()
 	}
 
 	resultSpecs := make([]*kv_v1.MutateInResponse_Spec, len(result.Ops))
@@ -871,8 +872,9 @@ func (s *KvServer) MutateIn(ctx context.Context, in *kv_v1.MutateInRequest) (*kv
 	}, nil
 }
 
-func NewKvServer(cbClient *gocbcorex.AgentManager) *KvServer {
+func NewKvServer(cbClient *gocbcorex.AgentManager, logger *zap.Logger) *KvServer {
 	return &KvServer{
 		cbClient: cbClient,
+		logger:   logger,
 	}
 }

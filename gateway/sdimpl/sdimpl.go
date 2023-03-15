@@ -18,6 +18,6 @@ type Servers struct {
 
 func New(opts *NewOptions) *Servers {
 	return &Servers{
-		RoutingV1Server: server_v1.NewRoutingServer(opts.TopologyProvider),
+		RoutingV1Server: server_v1.NewRoutingServer(opts.TopologyProvider, opts.Logger.Named("routing-server")),
 	}
 }

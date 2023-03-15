@@ -4,11 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/couchbase/stellar-gateway/contrib/cbconfig"
 	"github.com/couchbase/stellar-gateway/utils/latestonlychannel"
+	"go.uber.org/zap"
 	"golang.org/x/exp/slices"
 )
 
@@ -18,10 +18,12 @@ var (
 
 type PollingProviderOptions struct {
 	Fetcher *cbconfig.Fetcher
+	Logger  *zap.Logger
 }
 
 type PollingProvider struct {
 	fetcher *cbconfig.Fetcher
+	logger  *zap.Logger
 }
 
 var _ Provider = (*PollingProvider)(nil)
@@ -29,6 +31,7 @@ var _ Provider = (*PollingProvider)(nil)
 func NewPollingProvider(opts PollingProviderOptions) (*PollingProvider, error) {
 	p := &PollingProvider{
 		fetcher: opts.Fetcher,
+		logger:  opts.Logger,
 	}
 
 	return p, nil
@@ -159,7 +162,7 @@ func (p *PollingProvider) fetchClusterConfig(ctx context.Context, baseConfig *cb
 	// check if the data is consistent instead of just checking revisions.
 	if refetchedConfig.Rev != baseConfig.Rev ||
 		refetchedConfig.RevEpoch != baseConfig.RevEpoch {
-		log.Printf("configuration fetch was inconsistent, retrying...")
+		p.logger.Info("configuration fetch was inconsistent, retrying...")
 		return p.fetchClusterConfig(ctx, nil)
 	}
 

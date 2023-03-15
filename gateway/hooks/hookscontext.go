@@ -2,10 +2,10 @@ package hooks
 
 import (
 	"context"
-	"log"
 	"sync"
 
 	"github.com/couchbase/goprotostellar/genproto/internal_hooks_v1"
+	"go.uber.org/zap"
 	"google.golang.org/grpc"
 )
 
@@ -14,13 +14,15 @@ type HooksContext struct {
 	counters map[string]*Counter
 	barriers map[string]*Barrier
 	hooks    map[string]*internal_hooks_v1.Hook
+	logger   *zap.Logger
 }
 
-func newHooksContext() *HooksContext {
+func newHooksContext(logger *zap.Logger) *HooksContext {
 	return &HooksContext{
 		counters: make(map[string]*Counter),
 		barriers: make(map[string]*Barrier),
 		hooks:    make(map[string]*internal_hooks_v1.Hook),
+		logger: logger,
 	}
 }
 
@@ -45,7 +47,7 @@ func (i *HooksContext) GetCounter(name string) *Counter {
 func (i *HooksContext) getBarrierLocked(name string) *Barrier {
 	barrier := i.barriers[name]
 	if barrier == nil {
-		barrier = newBarrier()
+		barrier = newBarrier(i.logger.Named("barrier"))
 		i.barriers[name] = barrier
 	}
 
@@ -80,8 +82,8 @@ func (i *HooksContext) HandleUnaryCall(
 		return handler(ctx, req)
 	}
 
-	log.Printf("calling registered hook: %+v", hook)
-	rs := newRunState(i, handler, hook)
+	i.logger.Info("calling registered hook: %+v", zap.Any("hook", hook))
+	rs := newRunState(i, handler, hook, i.logger.Named("run-state"))
 	return rs.Run(ctx, req)
 }
 

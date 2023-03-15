@@ -2,11 +2,11 @@ package topology
 
 import (
 	"context"
-	"log"
 
 	"github.com/couchbase/stellar-gateway/client"
 	"github.com/couchbase/stellar-gateway/legacybridge/clustering"
 	"github.com/couchbase/stellar-gateway/utils/channelmerge"
+	"go.uber.org/zap"
 )
 
 type RemoteTopologyProvider interface {
@@ -18,11 +18,13 @@ var _ RemoteTopologyProvider = (*client.RoutingClient)(nil)
 type ManagerOptions struct {
 	LocalTopologyProvider  clustering.Provider
 	RemoteTopologyProvider RemoteTopologyProvider
+	Logger                 *zap.Logger
 }
 
 type Manager struct {
 	localTopologyProvider  clustering.Provider
 	remoteTopologyProvider RemoteTopologyProvider
+	logger                 *zap.Logger
 }
 
 var _ Provider = (*Manager)(nil)
@@ -31,6 +33,7 @@ func NewManager(opts *ManagerOptions) (*Manager, error) {
 	return &Manager{
 		localTopologyProvider:  opts.LocalTopologyProvider,
 		remoteTopologyProvider: opts.RemoteTopologyProvider,
+		logger:                 opts.Logger,
 	}, nil
 }
 
@@ -56,7 +59,7 @@ func (m *Manager) Watch(ctx context.Context, bucketName string) (<-chan *Topolog
 		for topology := range topologyCh {
 			newTopology, err := ComputeTopology(topology.A, topology.B)
 			if err != nil {
-				log.Printf("failed to compute ps topology: %s", err)
+				m.logger.Error("failed to compute ps topology", zap.Error(err))
 				continue
 			}
 

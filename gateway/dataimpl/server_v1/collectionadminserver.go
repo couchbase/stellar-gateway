@@ -6,12 +6,13 @@ import (
 	"github.com/couchbase/gocbcorex"
 	"github.com/couchbase/gocbcorex/cbmgmtx"
 	"github.com/couchbase/goprotostellar/genproto/admin_collection_v1"
+	"go.uber.org/zap"
 	"google.golang.org/grpc/status"
 )
 
 type CollectionAdminServer struct {
 	admin_collection_v1.UnimplementedCollectionAdminServiceServer
-
+	logger   *zap.Logger
 	cbClient *gocbcorex.AgentManager
 }
 
@@ -20,7 +21,7 @@ func (s *CollectionAdminServer) getBucketAgent(
 ) (*gocbcorex.Agent, *status.Status) {
 	bucketAgent, err := s.cbClient.GetBucketAgent(ctx, bucketName)
 	if err != nil {
-		return nil, cbGenericErrToPsStatus(err)
+		return nil, cbGenericErrToPsStatus(err, s.logger)
 	}
 	return bucketAgent, nil
 }
@@ -38,7 +39,7 @@ func (s *CollectionAdminServer) ListCollections(
 		BucketName: in.BucketName,
 	})
 	if err != nil {
-		return nil, cbGenericErrToPsStatus(err).Err()
+		return nil, cbGenericErrToPsStatus(err, s.logger).Err()
 	}
 
 	var scopes []*admin_collection_v1.ListCollectionsResponse_Scope
@@ -80,7 +81,7 @@ func (s *CollectionAdminServer) CreateScope(
 		ScopeName:  in.ScopeName,
 	})
 	if err != nil {
-		return nil, cbGenericErrToPsStatus(err).Err()
+		return nil, cbGenericErrToPsStatus(err, s.logger).Err()
 	}
 
 	return &admin_collection_v1.CreateScopeResponse{}, nil
@@ -100,7 +101,7 @@ func (s *CollectionAdminServer) DeleteScope(
 		ScopeName:  in.ScopeName,
 	})
 	if err != nil {
-		return nil, cbGenericErrToPsStatus(err).Err()
+		return nil, cbGenericErrToPsStatus(err, s.logger).Err()
 	}
 
 	return &admin_collection_v1.DeleteScopeResponse{}, nil
@@ -127,7 +128,7 @@ func (s *CollectionAdminServer) CreateCollection(
 		MaxTTL:         maxTTL,
 	})
 	if err != nil {
-		return nil, cbGenericErrToPsStatus(err).Err()
+		return nil, cbGenericErrToPsStatus(err, s.logger).Err()
 	}
 
 	return &admin_collection_v1.CreateCollectionResponse{}, nil
@@ -148,14 +149,15 @@ func (s *CollectionAdminServer) DeleteCollection(
 		CollectionName: in.CollectionName,
 	})
 	if err != nil {
-		return nil, cbGenericErrToPsStatus(err).Err()
+		return nil, cbGenericErrToPsStatus(err, s.logger).Err()
 	}
 
 	return &admin_collection_v1.DeleteCollectionResponse{}, nil
 }
 
-func NewCollectionAdminServer(cbClient *gocbcorex.AgentManager) *CollectionAdminServer {
+func NewCollectionAdminServer(cbClient *gocbcorex.AgentManager, logger *zap.Logger) *CollectionAdminServer {
 	return &CollectionAdminServer{
 		cbClient: cbClient,
+		logger: logger,
 	}
 }

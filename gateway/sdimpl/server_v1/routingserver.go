@@ -2,22 +2,23 @@ package server_v1
 
 import (
 	"fmt"
-	"log"
 
 	"github.com/couchbase/goprotostellar/genproto/routing_v1"
 	"github.com/couchbase/stellar-gateway/gateway/topology"
 	"github.com/couchbase/stellar-gateway/utils/latestonlychannel"
+	"go.uber.org/zap"
 )
 
 type RoutingServer struct {
 	routing_v1.UnimplementedRoutingServiceServer
-
+	logger           *zap.Logger
 	topologyProvider topology.Provider
 }
 
-func NewRoutingServer(topologyProvider topology.Provider) *RoutingServer {
+func NewRoutingServer(topologyProvider topology.Provider, logger *zap.Logger) *RoutingServer {
 	return &RoutingServer{
 		topologyProvider: topologyProvider,
+		logger:           logger,
 	}
 }
 
@@ -43,7 +44,7 @@ func (s *RoutingServer) WatchRouting(in *routing_v1.WatchRoutingRequest, out rou
 			Endpoints: endpoints,
 		})
 		if err != nil {
-			log.Printf("failed to send topology update: %s", err)
+			s.logger.Error("failed to send topology update", zap.Error(err))
 		}
 	}
 

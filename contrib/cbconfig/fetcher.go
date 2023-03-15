@@ -5,9 +5,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"net/url"
+
+	"go.uber.org/zap"
 )
 
 // TODO(brett19): Somehow setup sharing of the `cbconfig` stuff.
@@ -23,6 +24,7 @@ type FetcherOptions struct {
 	Host       string
 	Username   string
 	Password   string
+	Logger     *zap.Logger
 }
 
 type Fetcher struct {
@@ -30,6 +32,7 @@ type Fetcher struct {
 	host       string
 	username   string
 	password   string
+	logger     *zap.Logger
 }
 
 func NewFetcher(opts FetcherOptions) *Fetcher {
@@ -43,6 +46,7 @@ func NewFetcher(opts FetcherOptions) *Fetcher {
 		host:       opts.Host,
 		username:   opts.Username,
 		password:   opts.Password,
+		logger:     opts.Logger,
 	}
 }
 
@@ -94,7 +98,7 @@ func (f *Fetcher) doGetJson(ctx context.Context, path string, data any) error {
 	// make sure the body is closed
 	err = resp.Body.Close()
 	if err != nil {
-		log.Printf("unexpected close error: %s", err)
+		f.logger.Error("unexpected close error", zap.Error(err))
 	}
 
 	return nil

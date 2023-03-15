@@ -109,7 +109,9 @@ func gatewayStartup(ctx context.Context, config *Config) error {
 			Host:     config.CbConnStr,
 			Username: config.Username,
 			Password: config.Password,
+			Logger: config.Logger.Named("fetcher"),
 		}),
+		Logger: config.Logger.Named("topology-provider"),
 	})
 	if err != nil {
 		config.Logger.Error("failed to initialize cb topology poller")
@@ -122,11 +124,15 @@ func gatewayStartup(ctx context.Context, config *Config) error {
 		return err
 	}
 
-	clusteringManager := &clustering.Manager{Provider: goclusteringProvider}
+	clusteringManager := &clustering.Manager{
+		Provider: goclusteringProvider,
+		Logger:   config.Logger.Named("clustering-manager"),
+	}
 
 	psTopologyManager, err := topology.NewManager(&topology.ManagerOptions{
 		LocalTopologyProvider:  clusteringManager,
 		RemoteTopologyProvider: cbTopologyProvider,
+		Logger:                 config.Logger.Named("topology-manager"),
 	})
 	if err != nil {
 		config.Logger.Error("failed to initialize topology manager")
@@ -135,19 +141,19 @@ func gatewayStartup(ctx context.Context, config *Config) error {
 
 	startInstance := func(ctx context.Context, instanceIdx int) error {
 		dataImpl := dataimpl.New(&dataimpl.NewOptions{
-			Logger:           config.Logger,
+			Logger:           config.Logger.Named("data-impl"),
 			TopologyProvider: psTopologyManager,
 			CbClient:         agentMgr,
 		})
 
 		sdImpl := sdimpl.New(&sdimpl.NewOptions{
-			Logger:           config.Logger,
+			Logger:           config.Logger.Named("sd-impl"),
 			TopologyProvider: psTopologyManager,
 		})
 
 		config.Logger.Info("initializing protostellar system")
 		gatewaySys, err := system.NewSystem(&system.SystemOptions{
-			Logger:   config.Logger,
+			Logger:   config.Logger.Named("gateway-system"),
 			DataImpl: dataImpl,
 			SdImpl:   sdImpl,
 			Metrics:  metrics.GetSnMetrics(),

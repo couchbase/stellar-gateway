@@ -2,7 +2,6 @@ package legacybridge
 
 import (
 	"context"
-	"log"
 	"os"
 	"time"
 
@@ -70,9 +69,10 @@ func Run(ctx context.Context, config *Config) error {
 	psClient, err := client.Dial(config.ConnStr, &client.DialOptions{
 		Username: config.Username,
 		Password: config.Password,
+		Logger:   config.Logger.Named("routing-client"),
 	})
 	if err != nil {
-		log.Printf("failed to connect to couchbase: %s", err)
+		config.Logger.Error("failed to connect to couchbase", zap.Error(err))
 		return err
 	}
 
@@ -83,7 +83,7 @@ func Run(ctx context.Context, config *Config) error {
 			DialTimeout: 5 * time.Second,
 		})
 		if err != nil {
-			log.Printf("failed to connect to etcd: %s", err)
+			config.Logger.Error("failed to connect to etcd", zap.Error(err))
 			return err
 		}
 
@@ -91,48 +91,50 @@ func Run(ctx context.Context, config *Config) error {
 		_, err = etcdClient.KV.Get(etcdCtx, "test-key")
 		etcdCtxCancelFn()
 		if err != nil {
-			log.Printf("failed to validate etcd connection: %s", err)
+			config.Logger.Error("failed to validate etcd connection", zap.Error(err))
 			return err
 		}
 
 		goclusteringProvider, err := goclustering.NewEtcdProvider(goclustering.EtcdProviderOptions{
 			EtcdClient: etcdClient,
 			KeyPrefix:  config.EtcdPrefix + "/bridge/topology",
+			Logger:     config.Logger.Named("clustering-provider"),
 		})
 		if err != nil {
-			log.Printf("failed to initialize etcd clustering provider: %s", err)
+			config.Logger.Error("failed to initialize etcd clustering provider", zap.Error(err))
 			return err
 		}
 
-		clusteringManager = &clustering.Manager{Provider: goclusteringProvider}
+		clusteringManager = &clustering.Manager{Provider: goclusteringProvider, Logger: config.Logger.Named("clustering-manager")}
 	} else {
 		goclusteringProvider, err := goclustering.NewInProcProvider(goclustering.InProcProviderOptions{})
 		if err != nil {
-			log.Printf("failed to initialize in-proc clustering provider: %s", err)
+			config.Logger.Error("failed to initialize in-proc clustering provider", zap.Error(err))
 			return err
 		}
 
-		clusteringManager = &clustering.Manager{Provider: goclusteringProvider}
+		clusteringManager = &clustering.Manager{Provider: goclusteringProvider, Logger: config.Logger.Named("clustering-manager")}
 	}
 
 	legacyTopologyManager, err := topology.NewManager(&topology.ManagerOptions{
 		LocalTopologyProvider:  clusteringManager,
 		RemoteTopologyProvider: psClient,
+		Logger:                 config.Logger.Named("legacyTopologyManager"),
 	})
 	if err != nil {
-		log.Printf("failed to initialize topology manager: %s", err)
+		config.Logger.Error("failed to initialize topology manager", zap.Error(err))
 		return err
 	}
 
 	startInstance := func(ctx context.Context, instanceIdx int) error {
-		log.Printf("initializing legacy system")
+		config.Logger.Info("initializing legacy system")
 		legacySys, err := system.NewSystem(&system.SystemOptions{
 			Logger:           config.Logger,
 			TopologyProvider: legacyTopologyManager,
 			Client:           psClient,
 		})
 		if err != nil {
-			log.Printf("error creating legacy proxy: %s", err)
+			config.Logger.Error("error creating legacy proxy", zap.Error(err))
 		}
 
 		ports := system.ServicePorts{
@@ -158,7 +160,7 @@ func Run(ctx context.Context, config *Config) error {
 			TLSPorts: tlsPorts,
 		})
 		if err != nil {
-			log.Printf("error creating legacy proxy listeners: %s", err)
+			config.Logger.Error("error creating legacy proxy listeners", zap.Error(err))
 			return err
 		}
 
@@ -166,7 +168,7 @@ func Run(ctx context.Context, config *Config) error {
 		if advertiseAddr == "" {
 			advertiseAddr, err = netutils.GetAdvertiseAddress(config.BindAddress)
 			if err != nil {
-				log.Printf("failed to identify advertise address: %s", err)
+				config.Logger.Error("failed to identify advertise address", zap.Error(err))
 				return err
 			}
 		}
@@ -196,7 +198,7 @@ func Run(ctx context.Context, config *Config) error {
 
 		clusterEntry, err := clusteringManager.Join(ctx, localMemberData)
 		if err != nil {
-			log.Fatalf("failed to join cluster: %s", err)
+			config.Logger.Error("failed to join cluster", zap.Error(err))
 			os.Exit(1)
 		}
 
@@ -217,16 +219,15 @@ func Run(ctx context.Context, config *Config) error {
 				},
 			})
 		}
-
-		log.Printf("starting to run legacy system")
+		config.Logger.Info("starting to run legacy system")
 		err = legacySys.Serve(ctx, legacyLis)
 
 		if err != nil {
-			log.Printf("failed to serve legacy system: %s", err)
+			config.Logger.Error("failed to serve legacy system", zap.Error(err))
 
 			leaveErr := clusterEntry.Leave(ctx)
 			if leaveErr != nil {
-				log.Printf("failed to leave cluster: %s", err)
+				config.Logger.Error("failed to leave cluster", zap.Error(err))
 			}
 
 			return err
@@ -234,7 +235,7 @@ func Run(ctx context.Context, config *Config) error {
 
 		err = clusterEntry.Leave(ctx)
 		if err != nil {
-			log.Printf("failed to leave cluster: %s", err)
+			config.Logger.Error("failed to leave cluster", zap.Error(err))
 		}
 
 		return nil

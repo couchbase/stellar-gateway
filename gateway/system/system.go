@@ -45,7 +45,7 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 	dataImpl := opts.DataImpl
 	sdImpl := opts.SdImpl
 
-	hooksManager := hooks.NewHooksManager()
+	hooksManager := hooks.NewHooksManager(opts.Logger.Named("hooks-manager"))
 	metricsInterceptor := interceptors.NewMetricsInterceptor(opts.Metrics)
 	dataSrv := grpc.NewServer(
 		grpc.ChainUnaryInterceptor(hooksManager.UnaryInterceptor(), metricsInterceptor.UnaryConnectionCounterInterceptor),
