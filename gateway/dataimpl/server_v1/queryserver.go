@@ -13,8 +13,19 @@ import (
 
 type QueryServer struct {
 	query_v1.UnimplementedQueryServiceServer
+
 	logger   *zap.Logger
 	cbClient *gocbcorex.AgentManager
+}
+
+func NewQueryServer(
+	logger *zap.Logger,
+	cbClient *gocbcorex.AgentManager,
+) *QueryServer {
+	return &QueryServer{
+		logger:   logger,
+		cbClient: cbClient,
+	}
 }
 
 func (s *QueryServer) Query(in *query_v1.QueryRequest, out query_v1.QueryService_QueryServer) error {
@@ -238,11 +249,4 @@ func (s *QueryServer) Query(in *query_v1.QueryRequest, out query_v1.QueryService
 	}
 
 	return nil
-}
-
-func NewQueryServer(cbClient *gocbcorex.AgentManager, logger *zap.Logger) *QueryServer {
-	return &QueryServer{
-		cbClient: cbClient,
-		logger:   logger,
-	}
 }

@@ -8,13 +8,17 @@ import (
 
 type AnalyticsServer struct {
 	analytics_v1.UnimplementedAnalyticsServiceServer
+
 	logger   *zap.Logger
 	cbClient *gocbcorex.AgentManager
 }
 
-func NewAnalyticsServer(cbClient *gocbcorex.AgentManager, logger *zap.Logger) *AnalyticsServer {
+func NewAnalyticsServer(
+	logger *zap.Logger,
+	cbClient *gocbcorex.AgentManager,
+) *AnalyticsServer {
 	return &AnalyticsServer{
-		cbClient: cbClient,
 		logger:   logger,
+		cbClient: cbClient,
 	}
 }

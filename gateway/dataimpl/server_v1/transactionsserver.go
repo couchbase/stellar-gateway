@@ -8,11 +8,17 @@ import (
 
 type TransactionsServer struct {
 	transactions_v1.UnimplementedTransactionsServiceServer
-	logger *zap.Logger
+
+	logger   *zap.Logger
+	cbClient *gocbcorex.AgentManager
 }
 
-func NewTransactionsServer(cbClient *gocbcorex.AgentManager, logger *zap.Logger) *TransactionsServer {
+func NewTransactionsServer(
+	logger *zap.Logger,
+	cbClient *gocbcorex.AgentManager,
+) *TransactionsServer {
 	return &TransactionsServer{
-		logger: logger,
+		logger:   logger,
+		cbClient: cbClient,
 	}
 }

@@ -12,8 +12,19 @@ import (
 
 type CollectionAdminServer struct {
 	admin_collection_v1.UnimplementedCollectionAdminServiceServer
+
 	logger   *zap.Logger
 	cbClient *gocbcorex.AgentManager
+}
+
+func NewCollectionAdminServer(
+	logger *zap.Logger,
+	cbClient *gocbcorex.AgentManager,
+) *CollectionAdminServer {
+	return &CollectionAdminServer{
+		logger:   logger,
+		cbClient: cbClient,
+	}
 }
 
 func (s *CollectionAdminServer) getBucketAgent(
@@ -153,11 +164,4 @@ func (s *CollectionAdminServer) DeleteCollection(
 	}
 
 	return &admin_collection_v1.DeleteCollectionResponse{}, nil
-}
-
-func NewCollectionAdminServer(cbClient *gocbcorex.AgentManager, logger *zap.Logger) *CollectionAdminServer {
-	return &CollectionAdminServer{
-		cbClient: cbClient,
-		logger: logger,
-	}
 }

@@ -10,17 +10,21 @@ import (
 
 type SearchServer struct {
 	search_v1.UnimplementedSearchServiceServer
+
 	logger   *zap.Logger
 	cbClient *gocbcorex.AgentManager
 }
 
-func (s *SearchServer) SearchQuery(in *search_v1.SearchQueryRequest, out search_v1.SearchService_SearchQueryServer) error {
-	return status.Errorf(codes.Unimplemented, "method SearchQuery not implemented")
+func NewSearchServer(
+	logger *zap.Logger,
+	cbClient *gocbcorex.AgentManager,
+) *SearchServer {
+	return &SearchServer{
+		logger:   logger,
+		cbClient: cbClient,
+	}
 }
 
-func NewSearchServer(cbClient *gocbcorex.AgentManager, logger *zap.Logger) *SearchServer {
-	return &SearchServer{
-		cbClient: cbClient,
-		logger:   logger,
-	}
+func (s *SearchServer) SearchQuery(in *search_v1.SearchQueryRequest, out search_v1.SearchService_SearchQueryServer) error {
+	return status.Errorf(codes.Unimplemented, "method SearchQuery not implemented")
 }

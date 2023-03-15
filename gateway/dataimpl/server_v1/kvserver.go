@@ -17,8 +17,19 @@ import (
 
 type KvServer struct {
 	kv_v1.UnimplementedKvServiceServer
+
 	logger   *zap.Logger
 	cbClient *gocbcorex.AgentManager
+}
+
+func NewKvServer(
+	logger *zap.Logger,
+	cbClient *gocbcorex.AgentManager,
+) *KvServer {
+	return &KvServer{
+		logger:   logger,
+		cbClient: cbClient,
+	}
 }
 
 func (s *KvServer) getBucketAgent(
@@ -870,11 +881,4 @@ func (s *KvServer) MutateIn(ctx context.Context, in *kv_v1.MutateInRequest) (*kv
 		Specs:         resultSpecs,
 		MutationToken: tokenFromGocbcorex(in.BucketName, result.MutationToken),
 	}, nil
-}
-
-func NewKvServer(cbClient *gocbcorex.AgentManager, logger *zap.Logger) *KvServer {
-	return &KvServer{
-		cbClient: cbClient,
-		logger:   logger,
-	}
 }
