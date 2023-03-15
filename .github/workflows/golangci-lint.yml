@@ -31,3 +31,5 @@ jobs:
         with:
           version: v1.51
           args: --timeout=3m
+          skip-pkg-cache: true
+          skip-build-cache: true
