@@ -15,8 +15,19 @@ import (
 
 type BucketAdminServer struct {
 	admin_bucket_v1.UnimplementedBucketAdminServiceServer
+
 	logger   *zap.Logger
 	cbClient *gocbcorex.AgentManager
+}
+
+func NewBucketAdminServer(
+	logger *zap.Logger,
+	cbClient *gocbcorex.AgentManager,
+) *BucketAdminServer {
+	return &BucketAdminServer{
+		logger:   logger,
+		cbClient: cbClient,
+	}
 }
 
 func (s *BucketAdminServer) ListBuckets(
@@ -273,11 +284,4 @@ func (s *BucketAdminServer) DeleteBucket(
 	}
 
 	return &admin_bucket_v1.DeleteBucketResponse{}, nil
-}
-
-func NewBucketAdminServer(cbClient *gocbcorex.AgentManager, logger *zap.Logger) *BucketAdminServer {
-	return &BucketAdminServer{
-		cbClient: cbClient,
-		logger:   logger,
-	}
 }
