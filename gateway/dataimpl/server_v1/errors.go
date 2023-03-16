@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/couchbase/gocb/v2"
+	"github.com/couchbase/gocbcorex/memdx"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -43,11 +43,12 @@ func tryAttachStatusDetails(st *status.Status, details ...protoiface.MessageV1) 
 }
 
 func tryAttachCbContext(st *status.Status, baseErr error) *status.Status {
-	var kvErrCtx *gocb.KeyValueError
-	if errors.As(baseErr, &kvErrCtx) {
-		if kvErrCtx.Ref != "" {
+	var memdSrvErr *memdx.ServerErrorWithContext
+	if errors.As(baseErr, &memdSrvErr) {
+		parsedCtx := memdSrvErr.ParseContext()
+		if parsedCtx.Ref != "" {
 			st = tryAttachStatusDetails(st, &epb.RequestInfo{
-				RequestId: kvErrCtx.Ref,
+				RequestId: parsedCtx.Ref,
 			})
 		}
 	}
