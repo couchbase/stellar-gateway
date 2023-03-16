@@ -64,13 +64,21 @@ func SetupCanonicalTestCluster(opts CanonicalTestClusterOptions) (*CanonicalTest
 	// TODO(brett19): Perform additional canonical test cluster validations here...
 
 	return &CanonicalTestCluster{
-		ConnStr:              opts.ConnStr,
-		AdminUser:            opts.Username,
-		AdminPass:            opts.Password,
-		BasicUser:            "basic-user",
-		BasicPass:            "password1",
-		ReadUser:             "read-user",
-		ReadPass:             "password2",
+		ConnStr:   opts.ConnStr,
+		AdminUser: opts.Username,
+		AdminPass: opts.Password,
+		// We don't currently generate basic/read-only users, so we
+		// need to re-use our own credentials here instead.
+		/*
+			BasicUser:            "basic-user",
+			BasicPass:            "password1",
+			ReadUser:             "read-user",
+			ReadPass:             "password2",
+		*/
+		BasicUser:            opts.Username,
+		BasicPass:            opts.Password,
+		ReadUser:             opts.Username,
+		ReadPass:             opts.Password,
 		BucketName:           "default",
 		SecondBucketName:     "secBucket",
 		ScopeName:            "_default",
