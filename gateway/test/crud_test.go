@@ -149,7 +149,7 @@ func (s *GatewayOpsTestSuite) createDocument(t *testing.T, opts createDocumentOp
 		Key:            opts.DocId,
 		ContentType:    kv_v1.DocumentContentType_DOCUMENT_CONTENT_TYPE_JSON,
 		Content:        TEST_CONTENT,
-	})
+	}, grpc.PerRPCCredentials(s.basicRpcCreds))
 	assertRpcSuccess(s.T(), upsertResp, err)
 	assertValidCas(s.T(), upsertResp.Cas)
 	assertValidMutationToken(s.T(), upsertResp.MutationToken, s.bucketName)
@@ -332,7 +332,7 @@ func (s *GatewayOpsTestSuite) TestInsert() {
 		Key:            testDocId,
 		ContentType:    kv_v1.DocumentContentType_DOCUMENT_CONTENT_TYPE_JSON,
 		Content:        TEST_CONTENT,
-	})
+	}, grpc.PerRPCCredentials(s.basicRpcCreds))
 	assertRpcStatus(s.T(), err, codes.OK)
 	assertValidCas(s.T(), insertResp.Cas)
 	assertValidMutationToken(s.T(), insertResp.MutationToken, s.bucketName)
@@ -353,7 +353,7 @@ func (s *GatewayOpsTestSuite) TestInsert() {
 		Key:            testDocId,
 		ContentType:    kv_v1.DocumentContentType_DOCUMENT_CONTENT_TYPE_JSON,
 		Content:        TEST_CONTENT,
-	})
+	}, grpc.PerRPCCredentials(s.basicRpcCreds))
 	assertRpcStatus(s.T(), err, codes.AlreadyExists)
 	assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
 		assert.Equal(s.T(), d.ResourceType, "document")
@@ -368,7 +368,7 @@ func (s *GatewayOpsTestSuite) TestInsert() {
 			Key:            testDocId,
 			ContentType:    kv_v1.DocumentContentType_JSON,
 			Content:        testContent,
-		})
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
 		assertRpcStatus(s.T(), err, codes.AlreadyExists)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
 			assert.Equal(s.T(), d.ResourceType, "bucket")
@@ -382,7 +382,7 @@ func (s *GatewayOpsTestSuite) TestInsert() {
 			Key:            testDocId,
 			ContentType:    kv_v1.DocumentContentType_JSON,
 			Content:        testContent,
-		})
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
 		assertRpcStatus(s.T(), err, codes.AlreadyExists)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
 			assert.Equal(s.T(), d.ResourceType, "scope")
@@ -396,7 +396,7 @@ func (s *GatewayOpsTestSuite) TestInsert() {
 			Key:            testDocId,
 			ContentType:    kv_v1.DocumentContentType_JSON,
 			Content:        testContent,
-		})
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
 		assertRpcStatus(s.T(), err, codes.AlreadyExists)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
 			assert.Equal(s.T(), d.ResourceType, "collection")
@@ -416,7 +416,7 @@ func (s *GatewayOpsTestSuite) TestUpsert() {
 		Key:            testDocId,
 		ContentType:    kv_v1.DocumentContentType_DOCUMENT_CONTENT_TYPE_JSON,
 		Content:        TEST_CONTENT,
-	})
+	}, grpc.PerRPCCredentials(s.basicRpcCreds))
 	assertRpcSuccess(s.T(), upsertResp, err)
 	assertValidCas(s.T(), upsertResp.Cas)
 	assertValidMutationToken(s.T(), upsertResp.MutationToken, s.bucketName)
