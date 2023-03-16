@@ -8,11 +8,11 @@ import (
 
 	"github.com/couchbase/cbauth"
 	"github.com/couchbase/gocbcorex"
-	"github.com/couchbase/stellar-gateway/contrib/cbauthauth"
 	"github.com/couchbase/stellar-gateway/contrib/cbconfig"
 	"github.com/couchbase/stellar-gateway/contrib/cbtopology"
 	"github.com/couchbase/stellar-gateway/contrib/goclustering"
 	"github.com/couchbase/stellar-gateway/gateway/auth"
+	"github.com/couchbase/stellar-gateway/gateway/app_config"
 	"github.com/couchbase/stellar-gateway/gateway/clustering"
 	"github.com/couchbase/stellar-gateway/gateway/dataimpl"
 	"github.com/couchbase/stellar-gateway/gateway/sdimpl"
@@ -24,38 +24,6 @@ import (
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
-
-type ServicePorts struct {
-	PS int `json:"p,omitempty"`
-	SD int `json:"s,omitempty"`
-}
-
-type StartupInfo struct {
-	MemberID       string
-	ServerGroup    string
-	AdvertiseAddr  string
-	AdvertisePorts ServicePorts
-}
-
-type Config struct {
-	Logger      *zap.Logger
-	NodeID      string
-	ServerGroup string
-	Daemon      bool
-
-	CbConnStr string
-	Username  string
-	Password  string
-
-	BindAddress      string
-	BindDataPort     int
-	BindSdPort       int
-	AdvertiseAddress string
-	AdvertisePorts   ServicePorts
-
-	NumInstances    uint
-	StartupCallback func(*StartupInfo)
-}
 
 func connStrToMgmtHostPort(connStr string) (string, error) {
 	// attempt to parse the connection string
@@ -93,7 +61,8 @@ func connStrToMgmtHostPort(connStr string) (string, error) {
 	return hostPort, nil
 }
 
-func gatewayStartup(ctx context.Context, config *Config) error {
+
+func gatewayStartup(ctx context.Context, config *app_config.Config) error {
 	// NodeID must not be blank, so lets generate a unique UUID if one wasn't provided...
 	nodeID := config.NodeID
 	if nodeID == "" {
@@ -103,27 +72,30 @@ func gatewayStartup(ctx context.Context, config *Config) error {
 	serverGroup := config.ServerGroup
 
 	// start connecting to the underlying cluster
-	config.Logger.Info("linking to couchbase cluster", zap.String("connectionString", config.CbConnStr), zap.String("User", config.Username))
+	config.Logger.Info("linking to couchbase cluster", zap.String("connectionString", config.Config.ConnectionString), zap.String("User", config.Credentials.Password))
 
-	mgmtHostPort, err := connStrToMgmtHostPort(config.CbConnStr)
+	mgmtHostPort, err := connStrToMgmtHostPort(config.Config.ConnectionString)
 	if err != nil {
 		config.Logger.Error("failed to parse connection string", zap.Error(err))
 		return err
 	}
 
-	_, err = cbauth.InternalRetryDefaultInitWithService("stg", mgmtHostPort, config.Username, config.Password)
+	_, err = cbauth.InternalRetryDefaultInitWithService("stg", mgmtHostPort, config.Credentials.Username, config.Credentials.Password)
 	if err != nil {
 		config.Logger.Error("failed to initialize cbauth connection",
 			zap.Error(err),
 			zap.String("hostPort", mgmtHostPort),
-			zap.String("user", config.Username))
+			zap.String("user", config.Credentials.Username))
 		return err
 	}
 
 	agentMgr, err := gocbcorex.CreateAgentManager(ctx, gocbcorex.AgentManagerOptions{
-		Logger:        config.Logger.Named("gocbcorex"),
-		TLSConfig:     nil,
-		Authenticator: &cbauthauth.CbAuthAuthenticator{},
+		Logger:    config.Logger.Named("gocbcorex"),
+		TLSConfig: nil,
+		Authenticator: &gocbcorex.PasswordAuthenticator{
+			Username: config.Credentials.Username,
+			Password: config.Credentials.Password,
+		},
 		SeedConfig: gocbcorex.SeedConfig{
 			HTTPAddrs: []string{mgmtHostPort},
 		},
@@ -132,7 +104,7 @@ func gatewayStartup(ctx context.Context, config *Config) error {
 		config.Logger.Error("failed to connect to couchbase cluster",
 			zap.Error(err),
 			zap.String("httpAddr", mgmtHostPort),
-			zap.String("user", config.Username))
+			zap.String("user", config.Credentials.Username))
 		return err
 	}
 
@@ -144,10 +116,10 @@ func gatewayStartup(ctx context.Context, config *Config) error {
 	// TODO(brett19): We should use the gocb client to fetch the topologies.
 	cbTopologyProvider, err := cbtopology.NewPollingProvider(cbtopology.PollingProviderOptions{
 		Fetcher: cbconfig.NewFetcher(cbconfig.FetcherOptions{
-			Host:     config.CbConnStr,
-			Username: config.Username,
-			Password: config.Password,
-			Logger:   config.Logger.Named("fetcher"),
+			Host:     config.Config.ConnectionString,
+			Username: config.Credentials.Username,
+			Password: config.Credentials.Password,
+			Logger: config.Logger.Named("fetcher"),
 		}),
 		Logger: config.Logger.Named("topology-provider"),
 	})
@@ -202,8 +174,8 @@ func gatewayStartup(ctx context.Context, config *Config) error {
 			return err
 		}
 
-		dataPort := config.BindDataPort
-		sdPort := config.BindSdPort
+		dataPort := config.Config.DataPort
+		sdPort := config.Config.SdPort
 
 		// the non-0 instance uses randomized ports
 		if instanceIdx > 0 {
@@ -212,7 +184,7 @@ func gatewayStartup(ctx context.Context, config *Config) error {
 		}
 
 		gatewayLis, err := system.NewListeners(&system.ListenersOptions{
-			Address:  config.BindAddress,
+			Address:  config.Config.BindAddress,
 			DataPort: dataPort,
 			SdPort:   sdPort,
 		})
@@ -223,7 +195,7 @@ func gatewayStartup(ctx context.Context, config *Config) error {
 
 		advertiseAddr := config.AdvertiseAddress
 		if advertiseAddr == "" {
-			advertiseAddr, err = netutils.GetAdvertiseAddress(config.BindAddress)
+			advertiseAddr, err = netutils.GetAdvertiseAddress(config.Config.BindAddress)
 			if err != nil {
 				config.Logger.Error("failed to identify advertise address")
 				return err
@@ -255,11 +227,11 @@ func gatewayStartup(ctx context.Context, config *Config) error {
 		}
 
 		if instanceIdx == 0 && config.StartupCallback != nil {
-			config.StartupCallback(&StartupInfo{
+			config.StartupCallback(&app_config.StartupInfo{
 				MemberID:      nodeID,
 				ServerGroup:   serverGroup,
 				AdvertiseAddr: advertiseAddr,
-				AdvertisePorts: ServicePorts{
+				AdvertisePorts: app_config.ServicePorts{
 					PS: advertisePorts.PS,
 					SD: advertisePorts.SD,
 				},
@@ -313,7 +285,7 @@ func gatewayStartup(ctx context.Context, config *Config) error {
 	return nil
 }
 
-func Run(ctx context.Context, config *Config) error {
+func Run(ctx context.Context, config *app_config.Config) error {
 	// TODO(malscent): daemon mode should start up grpc servers and return errors
 	// to the client specifying issues connecting to underlying service instead of
 	// just restarting whole process
@@ -322,7 +294,7 @@ func Run(ctx context.Context, config *Config) error {
 
 		err := gatewayStartup(ctx, config)
 		if err != nil {
-			if !config.Daemon {
+			if !config.Config.Daemon {
 				return err
 			}
 
@@ -330,6 +302,7 @@ func Run(ctx context.Context, config *Config) error {
 
 			// limit automatic restarts to once every 10 seconds
 			waitTime := (10 * time.Second) - runTime
+			config.Logger.Debug("Wait time", zap.Duration("waitSeconds", waitTime))
 			if waitTime < 0 {
 				waitTime = 0
 			}
@@ -339,7 +312,7 @@ func Run(ctx context.Context, config *Config) error {
 				zap.Int("attempt", restarts),
 				zap.Duration("waitTime", waitTime))
 			time.Sleep(waitTime)
-
+			config.Logger.Debug("Wait time completed", zap.Duration("waitSeconds", waitTime))
 			continue
 		}
 

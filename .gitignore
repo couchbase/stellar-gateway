@@ -5,4 +5,5 @@ genproto/
 build/
 bin/
 dist/
+config/
 .vscode/

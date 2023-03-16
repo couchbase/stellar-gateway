@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/couchbase/stellar-gateway/gateway"
+	app_config "github.com/couchbase/stellar-gateway/gateway/app_config"
 	"github.com/couchbase/stellar-gateway/legacybridge"
 	"github.com/couchbase/stellar-gateway/pkg/version"
 	"go.uber.org/zap"
@@ -47,16 +48,20 @@ func main() {
 			sdPort = 18099
 		}
 
-		err := gateway.Run(context.Background(), &gateway.Config{
+		err := gateway.Run(context.Background(), &app_config.Config{
 			Logger:       logger.Named("gateway"),
-			CbConnStr:    *cbHost,
-			Username:     *cbUser,
-			Password:     *cbPass,
-			BindDataPort: dataPort,
-			BindSdPort:   sdPort,
+			Config: &app_config.GeneralConfig{
+				ConnectionString: *cbHost,
+				DataPort: dataPort,
+				SdPort: sdPort,
+			},
+			Credentials: &app_config.CredentialsConfig{
+				Username:     *cbUser,
+				Password:     *cbPass,
+			},
 			NumInstances: *numInstances,
 
-			StartupCallback: func(m *gateway.StartupInfo) {
+			StartupCallback: func(m *app_config.StartupInfo) {
 				gatewayConnStrCh <- fmt.Sprintf("%s:%d", m.AdvertiseAddr, m.AdvertisePorts.PS)
 			},
 		})

@@ -14,13 +14,11 @@ import (
 
 type WebServerOptions struct {
 	Logger        *zap.Logger
-	LogLevel      *zap.AtomicLevel
 	ListenAddress string
 }
 
 type WebServer struct {
 	logger        *zap.Logger
-	logLevel      *zap.AtomicLevel
 	listenAddress string
 	httpServer    *http.Server
 }
@@ -28,7 +26,6 @@ type WebServer struct {
 func newWebServer(opts WebServerOptions) *WebServer {
 	return &WebServer{
 		logger:        opts.Logger,
-		logLevel:      opts.LogLevel,
 		listenAddress: opts.ListenAddress,
 	}
 }
