@@ -299,15 +299,16 @@ func (s *KvServer) Exists(ctx context.Context, in *kv_v1.ExistsRequest) (*kv_v1.
 		return nil, cbGenericErrToPsStatus(err, s.logger).Err()
 	}
 
-	resp := &kv_v1.ExistsResponse{
-		Result: result.Deleted == 0,
+	if result.Deleted {
+		return &kv_v1.ExistsResponse{
+			Result: false,
+		}, nil
 	}
 
-	if resp.Result {
-		resp.Cas = result.Cas
-	}
-
-	return resp, nil
+	return &kv_v1.ExistsResponse{
+		Result: true,
+		Cas:    result.Cas,
+	}, nil
 }
 
 func (s *KvServer) Upsert(ctx context.Context, in *kv_v1.UpsertRequest) (*kv_v1.UpsertResponse, error) {
