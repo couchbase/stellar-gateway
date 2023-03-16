@@ -1,7 +1,6 @@
 package server_v1
 
 import (
-	"github.com/couchbase/gocbcorex"
 	"github.com/couchbase/goprotostellar/genproto/analytics_v1"
 	"go.uber.org/zap"
 )
@@ -9,16 +8,16 @@ import (
 type AnalyticsServer struct {
 	analytics_v1.UnimplementedAnalyticsServiceServer
 
-	logger   *zap.Logger
-	cbClient *gocbcorex.AgentManager
+	logger      *zap.Logger
+	authHandler *AuthHandler
 }
 
 func NewAnalyticsServer(
 	logger *zap.Logger,
-	cbClient *gocbcorex.AgentManager,
+	authHandler *AuthHandler,
 ) *AnalyticsServer {
 	return &AnalyticsServer{
-		logger:   logger,
-		cbClient: cbClient,
+		logger:      logger,
+		authHandler: authHandler,
 	}
 }

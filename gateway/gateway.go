@@ -12,6 +12,7 @@ import (
 	"github.com/couchbase/stellar-gateway/contrib/cbconfig"
 	"github.com/couchbase/stellar-gateway/contrib/cbtopology"
 	"github.com/couchbase/stellar-gateway/contrib/goclustering"
+	"github.com/couchbase/stellar-gateway/gateway/auth"
 	"github.com/couchbase/stellar-gateway/gateway/clustering"
 	"github.com/couchbase/stellar-gateway/gateway/dataimpl"
 	"github.com/couchbase/stellar-gateway/gateway/sdimpl"
@@ -181,6 +182,7 @@ func gatewayStartup(ctx context.Context, config *Config) error {
 			Logger:           config.Logger.Named("data-impl"),
 			TopologyProvider: psTopologyManager,
 			CbClient:         agentMgr,
+			Authenticator:    auth.CbAuthAuthenticator{},
 		})
 
 		sdImpl := sdimpl.New(&sdimpl.NewOptions{

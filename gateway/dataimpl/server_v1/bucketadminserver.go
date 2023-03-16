@@ -5,7 +5,6 @@ import (
 	"errors"
 	"time"
 
-	"github.com/couchbase/gocbcorex"
 	"github.com/couchbase/gocbcorex/cbmgmtx"
 	"github.com/couchbase/goprotostellar/genproto/admin_bucket_v1"
 	"go.uber.org/zap"
@@ -16,17 +15,17 @@ import (
 type BucketAdminServer struct {
 	admin_bucket_v1.UnimplementedBucketAdminServiceServer
 
-	logger   *zap.Logger
-	cbClient *gocbcorex.AgentManager
+	logger      *zap.Logger
+	authHandler *AuthHandler
 }
 
 func NewBucketAdminServer(
 	logger *zap.Logger,
-	cbClient *gocbcorex.AgentManager,
+	authHandler *AuthHandler,
 ) *BucketAdminServer {
 	return &BucketAdminServer{
-		logger:   logger,
-		cbClient: cbClient,
+		logger:      logger,
+		authHandler: authHandler,
 	}
 }
 
@@ -34,9 +33,14 @@ func (s *BucketAdminServer) ListBuckets(
 	ctx context.Context,
 	in *admin_bucket_v1.ListBucketsRequest,
 ) (*admin_bucket_v1.ListBucketsResponse, error) {
-	agent := s.cbClient.GetClusterAgent()
+	agent, oboUser, errSt := s.authHandler.GetOboUserClusterAgent(ctx)
+	if errSt != nil {
+		return nil, errSt.Err()
+	}
 
-	result, err := agent.GetAllBuckets(ctx, &cbmgmtx.GetAllBucketsOptions{})
+	result, err := agent.GetAllBuckets(ctx, &cbmgmtx.GetAllBucketsOptions{
+		OnBehalfOf: oboUser,
+	})
 	if err != nil {
 		return nil, cbGenericErrToPsStatus(err, s.logger).Err()
 	}
@@ -99,7 +103,10 @@ func (s *BucketAdminServer) CreateBucket(
 	ctx context.Context,
 	in *admin_bucket_v1.CreateBucketRequest,
 ) (*admin_bucket_v1.CreateBucketResponse, error) {
-	agent := s.cbClient.GetClusterAgent()
+	agent, oboUser, errSt := s.authHandler.GetOboUserClusterAgent(ctx)
+	if errSt != nil {
+		return nil, errSt.Err()
+	}
 
 	flushEnabled := false
 	if in.FlushEnabled != nil {
@@ -160,6 +167,7 @@ func (s *BucketAdminServer) CreateBucket(
 	}
 
 	err := agent.CreateBucket(ctx, &cbmgmtx.CreateBucketOptions{
+		OnBehalfOf: oboUser,
 		BucketName: in.BucketName,
 		BucketSettings: cbmgmtx.BucketSettings{
 			MutableBucketSettings: cbmgmtx.MutableBucketSettings{
@@ -191,7 +199,10 @@ func (s *BucketAdminServer) UpdateBucket(
 	ctx context.Context,
 	in *admin_bucket_v1.UpdateBucketRequest,
 ) (*admin_bucket_v1.UpdateBucketResponse, error) {
-	agent := s.cbClient.GetClusterAgent()
+	agent, oboUser, errSt := s.authHandler.GetOboUserClusterAgent(ctx)
+	if errSt != nil {
+		return nil, errSt.Err()
+	}
 
 	bucket, err := agent.GetBucket(ctx, &cbmgmtx.GetBucketOptions{
 		BucketName: in.BucketName,
@@ -204,8 +215,6 @@ func (s *BucketAdminServer) UpdateBucket(
 	}
 
 	newBucket := bucket.MutableBucketSettings
-
-	var errSt *status.Status
 
 	if in.FlushEnabled != nil {
 		newBucket.FlushEnabled = *in.FlushEnabled
@@ -254,6 +263,7 @@ func (s *BucketAdminServer) UpdateBucket(
 	}
 
 	err = agent.UpdateBucket(ctx, &cbmgmtx.UpdateBucketOptions{
+		OnBehalfOf:            oboUser,
 		BucketName:            in.BucketName,
 		MutableBucketSettings: newBucket,
 	})
@@ -271,9 +281,13 @@ func (s *BucketAdminServer) DeleteBucket(
 	ctx context.Context,
 	in *admin_bucket_v1.DeleteBucketRequest,
 ) (*admin_bucket_v1.DeleteBucketResponse, error) {
-	agent := s.cbClient.GetClusterAgent()
+	agent, oboUser, errSt := s.authHandler.GetOboUserClusterAgent(ctx)
+	if errSt != nil {
+		return nil, errSt.Err()
+	}
 
 	err := agent.DeleteBucket(ctx, &cbmgmtx.DeleteBucketOptions{
+		OnBehalfOf: oboUser,
 		BucketName: in.BucketName,
 	})
 	if err != nil {

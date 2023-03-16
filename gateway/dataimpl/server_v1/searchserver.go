@@ -1,7 +1,6 @@
 package server_v1
 
 import (
-	"github.com/couchbase/gocbcorex"
 	"github.com/couchbase/goprotostellar/genproto/search_v1"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
@@ -11,17 +10,17 @@ import (
 type SearchServer struct {
 	search_v1.UnimplementedSearchServiceServer
 
-	logger   *zap.Logger
-	cbClient *gocbcorex.AgentManager
+	logger      *zap.Logger
+	authHandler *AuthHandler
 }
 
 func NewSearchServer(
 	logger *zap.Logger,
-	cbClient *gocbcorex.AgentManager,
+	authHandler *AuthHandler,
 ) *SearchServer {
 	return &SearchServer{
-		logger:   logger,
-		cbClient: cbClient,
+		logger:      logger,
+		authHandler: authHandler,
 	}
 }
 

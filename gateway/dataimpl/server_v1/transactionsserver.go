@@ -1,7 +1,6 @@
 package server_v1
 
 import (
-	"github.com/couchbase/gocbcorex"
 	"github.com/couchbase/goprotostellar/genproto/transactions_v1"
 	"go.uber.org/zap"
 )
@@ -9,16 +8,16 @@ import (
 type TransactionsServer struct {
 	transactions_v1.UnimplementedTransactionsServiceServer
 
-	logger   *zap.Logger
-	cbClient *gocbcorex.AgentManager
+	logger      *zap.Logger
+	authHandler *AuthHandler
 }
 
 func NewTransactionsServer(
 	logger *zap.Logger,
-	cbClient *gocbcorex.AgentManager,
+	authHandler *AuthHandler,
 ) *TransactionsServer {
 	return &TransactionsServer{
-		logger:   logger,
-		cbClient: cbClient,
+		logger:      logger,
+		authHandler: authHandler,
 	}
 }
