@@ -3,50 +3,39 @@ package server_v1
 import (
 	"context"
 
-	"github.com/couchbase/gocbcorex"
 	"github.com/couchbase/gocbcorex/cbmgmtx"
 	"github.com/couchbase/goprotostellar/genproto/admin_collection_v1"
 	"go.uber.org/zap"
-	"google.golang.org/grpc/status"
 )
 
 type CollectionAdminServer struct {
 	admin_collection_v1.UnimplementedCollectionAdminServiceServer
 
-	logger   *zap.Logger
-	cbClient *gocbcorex.AgentManager
+	logger      *zap.Logger
+	authHandler *AuthHandler
 }
 
 func NewCollectionAdminServer(
 	logger *zap.Logger,
-	cbClient *gocbcorex.AgentManager,
+	authHandler *AuthHandler,
 ) *CollectionAdminServer {
 	return &CollectionAdminServer{
-		logger:   logger,
-		cbClient: cbClient,
+		logger:      logger,
+		authHandler: authHandler,
 	}
-}
-
-func (s *CollectionAdminServer) getBucketAgent(
-	ctx context.Context, bucketName string,
-) (*gocbcorex.Agent, *status.Status) {
-	bucketAgent, err := s.cbClient.GetBucketAgent(ctx, bucketName)
-	if err != nil {
-		return nil, cbGenericErrToPsStatus(err, s.logger)
-	}
-	return bucketAgent, nil
 }
 
 func (s *CollectionAdminServer) ListCollections(
 	ctx context.Context,
 	in *admin_collection_v1.ListCollectionsRequest,
 ) (*admin_collection_v1.ListCollectionsResponse, error) {
-	bucketAgent, errSt := s.getBucketAgent(ctx, in.BucketName)
+	bucketAgent, oboUser, errSt := s.authHandler.GetOboUserBucketAgent(ctx, in.BucketName)
 	if errSt != nil {
 		return nil, errSt.Err()
 	}
 
 	result, err := bucketAgent.GetCollectionManifest(ctx, &cbmgmtx.GetCollectionManifestOptions{
+		OnBehalfOf: oboUser,
 		BucketName: in.BucketName,
 	})
 	if err != nil {
@@ -82,12 +71,13 @@ func (s *CollectionAdminServer) CreateScope(
 	ctx context.Context,
 	in *admin_collection_v1.CreateScopeRequest,
 ) (*admin_collection_v1.CreateScopeResponse, error) {
-	bucketAgent, errSt := s.getBucketAgent(ctx, in.BucketName)
+	bucketAgent, oboUser, errSt := s.authHandler.GetOboUserBucketAgent(ctx, in.BucketName)
 	if errSt != nil {
 		return nil, errSt.Err()
 	}
 
 	err := bucketAgent.CreateScope(ctx, &cbmgmtx.CreateScopeOptions{
+		OnBehalfOf: oboUser,
 		BucketName: in.BucketName,
 		ScopeName:  in.ScopeName,
 	})
@@ -102,12 +92,13 @@ func (s *CollectionAdminServer) DeleteScope(
 	ctx context.Context,
 	in *admin_collection_v1.DeleteScopeRequest,
 ) (*admin_collection_v1.DeleteScopeResponse, error) {
-	bucketAgent, errSt := s.getBucketAgent(ctx, in.BucketName)
+	bucketAgent, oboUser, errSt := s.authHandler.GetOboUserBucketAgent(ctx, in.BucketName)
 	if errSt != nil {
 		return nil, errSt.Err()
 	}
 
 	err := bucketAgent.DeleteScope(ctx, &cbmgmtx.DeleteScopeOptions{
+		OnBehalfOf: oboUser,
 		BucketName: in.BucketName,
 		ScopeName:  in.ScopeName,
 	})
@@ -122,7 +113,7 @@ func (s *CollectionAdminServer) CreateCollection(
 	ctx context.Context,
 	in *admin_collection_v1.CreateCollectionRequest,
 ) (*admin_collection_v1.CreateCollectionResponse, error) {
-	bucketAgent, errSt := s.getBucketAgent(ctx, in.BucketName)
+	bucketAgent, oboUser, errSt := s.authHandler.GetOboUserBucketAgent(ctx, in.BucketName)
 	if errSt != nil {
 		return nil, errSt.Err()
 	}
@@ -133,6 +124,7 @@ func (s *CollectionAdminServer) CreateCollection(
 	}
 
 	err := bucketAgent.CreateCollection(ctx, &cbmgmtx.CreateCollectionOptions{
+		OnBehalfOf:     oboUser,
 		BucketName:     in.BucketName,
 		CollectionName: in.CollectionName,
 		ScopeName:      in.ScopeName,
@@ -149,12 +141,13 @@ func (s *CollectionAdminServer) DeleteCollection(
 	ctx context.Context,
 	in *admin_collection_v1.DeleteCollectionRequest,
 ) (*admin_collection_v1.DeleteCollectionResponse, error) {
-	bucketAgent, errSt := s.getBucketAgent(ctx, in.BucketName)
+	bucketAgent, oboUser, errSt := s.authHandler.GetOboUserBucketAgent(ctx, in.BucketName)
 	if errSt != nil {
 		return nil, errSt.Err()
 	}
 
 	err := bucketAgent.DeleteCollection(ctx, &cbmgmtx.DeleteCollectionOptions{
+		OnBehalfOf:     oboUser,
 		BucketName:     in.BucketName,
 		ScopeName:      in.ScopeName,
 		CollectionName: in.CollectionName,

@@ -55,6 +55,11 @@ func tryAttachCbContext(st *status.Status, baseErr error) *status.Status {
 	return st
 }
 
+func newInternalStatus() *status.Status {
+	st := status.New(codes.Internal, "An internal error occurred.")
+	return st
+}
+
 func newUnknownStatus(baseErr error) *status.Status {
 	st := status.New(codes.Unknown, "An unknown error occurred.")
 	return st
@@ -209,6 +214,27 @@ func newSdPathEinvalStatus(baseErr error, sdPath string) *status.Status {
 func newUnsupportedFieldStatus(fieldPath string) *status.Status {
 	st := status.New(codes.Unimplemented,
 		fmt.Sprintf("The '%s' field is not currently supported", fieldPath))
+	return st
+}
+
+func newInvalidAuthHeaderStatus(baseErr error) *status.Status {
+	st := status.New(codes.InvalidArgument, "Invalid authorization header format.")
+	st = tryAttachCbContext(st, baseErr)
+	return st
+}
+
+func newNoAuthStatus() *status.Status {
+	st := status.New(codes.Unauthenticated, "You must send authentication to use this endpoint.")
+	return st
+}
+
+func newInvalidCredentialsStatus() *status.Status {
+	st := status.New(codes.PermissionDenied, "You're username or password is invalid.")
+	st = tryAttachStatusDetails(st, &epb.ResourceInfo{
+		ResourceType: "user",
+		ResourceName: "",
+		Description:  "",
+	})
 	return st
 }
 

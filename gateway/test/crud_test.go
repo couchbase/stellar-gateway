@@ -33,12 +33,17 @@ type GatewayOpsTestSuite struct {
 	bucketName     string
 	scopeName      string
 	collectionName string
+	badRpcCreds    credentials.PerRPCCredentials
 	basicRpcCreds  credentials.PerRPCCredentials
 	readRpcCreds   credentials.PerRPCCredentials
 }
 
 func (s *GatewayOpsTestSuite) randomDocId(prefix string) string {
 	return prefix + "_" + uuid.NewString()
+}
+
+func (s *GatewayOpsTestSuite) missingDocId() string {
+	return s.randomDocId("invalid")
 }
 
 func (s *GatewayOpsTestSuite) SetupSuite() {
@@ -59,6 +64,12 @@ func (s *GatewayOpsTestSuite) SetupSuite() {
 
 	s.T().Logf("canonical test cluster ready...")
 
+	badRpcCreds, err := grpcheaderauth.NewGrpcBasicAuth(
+		"invalid-user", "invalid-pass")
+	if err != nil {
+		s.T().Fatalf("failed to setup basic bad auth")
+	}
+
 	basicRpcCreds, err := grpcheaderauth.NewGrpcBasicAuth(
 		testClusterInfo.BasicUser, testClusterInfo.BasicPass)
 	if err != nil {
@@ -75,6 +86,7 @@ func (s *GatewayOpsTestSuite) SetupSuite() {
 	s.bucketName = testClusterInfo.BucketName
 	s.scopeName = testClusterInfo.ScopeName
 	s.collectionName = testClusterInfo.CollectionName
+	s.badRpcCreds = badRpcCreds
 	s.basicRpcCreds = basicRpcCreds
 	s.readRpcCreds = readRpcCreds
 
@@ -305,13 +317,33 @@ func (s *GatewayOpsTestSuite) TestGet() {
 	assert.Equal(s.T(), getResp.ContentType, kv_v1.DocumentContentType_DOCUMENT_CONTENT_TYPE_JSON)
 	assert.Nil(s.T(), getResp.Expiry)
 
-	// Test doing a Get where the document is missing
-	missingDocId := s.randomDocId("missing-doc")
+	// Test doing a Get with no credentials
 	_, err = kvClient.Get(context.Background(), &kv_v1.GetRequest{
 		BucketName:     s.bucketName,
 		ScopeName:      s.scopeName,
 		CollectionName: s.collectionName,
-		Key:            missingDocId,
+		Key:            s.missingDocId(),
+	})
+	assertRpcStatus(s.T(), err, codes.Unauthenticated)
+
+	// Test doing a Get with invalid credentials
+	_, err = kvClient.Get(context.Background(), &kv_v1.GetRequest{
+		BucketName:     s.bucketName,
+		ScopeName:      s.scopeName,
+		CollectionName: s.collectionName,
+		Key:            s.missingDocId(),
+	}, grpc.PerRPCCredentials(s.badRpcCreds))
+	assertRpcStatus(s.T(), err, codes.PermissionDenied)
+	assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
+		assert.Equal(s.T(), d.ResourceType, "user")
+	})
+
+	// Test doing a Get where the document is missing
+	_, err = kvClient.Get(context.Background(), &kv_v1.GetRequest{
+		BucketName:     s.bucketName,
+		ScopeName:      s.scopeName,
+		CollectionName: s.collectionName,
+		Key:            s.missingDocId(),
 	}, grpc.PerRPCCredentials(s.basicRpcCreds))
 	assertRpcStatus(s.T(), err, codes.NotFound)
 	assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {

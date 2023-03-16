@@ -18,28 +18,18 @@ import (
 type KvServer struct {
 	kv_v1.UnimplementedKvServiceServer
 
-	logger   *zap.Logger
-	cbClient *gocbcorex.AgentManager
+	logger      *zap.Logger
+	authHandler *AuthHandler
 }
 
 func NewKvServer(
 	logger *zap.Logger,
-	cbClient *gocbcorex.AgentManager,
+	authHandler *AuthHandler,
 ) *KvServer {
 	return &KvServer{
-		logger:   logger,
-		cbClient: cbClient,
+		logger:      logger,
+		authHandler: authHandler,
 	}
-}
-
-func (s *KvServer) getBucketAgent(
-	ctx context.Context, bucketName string,
-) (*gocbcorex.Agent, *status.Status) {
-	bucketAgent, err := s.cbClient.GetBucketAgent(ctx, bucketName)
-	if err != nil {
-		return nil, cbGenericErrToPsStatus(err, s.logger)
-	}
-	return bucketAgent, nil
 }
 
 func (s *KvServer) parseContent(
@@ -85,12 +75,13 @@ func (s *KvServer) encodeContent(
 }
 
 func (s *KvServer) Get(ctx context.Context, in *kv_v1.GetRequest) (*kv_v1.GetResponse, error) {
-	bucketAgent, errSt := s.getBucketAgent(ctx, in.BucketName)
+	bucketAgent, oboUser, errSt := s.authHandler.GetOboUserBucketAgent(ctx, in.BucketName)
 	if errSt != nil {
 		return nil, errSt.Err()
 	}
 
 	var opts gocbcorex.LookupInOptions
+	opts.OnBehalfOf = oboUser
 	opts.ScopeName = in.ScopeName
 	opts.CollectionName = in.CollectionName
 	opts.Key = []byte(in.Key)
@@ -149,12 +140,13 @@ func (s *KvServer) Get(ctx context.Context, in *kv_v1.GetRequest) (*kv_v1.GetRes
 }
 
 func (s *KvServer) GetAndTouch(ctx context.Context, in *kv_v1.GetAndTouchRequest) (*kv_v1.GetAndTouchResponse, error) {
-	bucketAgent, errSt := s.getBucketAgent(ctx, in.BucketName)
+	bucketAgent, oboUser, errSt := s.authHandler.GetOboUserBucketAgent(ctx, in.BucketName)
 	if errSt != nil {
 		return nil, errSt.Err()
 	}
 
 	var opts gocbcorex.GetAndTouchOptions
+	opts.OnBehalfOf = oboUser
 	opts.ScopeName = in.ScopeName
 	opts.CollectionName = in.CollectionName
 	opts.Key = []byte(in.Key)
@@ -191,12 +183,13 @@ func (s *KvServer) GetAndTouch(ctx context.Context, in *kv_v1.GetAndTouchRequest
 }
 
 func (s *KvServer) GetAndLock(ctx context.Context, in *kv_v1.GetAndLockRequest) (*kv_v1.GetAndLockResponse, error) {
-	bucketAgent, errSt := s.getBucketAgent(ctx, in.BucketName)
+	bucketAgent, oboUser, errSt := s.authHandler.GetOboUserBucketAgent(ctx, in.BucketName)
 	if errSt != nil {
 		return nil, errSt.Err()
 	}
 
 	var opts gocbcorex.GetAndLockOptions
+	opts.OnBehalfOf = oboUser
 	opts.ScopeName = in.ScopeName
 	opts.CollectionName = in.CollectionName
 	opts.Key = []byte(in.Key)
@@ -225,7 +218,7 @@ func (s *KvServer) GetAndLock(ctx context.Context, in *kv_v1.GetAndLockRequest) 
 }
 
 func (s *KvServer) Insert(ctx context.Context, in *kv_v1.InsertRequest) (*kv_v1.InsertResponse, error) {
-	bucketAgent, errSt := s.getBucketAgent(ctx, in.BucketName)
+	bucketAgent, oboUser, errSt := s.authHandler.GetOboUserBucketAgent(ctx, in.BucketName)
 	if errSt != nil {
 		return nil, errSt.Err()
 	}
@@ -236,6 +229,7 @@ func (s *KvServer) Insert(ctx context.Context, in *kv_v1.InsertRequest) (*kv_v1.
 	}
 
 	var opts gocbcorex.AddOptions
+	opts.OnBehalfOf = oboUser
 	opts.ScopeName = in.ScopeName
 	opts.CollectionName = in.CollectionName
 	opts.Key = []byte(in.Key)
@@ -277,12 +271,13 @@ func (s *KvServer) Insert(ctx context.Context, in *kv_v1.InsertRequest) (*kv_v1.
 }
 
 func (s *KvServer) Exists(ctx context.Context, in *kv_v1.ExistsRequest) (*kv_v1.ExistsResponse, error) {
-	bucketAgent, errSt := s.getBucketAgent(ctx, in.BucketName)
+	bucketAgent, oboUser, errSt := s.authHandler.GetOboUserBucketAgent(ctx, in.BucketName)
 	if errSt != nil {
 		return nil, errSt.Err()
 	}
 
 	var opts gocbcorex.GetMetaOptions
+	opts.OnBehalfOf = oboUser
 	opts.ScopeName = in.ScopeName
 	opts.CollectionName = in.CollectionName
 	opts.Key = []byte(in.Key)
@@ -312,7 +307,7 @@ func (s *KvServer) Exists(ctx context.Context, in *kv_v1.ExistsRequest) (*kv_v1.
 }
 
 func (s *KvServer) Upsert(ctx context.Context, in *kv_v1.UpsertRequest) (*kv_v1.UpsertResponse, error) {
-	bucketAgent, errSt := s.getBucketAgent(ctx, in.BucketName)
+	bucketAgent, oboUser, errSt := s.authHandler.GetOboUserBucketAgent(ctx, in.BucketName)
 	if errSt != nil {
 		return nil, errSt.Err()
 	}
@@ -323,6 +318,7 @@ func (s *KvServer) Upsert(ctx context.Context, in *kv_v1.UpsertRequest) (*kv_v1.
 	}
 
 	var opts gocbcorex.UpsertOptions
+	opts.OnBehalfOf = oboUser
 	opts.ScopeName = in.ScopeName
 	opts.CollectionName = in.CollectionName
 	opts.Key = []byte(in.Key)
@@ -366,7 +362,7 @@ func (s *KvServer) Upsert(ctx context.Context, in *kv_v1.UpsertRequest) (*kv_v1.
 }
 
 func (s *KvServer) Replace(ctx context.Context, in *kv_v1.ReplaceRequest) (*kv_v1.ReplaceResponse, error) {
-	bucketAgent, errSt := s.getBucketAgent(ctx, in.BucketName)
+	bucketAgent, oboUser, errSt := s.authHandler.GetOboUserBucketAgent(ctx, in.BucketName)
 	if errSt != nil {
 		return nil, errSt.Err()
 	}
@@ -377,6 +373,7 @@ func (s *KvServer) Replace(ctx context.Context, in *kv_v1.ReplaceRequest) (*kv_v
 	}
 
 	var opts gocbcorex.ReplaceOptions
+	opts.OnBehalfOf = oboUser
 	opts.ScopeName = in.ScopeName
 	opts.CollectionName = in.CollectionName
 	opts.Key = []byte(in.Key)
@@ -428,12 +425,13 @@ func (s *KvServer) Replace(ctx context.Context, in *kv_v1.ReplaceRequest) (*kv_v
 }
 
 func (s *KvServer) Remove(ctx context.Context, in *kv_v1.RemoveRequest) (*kv_v1.RemoveResponse, error) {
-	bucketAgent, errSt := s.getBucketAgent(ctx, in.BucketName)
+	bucketAgent, oboUser, errSt := s.authHandler.GetOboUserBucketAgent(ctx, in.BucketName)
 	if errSt != nil {
 		return nil, errSt.Err()
 	}
 
 	var opts gocbcorex.DeleteOptions
+	opts.OnBehalfOf = oboUser
 	opts.ScopeName = in.ScopeName
 	opts.CollectionName = in.CollectionName
 	opts.Key = []byte(in.Key)
@@ -471,12 +469,13 @@ func (s *KvServer) Remove(ctx context.Context, in *kv_v1.RemoveRequest) (*kv_v1.
 }
 
 func (s *KvServer) Increment(ctx context.Context, in *kv_v1.IncrementRequest) (*kv_v1.IncrementResponse, error) {
-	bucketAgent, errSt := s.getBucketAgent(ctx, in.BucketName)
+	bucketAgent, oboUser, errSt := s.authHandler.GetOboUserBucketAgent(ctx, in.BucketName)
 	if errSt != nil {
 		return nil, errSt.Err()
 	}
 
 	var opts gocbcorex.IncrementOptions
+	opts.OnBehalfOf = oboUser
 	opts.ScopeName = in.ScopeName
 	opts.CollectionName = in.CollectionName
 	opts.Key = []byte(in.Key)
@@ -526,12 +525,13 @@ func (s *KvServer) Increment(ctx context.Context, in *kv_v1.IncrementRequest) (*
 }
 
 func (s *KvServer) Decrement(ctx context.Context, in *kv_v1.DecrementRequest) (*kv_v1.DecrementResponse, error) {
-	bucketAgent, errSt := s.getBucketAgent(ctx, in.BucketName)
+	bucketAgent, oboUser, errSt := s.authHandler.GetOboUserBucketAgent(ctx, in.BucketName)
 	if errSt != nil {
 		return nil, errSt.Err()
 	}
 
 	var opts gocbcorex.DecrementOptions
+	opts.OnBehalfOf = oboUser
 	opts.ScopeName = in.ScopeName
 	opts.CollectionName = in.CollectionName
 	opts.Key = []byte(in.Key)
@@ -579,12 +579,13 @@ func (s *KvServer) Decrement(ctx context.Context, in *kv_v1.DecrementRequest) (*
 }
 
 func (s *KvServer) Append(ctx context.Context, in *kv_v1.AppendRequest) (*kv_v1.AppendResponse, error) {
-	bucketAgent, errSt := s.getBucketAgent(ctx, in.BucketName)
+	bucketAgent, oboUser, errSt := s.authHandler.GetOboUserBucketAgent(ctx, in.BucketName)
 	if errSt != nil {
 		return nil, errSt.Err()
 	}
 
 	var opts gocbcorex.AppendOptions
+	opts.OnBehalfOf = oboUser
 	opts.ScopeName = in.ScopeName
 	opts.CollectionName = in.CollectionName
 	opts.Key = []byte(in.Key)
@@ -623,12 +624,13 @@ func (s *KvServer) Append(ctx context.Context, in *kv_v1.AppendRequest) (*kv_v1.
 }
 
 func (s *KvServer) Prepend(ctx context.Context, in *kv_v1.PrependRequest) (*kv_v1.PrependResponse, error) {
-	bucketAgent, errSt := s.getBucketAgent(ctx, in.BucketName)
+	bucketAgent, oboUser, errSt := s.authHandler.GetOboUserBucketAgent(ctx, in.BucketName)
 	if errSt != nil {
 		return nil, errSt.Err()
 	}
 
 	var opts gocbcorex.PrependOptions
+	opts.OnBehalfOf = oboUser
 	opts.ScopeName = in.ScopeName
 	opts.CollectionName = in.CollectionName
 	opts.Key = []byte(in.Key)
@@ -667,12 +669,13 @@ func (s *KvServer) Prepend(ctx context.Context, in *kv_v1.PrependRequest) (*kv_v
 }
 
 func (s *KvServer) LookupIn(ctx context.Context, in *kv_v1.LookupInRequest) (*kv_v1.LookupInResponse, error) {
-	bucketAgent, errSt := s.getBucketAgent(ctx, in.BucketName)
+	bucketAgent, oboUser, errSt := s.authHandler.GetOboUserBucketAgent(ctx, in.BucketName)
 	if errSt != nil {
 		return nil, errSt.Err()
 	}
 
 	var opts gocbcorex.LookupInOptions
+	opts.OnBehalfOf = oboUser
 	opts.ScopeName = in.ScopeName
 	opts.CollectionName = in.CollectionName
 	opts.Key = []byte(in.Key)
@@ -750,12 +753,13 @@ func (s *KvServer) LookupIn(ctx context.Context, in *kv_v1.LookupInRequest) (*kv
 }
 
 func (s *KvServer) MutateIn(ctx context.Context, in *kv_v1.MutateInRequest) (*kv_v1.MutateInResponse, error) {
-	bucketAgent, errSt := s.getBucketAgent(ctx, in.BucketName)
+	bucketAgent, oboUser, errSt := s.authHandler.GetOboUserBucketAgent(ctx, in.BucketName)
 	if errSt != nil {
 		return nil, errSt.Err()
 	}
 
 	var opts gocbcorex.MutateInOptions
+	opts.OnBehalfOf = oboUser
 	opts.ScopeName = in.ScopeName
 	opts.CollectionName = in.CollectionName
 	opts.Key = []byte(in.Key)

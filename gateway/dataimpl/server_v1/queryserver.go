@@ -14,22 +14,28 @@ import (
 type QueryServer struct {
 	query_v1.UnimplementedQueryServiceServer
 
-	logger   *zap.Logger
-	cbClient *gocbcorex.AgentManager
+	logger      *zap.Logger
+	authHandler *AuthHandler
 }
 
 func NewQueryServer(
 	logger *zap.Logger,
-	cbClient *gocbcorex.AgentManager,
+	authHandler *AuthHandler,
 ) *QueryServer {
 	return &QueryServer{
-		logger:   logger,
-		cbClient: cbClient,
+		logger:      logger,
+		authHandler: authHandler,
 	}
 }
 
 func (s *QueryServer) Query(in *query_v1.QueryRequest, out query_v1.QueryService_QueryServer) error {
+	agent, oboUser, errSt := s.authHandler.GetOboUserAgent(out.Context(), in.BucketName)
+	if errSt != nil {
+		return errSt.Err()
+	}
+
 	var opts gocbcorex.QueryOptions
+	opts.OnBehalfOf = oboUser
 
 	opts.Statement = in.Statement
 
@@ -118,8 +124,6 @@ func (s *QueryServer) Query(in *query_v1.QueryRequest, out query_v1.QueryService
 			return status.Errorf(codes.InvalidArgument, "invalid profile mode option specified")
 		}
 	}
-
-	agent := s.cbClient.GetClusterAgent()
 
 	var result gocbcorex.QueryResultStream
 	var err error

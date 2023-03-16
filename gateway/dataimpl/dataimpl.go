@@ -2,6 +2,7 @@ package dataimpl
 
 import (
 	"github.com/couchbase/gocbcorex"
+	"github.com/couchbase/stellar-gateway/gateway/auth"
 	"github.com/couchbase/stellar-gateway/gateway/dataimpl/server_v1"
 	"github.com/couchbase/stellar-gateway/gateway/topology"
 	"go.uber.org/zap"
@@ -12,6 +13,7 @@ type NewOptions struct {
 
 	TopologyProvider topology.Provider
 	CbClient         *gocbcorex.AgentManager
+	Authenticator    auth.Authenticator
 }
 
 type Servers struct {
@@ -25,34 +27,40 @@ type Servers struct {
 }
 
 func New(opts *NewOptions) *Servers {
+	v1AuthHandler := &server_v1.AuthHandler{
+		Logger:        opts.Logger.Named("auth"),
+		Authenticator: opts.Authenticator,
+		CbClient:      opts.CbClient,
+	}
+
 	return &Servers{
 		KvV1Server: server_v1.NewKvServer(
 			opts.Logger.Named("kv"),
-			opts.CbClient,
+			v1AuthHandler,
 		),
 		QueryV1Server: server_v1.NewQueryServer(
 			opts.Logger.Named("query"),
-			opts.CbClient,
+			v1AuthHandler,
 		),
 		SearchV1Server: server_v1.NewSearchServer(
 			opts.Logger.Named("search"),
-			opts.CbClient,
+			v1AuthHandler,
 		),
 		AnalyticsV1Server: server_v1.NewAnalyticsServer(
 			opts.Logger.Named("analytics"),
-			opts.CbClient,
+			v1AuthHandler,
 		),
 		AdminBucketV1Server: server_v1.NewBucketAdminServer(
 			opts.Logger.Named("adminbucket"),
-			opts.CbClient,
+			v1AuthHandler,
 		),
 		AdminCollectionV1Server: server_v1.NewCollectionAdminServer(
 			opts.Logger.Named("admincollection"),
-			opts.CbClient,
+			v1AuthHandler,
 		),
 		TransactionsV1Server: server_v1.NewTransactionsServer(
 			opts.Logger.Named("transactions"),
-			opts.CbClient,
+			v1AuthHandler,
 		),
 	}
 }
