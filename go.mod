@@ -9,6 +9,7 @@ require (
 	github.com/couchbase/gocbcore/v10 v10.2.0
 	github.com/couchbase/gocbcorex v0.0.0-20230221114919-ef6a7a7da721
 	github.com/couchbase/goprotostellar v0.0.0
+	github.com/couchbaselabs/gocbconnstr v1.0.5
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/mux v1.8.0
 	github.com/pkg/errors v0.9.1
@@ -32,7 +33,6 @@ require (
 	github.com/couchbase/go-couchbase v0.1.1 // indirect
 	github.com/couchbase/gomemcached v0.2.1 // indirect
 	github.com/couchbase/goutils v0.1.2 // indirect
-	github.com/couchbaselabs/gocbconnstr v1.0.5 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect

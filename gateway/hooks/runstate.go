@@ -256,7 +256,7 @@ func (s *runState) runAction_Counter(
 	req interface{},
 	action *internal_hooks_v1.HookAction_Counter,
 ) (interface{}, error) {
-	s.Logger.Info("hook incrementing counter", zap.Any("action",action))
+	s.Logger.Info("hook incrementing counter", zap.Any("action", action))
 
 	counter := s.HooksContext.getCounterLocked(action.CounterId)
 	counter.Update(action.Delta)

@@ -22,7 +22,7 @@ func newHooksContext(logger *zap.Logger) *HooksContext {
 		counters: make(map[string]*Counter),
 		barriers: make(map[string]*Barrier),
 		hooks:    make(map[string]*internal_hooks_v1.Hook),
-		logger: logger,
+		logger:   logger,
 	}
 }
 

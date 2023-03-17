@@ -29,7 +29,7 @@ func makeGrpcUnaryInterceptor(manager *HooksManager, log *zap.Logger) grpc.Unary
 			return handler(ctx, req)
 		}
 
-		log.Info("calling registered hooks context", zap.String("hooks-id", hooksID), zap.Any("info",info), zap.Any("req", req))
+		log.Info("calling registered hooks context", zap.String("hooks-id", hooksID), zap.Any("info", info), zap.Any("req", req))
 		return hooksContext.HandleUnaryCall(ctx, req, info, handler)
 	}
 }

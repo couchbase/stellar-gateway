@@ -11,7 +11,7 @@ import (
 type EtcdProviderOptions struct {
 	EtcdClient *clientv3.Client
 	KeyPrefix  string
-	Logger *zap.Logger
+	Logger     *zap.Logger
 }
 
 type EtcdProvider struct {
@@ -31,7 +31,7 @@ func NewEtcdProvider(opts EtcdProviderOptions) (*EtcdProvider, error) {
 	}
 
 	return &EtcdProvider{
-		ml: ml,
+		ml:     ml,
 		logger: opts.Logger,
 	}, nil
 }
