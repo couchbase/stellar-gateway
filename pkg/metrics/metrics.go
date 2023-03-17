@@ -13,7 +13,7 @@ type SnMetrics struct {
 }
 
 var (
-	snMetrics *SnMetrics
+	snMetrics     *SnMetrics
 	snMetricsLock sync.Mutex
 )
 
@@ -35,13 +35,13 @@ func newSnMetrics() *SnMetrics {
 	return &SnMetrics{
 		NewConnections: promauto.NewCounter(prometheus.CounterOpts{
 			Namespace: "sn",
-			Name: "grpc_new_connections",
-			Help: "The number of new gRPC connections that have been accepted.",
+			Name:      "grpc_new_connections",
+			Help:      "The number of new gRPC connections that have been accepted.",
 		}),
 		ActiveConnections: promauto.NewGauge(prometheus.GaugeOpts{
 			Namespace: "sn",
-			Name: "grpc_active_connections",
-			Help: "The number of active grpc connections.",
+			Name:      "grpc_active_connections",
+			Help:      "The number of active grpc connections.",
 		}),
 	}
 }

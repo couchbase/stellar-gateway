@@ -25,13 +25,17 @@ all: lint test build container
 test:
 	go test ./...
 
+fmt:
+	go install golang.org/x/tools/cmd/goimports@latest
+	goimports -w .
+	find . -name go.mod -execdir go mod tidy \;
+
 lint:
 	go vet
 	go install github.com/golangci/golangci-lint/cmd/golangci-lint@$(GOLINT_VERSION)
 	$(GOBIN)/golangci-lint run
 
-
-check: generate lint test
+check: generate fmt lint test
 
 $(GOBIN)/protoc-gen-go-grpc:
 	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2
@@ -63,4 +67,4 @@ dist: image-artifacts
 container: build
 	docker build -f Dockerfile -t ${DOCKER_USER}/stellar-gateway:${DOCKER_TAG} .
 
-.PHONY: all test lint check generate build
+.PHONY: all test fmt lint check generate build

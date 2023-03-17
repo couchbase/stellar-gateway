@@ -27,7 +27,7 @@ func (m *Membership) Leave(ctx context.Context) error {
 
 type Manager struct {
 	Provider goclustering.Provider
-	Logger *zap.Logger
+	Logger   *zap.Logger
 }
 
 var _ Provider = (*Manager)(nil)

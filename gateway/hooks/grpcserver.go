@@ -11,7 +11,7 @@ import (
 
 type grpcHooksServer struct {
 	internal_hooks_v1.UnimplementedHooksServiceServer
-	logger *zap.Logger
+	logger  *zap.Logger
 	manager *HooksManager
 }
 
