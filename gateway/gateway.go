@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/couchbase/cbauth"
@@ -320,8 +321,28 @@ func Run(ctx context.Context, config *Config) error {
 	for restarts := 0; ; restarts++ {
 		startTime := time.Now()
 
-		err := gatewayStartup(ctx, config)
-		if err != nil {
+		connect := func() error {
+			hostname := fmt.Sprintf("http://%s:8091", config.CbConnStr)
+
+			config.Logger.Info(fmt.Sprintf("polling couchbase server: %s", hostname))
+
+			res, err := http.Get(hostname)
+			if err != nil {
+				config.Logger.Warn(fmt.Sprintf("couchbase server unreachable: %s", hostname), zap.Error(err))
+				return err
+			}
+
+			if res.StatusCode != 200 {
+				err := fmt.Errorf("expected 200 found %d", res.StatusCode)
+				config.Logger.Warn(fmt.Sprintf("couchbase server unreachable: %s", hostname), zap.Error(err))
+				return err
+			}
+
+			return gatewayStartup(ctx, config)
+		}
+
+		if err := connect(); err != nil {
+
 			if !config.Daemon {
 				return err
 			}
