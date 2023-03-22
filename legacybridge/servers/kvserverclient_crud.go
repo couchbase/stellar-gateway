@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"time"
 
-	"github.com/couchbase/gocbcore/v10"
 	"github.com/couchbase/gocbcore/v10/memd"
 	"github.com/couchbase/goprotostellar/genproto/kv_v1"
 	"go.uber.org/zap"
@@ -39,17 +38,6 @@ func (c *KvServerClient) durabilityLevelToPs(dl memd.DurabilityLevel) (kv_v1.Dur
 	}
 
 	return 0, memd.StatusDurabilityInvalidLevel
-}
-
-func (c *KvServerClient) flagsToPsContentType(flags uint32) kv_v1.DocumentContentType {
-	switch gocbcore.DataType(flags) {
-	case gocbcore.BinaryType:
-		return kv_v1.DocumentContentType_DOCUMENT_CONTENT_TYPE_BINARY
-	case gocbcore.JSONType:
-		return kv_v1.DocumentContentType_DOCUMENT_CONTENT_TYPE_JSON
-	default:
-		return kv_v1.DocumentContentType_DOCUMENT_CONTENT_TYPE_UNKNOWN
-	}
 }
 
 func (c *KvServerClient) sendGrpcError(pak *memd.Packet, err error) {
@@ -109,7 +97,7 @@ func (c *KvServerClient) handleCmdSetReq(pak *memd.Packet) {
 	}
 	if len(pak.Extras) >= 4 {
 		flags := binary.BigEndian.Uint32(pak.Extras[0:])
-		req.ContentType = c.flagsToPsContentType(flags)
+		req.ContentFlags = flags
 
 		if len(pak.Extras) >= 8 {
 			expiry := binary.BigEndian.Uint32(pak.Extras[4:])
