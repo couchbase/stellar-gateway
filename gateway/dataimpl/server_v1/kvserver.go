@@ -6,7 +6,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/couchbase/gocbcore/v10"
 	"github.com/couchbase/gocbcorex"
 	"github.com/couchbase/gocbcorex/memdx"
 	"github.com/couchbase/goprotostellar/genproto/kv_v1"
@@ -30,48 +29,6 @@ func NewKvServer(
 		logger:      logger,
 		authHandler: authHandler,
 	}
-}
-
-func (s *KvServer) parseContent(
-	bytes []byte, flags uint32,
-) ([]byte, kv_v1.DocumentContentType, *status.Status) {
-	valueType, compression := gocbcore.DecodeCommonFlags(flags)
-
-	// Make sure compression is disabled
-	if compression != gocbcore.NoCompression {
-		return nil, 0, status.New(
-			codes.Internal,
-			"An unexpected compression was specified by the document.")
-	}
-
-	if valueType == gocbcore.BinaryType {
-		return bytes, kv_v1.DocumentContentType_DOCUMENT_CONTENT_TYPE_BINARY, nil
-	} else if valueType == gocbcore.StringType {
-		// we don't support string data types in this case and instead just
-		// handle them as raw binary data instead...
-		// TODO(brett19): Decide how to handle string transcoding better.
-		return bytes, kv_v1.DocumentContentType_DOCUMENT_CONTENT_TYPE_BINARY, nil
-	} else if valueType == gocbcore.JSONType {
-		return bytes, kv_v1.DocumentContentType_DOCUMENT_CONTENT_TYPE_JSON, nil
-	}
-
-	return nil, 0, status.New(
-		codes.Internal,
-		"An unexpected value type was specified by the document.")
-}
-
-func (s *KvServer) encodeContent(
-	contentBytes []byte, contentType kv_v1.DocumentContentType,
-) ([]byte, uint32, *status.Status) {
-	if contentType == kv_v1.DocumentContentType_DOCUMENT_CONTENT_TYPE_BINARY {
-		return contentBytes, gocbcore.EncodeCommonFlags(gocbcore.BinaryType, gocbcore.NoCompression), nil
-	} else if contentType == kv_v1.DocumentContentType_DOCUMENT_CONTENT_TYPE_JSON {
-		return contentBytes, gocbcore.EncodeCommonFlags(gocbcore.JSONType, gocbcore.NoCompression), nil
-	}
-
-	return nil, 0, status.New(
-		codes.InvalidArgument,
-		"An unexpected content type was specified in the request.")
 }
 
 func (s *KvServer) Get(ctx context.Context, in *kv_v1.GetRequest) (*kv_v1.GetResponse, error) {
@@ -126,16 +83,11 @@ func (s *KvServer) Get(ctx context.Context, in *kv_v1.GetRequest) (*kv_v1.GetRes
 	expiryTime := time.Unix(expiryTimeSecs, 0)
 	docValue := result.Ops[2].Value
 
-	contentBytes, contentType, errSt := s.parseContent(docValue, uint32(flags))
-	if errSt != nil {
-		return nil, errSt.Err()
-	}
-
 	return &kv_v1.GetResponse{
-		Content:     contentBytes,
-		ContentType: contentType,
-		Cas:         result.Cas,
-		Expiry:      timeFromGo(expiryTime),
+		Content:      docValue,
+		ContentFlags: uint32(flags),
+		Cas:          result.Cas,
+		Expiry:       timeFromGo(expiryTime),
 	}, nil
 }
 
@@ -170,15 +122,10 @@ func (s *KvServer) GetAndTouch(ctx context.Context, in *kv_v1.GetAndTouchRequest
 		return nil, cbGenericErrToPsStatus(err, s.logger).Err()
 	}
 
-	contentBytes, contentType, errSt := s.parseContent(result.Value, result.Flags)
-	if errSt != nil {
-		return nil, errSt.Err()
-	}
-
 	return &kv_v1.GetAndTouchResponse{
-		Content:     contentBytes,
-		ContentType: contentType,
-		Cas:         result.Cas,
+		Content:      result.Value,
+		ContentFlags: result.Flags,
+		Cas:          result.Cas,
 	}, nil
 }
 
@@ -205,15 +152,10 @@ func (s *KvServer) GetAndLock(ctx context.Context, in *kv_v1.GetAndLockRequest) 
 		return nil, cbGenericErrToPsStatus(err, s.logger).Err()
 	}
 
-	contentBytes, contentType, errSt := s.parseContent(result.Value, result.Flags)
-	if errSt != nil {
-		return nil, errSt.Err()
-	}
-
 	return &kv_v1.GetAndLockResponse{
-		Content:     contentBytes,
-		ContentType: contentType,
-		Cas:         result.Cas,
+		Content:      result.Value,
+		ContentFlags: result.Flags,
+		Cas:          result.Cas,
 	}, nil
 }
 
@@ -223,18 +165,13 @@ func (s *KvServer) Insert(ctx context.Context, in *kv_v1.InsertRequest) (*kv_v1.
 		return nil, errSt.Err()
 	}
 
-	bytes, flags, errSt := s.encodeContent(in.Content, in.ContentType)
-	if errSt != nil {
-		return nil, errSt.Err()
-	}
-
 	var opts gocbcorex.AddOptions
 	opts.OnBehalfOf = oboUser
 	opts.ScopeName = in.ScopeName
 	opts.CollectionName = in.CollectionName
 	opts.Key = []byte(in.Key)
-	opts.Value = bytes
-	opts.Flags = flags
+	opts.Value = in.Content
+	opts.Flags = in.ContentFlags
 
 	if in.Expiry != nil {
 		if expirySpec, ok := in.Expiry.(*kv_v1.InsertRequest_ExpiryTime); ok {
@@ -312,18 +249,13 @@ func (s *KvServer) Upsert(ctx context.Context, in *kv_v1.UpsertRequest) (*kv_v1.
 		return nil, errSt.Err()
 	}
 
-	bytes, flags, errSt := s.encodeContent(in.Content, in.ContentType)
-	if errSt != nil {
-		return nil, errSt.Err()
-	}
-
 	var opts gocbcorex.UpsertOptions
 	opts.OnBehalfOf = oboUser
 	opts.ScopeName = in.ScopeName
 	opts.CollectionName = in.CollectionName
 	opts.Key = []byte(in.Key)
-	opts.Value = bytes
-	opts.Flags = flags
+	opts.Value = in.Content
+	opts.Flags = in.ContentFlags
 
 	if in.Expiry == nil {
 		opts.PreserveExpiry = true
@@ -367,18 +299,13 @@ func (s *KvServer) Replace(ctx context.Context, in *kv_v1.ReplaceRequest) (*kv_v
 		return nil, errSt.Err()
 	}
 
-	bytes, flags, errSt := s.encodeContent(in.Content, in.ContentType)
-	if errSt != nil {
-		return nil, errSt.Err()
-	}
-
 	var opts gocbcorex.ReplaceOptions
 	opts.OnBehalfOf = oboUser
 	opts.ScopeName = in.ScopeName
 	opts.CollectionName = in.CollectionName
 	opts.Key = []byte(in.Key)
-	opts.Value = bytes
-	opts.Flags = flags
+	opts.Value = in.Content
+	opts.Flags = in.ContentFlags
 
 	if in.Cas != nil {
 		opts.Cas = *in.Cas

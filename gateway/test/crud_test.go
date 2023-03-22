@@ -142,6 +142,7 @@ func (s *GatewayOpsTestSuite) TearDownSuite() {
 }
 
 var TEST_CONTENT = []byte(`{"foo": "bar"}`)
+var TEST_CONTENT_FLAGS = uint32(0x01000000)
 
 type createDocumentOptions struct {
 	BucketName     string
@@ -149,6 +150,7 @@ type createDocumentOptions struct {
 	CollectionName string
 	DocId          string
 	Content        []byte
+	ContentFlags   uint32
 }
 
 func (s *GatewayOpsTestSuite) createDocument(t *testing.T, opts createDocumentOptions) {
@@ -159,8 +161,8 @@ func (s *GatewayOpsTestSuite) createDocument(t *testing.T, opts createDocumentOp
 		ScopeName:      opts.ScopeName,
 		CollectionName: opts.CollectionName,
 		Key:            opts.DocId,
-		ContentType:    kv_v1.DocumentContentType_DOCUMENT_CONTENT_TYPE_JSON,
-		Content:        TEST_CONTENT,
+		Content:        opts.Content,
+		ContentFlags:   opts.ContentFlags,
 	}, grpc.PerRPCCredentials(s.basicRpcCreds))
 	assertRpcSuccess(s.T(), upsertResp, err)
 	assertValidCas(s.T(), upsertResp.Cas)
@@ -182,31 +184,12 @@ type checkDocumentOptions struct {
 	CollectionName string
 	DocId          string
 	Content        []byte
+	ContentFlags   uint32
 
-	contentType     *kv_v1.DocumentContentType
-	compressionType *kv_v1.DocumentCompressionType
-	expiry          expiryCheckType
+	expiry expiryCheckType
 }
 
 func (o checkDocumentOptions) ApplyMissingDefaults() checkDocumentOptions {
-	if o.contentType == nil {
-		defaultContentType := kv_v1.DocumentContentType_DOCUMENT_CONTENT_TYPE_JSON
-		o.contentType = &defaultContentType
-	}
-	if o.compressionType == nil {
-		defaultCompressionType := kv_v1.DocumentCompressionType_DOCUMENT_COMPRESSION_TYPE_NONE
-		o.compressionType = &defaultCompressionType
-	}
-	return o
-}
-
-func (o checkDocumentOptions) ExpectContentType(contentType kv_v1.DocumentContentType) checkDocumentOptions {
-	o.contentType = &contentType
-	return o
-}
-
-func (o checkDocumentOptions) ExpectCompressionType(compressionType kv_v1.DocumentCompressionType) checkDocumentOptions {
-	o.compressionType = &compressionType
 	return o
 }
 
@@ -248,8 +231,8 @@ func (s *GatewayOpsTestSuite) checkDocument(t *testing.T, opts checkDocumentOpti
 	assertValidCas(s.T(), getResp.Cas)
 
 	assert.Equal(s.T(), getResp.Content, opts.Content)
-	assert.Equal(s.T(), getResp.ContentType, *opts.contentType)
-	assert.Equal(s.T(), getResp.CompressionType, *opts.compressionType)
+	assert.Equal(s.T(), getResp.ContentFlags, opts.ContentFlags)
+
 	switch opts.expiry {
 	case expiryCheckType_None:
 		assert.Nil(s.T(), getResp.Expiry)
@@ -280,6 +263,7 @@ func (s *GatewayOpsTestSuite) TestHelpers() {
 		CollectionName: s.collectionName,
 		DocId:          testDocId,
 		Content:        TEST_CONTENT,
+		ContentFlags:   TEST_CONTENT_FLAGS,
 	})
 
 	s.checkDocument(s.T(), checkDocumentOptions{
@@ -288,6 +272,7 @@ func (s *GatewayOpsTestSuite) TestHelpers() {
 		CollectionName: s.collectionName,
 		DocId:          testDocId,
 		Content:        TEST_CONTENT,
+		ContentFlags:   TEST_CONTENT_FLAGS,
 	})
 }
 
@@ -302,6 +287,7 @@ func (s *GatewayOpsTestSuite) TestGet() {
 		CollectionName: s.collectionName,
 		DocId:          testDocId,
 		Content:        TEST_CONTENT,
+		ContentFlags:   TEST_CONTENT_FLAGS,
 	})
 
 	getResp, err := kvClient.Get(context.Background(), &kv_v1.GetRequest{
@@ -312,9 +298,8 @@ func (s *GatewayOpsTestSuite) TestGet() {
 	}, grpc.PerRPCCredentials(s.basicRpcCreds))
 	assertRpcSuccess(s.T(), getResp, err)
 	assertValidCas(s.T(), getResp.Cas)
-	assert.Equal(s.T(), getResp.CompressionType, kv_v1.DocumentCompressionType_DOCUMENT_COMPRESSION_TYPE_NONE)
 	assert.Equal(s.T(), getResp.Content, TEST_CONTENT)
-	assert.Equal(s.T(), getResp.ContentType, kv_v1.DocumentContentType_DOCUMENT_CONTENT_TYPE_JSON)
+	assert.Equal(s.T(), getResp.ContentFlags, TEST_CONTENT_FLAGS)
 	assert.Nil(s.T(), getResp.Expiry)
 
 	// Test doing a Get with no credentials
@@ -362,8 +347,8 @@ func (s *GatewayOpsTestSuite) TestInsert() {
 		ScopeName:      s.scopeName,
 		CollectionName: s.collectionName,
 		Key:            testDocId,
-		ContentType:    kv_v1.DocumentContentType_DOCUMENT_CONTENT_TYPE_JSON,
 		Content:        TEST_CONTENT,
+		ContentFlags:   TEST_CONTENT_FLAGS,
 	}, grpc.PerRPCCredentials(s.basicRpcCreds))
 	assertRpcStatus(s.T(), err, codes.OK)
 	assertValidCas(s.T(), insertResp.Cas)
@@ -375,6 +360,7 @@ func (s *GatewayOpsTestSuite) TestInsert() {
 		CollectionName: s.collectionName,
 		DocId:          testDocId,
 		Content:        TEST_CONTENT,
+		ContentFlags:   TEST_CONTENT_FLAGS,
 	})
 
 	// Test doing an insert where the document already exists
@@ -383,8 +369,8 @@ func (s *GatewayOpsTestSuite) TestInsert() {
 		ScopeName:      s.scopeName,
 		CollectionName: s.collectionName,
 		Key:            testDocId,
-		ContentType:    kv_v1.DocumentContentType_DOCUMENT_CONTENT_TYPE_JSON,
 		Content:        TEST_CONTENT,
+		ContentFlags:   TEST_CONTENT_FLAGS,
 	}, grpc.PerRPCCredentials(s.basicRpcCreds))
 	assertRpcStatus(s.T(), err, codes.AlreadyExists)
 	assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
@@ -446,8 +432,8 @@ func (s *GatewayOpsTestSuite) TestUpsert() {
 		ScopeName:      s.scopeName,
 		CollectionName: s.collectionName,
 		Key:            testDocId,
-		ContentType:    kv_v1.DocumentContentType_DOCUMENT_CONTENT_TYPE_JSON,
 		Content:        TEST_CONTENT,
+		ContentFlags:   TEST_CONTENT_FLAGS,
 	}, grpc.PerRPCCredentials(s.basicRpcCreds))
 	assertRpcSuccess(s.T(), upsertResp, err)
 	assertValidCas(s.T(), upsertResp.Cas)
@@ -459,6 +445,7 @@ func (s *GatewayOpsTestSuite) TestUpsert() {
 		CollectionName: s.collectionName,
 		DocId:          testDocId,
 		Content:        TEST_CONTENT,
+		ContentFlags:   TEST_CONTENT_FLAGS,
 	})
 }
 
@@ -475,6 +462,7 @@ func (s *GatewayOpsTestSuite) TestReplace() {
 		CollectionName: s.collectionName,
 		DocId:          testDocId,
 		Content:        testContent,
+		ContentFlags:   TEST_CONTENT_FLAGS,
 	})
 
 	// Test doing a replace without a cas
@@ -484,7 +472,7 @@ func (s *GatewayOpsTestSuite) TestReplace() {
 		CollectionName:  s.collectionName,
 		Key:             testDocId,
 		Content:         testContentRep,
-		ContentType:     kv_v1.DocumentContentType_DOCUMENT_CONTENT_TYPE_JSON,
+		ContentFlags:    TEST_CONTENT_FLAGS,
 		Cas:             nil,
 		Expiry:          nil,
 		DurabilityLevel: nil,
@@ -499,6 +487,7 @@ func (s *GatewayOpsTestSuite) TestReplace() {
 		CollectionName: s.collectionName,
 		DocId:          testDocId,
 		Content:        testContentRep,
+		ContentFlags:   TEST_CONTENT_FLAGS,
 	})
 
 	// Test doing a replace when the document is missing
@@ -509,7 +498,7 @@ func (s *GatewayOpsTestSuite) TestReplace() {
 		CollectionName:  s.collectionName,
 		Key:             missingDocId,
 		Content:         TEST_CONTENT,
-		ContentType:     kv_v1.DocumentContentType_DOCUMENT_CONTENT_TYPE_JSON,
+		ContentFlags:    TEST_CONTENT_FLAGS,
 		Cas:             nil,
 		Expiry:          nil,
 		DurabilityLevel: nil,
@@ -531,6 +520,7 @@ func (s *GatewayOpsTestSuite) TestRemove() {
 		CollectionName: s.collectionName,
 		DocId:          testDocId,
 		Content:        TEST_CONTENT,
+		ContentFlags:   TEST_CONTENT_FLAGS,
 	})
 
 	// Test doing a remove without a cas
@@ -581,6 +571,7 @@ func (s *GatewayOpsTestSuite) TestSubdoc() {
 		CollectionName: s.collectionName,
 		DocId:          testDocId,
 		Content:        TEST_CONTENT,
+		ContentFlags:   TEST_CONTENT_FLAGS,
 	})
 
 	updatedDocContent := []byte("\"boo\"")
@@ -638,6 +629,7 @@ func (s *GatewayOpsTestSuite) TestGetAndTouch() {
 		CollectionName: s.collectionName,
 		DocId:          testDocId,
 		Content:        TEST_CONTENT,
+		ContentFlags:   TEST_CONTENT_FLAGS,
 	})
 
 	getResp, err := kvClient.GetAndTouch(context.Background(), &kv_v1.GetAndTouchRequest{
@@ -649,9 +641,8 @@ func (s *GatewayOpsTestSuite) TestGetAndTouch() {
 	}, grpc.PerRPCCredentials(s.basicRpcCreds))
 	assertRpcSuccess(s.T(), getResp, err)
 	assertValidCas(s.T(), getResp.Cas)
-	assert.Equal(s.T(), getResp.CompressionType, kv_v1.DocumentCompressionType_DOCUMENT_COMPRESSION_TYPE_NONE)
 	assert.Equal(s.T(), getResp.Content, TEST_CONTENT)
-	assert.Equal(s.T(), getResp.ContentType, kv_v1.DocumentContentType_DOCUMENT_CONTENT_TYPE_JSON)
+	assert.Equal(s.T(), getResp.ContentFlags, TEST_CONTENT_FLAGS)
 	assert.Nil(s.T(), getResp.Expiry)
 
 	// Test doing a GetAndTouch where the document is missing
@@ -680,6 +671,7 @@ func (s *GatewayOpsTestSuite) TestGetAndLock() {
 		CollectionName: s.collectionName,
 		DocId:          testDocId,
 		Content:        TEST_CONTENT,
+		ContentFlags:   TEST_CONTENT_FLAGS,
 	})
 
 	getResp, err := kvClient.GetAndLock(context.Background(), &kv_v1.GetAndLockRequest{
@@ -691,9 +683,8 @@ func (s *GatewayOpsTestSuite) TestGetAndLock() {
 	}, grpc.PerRPCCredentials(s.basicRpcCreds))
 	assertRpcSuccess(s.T(), getResp, err)
 	assertValidCas(s.T(), getResp.Cas)
-	assert.Equal(s.T(), getResp.CompressionType, kv_v1.DocumentCompressionType_DOCUMENT_COMPRESSION_TYPE_NONE)
 	assert.Equal(s.T(), getResp.Content, TEST_CONTENT)
-	assert.Equal(s.T(), getResp.ContentType, kv_v1.DocumentContentType_DOCUMENT_CONTENT_TYPE_JSON)
+	assert.Equal(s.T(), getResp.ContentFlags, TEST_CONTENT_FLAGS)
 	assert.Nil(s.T(), getResp.Expiry)
 
 	// Test doing a GetAndLock where the document is missing
@@ -722,6 +713,7 @@ func (s *GatewayOpsTestSuite) TestExists() {
 		CollectionName: s.collectionName,
 		DocId:          testDocId,
 		Content:        TEST_CONTENT,
+		ContentFlags:   TEST_CONTENT_FLAGS,
 	})
 
 	existsResp, err := kvClient.Exists(context.Background(), &kv_v1.ExistsRequest{
