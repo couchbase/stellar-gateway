@@ -27,7 +27,7 @@ func assertRpcStatus(t *testing.T, err error, expectedCode codes.Code) {
 		t.Fatalf("expected rpc error status, but got non-status error")
 	}
 
-	assert.Equal(t, errSt.Code(), expectedCode)
+	assert.Equal(t, expectedCode, errSt.Code())
 }
 
 func assertRpcSuccess(t *testing.T, resp interface{}, err error) {
@@ -68,7 +68,7 @@ func assertValidMutationToken(t *testing.T, token *kv_v1.MutationToken, bucketNa
 	assert.NotNil(t, token)
 	assert.NotEmpty(t, token.BucketName)
 	if bucketName != "" {
-		assert.Equal(t, token.BucketName, bucketName)
+		assert.Equal(t, bucketName, token.BucketName)
 	}
 	assert.NotZero(t, token.VbucketId)
 	assert.NotZero(t, token.VbucketUuid)
