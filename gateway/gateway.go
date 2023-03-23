@@ -318,31 +318,35 @@ func Run(ctx context.Context, config *Config) error {
 	// TODO(malscent): daemon mode should start up grpc servers and return errors
 	// to the client specifying issues connecting to underlying service instead of
 	// just restarting whole process
+	connect := func() error {
+		hostname, err := connStrToMgmtHostPort(config.CbConnStr)
+
+		if err != nil {
+			config.Logger.Error("failed to parse connection string", zap.Error(err))
+			return err
+		}
+
+		config.Logger.Info(fmt.Sprintf("polling couchbase server: %s", hostname))
+
+		res, err := http.Get(hostname)
+		if err != nil {
+			config.Logger.Warn(fmt.Sprintf("couchbase server unreachable: %s", hostname), zap.Error(err))
+			return err
+		}
+
+		if res.StatusCode != 200 {
+			err := fmt.Errorf("expected 200 found %d", res.StatusCode)
+			config.Logger.Warn(fmt.Sprintf("couchbase server unreachable: %s", hostname), zap.Error(err))
+			return err
+		}
+
+		return gatewayStartup(ctx, config)
+	}
+
 	for restarts := 0; ; restarts++ {
 		startTime := time.Now()
 
-		connect := func() error {
-			hostname := fmt.Sprintf("http://%s:8091", config.CbConnStr)
-
-			config.Logger.Info(fmt.Sprintf("polling couchbase server: %s", hostname))
-
-			res, err := http.Get(hostname)
-			if err != nil {
-				config.Logger.Warn(fmt.Sprintf("couchbase server unreachable: %s", hostname), zap.Error(err))
-				return err
-			}
-
-			if res.StatusCode != 200 {
-				err := fmt.Errorf("expected 200 found %d", res.StatusCode)
-				config.Logger.Warn(fmt.Sprintf("couchbase server unreachable: %s", hostname), zap.Error(err))
-				return err
-			}
-
-			return gatewayStartup(ctx, config)
-		}
-
 		if err := connect(); err != nil {
-
 			if !config.Daemon {
 				return err
 			}
