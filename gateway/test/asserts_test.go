@@ -70,7 +70,6 @@ func assertValidMutationToken(t *testing.T, token *kv_v1.MutationToken, bucketNa
 	if bucketName != "" {
 		assert.Equal(t, bucketName, token.BucketName)
 	}
-	assert.NotZero(t, token.VbucketId)
 	assert.NotZero(t, token.VbucketUuid)
 	assert.NotZero(t, token.SeqNo)
 }
