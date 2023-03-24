@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/couchbase/gocbcorex"
+	"github.com/couchbase/gocbcorex/cbmgmtx"
 	"github.com/couchbase/stellar-gateway/gateway/auth"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/metadata"
@@ -108,6 +109,10 @@ func (a AuthHandler) GetOboUserBucketAgent(
 
 	bucketAgent, err := a.CbClient.GetBucketAgent(ctx, bucketName)
 	if err != nil {
+		if errors.Is(err, cbmgmtx.ErrBucketNotFound) {
+			return nil, "", newBucketMissingStatus(err, bucketName)
+		}
+
 		return nil, "", cbGenericErrToPsStatus(err, a.Logger)
 	}
 
