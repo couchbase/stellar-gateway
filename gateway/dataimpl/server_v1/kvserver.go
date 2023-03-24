@@ -797,17 +797,17 @@ func (s *KvServer) MutateIn(ctx context.Context, in *kv_v1.MutateInRequest) (*kv
 		opts.Cas = *in.Cas
 	}
 
-	// if in.Expiry == nil {
-	// 	opts.PreserveExpiry = true
-	// } else if in.Expiry != nil {
-	// 	if expirySpec, ok := in.Expiry.(*kv_v1.ReplaceRequest_ExpiryTime); ok {
-	// 		opts.Expiry = timeExpiryToGocbcorex(timeToGo(expirySpec.ExpiryTime))
-	// 	} else if expirySpec, ok := in.Expiry.(*kv_v1.ReplaceRequest_ExpirySecs); ok {
-	// 		opts.Expiry = secsExpiryToGocbcorex(expirySpec.ExpirySecs)
-	// 	} else {
-	// 		return nil, status.New(codes.InvalidArgument, "Expiry time specification is unknown.").Err()
-	// 	}
-	// }
+	if in.Expiry == nil {
+		opts.PreserveExpiry = true
+	} else if in.Expiry != nil {
+		if expirySpec, ok := in.Expiry.(*kv_v1.MutateInRequest_ExpiryTime); ok {
+			opts.Expiry = timeExpiryToGocbcorex(timeToGo(expirySpec.ExpiryTime))
+		} else if expirySpec, ok := in.Expiry.(*kv_v1.MutateInRequest_ExpirySecs); ok {
+			opts.Expiry = secsExpiryToGocbcorex(expirySpec.ExpirySecs)
+		} else {
+			return nil, status.New(codes.InvalidArgument, "Expiry time specification is unknown.").Err()
+		}
+	}
 
 	if in.DurabilityLevel != nil {
 		dl, errSt := durabilityLevelToMemdx(*in.DurabilityLevel)
