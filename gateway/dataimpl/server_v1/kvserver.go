@@ -209,6 +209,48 @@ func (s *KvServer) Unlock(ctx context.Context, in *kv_v1.UnlockRequest) (*kv_v1.
 	return &kv_v1.UnlockResponse{}, nil
 }
 
+func (s *KvServer) Touch(ctx context.Context, in *kv_v1.TouchRequest) (*kv_v1.TouchResponse, error) {
+	bucketAgent, oboUser, errSt := s.authHandler.GetOboUserBucketAgent(ctx, in.BucketName)
+	if errSt != nil {
+		return nil, errSt.Err()
+	}
+
+	var opts gocbcorex.TouchOptions
+	opts.OnBehalfOf = oboUser
+	opts.ScopeName = in.ScopeName
+	opts.CollectionName = in.CollectionName
+	opts.Key = []byte(in.Key)
+
+	switch expirySpec := in.Expiry.(type) {
+	case *kv_v1.TouchRequest_ExpiryTime:
+		opts.Expiry = timeExpiryToGocbcorex(timeToGo(expirySpec.ExpiryTime))
+	case *kv_v1.TouchRequest_ExpirySecs:
+		opts.Expiry = secsExpiryToGocbcorex(expirySpec.ExpirySecs)
+	default:
+		return nil, status.New(codes.InvalidArgument, "Expiry time specification is unknown.").Err()
+	}
+
+	result, err := bucketAgent.Touch(ctx, &opts)
+	if err != nil {
+		if errors.Is(err, memdx.ErrDocLocked) {
+			return nil, newDocLockedStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+		} else if errors.Is(err, memdx.ErrDocNotFound) {
+			return nil, newDocMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+		} else if errors.Is(err, memdx.ErrUnknownCollectionName) {
+			return nil, newCollectionMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+		} else if errors.Is(err, memdx.ErrUnknownScopeName) {
+			return nil, newScopeMissingStatus(err, in.BucketName, in.ScopeName).Err()
+		} else if errors.Is(err, memdx.ErrAccessError) {
+			return nil, newCollectionNoWriteAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+		}
+		return nil, cbGenericErrToPsStatus(err, s.logger).Err()
+	}
+
+	return &kv_v1.TouchResponse{
+		Cas: result.Cas,
+	}, nil
+}
+
 func (s *KvServer) Insert(ctx context.Context, in *kv_v1.InsertRequest) (*kv_v1.InsertResponse, error) {
 	bucketAgent, oboUser, errSt := s.authHandler.GetOboUserBucketAgent(ctx, in.BucketName)
 	if errSt != nil {
