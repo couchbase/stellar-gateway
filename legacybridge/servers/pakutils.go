@@ -60,12 +60,12 @@ func memdMagicToString(magic memd.CmdMagic) string {
 func memdPacketToString(pak *memd.Packet) string {
 	return fmt.Sprintf(
 		"memd.Packet{Magic:%x(%s), Command:%x(%s), Datatype:%x, Status:%x(%s), Vbucket:%d, Opaque:%08x, Cas: %08x, CollectionID:%d\nKey:\n%sValue:\n%sExtras:\n%s}",
-		pak.Magic,
+		uint8(pak.Magic),
 		memdMagicToString(pak.Magic),
-		pak.Command,
+		uint8(pak.Command),
 		pak.Command.Name(),
 		pak.Datatype,
-		pak.Status,
+		uint16(pak.Status),
 		pak.Status.String(),
 		pak.Vbucket,
 		pak.Opaque,
