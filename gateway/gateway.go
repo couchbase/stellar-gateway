@@ -2,6 +2,7 @@ package gateway
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"time"
@@ -23,6 +24,8 @@ import (
 	"github.com/couchbaselabs/gocbconnstr"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 )
 
 type ServicePorts struct {
@@ -55,6 +58,10 @@ type Config struct {
 
 	NumInstances    uint
 	StartupCallback func(*StartupInfo)
+
+	EnableTLS	bool
+	Cert	string
+	Key		string
 }
 
 func connStrToMgmtHostPort(connStr string) (string, error) {
@@ -177,6 +184,36 @@ func gatewayStartup(ctx context.Context, config *Config) error {
 		return err
 	}
 
+	var serverOpts []grpc.ServerOption
+
+	if config.EnableTLS {
+		if len(config.Cert) == 0 || len(config.Key) == 0 {
+			config.Logger.Error("no server cert or key found to enable TLS")
+			return fmt.Errorf("no server cert or key found to enable TLS")
+		}
+
+		getServerTlsCreds := func(cert, key string) (credentials.TransportCredentials, error) {
+			serverCert, err := tls.LoadX509KeyPair(cert, key)
+			if err != nil {
+				return nil, err
+			}
+			// Create the credentials and return it
+			config := &tls.Config{
+				Certificates: []tls.Certificate{serverCert},
+				ClientAuth:   tls.NoClientCert,
+			}
+			return credentials.NewTLS(config), nil
+		}
+
+		tlsCreds, err := getServerTlsCreds(config.Cert, config.Key)
+		if err != nil {
+			config.Logger.Error("error loading TLS credentials")
+			return err
+		}
+
+		serverOpts = append(serverOpts, grpc.Creds(tlsCreds))
+	}
+
 	startInstance := func(ctx context.Context, instanceIdx int) error {
 		dataImpl := dataimpl.New(&dataimpl.NewOptions{
 			Logger:           config.Logger.Named("data-impl"),
@@ -196,6 +233,7 @@ func gatewayStartup(ctx context.Context, config *Config) error {
 			DataImpl: dataImpl,
 			SdImpl:   sdImpl,
 			Metrics:  metrics.GetSnMetrics(),
+			DataImplServerOpts: serverOpts,
 		})
 		if err != nil {
 			config.Logger.Error("error creating legacy proxy")
