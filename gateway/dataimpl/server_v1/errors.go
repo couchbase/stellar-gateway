@@ -91,6 +91,32 @@ func newBucketExistsStatus(baseErr error, bucketName string) *status.Status {
 	return st
 }
 
+func newScopeMissingStatus(baseErr error, bucketName, scopeName string) *status.Status {
+	st := status.New(codes.NotFound,
+		fmt.Sprintf("Scope '%s' not found in '%s'.",
+			scopeName, bucketName))
+	st = tryAttachStatusDetails(st, &epb.ResourceInfo{
+		ResourceType: "scope",
+		ResourceName: fmt.Sprintf("%s/%s", bucketName, scopeName),
+		Description:  "",
+	})
+	st = tryAttachCbContext(st, baseErr)
+	return st
+}
+
+func newCollectionMissingStatus(baseErr error, bucketName, scopeName, collectionName string) *status.Status {
+	st := status.New(codes.NotFound,
+		fmt.Sprintf("Collection '%s' not found in '%s/%s'.",
+			collectionName, bucketName, scopeName))
+	st = tryAttachStatusDetails(st, &epb.ResourceInfo{
+		ResourceType: "collection",
+		ResourceName: fmt.Sprintf("%s/%s/%s", bucketName, scopeName, collectionName),
+		Description:  "",
+	})
+	st = tryAttachCbContext(st, baseErr)
+	return st
+}
+
 func newDocMissingStatus(baseErr error, bucketName, scopeName, collectionName, docId string) *status.Status {
 	st := status.New(codes.NotFound,
 		fmt.Sprintf("Document '%s' not found in '%s/%s/%s'.",
