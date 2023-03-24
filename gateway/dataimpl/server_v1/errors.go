@@ -199,16 +199,57 @@ func newCollectionNoWriteAccessStatus(baseErr error, bucketName, scopeName, coll
 	return st
 }
 
-func newSdPathNotFoundStatus(baseErr error, bucketName, scopeName, collectionName, docId, sdPath string) *status.Status {
+func newSdDocTooDeepStatus(baseErr error, bucketName, scopeName, collectionName, docId string) *status.Status {
 	st := status.New(codes.FailedPrecondition,
-		fmt.Sprintf("Subdocument path '%s' was not found in '%s' in '%s/%s/%s'.",
-			sdPath, docId, bucketName, scopeName, collectionName))
+		fmt.Sprintf("Document '%s' JSON was too deep to parse in '%s/%s/%s'.",
+			docId, bucketName, scopeName, collectionName))
 	st = tryAttachStatusDetails(st, &epb.PreconditionFailure{
 		Violations: []*epb.PreconditionFailure_Violation{{
-			Type:        "PATH_NOT_FOUND",
-			Subject:     sdPath,
+			Type:        "DOC_TOO_DEEP",
+			Subject:     fmt.Sprintf("%s/%s/%s/%s", bucketName, scopeName, collectionName, docId),
 			Description: "",
 		}},
+	})
+	st = tryAttachCbContext(st, baseErr)
+	return st
+}
+
+func newSdDocNotJsonStatus(baseErr error, bucketName, scopeName, collectionName, docId string) *status.Status {
+	st := status.New(codes.FailedPrecondition,
+		fmt.Sprintf("Document '%s' was not JSON in '%s/%s/%s'.",
+			docId, bucketName, scopeName, collectionName))
+	st = tryAttachStatusDetails(st, &epb.PreconditionFailure{
+		Violations: []*epb.PreconditionFailure_Violation{{
+			Type:        "DOC_NOT_JSON",
+			Subject:     fmt.Sprintf("%s/%s/%s/%s", bucketName, scopeName, collectionName, docId),
+			Description: "",
+		}},
+	})
+	st = tryAttachCbContext(st, baseErr)
+	return st
+}
+
+func newSdPathNotFoundStatus(baseErr error, bucketName, scopeName, collectionName, docId, sdPath string) *status.Status {
+	st := status.New(codes.NotFound,
+		fmt.Sprintf("Subdocument path '%s' was not found in '%s' in '%s/%s/%s'.",
+			sdPath, docId, bucketName, scopeName, collectionName))
+	st = tryAttachStatusDetails(st, &epb.ResourceInfo{
+		ResourceType: "path",
+		ResourceName: fmt.Sprintf("%s/%s/%s/%s/%s", bucketName, scopeName, collectionName, docId, sdPath),
+		Description:  "",
+	})
+	st = tryAttachCbContext(st, baseErr)
+	return st
+}
+
+func newSdPathExistsStatus(baseErr error, bucketName, scopeName, collectionName, docId, sdPath string) *status.Status {
+	st := status.New(codes.AlreadyExists,
+		fmt.Sprintf("Subdocument path '%s' already existed in '%s' in '%s/%s/%s'.",
+			sdPath, docId, bucketName, scopeName, collectionName))
+	st = tryAttachStatusDetails(st, &epb.ResourceInfo{
+		ResourceType: "path",
+		ResourceName: fmt.Sprintf("%s/%s/%s/%s/%s", bucketName, scopeName, collectionName, docId, sdPath),
+		Description:  "",
 	})
 	st = tryAttachCbContext(st, baseErr)
 	return st
@@ -229,7 +270,67 @@ func newSdPathMismatchStatus(baseErr error, bucketName, scopeName, collectionNam
 	return st
 }
 
-func newSdPathEinvalStatus(baseErr error, sdPath string) *status.Status {
+func newSdPathTooBigStatus(baseErr error, sdPath string) *status.Status {
+	st := status.New(codes.InvalidArgument,
+		fmt.Sprintf("Subdocument path '%s' is too long", sdPath))
+	st = tryAttachCbContext(st, baseErr)
+	return st
+}
+
+func newSdBadValueStatus(baseErr error, sdPath string) *status.Status {
+	st := status.New(codes.FailedPrecondition,
+		fmt.Sprintf("Subdocument operation content for path '%s' would invalidate the JSON if added to the document.",
+			sdPath))
+	st = tryAttachStatusDetails(st, &epb.PreconditionFailure{
+		Violations: []*epb.PreconditionFailure_Violation{{
+			Type:        "WOULD_INVALIDATE_JSON",
+			Subject:     sdPath,
+			Description: "",
+		}},
+	})
+	st = tryAttachCbContext(st, baseErr)
+	return st
+}
+
+func newSdBadRangeStatus(baseErr error, bucketName, scopeName, collectionName, docId, sdPath string) *status.Status {
+	st := status.New(codes.FailedPrecondition,
+		fmt.Sprintf("The value at path '%s' is out of the valid range in document '%s' in '%s/%s/%s'.",
+			sdPath, docId, bucketName, scopeName, collectionName))
+	st = tryAttachStatusDetails(st, &epb.PreconditionFailure{
+		Violations: []*epb.PreconditionFailure_Violation{{
+			Type:        "PATH_VALUE_OUT_OF_RANGE",
+			Subject:     sdPath,
+			Description: "",
+		}},
+	})
+	st = tryAttachCbContext(st, baseErr)
+	return st
+}
+
+func newSdBadDeltaStatus(baseErr error, sdPath string) *status.Status {
+	st := status.New(codes.InvalidArgument,
+		fmt.Sprintf("Subdocument counter delta for path '%s' was invalid.",
+			sdPath))
+	st = tryAttachCbContext(st, baseErr)
+	return st
+}
+
+func newSdValueTooDeepStatus(baseErr error, sdPath string) *status.Status {
+	st := status.New(codes.InvalidArgument,
+		fmt.Sprintf("Subdocument operation content for path '%s' was too deep to parse.",
+			sdPath))
+	st = tryAttachCbContext(st, baseErr)
+	return st
+}
+
+func newSdXattrUnknownVattrStatus(baseErr error, sdPath string) *status.Status {
+	st := status.New(codes.InvalidArgument,
+		fmt.Sprintf("Subdocument path '%s' references an invalid virtual attribute.", sdPath))
+	st = tryAttachCbContext(st, baseErr)
+	return st
+}
+
+func newSdPathInvalidStatus(baseErr error, sdPath string) *status.Status {
 	st := status.New(codes.InvalidArgument,
 		fmt.Sprintf("Invalid subdocument path syntax '%s'.", sdPath))
 	// TODO(brett19): Probably should include invalid-argument error details.
