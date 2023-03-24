@@ -62,7 +62,9 @@ func (s *KvServer) Get(ctx context.Context, in *kv_v1.GetRequest) (*kv_v1.GetRes
 
 	result, err := bucketAgent.LookupIn(ctx, &opts)
 	if err != nil {
-		if errors.Is(err, memdx.ErrDocNotFound) {
+		if errors.Is(err, memdx.ErrDocLocked) {
+			return nil, newDocLockedStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+		} else if errors.Is(err, memdx.ErrDocNotFound) {
 			return nil, newDocMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
 		} else if errors.Is(err, memdx.ErrUnknownCollectionName) {
 			return nil, newCollectionMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
@@ -118,7 +120,9 @@ func (s *KvServer) GetAndTouch(ctx context.Context, in *kv_v1.GetAndTouchRequest
 
 	result, err := bucketAgent.GetAndTouch(ctx, &opts)
 	if err != nil {
-		if errors.Is(err, memdx.ErrDocNotFound) {
+		if errors.Is(err, memdx.ErrDocLocked) {
+			return nil, newDocLockedStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+		} else if errors.Is(err, memdx.ErrDocNotFound) {
 			return nil, newDocMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
 		} else if errors.Is(err, memdx.ErrUnknownCollectionName) {
 			return nil, newCollectionMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
@@ -152,7 +156,9 @@ func (s *KvServer) GetAndLock(ctx context.Context, in *kv_v1.GetAndLockRequest) 
 
 	result, err := bucketAgent.GetAndLock(ctx, &opts)
 	if err != nil {
-		if errors.Is(err, memdx.ErrDocNotFound) {
+		if errors.Is(err, memdx.ErrDocLocked) {
+			return nil, newDocLockedStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+		} else if errors.Is(err, memdx.ErrDocNotFound) {
 			return nil, newDocMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
 		} else if errors.Is(err, memdx.ErrUnknownCollectionName) {
 			return nil, newCollectionMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
@@ -691,7 +697,9 @@ func (s *KvServer) LookupIn(ctx context.Context, in *kv_v1.LookupInRequest) (*kv
 
 	result, err := bucketAgent.LookupIn(ctx, &opts)
 	if err != nil {
-		if errors.Is(err, memdx.ErrDocNotFound) {
+		if errors.Is(err, memdx.ErrDocLocked) {
+			return nil, newDocLockedStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+		} else if errors.Is(err, memdx.ErrDocNotFound) {
 			return nil, newDocMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
 		} else if errors.Is(err, memdx.ErrUnknownCollectionName) {
 			return nil, newCollectionMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
@@ -830,7 +838,9 @@ func (s *KvServer) MutateIn(ctx context.Context, in *kv_v1.MutateInRequest) (*kv
 
 	result, err := bucketAgent.MutateIn(ctx, &opts)
 	if err != nil {
-		if errors.Is(err, memdx.ErrDocNotFound) {
+		if errors.Is(err, memdx.ErrDocLocked) {
+			return nil, newDocLockedStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+		} else if errors.Is(err, memdx.ErrDocNotFound) {
 			return nil, newDocMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
 		} else if errors.Is(err, memdx.ErrUnknownCollectionName) {
 			return nil, newCollectionMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
