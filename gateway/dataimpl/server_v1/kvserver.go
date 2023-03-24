@@ -467,6 +467,8 @@ func (s *KvServer) Increment(ctx context.Context, in *kv_v1.IncrementRequest) (*
 
 	if in.Initial != nil {
 		opts.Initial = uint64(*in.Initial)
+	} else {
+		opts.Initial = uint64(0xFFFFFFFFFFFFFFFF)
 	}
 
 	result, err := bucketAgent.Increment(ctx, &opts)
@@ -527,6 +529,8 @@ func (s *KvServer) Decrement(ctx context.Context, in *kv_v1.DecrementRequest) (*
 
 	if in.Initial != nil {
 		opts.Initial = uint64(*in.Initial)
+	} else {
+		opts.Initial = uint64(0xFFFFFFFFFFFFFFFF)
 	}
 
 	result, err := bucketAgent.Decrement(ctx, &opts)
