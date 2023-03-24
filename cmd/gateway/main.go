@@ -22,6 +22,10 @@ var sdPort = flag.Int("sd-port", 18099, "the sd port")
 var webPort = flag.Int("web-port", 9091, "the web metrics/health port")
 var daemon = flag.Bool("daemon", false, "When in daemon mode, stellar-gateway will restart on failure")
 
+var enableTLS = flag.Bool("secure", false, "enable SSL/TLS")
+var	certPath = flag.String("cert", "", "path to server tls cert")
+var	keyPath = flag.String("key", "", "path to server private tls key")
+
 func main() {
 	flag.Parse()
 
@@ -63,6 +67,10 @@ func main() {
 		StartupCallback: func(m *gateway.StartupInfo) {
 			gatewayConnStrCh <- fmt.Sprintf("%s:%d", m.AdvertiseAddr, m.AdvertisePorts.PS)
 		},
+
+		EnableTLS: *enableTLS,
+		Cert: *certPath,
+		Key: *keyPath,
 	}
 
 	err = gateway.Run(context.Background(), gatewayConfig)

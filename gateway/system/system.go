@@ -32,6 +32,9 @@ type SystemOptions struct {
 	DataImpl *dataimpl.Servers
 	SdImpl   *sdimpl.Servers
 	Metrics  *metrics.SnMetrics
+
+	// TODO(abose): tidy up maybe move to somewhere more appropriate.
+	DataImplServerOpts []grpc.ServerOption
 }
 
 type System struct {
@@ -47,9 +50,16 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 
 	hooksManager := hooks.NewHooksManager(opts.Logger.Named("hooks-manager"))
 	metricsInterceptor := interceptors.NewMetricsInterceptor(opts.Metrics)
-	dataSrv := grpc.NewServer(
+
+	dataImpSrvOpts := []grpc.ServerOption{
 		grpc.ChainUnaryInterceptor(hooksManager.UnaryInterceptor(), metricsInterceptor.UnaryConnectionCounterInterceptor),
-	)
+	}
+	if len(opts.DataImplServerOpts) > 0 {
+		dataImpSrvOpts = append(dataImpSrvOpts, opts.DataImplServerOpts...)
+	}
+
+	dataSrv := grpc.NewServer(dataImpSrvOpts...)
+
 	internal_hooks_v1.RegisterHooksServiceServer(dataSrv, hooksManager.Server())
 	kv_v1.RegisterKvServiceServer(dataSrv, dataImpl.KvV1Server)
 	query_v1.RegisterQueryServiceServer(dataSrv, dataImpl.QueryV1Server)
