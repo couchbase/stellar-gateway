@@ -62,12 +62,12 @@ func (s *KvServer) Get(ctx context.Context, in *kv_v1.GetRequest) (*kv_v1.GetRes
 
 	result, err := bucketAgent.LookupIn(ctx, &opts)
 	if err != nil {
-		if errors.Is(err, memdx.ErrUnknownScopeName) {
-			return nil, newScopeMissingStatus(err, in.BucketName, in.ScopeName).Err()
+		if errors.Is(err, memdx.ErrDocNotFound) {
+			return nil, newDocMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
 		} else if errors.Is(err, memdx.ErrUnknownCollectionName) {
 			return nil, newCollectionMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
-		} else if errors.Is(err, memdx.ErrDocNotFound) {
-			return nil, newDocMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+		} else if errors.Is(err, memdx.ErrUnknownScopeName) {
+			return nil, newScopeMissingStatus(err, in.BucketName, in.ScopeName).Err()
 		} else if errors.Is(err, memdx.ErrAccessError) {
 			return nil, newCollectionNoReadAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
 		}
@@ -118,12 +118,12 @@ func (s *KvServer) GetAndTouch(ctx context.Context, in *kv_v1.GetAndTouchRequest
 
 	result, err := bucketAgent.GetAndTouch(ctx, &opts)
 	if err != nil {
-		if errors.Is(err, memdx.ErrUnknownScopeName) {
-			return nil, newScopeMissingStatus(err, in.BucketName, in.ScopeName).Err()
+		if errors.Is(err, memdx.ErrDocNotFound) {
+			return nil, newDocMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
 		} else if errors.Is(err, memdx.ErrUnknownCollectionName) {
 			return nil, newCollectionMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
-		} else if errors.Is(err, memdx.ErrDocNotFound) {
-			return nil, newDocMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+		} else if errors.Is(err, memdx.ErrUnknownScopeName) {
+			return nil, newScopeMissingStatus(err, in.BucketName, in.ScopeName).Err()
 		} else if errors.Is(err, memdx.ErrAccessError) {
 			return nil, newCollectionNoReadAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
 		}
@@ -152,12 +152,12 @@ func (s *KvServer) GetAndLock(ctx context.Context, in *kv_v1.GetAndLockRequest) 
 
 	result, err := bucketAgent.GetAndLock(ctx, &opts)
 	if err != nil {
-		if errors.Is(err, memdx.ErrUnknownScopeName) {
-			return nil, newScopeMissingStatus(err, in.BucketName, in.ScopeName).Err()
+		if errors.Is(err, memdx.ErrDocNotFound) {
+			return nil, newDocMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
 		} else if errors.Is(err, memdx.ErrUnknownCollectionName) {
 			return nil, newCollectionMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
-		} else if errors.Is(err, memdx.ErrDocNotFound) {
-			return nil, newDocMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+		} else if errors.Is(err, memdx.ErrUnknownScopeName) {
+			return nil, newScopeMissingStatus(err, in.BucketName, in.ScopeName).Err()
 		} else if errors.Is(err, memdx.ErrAccessError) {
 			return nil, newCollectionNoReadAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
 		}
@@ -205,12 +205,12 @@ func (s *KvServer) Insert(ctx context.Context, in *kv_v1.InsertRequest) (*kv_v1.
 
 	result, err := bucketAgent.Add(ctx, &opts)
 	if err != nil {
-		if errors.Is(err, memdx.ErrUnknownScopeName) {
-			return nil, newScopeMissingStatus(err, in.BucketName, in.ScopeName).Err()
+		if errors.Is(err, memdx.ErrDocExists) {
+			return nil, newDocExistsStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
 		} else if errors.Is(err, memdx.ErrUnknownCollectionName) {
 			return nil, newCollectionMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
-		} else if errors.Is(err, memdx.ErrDocExists) {
-			return nil, newDocExistsStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+		} else if errors.Is(err, memdx.ErrUnknownScopeName) {
+			return nil, newScopeMissingStatus(err, in.BucketName, in.ScopeName).Err()
 		} else if errors.Is(err, memdx.ErrAccessError) {
 			return nil, newCollectionNoWriteAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
 		}
@@ -242,10 +242,10 @@ func (s *KvServer) Exists(ctx context.Context, in *kv_v1.ExistsRequest) (*kv_v1.
 			return &kv_v1.ExistsResponse{
 				Result: false,
 			}, nil
-		} else if errors.Is(err, memdx.ErrUnknownScopeName) {
-			return nil, newScopeMissingStatus(err, in.BucketName, in.ScopeName).Err()
 		} else if errors.Is(err, memdx.ErrUnknownCollectionName) {
 			return nil, newCollectionMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+		} else if errors.Is(err, memdx.ErrUnknownScopeName) {
+			return nil, newScopeMissingStatus(err, in.BucketName, in.ScopeName).Err()
 		} else if errors.Is(err, memdx.ErrAccessError) {
 			return nil, newCollectionNoReadAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
 		}
@@ -302,10 +302,10 @@ func (s *KvServer) Upsert(ctx context.Context, in *kv_v1.UpsertRequest) (*kv_v1.
 	if err != nil {
 		if errors.Is(err, memdx.ErrDocLocked) {
 			return nil, newDocLockedStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
-		} else if errors.Is(err, memdx.ErrUnknownScopeName) {
-			return nil, newScopeMissingStatus(err, in.BucketName, in.ScopeName).Err()
 		} else if errors.Is(err, memdx.ErrUnknownCollectionName) {
 			return nil, newCollectionMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+		} else if errors.Is(err, memdx.ErrUnknownScopeName) {
+			return nil, newScopeMissingStatus(err, in.BucketName, in.ScopeName).Err()
 		} else if errors.Is(err, memdx.ErrAccessError) {
 			return nil, newCollectionNoWriteAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
 		}
@@ -358,16 +358,16 @@ func (s *KvServer) Replace(ctx context.Context, in *kv_v1.ReplaceRequest) (*kv_v
 
 	result, err := bucketAgent.Replace(ctx, &opts)
 	if err != nil {
-		if errors.Is(err, memdx.ErrUnknownScopeName) {
-			return nil, newScopeMissingStatus(err, in.BucketName, in.ScopeName).Err()
-		} else if errors.Is(err, memdx.ErrUnknownCollectionName) {
-			return nil, newCollectionMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
-		} else if errors.Is(err, memdx.ErrDocNotFound) {
-			return nil, newDocMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
-		} else if errors.Is(err, memdx.ErrCasMismatch) {
+		if errors.Is(err, memdx.ErrCasMismatch) {
 			return nil, newDocCasMismatchStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
 		} else if errors.Is(err, memdx.ErrDocLocked) {
 			return nil, newDocLockedStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+		} else if errors.Is(err, memdx.ErrDocNotFound) {
+			return nil, newDocMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+		} else if errors.Is(err, memdx.ErrUnknownCollectionName) {
+			return nil, newCollectionMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+		} else if errors.Is(err, memdx.ErrUnknownScopeName) {
+			return nil, newScopeMissingStatus(err, in.BucketName, in.ScopeName).Err()
 		} else if errors.Is(err, memdx.ErrAccessError) {
 			return nil, newCollectionNoWriteAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
 		}
@@ -406,16 +406,16 @@ func (s *KvServer) Remove(ctx context.Context, in *kv_v1.RemoveRequest) (*kv_v1.
 
 	result, err := bucketAgent.Delete(ctx, &opts)
 	if err != nil {
-		if errors.Is(err, memdx.ErrUnknownScopeName) {
-			return nil, newScopeMissingStatus(err, in.BucketName, in.ScopeName).Err()
-		} else if errors.Is(err, memdx.ErrUnknownCollectionName) {
-			return nil, newCollectionMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
-		} else if errors.Is(err, memdx.ErrDocNotFound) {
-			return nil, newDocMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
-		} else if errors.Is(err, memdx.ErrCasMismatch) {
+		if errors.Is(err, memdx.ErrCasMismatch) {
 			return nil, newDocCasMismatchStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
 		} else if errors.Is(err, memdx.ErrDocLocked) {
 			return nil, newDocLockedStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+		} else if errors.Is(err, memdx.ErrDocNotFound) {
+			return nil, newDocMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+		} else if errors.Is(err, memdx.ErrUnknownCollectionName) {
+			return nil, newCollectionMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+		} else if errors.Is(err, memdx.ErrUnknownScopeName) {
+			return nil, newScopeMissingStatus(err, in.BucketName, in.ScopeName).Err()
 		} else if errors.Is(err, memdx.ErrAccessError) {
 			return nil, newCollectionNoWriteAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
 		}
@@ -465,16 +465,16 @@ func (s *KvServer) Increment(ctx context.Context, in *kv_v1.IncrementRequest) (*
 
 	result, err := bucketAgent.Increment(ctx, &opts)
 	if err != nil {
-		if errors.Is(err, memdx.ErrUnknownScopeName) {
-			return nil, newScopeMissingStatus(err, in.BucketName, in.ScopeName).Err()
-		} else if errors.Is(err, memdx.ErrUnknownCollectionName) {
-			return nil, newCollectionMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
-		} else if errors.Is(err, memdx.ErrDocNotFound) {
-			return nil, newDocMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
-		} else if errors.Is(err, memdx.ErrCasMismatch) {
+		if errors.Is(err, memdx.ErrCasMismatch) {
 			return nil, newDocCasMismatchStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
 		} else if errors.Is(err, memdx.ErrDocLocked) {
 			return nil, newDocLockedStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+		} else if errors.Is(err, memdx.ErrDocNotFound) {
+			return nil, newDocMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+		} else if errors.Is(err, memdx.ErrUnknownCollectionName) {
+			return nil, newCollectionMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+		} else if errors.Is(err, memdx.ErrUnknownScopeName) {
+			return nil, newScopeMissingStatus(err, in.BucketName, in.ScopeName).Err()
 		} else if errors.Is(err, memdx.ErrAccessError) {
 			return nil, newCollectionNoWriteAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
 		}
@@ -525,14 +525,14 @@ func (s *KvServer) Decrement(ctx context.Context, in *kv_v1.DecrementRequest) (*
 
 	result, err := bucketAgent.Decrement(ctx, &opts)
 	if err != nil {
-		if errors.Is(err, memdx.ErrUnknownScopeName) {
-			return nil, newScopeMissingStatus(err, in.BucketName, in.ScopeName).Err()
-		} else if errors.Is(err, memdx.ErrUnknownCollectionName) {
-			return nil, newCollectionMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+		if errors.Is(err, memdx.ErrDocLocked) {
+			return nil, newDocLockedStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
 		} else if errors.Is(err, memdx.ErrDocNotFound) {
 			return nil, newDocMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
-		} else if errors.Is(err, memdx.ErrDocLocked) {
-			return nil, newDocLockedStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+		} else if errors.Is(err, memdx.ErrUnknownCollectionName) {
+			return nil, newCollectionMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+		} else if errors.Is(err, memdx.ErrUnknownScopeName) {
+			return nil, newScopeMissingStatus(err, in.BucketName, in.ScopeName).Err()
 		} else if errors.Is(err, memdx.ErrAccessError) {
 			return nil, newCollectionNoWriteAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
 		}
@@ -573,16 +573,16 @@ func (s *KvServer) Append(ctx context.Context, in *kv_v1.AppendRequest) (*kv_v1.
 
 	result, err := bucketAgent.Append(ctx, &opts)
 	if err != nil {
-		if errors.Is(err, memdx.ErrUnknownScopeName) {
-			return nil, newScopeMissingStatus(err, in.BucketName, in.ScopeName).Err()
-		} else if errors.Is(err, memdx.ErrUnknownCollectionName) {
-			return nil, newCollectionMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
-		} else if errors.Is(err, memdx.ErrDocNotFound) {
-			return nil, newDocMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
-		} else if errors.Is(err, memdx.ErrCasMismatch) {
+		if errors.Is(err, memdx.ErrCasMismatch) {
 			return nil, newDocCasMismatchStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
 		} else if errors.Is(err, memdx.ErrDocLocked) {
 			return nil, newDocLockedStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+		} else if errors.Is(err, memdx.ErrDocNotFound) {
+			return nil, newDocMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+		} else if errors.Is(err, memdx.ErrUnknownCollectionName) {
+			return nil, newCollectionMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+		} else if errors.Is(err, memdx.ErrUnknownScopeName) {
+			return nil, newScopeMissingStatus(err, in.BucketName, in.ScopeName).Err()
 		} else if errors.Is(err, memdx.ErrAccessError) {
 			return nil, newCollectionNoWriteAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
 		}
@@ -622,16 +622,16 @@ func (s *KvServer) Prepend(ctx context.Context, in *kv_v1.PrependRequest) (*kv_v
 
 	result, err := bucketAgent.Prepend(ctx, &opts)
 	if err != nil {
-		if errors.Is(err, memdx.ErrUnknownScopeName) {
-			return nil, newScopeMissingStatus(err, in.BucketName, in.ScopeName).Err()
-		} else if errors.Is(err, memdx.ErrUnknownCollectionName) {
-			return nil, newCollectionMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
-		} else if errors.Is(err, memdx.ErrDocNotFound) {
-			return nil, newDocMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
-		} else if errors.Is(err, memdx.ErrCasMismatch) {
+		if errors.Is(err, memdx.ErrCasMismatch) {
 			return nil, newDocCasMismatchStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
 		} else if errors.Is(err, memdx.ErrDocLocked) {
 			return nil, newDocLockedStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+		} else if errors.Is(err, memdx.ErrDocNotFound) {
+			return nil, newDocMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+		} else if errors.Is(err, memdx.ErrUnknownCollectionName) {
+			return nil, newCollectionMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+		} else if errors.Is(err, memdx.ErrUnknownScopeName) {
+			return nil, newScopeMissingStatus(err, in.BucketName, in.ScopeName).Err()
 		} else if errors.Is(err, memdx.ErrAccessError) {
 			return nil, newCollectionNoWriteAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
 		}
@@ -691,12 +691,12 @@ func (s *KvServer) LookupIn(ctx context.Context, in *kv_v1.LookupInRequest) (*kv
 
 	result, err := bucketAgent.LookupIn(ctx, &opts)
 	if err != nil {
-		if errors.Is(err, memdx.ErrUnknownScopeName) {
-			return nil, newScopeMissingStatus(err, in.BucketName, in.ScopeName).Err()
+		if errors.Is(err, memdx.ErrDocNotFound) {
+			return nil, newDocMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
 		} else if errors.Is(err, memdx.ErrUnknownCollectionName) {
 			return nil, newCollectionMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
-		} else if errors.Is(err, memdx.ErrDocNotFound) {
-			return nil, newDocMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+		} else if errors.Is(err, memdx.ErrUnknownScopeName) {
+			return nil, newScopeMissingStatus(err, in.BucketName, in.ScopeName).Err()
 		} else if errors.Is(err, memdx.ErrAccessError) {
 			return nil, newCollectionNoReadAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
 		}
@@ -830,12 +830,12 @@ func (s *KvServer) MutateIn(ctx context.Context, in *kv_v1.MutateInRequest) (*kv
 
 	result, err := bucketAgent.MutateIn(ctx, &opts)
 	if err != nil {
-		if errors.Is(err, memdx.ErrUnknownScopeName) {
-			return nil, newScopeMissingStatus(err, in.BucketName, in.ScopeName).Err()
+		if errors.Is(err, memdx.ErrDocNotFound) {
+			return nil, newDocMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
 		} else if errors.Is(err, memdx.ErrUnknownCollectionName) {
 			return nil, newCollectionMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
-		} else if errors.Is(err, memdx.ErrDocNotFound) {
-			return nil, newDocMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+		} else if errors.Is(err, memdx.ErrUnknownScopeName) {
+			return nil, newScopeMissingStatus(err, in.BucketName, in.ScopeName).Err()
 		} else if errors.Is(err, memdx.ErrAccessError) {
 			return nil, newCollectionNoReadAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
 		} else {
