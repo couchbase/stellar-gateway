@@ -3,6 +3,5 @@ stellar-nebula
 genproto/
 *.log
 build/
-bin/
 dist/
 .vscode/
