@@ -52,14 +52,16 @@ func SetupCanonicalTestCluster(opts CanonicalTestClusterOptions) (*CanonicalTest
 		return nil, errors.New("`default` must have flush enabled")
 	}
 
-	secondaryBucket, err := cbClient.Buckets().GetBucket("secBucket", nil)
-	if err != nil {
-		return nil, errors.New("test cluster must have a `secBucket` bucket")
-	}
+	/*
+		secondaryBucket, err := cbClient.Buckets().GetBucket("secBucket", nil)
+		if err != nil {
+			return nil, errors.New("test cluster must have a `secBucket` bucket")
+		}
 
-	if !secondaryBucket.FlushEnabled {
-		return nil, errors.New("`secBucket` must have flush enabled")
-	}
+		if !secondaryBucket.FlushEnabled {
+			return nil, errors.New("`secBucket` must have flush enabled")
+		}
+	*/
 
 	// TODO(brett19): Perform additional canonical test cluster validations here...
 
@@ -80,7 +82,7 @@ func SetupCanonicalTestCluster(opts CanonicalTestClusterOptions) (*CanonicalTest
 		ReadUser:             opts.Username,
 		ReadPass:             opts.Password,
 		BucketName:           "default",
-		SecondBucketName:     "secBucket",
+		SecondBucketName:     "",
 		ScopeName:            "_default",
 		SecondScopeName:      "test-scope",
 		CollectionName:       "_default",
