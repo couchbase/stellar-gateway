@@ -3,8 +3,10 @@ package gateway
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"time"
 
 	"github.com/couchbase/cbauth"
@@ -28,6 +30,8 @@ import (
 	"google.golang.org/grpc/credentials"
 )
 
+var ErrCbAuthAlreadyInitialised = errors.New("cbauth is already initialized")
+
 type ServicePorts struct {
 	PS int `json:"p,omitempty"`
 	SD int `json:"s,omitempty"`
@@ -38,6 +42,10 @@ type StartupInfo struct {
 	ServerGroup    string
 	AdvertiseAddr  string
 	AdvertisePorts ServicePorts
+}
+
+type TLSConfig struct {
+	Cert, Key, CaCert string
 }
 
 type Config struct {
@@ -59,9 +67,7 @@ type Config struct {
 	NumInstances    uint
 	StartupCallback func(*StartupInfo)
 
-	EnableTLS	bool
-	Cert	string
-	Key		string
+	TLS *TLSConfig
 }
 
 func connStrToMgmtHostPort(connStr string) (string, error) {
@@ -120,11 +126,14 @@ func gatewayStartup(ctx context.Context, config *Config) error {
 
 	_, err = cbauth.InternalRetryDefaultInitWithService("stg", mgmtHostPort, config.Username, config.Password)
 	if err != nil {
-		config.Logger.Error("failed to initialize cbauth connection",
-			zap.Error(err),
-			zap.String("hostPort", mgmtHostPort),
-			zap.String("user", config.Username))
-		return err
+		// return error if any errors other than ErrCbAuthAlreadyInitialised
+		if !errors.Is(err, ErrCbAuthAlreadyInitialised) {
+			config.Logger.Error("failed to initialize cbauth connection",
+				zap.Error(err),
+				zap.String("hostPort", mgmtHostPort),
+				zap.String("user", config.Username))
+			return err
+		}
 	}
 
 	agentMgr, err := gocbcorex.CreateAgentManager(ctx, gocbcorex.AgentManagerOptions{
@@ -184,34 +193,42 @@ func gatewayStartup(ctx context.Context, config *Config) error {
 		return err
 	}
 
-	var serverOpts []grpc.ServerOption
-
-	if config.EnableTLS {
-		if len(config.Cert) == 0 || len(config.Key) == 0 {
-			config.Logger.Error("no server cert or key found to enable TLS")
-			return fmt.Errorf("no server cert or key found to enable TLS")
-		}
-
-		getServerTlsCreds := func(cert, key string) (credentials.TransportCredentials, error) {
+	var serverTlsCredOpts []grpc.ServerOption
+	if config.TLS != nil {
+		getServerTlsCreds := func(cert, key, caCert string) (credentials.TransportCredentials, error) {
 			serverCert, err := tls.LoadX509KeyPair(cert, key)
 			if err != nil {
 				return nil, err
 			}
-			// Create the credentials and return it
+
+			var caCertPool *x509.CertPool
+			if len(caCert) > 0 {
+				caCert, err := ioutil.ReadFile(caCert)
+				if err != nil {
+					return nil, err
+				}
+
+				caCertPool := x509.NewCertPool()
+				if !caCertPool.AppendCertsFromPEM(caCert) {
+					return nil, err
+				}
+			}
+
 			config := &tls.Config{
 				Certificates: []tls.Certificate{serverCert},
-				ClientAuth:   tls.NoClientCert,
+				RootCAs:      caCertPool,
+				ClientAuth:   tls.NoClientCert, // TODO(abose): mTLS NOT implemeneted at this point.
 			}
 			return credentials.NewTLS(config), nil
 		}
 
-		tlsCreds, err := getServerTlsCreds(config.Cert, config.Key)
+		tlsCreds, err := getServerTlsCreds(config.TLS.Cert, config.TLS.Key, config.TLS.CaCert)
 		if err != nil {
 			config.Logger.Error("error loading TLS credentials")
 			return err
 		}
 
-		serverOpts = append(serverOpts, grpc.Creds(tlsCreds))
+		serverTlsCredOpts = append(serverTlsCredOpts, grpc.Creds(tlsCreds))
 	}
 
 	startInstance := func(ctx context.Context, instanceIdx int) error {
@@ -229,11 +246,11 @@ func gatewayStartup(ctx context.Context, config *Config) error {
 
 		config.Logger.Info("initializing protostellar system")
 		gatewaySys, err := system.NewSystem(&system.SystemOptions{
-			Logger:   config.Logger.Named("gateway-system"),
-			DataImpl: dataImpl,
-			SdImpl:   sdImpl,
-			Metrics:  metrics.GetSnMetrics(),
-			DataImplServerOpts: serverOpts,
+			Logger:      config.Logger.Named("gateway-system"),
+			DataImpl:    dataImpl,
+			SdImpl:      sdImpl,
+			Metrics:     metrics.GetSnMetrics(),
+			TlsCredOpts: serverTlsCredOpts,
 		})
 		if err != nil {
 			config.Logger.Error("error creating legacy proxy")

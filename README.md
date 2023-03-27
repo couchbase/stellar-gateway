@@ -20,8 +20,8 @@ Provides translation capabilities for Protostellar to legacy protocols.
 ```
 > git submodule update --recursive --init
 > go generate
-> go build ./cmd/gateway
-> ./gateway
+> go build -o stellar-gateway ./cmd/gateway
+> ./stellar-gateway
 ```
 
 ### Executing the legacy bridge

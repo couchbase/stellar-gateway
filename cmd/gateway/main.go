@@ -23,8 +23,9 @@ var webPort = flag.Int("web-port", 9091, "the web metrics/health port")
 var daemon = flag.Bool("daemon", false, "When in daemon mode, stellar-gateway will restart on failure")
 
 var enableTLS = flag.Bool("secure", false, "enable SSL/TLS")
-var	certPath = flag.String("cert", "", "path to server tls cert")
-var	keyPath = flag.String("key", "", "path to server private tls key")
+var certPath = flag.String("cert", "", "path to server tls cert")
+var keyPath = flag.String("key", "", "path to server private tls key")
+var caCertPath = flag.String("cacert", "", "path to root CA cert")
 
 func main() {
 	flag.Parse()
@@ -53,6 +54,19 @@ func main() {
 		ListenAddress: listenAddress,
 	})
 
+	var tlsConfig *gateway.TLSConfig
+	if *enableTLS {
+		if len(*certPath) == 0 || len(*keyPath) == 0 {
+			logger.Error("no server cert or key found to secure serve", zap.String("cert", *certPath), zap.String("key", *keyPath))
+			os.Exit(1)
+		}
+		tlsConfig = &gateway.TLSConfig{
+			Cert:   *certPath,
+			Key:    *keyPath,
+			CaCert: *caCertPath,
+		}
+	}
+
 	gatewayConfig := &gateway.Config{
 		Logger:       logger.Named("gateway"),
 		CbConnStr:    *cbHost,
@@ -67,10 +81,7 @@ func main() {
 		StartupCallback: func(m *gateway.StartupInfo) {
 			gatewayConnStrCh <- fmt.Sprintf("%s:%d", m.AdvertiseAddr, m.AdvertisePorts.PS)
 		},
-
-		EnableTLS: *enableTLS,
-		Cert: *certPath,
-		Key: *keyPath,
+		TLS: tlsConfig,
 	}
 
 	err = gateway.Run(context.Background(), gatewayConfig)

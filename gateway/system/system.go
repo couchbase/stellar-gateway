@@ -33,8 +33,9 @@ type SystemOptions struct {
 	SdImpl   *sdimpl.Servers
 	Metrics  *metrics.SnMetrics
 
-	// TODO(abose): tidy up maybe move to somewhere more appropriate.
-	DataImplServerOpts []grpc.ServerOption
+	// TODO(abose): Do we need a seperate TLS Creds for data and sd gRPC servers?
+	// If so, break into DataTlsCredOpts and SdTlsCredOpts.
+	TlsCredOpts []grpc.ServerOption
 }
 
 type System struct {
@@ -51,14 +52,15 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 	hooksManager := hooks.NewHooksManager(opts.Logger.Named("hooks-manager"))
 	metricsInterceptor := interceptors.NewMetricsInterceptor(opts.Metrics)
 
-	dataImpSrvOpts := []grpc.ServerOption{
+	// TODO(abose): Same serverOpts passed; need to break into two, if needed.
+	serverOpts := []grpc.ServerOption{
 		grpc.ChainUnaryInterceptor(hooksManager.UnaryInterceptor(), metricsInterceptor.UnaryConnectionCounterInterceptor),
 	}
-	if len(opts.DataImplServerOpts) > 0 {
-		dataImpSrvOpts = append(dataImpSrvOpts, opts.DataImplServerOpts...)
+	if len(opts.TlsCredOpts) > 0 {
+		serverOpts = append(serverOpts, opts.TlsCredOpts...)
 	}
 
-	dataSrv := grpc.NewServer(dataImpSrvOpts...)
+	dataSrv := grpc.NewServer(serverOpts...)
 
 	internal_hooks_v1.RegisterHooksServiceServer(dataSrv, hooksManager.Server())
 	kv_v1.RegisterKvServiceServer(dataSrv, dataImpl.KvV1Server)
@@ -72,9 +74,8 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 	// health check
 	grpc_health_v1.RegisterHealthServer(dataSrv, HealthV1Server{})
 
-	sdSrv := grpc.NewServer(
-		grpc.ChainUnaryInterceptor(hooksManager.UnaryInterceptor(), metricsInterceptor.UnaryConnectionCounterInterceptor),
-	)
+	sdSrv := grpc.NewServer(serverOpts...)
+
 	internal_hooks_v1.RegisterHooksServiceServer(sdSrv, hooksManager.Server())
 	routing_v1.RegisterRoutingServiceServer(sdSrv, sdImpl.RoutingV1Server)
 
