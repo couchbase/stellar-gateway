@@ -356,7 +356,7 @@ func newNoAuthStatus() *status.Status {
 }
 
 func newInvalidCredentialsStatus() *status.Status {
-	st := status.New(codes.PermissionDenied, "You're username or password is invalid.")
+	st := status.New(codes.PermissionDenied, "Your username or password is invalid.")
 	st = tryAttachStatusDetails(st, &epb.ResourceInfo{
 		ResourceType: "user",
 		ResourceName: "",
