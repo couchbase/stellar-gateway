@@ -745,7 +745,11 @@ func (s *KvServer) LookupIn(ctx context.Context, in *kv_v1.LookupInRequest) (*kv
 		var op memdx.LookupInOpType
 		switch spec.Operation {
 		case kv_v1.LookupInRequest_Spec_OPERATION_GET:
-			op = memdx.LookupInOpTypeGet
+			if spec.Path == "" {
+				op = memdx.LookupInOpTypeGetDoc
+			} else {
+				op = memdx.LookupInOpTypeGet
+			}
 		case kv_v1.LookupInRequest_Spec_OPERATION_COUNT:
 			op = memdx.LookupInOpTypeGetCount
 		case kv_v1.LookupInRequest_Spec_OPERATION_EXISTS:
@@ -853,9 +857,17 @@ func (s *KvServer) MutateIn(ctx context.Context, in *kv_v1.MutateInRequest) (*kv
 		case kv_v1.MutateInRequest_Spec_OPERATION_UPSERT:
 			op = memdx.MutateInOpTypeDictSet
 		case kv_v1.MutateInRequest_Spec_OPERATION_REPLACE:
-			op = memdx.MutateInOpTypeReplace
+			if spec.Path == "" {
+				op = memdx.MutateInOpTypeSetDoc
+			} else {
+				op = memdx.MutateInOpTypeReplace
+			}
 		case kv_v1.MutateInRequest_Spec_OPERATION_REMOVE:
-			op = memdx.MutateInOpTypeDelete
+			if spec.Path == "" {
+				op = memdx.MutateInOpTypeDeleteDoc
+			} else {
+				op = memdx.MutateInOpTypeDelete
+			}
 		case kv_v1.MutateInRequest_Spec_OPERATION_INSERT:
 			op = memdx.MutateInOpTypeDictAdd
 		case kv_v1.MutateInRequest_Spec_OPERATION_COUNTER:
