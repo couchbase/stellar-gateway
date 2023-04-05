@@ -745,7 +745,11 @@ func (s *KvServer) LookupIn(ctx context.Context, in *kv_v1.LookupInRequest) (*kv
 		var op memdx.LookupInOpType
 		switch spec.Operation {
 		case kv_v1.LookupInRequest_Spec_OPERATION_GET:
-			op = memdx.LookupInOpTypeGet
+			if spec.Path == "" {
+				op = memdx.LookupInOpTypeGetDoc
+			} else {
+				op = memdx.LookupInOpTypeGet
+			}
 		case kv_v1.LookupInRequest_Spec_OPERATION_COUNT:
 			op = memdx.LookupInOpTypeGetCount
 		case kv_v1.LookupInRequest_Spec_OPERATION_EXISTS:
