@@ -1325,6 +1325,17 @@ func (s *GatewayOpsTestSuite) TestLookupIn() {
 			assert.Nil(s.T(), resp.Specs[0].Status)
 			assert.NotNil(s.T(), resp.Specs[0].Content)
 		})
+
+		s.Run("GetEmptyPath", func() {
+			resp := testBasicSpec(&kv_v1.LookupInRequest_Spec{
+				Operation: kv_v1.LookupInRequest_Spec_OPERATION_GET,
+				Path:      "",
+			})
+
+			assert.Len(s.T(), resp.Specs, 1)
+			assert.Nil(s.T(), resp.Specs[0].Status)
+			assert.Equal(s.T(), []byte(`{"foo":"bar", "arr":[1,2,3], "num": 14}`), resp.Specs[0].Content)
+		})
 	})
 
 	s.Run("DocTooDeep", func() {
@@ -1632,6 +1643,19 @@ func (s *GatewayOpsTestSuite) TestMutateIn() {
 			checkDocumentPath(docId, "foo", []byte(`"baz"`))
 		})
 
+		s.Run("ReplaceEmptyPath", func() {
+			docId := s.binaryDocId([]byte(`{"foo": 14}`))
+			content := []byte(`{"bar": 28}`)
+
+			testBasicSpec(docId, &kv_v1.MutateInRequest_Spec{
+				Operation: kv_v1.MutateInRequest_Spec_OPERATION_REPLACE,
+				Path:      "",
+				Content:   content,
+			})
+
+			checkDocumentPath(docId, "", content)
+		})
+
 		s.Run("Remove", func() {
 			docId := s.binaryDocId([]byte(`{"foo": 14}`))
 
@@ -1641,6 +1665,24 @@ func (s *GatewayOpsTestSuite) TestMutateIn() {
 			})
 
 			checkDocumentPath(docId, "foo", nil)
+		})
+
+		s.Run("RemoveEmptyPath", func() {
+			docId := s.binaryDocId([]byte(`{"foo": 14}`))
+
+			testBasicSpec(docId, &kv_v1.MutateInRequest_Spec{
+				Operation: kv_v1.MutateInRequest_Spec_OPERATION_REMOVE,
+				Path:      "",
+			})
+
+			_, err := kvClient.Get(context.Background(), &kv_v1.GetRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+
+			assertRpcStatus(s.T(), err, codes.NotFound)
 		})
 
 		s.Run("ArrayAppend", func() {
