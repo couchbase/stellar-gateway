@@ -1325,6 +1325,17 @@ func (s *GatewayOpsTestSuite) TestLookupIn() {
 			assert.Nil(s.T(), resp.Specs[0].Status)
 			assert.NotNil(s.T(), resp.Specs[0].Content)
 		})
+
+		s.Run("GetEmptyPath", func() {
+			resp := testBasicSpec(&kv_v1.LookupInRequest_Spec{
+				Operation: kv_v1.LookupInRequest_Spec_OPERATION_GET,
+				Path:      "",
+			})
+
+			assert.Len(s.T(), resp.Specs, 1)
+			assert.Nil(s.T(), resp.Specs[0].Status)
+			assert.Equal(s.T(), []byte(`{"foo":"bar", "arr":[1,2,3], "num": 14}`), resp.Specs[0].Content)
+		})
 	})
 
 	s.Run("DocTooDeep", func() {
