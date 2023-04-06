@@ -7,6 +7,8 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"net/http"
+	"strings"
 	"time"
 
 	"github.com/couchbase/cbauth"
@@ -106,6 +108,30 @@ func connStrToMgmtHostPort(connStr string) (string, error) {
 	return hostPort, nil
 }
 
+func PollServer(hostname string, logger *zap.Logger) error {
+
+	// check if it starts with http
+	if !strings.HasPrefix(hostname, "http") {
+		hostname = fmt.Sprintf("http://%s", hostname)
+	}
+
+	logger.Info(fmt.Sprintf("polling couchbase server: %s", hostname))
+
+	res, err := http.Get(hostname)
+	if err != nil {
+		logger.Warn(fmt.Sprintf("couchbase server unreachable: %s", hostname), zap.Error(err))
+		return err
+	}
+
+	if res.StatusCode != 200 {
+		err := fmt.Errorf("expected 200 found %d", res.StatusCode)
+		logger.Warn(fmt.Sprintf("couchbase server unreachable: %s", hostname), zap.Error(err))
+		return err
+	}
+
+	return nil
+}
+
 func gatewayStartup(ctx context.Context, config *Config) error {
 	// NodeID must not be blank, so lets generate a unique UUID if one wasn't provided...
 	nodeID := config.NodeID
@@ -121,6 +147,10 @@ func gatewayStartup(ctx context.Context, config *Config) error {
 	mgmtHostPort, err := connStrToMgmtHostPort(config.CbConnStr)
 	if err != nil {
 		config.Logger.Error("failed to parse connection string", zap.Error(err))
+		return err
+	}
+
+	if err := PollServer(mgmtHostPort, config.Logger); err != nil {
 		return err
 	}
 
