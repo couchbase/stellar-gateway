@@ -57,7 +57,7 @@ build: generate
 image-artifacts: build
 	mkdir -p $(ARTIFACTS)/bin/linux
 	cp bin/linux/stellar-nebula-* $(ARTIFACTS)/bin/linux
-	cp Dockerfile* README.md $(ARTIFACTS)
+	cp Dockerfile* README.md LICENSE $(ARTIFACTS)
 
 dist: image-artifacts
 	rm -rf dist
