@@ -5,6 +5,8 @@ genproto/
 build/
 dist/
 .vscode/
+config/
+bin/
 
 # Binaries for programs and plugins
 *.exe
