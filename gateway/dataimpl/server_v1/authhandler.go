@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/couchbase/gocbcorex"
+	"github.com/couchbase/gocbcorex/cbhttpx"
 	"github.com/couchbase/gocbcorex/cbmgmtx"
 	"github.com/couchbase/stellar-gateway/gateway/auth"
 	"go.uber.org/zap"
@@ -45,86 +46,130 @@ func (a AuthHandler) getUserPassFromMetaData(md metadata.MD) (string, string, er
 	return username, password, nil
 }
 
-func (a AuthHandler) MaybeGetOboUserFromContext(ctx context.Context) (string, *status.Status) {
+func (a AuthHandler) MaybeGetUserPassFromContext(ctx context.Context) (string, string, *status.Status) {
 	md, hasMd := metadata.FromIncomingContext(ctx)
 	if !hasMd {
 		a.Logger.Error("failed to fetch grpc metadata from context")
-		return "", newInternalStatus()
+		return "", "", newInternalStatus()
 	}
 
 	username, password, err := a.getUserPassFromMetaData(md)
 	if err != nil {
-		return "", newInvalidAuthHeaderStatus(err)
+		return "", "", newInvalidAuthHeaderStatus(err)
+	}
+
+	return username, password, nil
+}
+
+func (a AuthHandler) MaybeGetOboUserFromContext(ctx context.Context) (string, string, *status.Status) {
+	username, password, errSt := a.MaybeGetUserPassFromContext(ctx)
+	if errSt != nil {
+		return "", "", errSt
 	}
 
 	if username == "" && password == "" {
-		return "", nil
+		return "", "", nil
 	}
 
-	oboUser, err := a.Authenticator.ValidateUserForObo(username, password)
+	oboUser, oboDomain, err := a.Authenticator.ValidateUserForObo(username, password)
 	if err != nil {
 		if errors.Is(err, auth.ErrInvalidCredentials) {
-			return "", newInvalidCredentialsStatus()
+			return "", "", newInvalidCredentialsStatus()
 		}
 
 		a.Logger.Error("received an unexpected authentication error", zap.Error(err))
-		return "", newInternalStatus()
+		return "", "", newInternalStatus()
 	}
 
-	return oboUser, nil
+	return oboUser, oboDomain, nil
 }
 
-func (a AuthHandler) GetOboUserFromContext(ctx context.Context) (string, *status.Status) {
-	user, st := a.MaybeGetOboUserFromContext(ctx)
+func (a AuthHandler) GetOboUserFromContext(ctx context.Context) (string, string, *status.Status) {
+	user, domain, st := a.MaybeGetOboUserFromContext(ctx)
 	if st != nil {
-		return "", st
+		return "", "", st
 	}
 
 	if user == "" {
-		return "", newNoAuthStatus()
+		return "", "", newNoAuthStatus()
 	}
 
-	return user, nil
+	return user, domain, nil
 }
 
-func (a AuthHandler) GetOboUserClusterAgent(
-	ctx context.Context,
-) (*gocbcorex.Agent, string, *status.Status) {
-	oboUser, errSt := a.GetOboUserFromContext(ctx)
+func (a AuthHandler) GetHttpOboInfoFromContext(ctx context.Context) (*cbhttpx.OnBehalfOfInfo, *status.Status) {
+	username, password, errSt := a.MaybeGetUserPassFromContext(ctx)
 	if errSt != nil {
-		return nil, "", errSt
+		return nil, errSt
 	}
 
-	clusterAgent := a.CbClient.GetClusterAgent()
-	return clusterAgent, oboUser, nil
+	if username == "" {
+		return nil, newNoAuthStatus()
+	}
+
+	return &cbhttpx.OnBehalfOfInfo{
+		Username: username,
+		Password: password,
+	}, nil
 }
 
-func (a AuthHandler) GetOboUserBucketAgent(
-	ctx context.Context, bucketName string,
-) (*gocbcorex.Agent, string, *status.Status) {
-	oboUser, errSt := a.GetOboUserFromContext(ctx)
-	if errSt != nil {
-		return nil, "", errSt
-	}
+func (a AuthHandler) getClusterAgent(ctx context.Context) (*gocbcorex.Agent, *status.Status) {
+	return a.CbClient.GetClusterAgent(), nil
+}
 
+func (a AuthHandler) getBucketAgent(ctx context.Context, bucketName string) (*gocbcorex.Agent, *status.Status) {
 	bucketAgent, err := a.CbClient.GetBucketAgent(ctx, bucketName)
 	if err != nil {
 		if errors.Is(err, cbmgmtx.ErrBucketNotFound) {
-			return nil, "", newBucketMissingStatus(err, bucketName)
+			return nil, newBucketMissingStatus(err, bucketName)
 		}
 
-		return nil, "", cbGenericErrToPsStatus(err, a.Logger)
+		return nil, cbGenericErrToPsStatus(err, a.Logger)
+	}
+
+	return bucketAgent, nil
+}
+
+func (a AuthHandler) GetMemdOboAgent(
+	ctx context.Context, bucketName string,
+) (*gocbcorex.Agent, string, *status.Status) {
+	oboUser, _, errSt := a.GetOboUserFromContext(ctx)
+	if errSt != nil {
+		return nil, "", errSt
+	}
+
+	bucketAgent, errSt := a.getBucketAgent(ctx, bucketName)
+	if errSt != nil {
+		return nil, "", errSt
 	}
 
 	return bucketAgent, oboUser, nil
 }
 
-func (a AuthHandler) GetOboUserAgent(
+func (a AuthHandler) GetHttpOboAgent(
 	ctx context.Context, bucketName *string,
-) (*gocbcorex.Agent, string, *status.Status) {
-	if bucketName == nil {
-		return a.GetOboUserClusterAgent(ctx)
-	} else {
-		return a.GetOboUserBucketAgent(ctx, *bucketName)
+) (*gocbcorex.Agent, *cbhttpx.OnBehalfOfInfo, *status.Status) {
+	oboInfo, errSt := a.GetHttpOboInfoFromContext(ctx)
+	if errSt != nil {
+		return nil, nil, errSt
 	}
+
+	var agent *gocbcorex.Agent
+	if bucketName == nil {
+		clusterAgent, errSt := a.getClusterAgent(ctx)
+		if errSt != nil {
+			return nil, nil, errSt
+		}
+
+		agent = clusterAgent
+	} else {
+		bucketAgent, errSt := a.getBucketAgent(ctx, *bucketName)
+		if errSt != nil {
+			return nil, nil, errSt
+		}
+
+		agent = bucketAgent
+	}
+
+	return agent, oboInfo, nil
 }
