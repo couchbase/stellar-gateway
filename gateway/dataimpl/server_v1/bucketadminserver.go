@@ -33,13 +33,13 @@ func (s *BucketAdminServer) ListBuckets(
 	ctx context.Context,
 	in *admin_bucket_v1.ListBucketsRequest,
 ) (*admin_bucket_v1.ListBucketsResponse, error) {
-	agent, oboUser, errSt := s.authHandler.GetOboUserClusterAgent(ctx)
+	agent, oboInfo, errSt := s.authHandler.GetHttpOboAgent(ctx, nil)
 	if errSt != nil {
 		return nil, errSt.Err()
 	}
 
 	result, err := agent.GetAllBuckets(ctx, &cbmgmtx.GetAllBucketsOptions{
-		OnBehalfOf: oboUser,
+		OnBehalfOf: oboInfo,
 	})
 	if err != nil {
 		return nil, cbGenericErrToPsStatus(err, s.logger).Err()
@@ -103,7 +103,7 @@ func (s *BucketAdminServer) CreateBucket(
 	ctx context.Context,
 	in *admin_bucket_v1.CreateBucketRequest,
 ) (*admin_bucket_v1.CreateBucketResponse, error) {
-	agent, oboUser, errSt := s.authHandler.GetOboUserClusterAgent(ctx)
+	agent, oboInfo, errSt := s.authHandler.GetHttpOboAgent(ctx, nil)
 	if errSt != nil {
 		return nil, errSt.Err()
 	}
@@ -167,7 +167,7 @@ func (s *BucketAdminServer) CreateBucket(
 	}
 
 	err := agent.CreateBucket(ctx, &cbmgmtx.CreateBucketOptions{
-		OnBehalfOf: oboUser,
+		OnBehalfOf: oboInfo,
 		BucketName: in.BucketName,
 		BucketSettings: cbmgmtx.BucketSettings{
 			MutableBucketSettings: cbmgmtx.MutableBucketSettings{
@@ -199,7 +199,7 @@ func (s *BucketAdminServer) UpdateBucket(
 	ctx context.Context,
 	in *admin_bucket_v1.UpdateBucketRequest,
 ) (*admin_bucket_v1.UpdateBucketResponse, error) {
-	agent, oboUser, errSt := s.authHandler.GetOboUserClusterAgent(ctx)
+	agent, oboInfo, errSt := s.authHandler.GetHttpOboAgent(ctx, nil)
 	if errSt != nil {
 		return nil, errSt.Err()
 	}
@@ -263,7 +263,7 @@ func (s *BucketAdminServer) UpdateBucket(
 	}
 
 	err = agent.UpdateBucket(ctx, &cbmgmtx.UpdateBucketOptions{
-		OnBehalfOf:            oboUser,
+		OnBehalfOf:            oboInfo,
 		BucketName:            in.BucketName,
 		MutableBucketSettings: newBucket,
 	})
@@ -281,13 +281,13 @@ func (s *BucketAdminServer) DeleteBucket(
 	ctx context.Context,
 	in *admin_bucket_v1.DeleteBucketRequest,
 ) (*admin_bucket_v1.DeleteBucketResponse, error) {
-	agent, oboUser, errSt := s.authHandler.GetOboUserClusterAgent(ctx)
+	agent, oboInfo, errSt := s.authHandler.GetHttpOboAgent(ctx, nil)
 	if errSt != nil {
 		return nil, errSt.Err()
 	}
 
 	err := agent.DeleteBucket(ctx, &cbmgmtx.DeleteBucketOptions{
-		OnBehalfOf: oboUser,
+		OnBehalfOf: oboInfo,
 		BucketName: in.BucketName,
 	})
 	if err != nil {

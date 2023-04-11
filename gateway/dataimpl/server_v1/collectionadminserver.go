@@ -29,13 +29,13 @@ func (s *CollectionAdminServer) ListCollections(
 	ctx context.Context,
 	in *admin_collection_v1.ListCollectionsRequest,
 ) (*admin_collection_v1.ListCollectionsResponse, error) {
-	bucketAgent, oboUser, errSt := s.authHandler.GetOboUserBucketAgent(ctx, in.BucketName)
+	bucketAgent, oboInfo, errSt := s.authHandler.GetHttpOboAgent(ctx, &in.BucketName)
 	if errSt != nil {
 		return nil, errSt.Err()
 	}
 
 	result, err := bucketAgent.GetCollectionManifest(ctx, &cbmgmtx.GetCollectionManifestOptions{
-		OnBehalfOf: oboUser,
+		OnBehalfOf: oboInfo,
 		BucketName: in.BucketName,
 	})
 	if err != nil {
@@ -71,13 +71,13 @@ func (s *CollectionAdminServer) CreateScope(
 	ctx context.Context,
 	in *admin_collection_v1.CreateScopeRequest,
 ) (*admin_collection_v1.CreateScopeResponse, error) {
-	bucketAgent, oboUser, errSt := s.authHandler.GetOboUserBucketAgent(ctx, in.BucketName)
+	bucketAgent, oboInfo, errSt := s.authHandler.GetHttpOboAgent(ctx, &in.BucketName)
 	if errSt != nil {
 		return nil, errSt.Err()
 	}
 
 	err := bucketAgent.CreateScope(ctx, &cbmgmtx.CreateScopeOptions{
-		OnBehalfOf: oboUser,
+		OnBehalfOf: oboInfo,
 		BucketName: in.BucketName,
 		ScopeName:  in.ScopeName,
 	})
@@ -92,13 +92,13 @@ func (s *CollectionAdminServer) DeleteScope(
 	ctx context.Context,
 	in *admin_collection_v1.DeleteScopeRequest,
 ) (*admin_collection_v1.DeleteScopeResponse, error) {
-	bucketAgent, oboUser, errSt := s.authHandler.GetOboUserBucketAgent(ctx, in.BucketName)
+	bucketAgent, oboInfo, errSt := s.authHandler.GetHttpOboAgent(ctx, &in.BucketName)
 	if errSt != nil {
 		return nil, errSt.Err()
 	}
 
 	err := bucketAgent.DeleteScope(ctx, &cbmgmtx.DeleteScopeOptions{
-		OnBehalfOf: oboUser,
+		OnBehalfOf: oboInfo,
 		BucketName: in.BucketName,
 		ScopeName:  in.ScopeName,
 	})
@@ -113,7 +113,7 @@ func (s *CollectionAdminServer) CreateCollection(
 	ctx context.Context,
 	in *admin_collection_v1.CreateCollectionRequest,
 ) (*admin_collection_v1.CreateCollectionResponse, error) {
-	bucketAgent, oboUser, errSt := s.authHandler.GetOboUserBucketAgent(ctx, in.BucketName)
+	bucketAgent, oboInfo, errSt := s.authHandler.GetHttpOboAgent(ctx, &in.BucketName)
 	if errSt != nil {
 		return nil, errSt.Err()
 	}
@@ -124,7 +124,7 @@ func (s *CollectionAdminServer) CreateCollection(
 	}
 
 	err := bucketAgent.CreateCollection(ctx, &cbmgmtx.CreateCollectionOptions{
-		OnBehalfOf:     oboUser,
+		OnBehalfOf:     oboInfo,
 		BucketName:     in.BucketName,
 		CollectionName: in.CollectionName,
 		ScopeName:      in.ScopeName,
@@ -141,13 +141,13 @@ func (s *CollectionAdminServer) DeleteCollection(
 	ctx context.Context,
 	in *admin_collection_v1.DeleteCollectionRequest,
 ) (*admin_collection_v1.DeleteCollectionResponse, error) {
-	bucketAgent, oboUser, errSt := s.authHandler.GetOboUserBucketAgent(ctx, in.BucketName)
+	bucketAgent, oboInfo, errSt := s.authHandler.GetHttpOboAgent(ctx, &in.BucketName)
 	if errSt != nil {
 		return nil, errSt.Err()
 	}
 
 	err := bucketAgent.DeleteCollection(ctx, &cbmgmtx.DeleteCollectionOptions{
-		OnBehalfOf:     oboUser,
+		OnBehalfOf:     oboInfo,
 		BucketName:     in.BucketName,
 		ScopeName:      in.ScopeName,
 		CollectionName: in.CollectionName,

@@ -29,13 +29,13 @@ func NewQueryServer(
 }
 
 func (s *QueryServer) Query(in *query_v1.QueryRequest, out query_v1.QueryService_QueryServer) error {
-	agent, oboUser, errSt := s.authHandler.GetOboUserAgent(out.Context(), in.BucketName)
+	agent, oboInfo, errSt := s.authHandler.GetHttpOboAgent(out.Context(), in.BucketName)
 	if errSt != nil {
 		return errSt.Err()
 	}
 
 	var opts gocbcorex.QueryOptions
-	opts.OnBehalfOf = oboUser
+	opts.OnBehalfOf = oboInfo
 
 	opts.Statement = in.Statement
 
