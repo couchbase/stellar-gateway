@@ -6,8 +6,8 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -233,7 +233,7 @@ func gatewayStartup(ctx context.Context, config *Config) error {
 
 			var caCertPool *x509.CertPool
 			if len(caCert) > 0 {
-				caCert, err := ioutil.ReadFile(caCert)
+				caCert, err := os.ReadFile(caCert)
 				if err != nil {
 					return nil, err
 				}
