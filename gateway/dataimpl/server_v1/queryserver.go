@@ -137,22 +137,18 @@ func (s *QueryServer) Query(in *query_v1.QueryRequest, out query_v1.QueryService
 	}
 
 	var rowCache [][]byte
-	var rowCacheNumBytes int = 0
-	const MAX_ROW_BYTES = 1024
+	rowCacheNumBytes := 0
+	const MaxRowBytes = 1024
 
-	for {
+	for result.HasMoreRows() {
 		rowBytes, err := result.ReadRow()
 		if err != nil {
 			return cbGenericErrToPsStatus(err, s.logger).Err()
 		}
 
-		if rowBytes == nil {
-			break
-		}
-
 		rowNumBytes := len(rowBytes)
 
-		if rowCacheNumBytes+rowNumBytes > MAX_ROW_BYTES {
+		if rowCacheNumBytes+rowNumBytes > MaxRowBytes {
 			// adding this row to the cache would exceed its maximum number of
 			// bytes, so we need to evict all these rows...
 			err := out.Send(&query_v1.QueryResponse{

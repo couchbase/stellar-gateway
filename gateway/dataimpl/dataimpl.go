@@ -17,13 +17,14 @@ type NewOptions struct {
 }
 
 type Servers struct {
-	KvV1Server              *server_v1.KvServer
-	QueryV1Server           *server_v1.QueryServer
-	SearchV1Server          *server_v1.SearchServer
-	AnalyticsV1Server       *server_v1.AnalyticsServer
-	AdminBucketV1Server     *server_v1.BucketAdminServer
-	AdminCollectionV1Server *server_v1.CollectionAdminServer
-	TransactionsV1Server    *server_v1.TransactionsServer
+	KvV1Server               *server_v1.KvServer
+	QueryV1Server            *server_v1.QueryServer
+	SearchV1Server           *server_v1.SearchServer
+	AnalyticsV1Server        *server_v1.AnalyticsServer
+	AdminBucketV1Server      *server_v1.BucketAdminServer
+	AdminCollectionV1Server  *server_v1.CollectionAdminServer
+	AdminSearchIndexV1Server *server_v1.SearchIndexAdminServer
+	TransactionsV1Server     *server_v1.TransactionsServer
 }
 
 func New(opts *NewOptions) *Servers {
@@ -56,6 +57,10 @@ func New(opts *NewOptions) *Servers {
 		),
 		AdminCollectionV1Server: server_v1.NewCollectionAdminServer(
 			opts.Logger.Named("admincollection"),
+			v1AuthHandler,
+		),
+		AdminSearchIndexV1Server: server_v1.NewSearchIndexAdminServer(
+			opts.Logger.Named("adminsearchindex"),
 			v1AuthHandler,
 		),
 		TransactionsV1Server: server_v1.NewTransactionsServer(
