@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -54,7 +55,7 @@ func (s *GatewayOpsTestSuite) randomDocId() string {
 
 func (s *GatewayOpsTestSuite) testDocIdAndCas() (string, uint64) {
 	docId := s.randomDocId()
-	docCas := s.createDocument(s.T(), createDocumentOptions{
+	docCas := s.createDocument(createDocumentOptions{
 		BucketName:     s.bucketName,
 		ScopeName:      s.scopeName,
 		CollectionName: s.collectionName,
@@ -72,7 +73,7 @@ func (s *GatewayOpsTestSuite) testDocId() string {
 
 func (s *GatewayOpsTestSuite) binaryDocId(content []byte) string {
 	docId := s.randomDocId()
-	s.createDocument(s.T(), createDocumentOptions{
+	s.createDocument(createDocumentOptions{
 		BucketName:     s.bucketName,
 		ScopeName:      s.scopeName,
 		CollectionName: s.collectionName,
@@ -130,6 +131,13 @@ func (s *GatewayOpsTestSuite) lockedDocId() string {
 
 func (s *GatewayOpsTestSuite) missingDocId() string {
 	return s.randomDocId()
+}
+
+func (s *GatewayOpsTestSuite) loadTestData(path string) []byte {
+	b, err := os.ReadFile(path)
+	s.NoErrorf(err, "Failed to read test data for %s", path)
+
+	return b
 }
 
 func (s *GatewayOpsTestSuite) SetupSuite() {
@@ -239,7 +247,7 @@ type createDocumentOptions struct {
 	ContentFlags   uint32
 }
 
-func (s *GatewayOpsTestSuite) createDocument(t *testing.T, opts createDocumentOptions) uint64 {
+func (s *GatewayOpsTestSuite) createDocument(opts createDocumentOptions) uint64 {
 	kvClient := kv_v1.NewKvServiceClient(s.gatewayConn)
 
 	upsertResp, err := kvClient.Upsert(context.Background(), &kv_v1.UpsertRequest{
@@ -345,7 +353,7 @@ func (s *GatewayOpsTestSuite) TestHelpers() {
 	// expected...
 	testDocId := s.randomDocId()
 
-	s.createDocument(s.T(), createDocumentOptions{
+	s.createDocument(createDocumentOptions{
 		BucketName:     s.bucketName,
 		ScopeName:      s.scopeName,
 		CollectionName: s.collectionName,

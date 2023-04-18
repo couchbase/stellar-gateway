@@ -117,6 +117,32 @@ func newCollectionMissingStatus(baseErr error, bucketName, scopeName, collection
 	return st
 }
 
+func newSearchIndexExistsStatus(baseErr error, indexName string) *status.Status {
+	st := status.New(codes.NotFound,
+		fmt.Sprintf("Search index '%s' not found.",
+			indexName))
+	st = tryAttachStatusDetails(st, &epb.ResourceInfo{
+		ResourceType: "searchindex",
+		ResourceName: indexName,
+		Description:  "",
+	})
+	st = tryAttachCbContext(st, baseErr)
+	return st
+}
+
+func newSearchIndexMissingStatus(baseErr error, indexName string) *status.Status {
+	st := status.New(codes.AlreadyExists,
+		fmt.Sprintf("Search index '%s' already existed.",
+			indexName))
+	st = tryAttachStatusDetails(st, &epb.ResourceInfo{
+		ResourceType: "searchindex",
+		ResourceName: indexName,
+		Description:  "",
+	})
+	st = tryAttachCbContext(st, baseErr)
+	return st
+}
+
 func newDocMissingStatus(baseErr error, bucketName, scopeName, collectionName, docId string) *status.Status {
 	st := status.New(codes.NotFound,
 		fmt.Sprintf("Document '%s' not found in '%s/%s/%s'.",
