@@ -6,7 +6,9 @@ import (
 
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/health/grpc_health_v1"
+	"google.golang.org/grpc/status"
 
 	"github.com/couchbase/goprotostellar/genproto/admin_bucket_v1"
 	"github.com/couchbase/goprotostellar/genproto/admin_collection_v1"
@@ -23,6 +25,7 @@ import (
 	"github.com/couchbase/stellar-gateway/gateway/sdimpl"
 	"github.com/couchbase/stellar-gateway/pkg/interceptors"
 	"github.com/couchbase/stellar-gateway/pkg/metrics"
+	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/recovery"
 )
 
 // TODO(brett19): Implement the gateway system as its own component
@@ -46,6 +49,10 @@ type System struct {
 	sdServer   *grpc.Server
 }
 
+var (
+	customFunc recovery.RecoveryHandlerFunc
+)
+
 func NewSystem(opts *SystemOptions) (*System, error) {
 	dataImpl := opts.DataImpl
 	sdImpl := opts.SdImpl
@@ -53,9 +60,23 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 	hooksManager := hooks.NewHooksManager(opts.Logger.Named("hooks-manager"))
 	metricsInterceptor := interceptors.NewMetricsInterceptor(opts.Metrics)
 
+	// Define customfunc to handle panic
+	customFunc = func(p any) (err error) {
+		// TODO(abose): should it be newInternalStatus(), but it's a pnic which is handled.
+		return status.Errorf(codes.Unknown, "A panic has been triggered: %v", p)
+	}
+
+	panicRecoveryOpts := []recovery.Option{
+		recovery.WithRecoveryHandler(customFunc),
+	}
+
 	// TODO(abose): Same serverOpts passed; need to break into two, if needed.
 	serverOpts := []grpc.ServerOption{
-		grpc.ChainUnaryInterceptor(hooksManager.UnaryInterceptor(), metricsInterceptor.UnaryConnectionCounterInterceptor),
+		grpc.ChainUnaryInterceptor(hooksManager.UnaryInterceptor(),
+		metricsInterceptor.UnaryConnectionCounterInterceptor),
+		grpc.UnaryInterceptor(
+			recovery.UnaryServerInterceptor(panicRecoveryOpts...), // panic recovery ahs to be the last interceptor
+		),
 	}
 	if len(opts.TlsCredOpts) > 0 {
 		serverOpts = append(serverOpts, opts.TlsCredOpts...)
