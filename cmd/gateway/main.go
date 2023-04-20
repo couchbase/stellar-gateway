@@ -19,10 +19,10 @@ var cbHost = flag.String("cb-host", "127.0.0.1", "the couchbase server host")
 var cbUser = flag.String("cb-user", "Administrator", "the couchbase server username")
 var cbPass = flag.String("cb-pass", "password", "the couchbase server password")
 var dataPort = flag.Int("data-port", 18098, "the data port")
+var bindAddr = flag.String("bind-address", "0.0.0.0", "the local address to bind to")
 var sdPort = flag.Int("sd-port", 18099, "the sd port")
 var webPort = flag.Int("web-port", 9091, "the web metrics/health port")
 var daemon = flag.Bool("daemon", false, "When in daemon mode, stellar-gateway will restart on failure")
-
 var enableTLS = flag.Bool("secure", false, "enable SSL/TLS")
 var certPath = flag.String("cert", "", "path to server tls cert")
 var keyPath = flag.String("key", "", "path to server private tls key")
@@ -47,7 +47,7 @@ func main() {
 	logLevel := zap.NewAtomicLevel()
 	logLevel.SetLevel(zapcore.DebugLevel)
 
-	listenAddress := fmt.Sprintf("0.0.0.0:%v", *webPort)
+	listenAddress := fmt.Sprintf("%s:%v", *bindAddr, *webPort)
 
 	webapi.InitializeWebServer(webapi.WebServerOptions{
 		Logger:        logger,
@@ -76,7 +76,7 @@ func main() {
 		Daemon:       *daemon,
 		BindDataPort: *dataPort,
 		BindSdPort:   *sdPort,
-		BindAddress:  "0.0.0.0",
+		BindAddress:  *bindAddr,
 		NumInstances: 1,
 		TLS:          tlsConfig,
 	}
