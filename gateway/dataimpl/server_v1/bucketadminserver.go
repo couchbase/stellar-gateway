@@ -161,9 +161,12 @@ func (s *BucketAdminServer) CreateBucket(
 		}
 	}
 
-	conflictResolutionType, errSt := conflictResolutionTypeToCbmgmtx(*in.ConflictResolutionType)
-	if errSt != nil {
-		return nil, errSt.Err()
+	conflictResolutionType := cbmgmtx.ConflictResolutionTypeSequenceNumber
+	if in.ConflictResolutionType != nil {
+		conflictResolutionType, errSt = conflictResolutionTypeToCbmgmtx(*in.ConflictResolutionType)
+		if errSt != nil {
+			return nil, errSt.Err()
+		}
 	}
 
 	err := agent.CreateBucket(ctx, &cbmgmtx.CreateBucketOptions{
