@@ -43,10 +43,6 @@ func main() {
 
 	logger.Info(fmt.Sprintf("starting %s: %s", version.Application, version.WithBuildNumberAndRevision()))
 
-	// In order to start the bridge, we need to know where the gateway is running,
-	// so we use a channel and a hook in the gateway to get this.
-	gatewayConnStrCh := make(chan string, 100)
-
 	// Todo:  Read in log level from CLI or env var
 	logLevel := zap.NewAtomicLevel()
 	logLevel.SetLevel(zapcore.DebugLevel)
@@ -82,11 +78,7 @@ func main() {
 		BindSdPort:   *sdPort,
 		BindAddress:  "0.0.0.0",
 		NumInstances: 1,
-
-		StartupCallback: func(m *gateway.StartupInfo) {
-			gatewayConnStrCh <- fmt.Sprintf("%s:%d", m.AdvertiseAddr, m.AdvertisePorts.PS)
-		},
-		TLS: tlsConfig,
+		TLS:          tlsConfig,
 	}
 
 	err = gateway.Run(context.Background(), gatewayConfig)
