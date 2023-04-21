@@ -50,7 +50,11 @@ type System struct {
 }
 
 var (
+<<<<<<< HEAD
 	customPanicHandlerFunc recovery.RecoveryHandlerFunc
+=======
+	customFunc recovery.RecoveryHandlerFunc
+>>>>>>> 5e86ec5d5a8de4b62f13f9c9511c40081febe80d
 )
 
 func NewSystem(opts *SystemOptions) (*System, error) {
