@@ -2,6 +2,7 @@ package test
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -13,6 +14,7 @@ import (
 	"github.com/couchbase/stellar-gateway/contrib/grpcheaderauth"
 	"github.com/couchbase/stellar-gateway/gateway"
 	"github.com/couchbase/stellar-gateway/testutils"
+	"github.com/couchbase/stellar-gateway/utils/selfsignedcert"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
@@ -20,7 +22,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
 type GatewayOpsTestSuite struct {
@@ -191,24 +192,37 @@ func (s *GatewayOpsTestSuite) SetupSuite() {
 		s.T().Fatalf("failed to initialize test logging: %s", err)
 	}
 
-	gwStartInfoCh := make(chan *gateway.StartupInfo, 1)
+	gwCert, err := selfsignedcert.GenerateCertificate()
+	if err != nil {
+		s.T().Fatalf("failed to create testing certificate: %s", err)
+	}
 
+	gwStartInfoCh := make(chan *gateway.StartupInfo, 1)
 	gwCtx, gwCtxCancel := context.WithCancel(context.Background())
+	gw, err := gateway.NewGateway(&gateway.Config{
+		Logger:         logger.Named("gateway"),
+		CbConnStr:      testConfig.CbConnStr,
+		Username:       testConfig.CbUser,
+		Password:       testConfig.CbPass,
+		BindDataPort:   0,
+		BindSdPort:     0,
+		TlsCertificate: *gwCert,
+		NumInstances:   1,
+
+		StartupCallback: func(m *gateway.StartupInfo) {
+			gwStartInfoCh <- m
+		},
+	})
+	if err != nil {
+		s.T().Fatalf("failed to initialize gateway: %s", err)
+	}
+
 	gwClosedCh := make(chan struct{})
 	go func() {
-		err = gateway.Run(gwCtx, &gateway.Config{
-			Logger:       logger.Named("gateway"),
-			CbConnStr:    testConfig.CbConnStr,
-			Username:     testConfig.CbUser,
-			Password:     testConfig.CbPass,
-			BindDataPort: 0,
-			BindSdPort:   0,
-			NumInstances: 1,
-
-			StartupCallback: func(m *gateway.StartupInfo) {
-				gwStartInfoCh <- m
-			},
-		})
+		err := gw.Run(gwCtx)
+		if err != nil {
+			s.T().Errorf("gateway run failed: %s", err)
+		}
 
 		s.T().Logf("test gateway has shut down")
 		close(gwClosedCh)
@@ -217,7 +231,10 @@ func (s *GatewayOpsTestSuite) SetupSuite() {
 	startInfo := <-gwStartInfoCh
 
 	connAddr := fmt.Sprintf("%s:%d", "127.0.0.1", startInfo.AdvertisePorts.PS)
-	conn, err := grpc.Dial(connAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.Dial(connAddr,
+		grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{
+			InsecureSkipVerify: true,
+		})))
 	if err != nil {
 		s.T().Fatalf("failed to connect to test gateway: %s", err)
 	}

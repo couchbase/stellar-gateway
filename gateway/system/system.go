@@ -2,10 +2,12 @@ package system
 
 import (
 	"context"
+	"crypto/tls"
 	"sync"
 
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/health/grpc_health_v1"
 
 	"github.com/couchbase/goprotostellar/genproto/admin_bucket_v1"
@@ -34,9 +36,7 @@ type SystemOptions struct {
 	SdImpl   *sdimpl.Servers
 	Metrics  *metrics.SnMetrics
 
-	// TODO(abose): Do we need a seperate TLS Creds for data and sd gRPC servers?
-	// If so, break into DataTlsCredOpts and SdTlsCredOpts.
-	TlsCredOpts []grpc.ServerOption
+	TlsConfig *tls.Config
 }
 
 type System struct {
@@ -56,9 +56,7 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 	// TODO(abose): Same serverOpts passed; need to break into two, if needed.
 	serverOpts := []grpc.ServerOption{
 		grpc.ChainUnaryInterceptor(hooksManager.UnaryInterceptor(), metricsInterceptor.UnaryConnectionCounterInterceptor),
-	}
-	if len(opts.TlsCredOpts) > 0 {
-		serverOpts = append(serverOpts, opts.TlsCredOpts...)
+		grpc.Creds(credentials.NewTLS(opts.TlsConfig)),
 	}
 
 	dataSrv := grpc.NewServer(serverOpts...)
