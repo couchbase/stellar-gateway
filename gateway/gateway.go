@@ -3,12 +3,10 @@ package gateway
 import (
 	"context"
 	"crypto/tls"
-	"crypto/x509"
-	"errors"
 	"fmt"
 	"net/http"
-	"os"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/couchbase/cbauth"
@@ -27,12 +25,9 @@ import (
 	"github.com/couchbase/stellar-gateway/utils/netutils"
 	"github.com/couchbaselabs/gocbconnstr"
 	"github.com/google/uuid"
+	"github.com/pkg/errors"
 	"go.uber.org/zap"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
 )
-
-var ErrCbAuthAlreadyInitialised = errors.New("cbauth is already initialized")
 
 type ServicePorts struct {
 	PS int `json:"p,omitempty"`
@@ -44,10 +39,6 @@ type StartupInfo struct {
 	ServerGroup    string
 	AdvertiseAddr  string
 	AdvertisePorts ServicePorts
-}
-
-type TLSConfig struct {
-	Cert, Key, CaCert string
 }
 
 type Config struct {
@@ -66,10 +57,27 @@ type Config struct {
 	AdvertiseAddress string
 	AdvertisePorts   ServicePorts
 
+	TlsCertificate tls.Certificate
+
 	NumInstances    uint
 	StartupCallback func(*StartupInfo)
+}
 
-	TLS *TLSConfig
+type Gateway struct {
+	config Config
+
+	atomicTlsCert atomic.Pointer[tls.Certificate]
+}
+
+func NewGateway(config *Config) (*Gateway, error) {
+	gw := &Gateway{
+		config: *config,
+	}
+
+	tlsCert := config.TlsCertificate
+	gw.atomicTlsCert.Store(&tlsCert)
+
+	return gw, nil
 }
 
 func connStrToMgmtHostPort(connStr string) (string, error) {
@@ -108,31 +116,24 @@ func connStrToMgmtHostPort(connStr string) (string, error) {
 	return hostPort, nil
 }
 
-func PollServer(hostname string, logger *zap.Logger) error {
+func pingCouchbaseCluster(mgmtHostPort string) error {
+	pollEndpoint := fmt.Sprintf("http://%s", mgmtHostPort)
 
-	// check if it starts with http
-	if !strings.HasPrefix(hostname, "http") {
-		hostname = fmt.Sprintf("http://%s", hostname)
-	}
-
-	logger.Info(fmt.Sprintf("polling couchbase server: %s", hostname))
-
-	res, err := http.Get(hostname)
+	res, err := http.Get(pollEndpoint)
 	if err != nil {
-		logger.Warn(fmt.Sprintf("couchbase server unreachable: %s", hostname), zap.Error(err))
-		return err
+		return errors.Wrap(err, "failed to execute GET operation")
 	}
 
 	if res.StatusCode != 200 {
-		err := fmt.Errorf("expected 200 found %d", res.StatusCode)
-		logger.Warn(fmt.Sprintf("couchbase server unreachable: %s", hostname), zap.Error(err))
-		return err
+		return fmt.Errorf("unexpected status code: %d", res.StatusCode)
 	}
 
 	return nil
 }
 
-func gatewayStartup(ctx context.Context, config *Config) error {
+func (g *Gateway) Run(ctx context.Context) error {
+	config := g.config
+
 	// NodeID must not be blank, so lets generate a unique UUID if one wasn't provided...
 	nodeID := config.NodeID
 	if nodeID == "" {
@@ -144,20 +145,49 @@ func gatewayStartup(ctx context.Context, config *Config) error {
 	// start connecting to the underlying cluster
 	config.Logger.Info("linking to couchbase cluster", zap.String("connectionString", config.CbConnStr), zap.String("User", config.Username))
 
+	// identify the ns_server host/port
 	mgmtHostPort, err := connStrToMgmtHostPort(config.CbConnStr)
 	if err != nil {
 		config.Logger.Error("failed to parse connection string", zap.Error(err))
 		return err
 	}
+	config.Logger.Info("identified couchbase server address", zap.String("address", mgmtHostPort))
 
-	if err := PollServer(mgmtHostPort, config.Logger); err != nil {
-		return err
+	// ping the cluster first to make sure its alive
+	config.Logger.Info("waiting for couchbase server to become available", zap.String("address", mgmtHostPort))
+
+	for {
+		err = pingCouchbaseCluster(mgmtHostPort)
+		if err != nil {
+			config.Logger.Warn("failed to ping cluster", zap.Error(err))
+
+			// if we are not in daemon mode, we just immediately return the error to the user
+			if !config.Daemon {
+				return err
+			}
+
+			// wait before we retry
+			waitTime := 5 * time.Second
+			config.Logger.Info("sleeping before trying to ping cluster again", zap.Duration("period", waitTime))
+			select {
+			case <-time.After(waitTime):
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+
+			continue
+		}
+
+		// once we successfully ping the cluster, we can stop polling
+		break
 	}
 
+	// initialize cb-auth
 	_, err = cbauth.InternalRetryDefaultInitWithService("stg", mgmtHostPort, config.Username, config.Password)
 	if err != nil {
-		// return error if any errors other than ErrCbAuthAlreadyInitialised
-		if !errors.Is(err, ErrCbAuthAlreadyInitialised) {
+		if strings.Contains(err.Error(), "already initialized") {
+			// we ignore this error
+		} else {
 			config.Logger.Error("failed to initialize cbauth connection",
 				zap.Error(err),
 				zap.String("hostPort", mgmtHostPort),
@@ -166,6 +196,7 @@ func gatewayStartup(ctx context.Context, config *Config) error {
 		}
 	}
 
+	// try to establish a client connection to the cluster
 	agentMgr, err := gocbcorex.CreateAgentManager(ctx, gocbcorex.AgentManagerOptions{
 		Logger:        config.Logger.Named("gocbcorex"),
 		TLSConfig:     nil,
@@ -223,44 +254,6 @@ func gatewayStartup(ctx context.Context, config *Config) error {
 		return err
 	}
 
-	var serverTlsCredOpts []grpc.ServerOption
-	if config.TLS != nil {
-		getServerTlsCreds := func(cert, key, caCert string) (credentials.TransportCredentials, error) {
-			serverCert, err := tls.LoadX509KeyPair(cert, key)
-			if err != nil {
-				return nil, err
-			}
-
-			var caCertPool *x509.CertPool
-			if len(caCert) > 0 {
-				caCert, err := os.ReadFile(caCert)
-				if err != nil {
-					return nil, err
-				}
-
-				caCertPool := x509.NewCertPool()
-				if !caCertPool.AppendCertsFromPEM(caCert) {
-					return nil, err
-				}
-			}
-
-			config := &tls.Config{
-				Certificates: []tls.Certificate{serverCert},
-				RootCAs:      caCertPool,
-				ClientAuth:   tls.NoClientCert, // TODO(abose): mTLS NOT implemeneted at this point.
-			}
-			return credentials.NewTLS(config), nil
-		}
-
-		tlsCreds, err := getServerTlsCreds(config.TLS.Cert, config.TLS.Key, config.TLS.CaCert)
-		if err != nil {
-			config.Logger.Error("error loading TLS credentials")
-			return err
-		}
-
-		serverTlsCredOpts = append(serverTlsCredOpts, grpc.Creds(tlsCreds))
-	}
-
 	startInstance := func(ctx context.Context, instanceIdx int) error {
 		dataImpl := dataimpl.New(&dataimpl.NewOptions{
 			Logger:           config.Logger.Named("data-impl"),
@@ -276,11 +269,15 @@ func gatewayStartup(ctx context.Context, config *Config) error {
 
 		config.Logger.Info("initializing protostellar system")
 		gatewaySys, err := system.NewSystem(&system.SystemOptions{
-			Logger:      config.Logger.Named("gateway-system"),
-			DataImpl:    dataImpl,
-			SdImpl:      sdImpl,
-			Metrics:     metrics.GetSnMetrics(),
-			TlsCredOpts: serverTlsCredOpts,
+			Logger:   config.Logger.Named("gateway-system"),
+			DataImpl: dataImpl,
+			SdImpl:   sdImpl,
+			Metrics:  metrics.GetSnMetrics(),
+			TlsConfig: &tls.Config{
+				GetCertificate: func(chi *tls.ClientHelloInfo) (*tls.Certificate, error) {
+					return g.atomicTlsCert.Load(), nil
+				},
+			},
 		})
 		if err != nil {
 			config.Logger.Error("error creating legacy proxy")
@@ -396,38 +393,4 @@ func gatewayStartup(ctx context.Context, config *Config) error {
 	}
 
 	return nil
-}
-
-func Run(ctx context.Context, config *Config) error {
-	// TODO(malscent): daemon mode should start up grpc servers and return errors
-	// to the client specifying issues connecting to underlying service instead of
-	// just restarting whole process
-	for restarts := 0; ; restarts++ {
-		startTime := time.Now()
-
-		err := gatewayStartup(ctx, config)
-		if err != nil {
-			if !config.Daemon {
-				return err
-			}
-
-			runTime := time.Since(startTime)
-
-			// limit automatic restarts to once every 10 seconds
-			waitTime := (10 * time.Second) - runTime
-			if waitTime < 0 {
-				waitTime = 0
-			}
-
-			config.Logger.Warn("startup of gateway failed.  retrying...",
-				zap.Error(err),
-				zap.Int("attempt", restarts),
-				zap.Duration("waitTime", waitTime))
-			time.Sleep(waitTime)
-
-			continue
-		}
-
-		return nil
-	}
 }

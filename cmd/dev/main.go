@@ -30,7 +30,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	logger.Info(fmt.Sprintf("starting %s: %s", version.Application, version.WithBuildNumberAndRevision()))
+	logger.Info("starting steller-gateway", zap.String("version", version.WithBuildNumberAndRevision()))
 
 	// In order to start the bridge, we need to know where the gateway is running,
 	// so we use a channel and a hook in the gateway to get this.
@@ -47,7 +47,7 @@ func main() {
 			sdPort = 18099
 		}
 
-		err := gateway.Run(context.Background(), &gateway.Config{
+		gw, err := gateway.NewGateway(&gateway.Config{
 			Logger:       logger.Named("gateway"),
 			CbConnStr:    *cbHost,
 			Username:     *cbUser,
@@ -62,6 +62,12 @@ func main() {
 		})
 		if err != nil {
 			log.Printf("failed to initialize the gateway: %s", err)
+			os.Exit(1)
+		}
+
+		err = gw.Run(context.Background())
+		if err != nil {
+			log.Printf("failed to run the gateway: %s", err)
 			os.Exit(1)
 		}
 
