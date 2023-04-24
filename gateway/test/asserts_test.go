@@ -8,6 +8,7 @@ import (
 
 	"github.com/couchbase/goprotostellar/genproto/kv_v1"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	spb "google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -67,9 +68,9 @@ func assertRpcStatus(t *testing.T, err error, expectedCode codes.Code) {
 	assert.Equal(t, expectedCode, errSt.Code())
 }
 
-func assertRpcSuccess(t *testing.T, resp interface{}, err error) {
+func requireRpcSuccess(t *testing.T, resp interface{}, err error) {
 	assertRpcStatus(t, err, codes.OK)
-	assert.NotNil(t, resp)
+	require.NotNil(t, resp)
 }
 
 func assertRpcErrorDetails[T any](t *testing.T, err error, checkFn func(detail *T)) {

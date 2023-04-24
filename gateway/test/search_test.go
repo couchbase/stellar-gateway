@@ -238,7 +238,7 @@ func (s *testSearchServiceHelper) testSetupSearch() {
 		SourceType: &sourceType,
 		Type:       "fulltext-index",
 	}, grpc.PerRPCCredentials(s.basicRpcCreds))
-	assertRpcSuccess(s.T(), resp, err)
+	requireRpcSuccess(s.T(), resp, err)
 }
 
 type testBreweryGeoJson struct {
