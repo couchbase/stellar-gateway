@@ -50,7 +50,7 @@ func (s *GatewayOpsTestSuite) TestQuery() {
 				BucketName: &bucketName,
 				Statement:  "SELECT * FROM default._default._default WHERE META().id='" + docId + "'",
 			}, grpc.PerRPCCredentials(s.basicRpcCreds))
-			assertRpcStatus(s.T(), err, codes.OK)
+			requireRpcSuccess(s.T(), client, err)
 
 			rows, md, err := readQueryStream(client)
 			assertRpcStatus(s.T(), err, codes.OK)
@@ -69,7 +69,7 @@ func (s *GatewayOpsTestSuite) TestQuery() {
 		client, err := queryClient.Query(context.Background(), &query_v1.QueryRequest{
 			Statement: "FINAGLE * FROM default._default._default",
 		}, grpc.PerRPCCredentials(s.badRpcCreds))
-		assertRpcStatus(s.T(), err, codes.OK)
+		requireRpcSuccess(s.T(), client, err)
 
 		_, _, err = readQueryStream(client)
 		assertRpcStatus(s.T(), err, codes.InvalidArgument)
@@ -79,7 +79,7 @@ func (s *GatewayOpsTestSuite) TestQuery() {
 		client, err := queryClient.Query(context.Background(), &query_v1.QueryRequest{
 			Statement: "SELECT * FROM default._default._default",
 		}, grpc.PerRPCCredentials(s.badRpcCreds))
-		assertRpcStatus(s.T(), err, codes.OK)
+		requireRpcSuccess(s.T(), client, err)
 
 		_, _, err = readQueryStream(client)
 		assertRpcStatus(s.T(), err, codes.PermissionDenied)
@@ -92,7 +92,7 @@ func (s *GatewayOpsTestSuite) TestQuery() {
 		client, err := queryClient.Query(context.Background(), &query_v1.QueryRequest{
 			Statement: "SELECT * FROM default._default._default",
 		})
-		assertRpcStatus(s.T(), err, codes.OK)
+		requireRpcSuccess(s.T(), client, err)
 
 		_, _, err = readQueryStream(client)
 		assertRpcStatus(s.T(), err, codes.Unauthenticated)

@@ -120,7 +120,7 @@ func (s *GatewayOpsTestSuite) lockDoc(docId string) {
 		Key:            docId,
 		LockTime:       30,
 	}, grpc.PerRPCCredentials(s.basicRpcCreds))
-	assertRpcSuccess(s.T(), galResp, err)
+	requireRpcSuccess(s.T(), galResp, err)
 	assertValidCas(s.T(), galResp.Cas)
 }
 
@@ -275,7 +275,7 @@ func (s *GatewayOpsTestSuite) createDocument(opts createDocumentOptions) uint64 
 		Content:        opts.Content,
 		ContentFlags:   opts.ContentFlags,
 	}, grpc.PerRPCCredentials(s.basicRpcCreds))
-	assertRpcSuccess(s.T(), upsertResp, err)
+	requireRpcSuccess(s.T(), upsertResp, err)
 	assertValidCas(s.T(), upsertResp.Cas)
 	assertValidMutationToken(s.T(), upsertResp.MutationToken, s.bucketName)
 
@@ -340,7 +340,7 @@ func (s *GatewayOpsTestSuite) checkDocument(t *testing.T, opts checkDocumentOpti
 	}
 
 	// otherwise we assume it exists and apply the rules
-	assertRpcSuccess(s.T(), getResp, err)
+	requireRpcSuccess(s.T(), getResp, err)
 	assertValidCas(s.T(), getResp.Cas)
 
 	assert.Equal(s.T(), getResp.Content, opts.Content)

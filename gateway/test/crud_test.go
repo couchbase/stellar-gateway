@@ -107,7 +107,7 @@ func (s *GatewayOpsTestSuite) TestGet() {
 			CollectionName: s.collectionName,
 			Key:            s.testDocId(),
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
-		assertRpcSuccess(s.T(), resp, err)
+		requireRpcSuccess(s.T(), resp, err)
 		assertValidCas(s.T(), resp.Cas)
 		assert.Equal(s.T(), resp.Content, TEST_CONTENT)
 		assert.Equal(s.T(), resp.ContentFlags, TEST_CONTENT_FLAGS)
@@ -164,7 +164,7 @@ func (s *GatewayOpsTestSuite) TestInsert() {
 			Content:        TEST_CONTENT,
 			ContentFlags:   TEST_CONTENT_FLAGS,
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
-		assertRpcStatus(s.T(), err, codes.OK)
+		requireRpcSuccess(s.T(), resp, err)
 		assertValidCas(s.T(), resp.Cas)
 		assertValidMutationToken(s.T(), resp.MutationToken, s.bucketName)
 
@@ -233,7 +233,7 @@ func (s *GatewayOpsTestSuite) TestUpsert() {
 			Content:        TEST_CONTENT,
 			ContentFlags:   TEST_CONTENT_FLAGS,
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
-		assertRpcSuccess(s.T(), resp, err)
+		requireRpcSuccess(s.T(), resp, err)
 		assertValidCas(s.T(), resp.Cas)
 		assertValidMutationToken(s.T(), resp.MutationToken, s.bucketName)
 
@@ -290,7 +290,7 @@ func (s *GatewayOpsTestSuite) TestReplace() {
 			Content:        newContent,
 			ContentFlags:   TEST_CONTENT_FLAGS,
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
-		assertRpcStatus(s.T(), err, codes.OK)
+		requireRpcSuccess(s.T(), resp, err)
 		assertValidCas(s.T(), resp.Cas)
 		assertValidMutationToken(s.T(), resp.MutationToken, s.bucketName)
 
@@ -393,7 +393,7 @@ func (s *GatewayOpsTestSuite) TestRemove() {
 			CollectionName: s.collectionName,
 			Key:            docId,
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
-		assertRpcStatus(s.T(), err, codes.OK)
+		requireRpcSuccess(s.T(), resp, err)
 		assertValidCas(s.T(), resp.Cas)
 		assertValidMutationToken(s.T(), resp.MutationToken, s.bucketName)
 
@@ -488,7 +488,7 @@ func (s *GatewayOpsTestSuite) TestTouch() {
 			Key:            docId,
 			Expiry:         &kv_v1.TouchRequest_ExpirySecs{ExpirySecs: 20},
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
-		assertRpcSuccess(s.T(), resp, err)
+		requireRpcSuccess(s.T(), resp, err)
 		assertValidCas(s.T(), resp.Cas)
 
 		// check that the expiry was actually set
@@ -498,7 +498,7 @@ func (s *GatewayOpsTestSuite) TestTouch() {
 			CollectionName: s.collectionName,
 			Key:            docId,
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
-		assertRpcSuccess(s.T(), getResp, err)
+		requireRpcSuccess(s.T(), getResp, err)
 		assertValidCas(s.T(), getResp.Cas)
 		expiryTime := time.Unix(getResp.Expiry.Seconds, int64(getResp.Expiry.Nanos))
 		expirySecs := int(time.Until(expiryTime) / time.Second)
@@ -558,7 +558,7 @@ func (s *GatewayOpsTestSuite) TestGetAndTouch() {
 			Key:            docId,
 			Expiry:         &kv_v1.GetAndTouchRequest_ExpirySecs{ExpirySecs: 20},
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
-		assertRpcSuccess(s.T(), resp, err)
+		requireRpcSuccess(s.T(), resp, err)
 		assertValidCas(s.T(), resp.Cas)
 		assert.Equal(s.T(), resp.Content, TEST_CONTENT)
 		assert.Equal(s.T(), resp.ContentFlags, TEST_CONTENT_FLAGS)
@@ -570,7 +570,7 @@ func (s *GatewayOpsTestSuite) TestGetAndTouch() {
 			CollectionName: s.collectionName,
 			Key:            docId,
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
-		assertRpcSuccess(s.T(), getResp, err)
+		requireRpcSuccess(s.T(), getResp, err)
 		assertValidCas(s.T(), getResp.Cas)
 		expiryTime := time.Unix(getResp.Expiry.Seconds, int64(getResp.Expiry.Nanos))
 		expirySecs := int(time.Until(expiryTime) / time.Second)
@@ -630,7 +630,7 @@ func (s *GatewayOpsTestSuite) TestGetAndLock() {
 			Key:            docId,
 			LockTime:       30,
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
-		assertRpcSuccess(s.T(), resp, err)
+		requireRpcSuccess(s.T(), resp, err)
 		assertValidCas(s.T(), resp.Cas)
 		assert.Equal(s.T(), resp.Content, TEST_CONTENT)
 		assert.Equal(s.T(), resp.ContentFlags, TEST_CONTENT_FLAGS)
@@ -703,7 +703,7 @@ func (s *GatewayOpsTestSuite) TestUnlock() {
 			Key:            docId,
 			LockTime:       30,
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
-		assertRpcSuccess(s.T(), galResp, err)
+		requireRpcSuccess(s.T(), galResp, err)
 
 		// Attempt to unlock the document
 		_, err = kvClient.Unlock(context.Background(), &kv_v1.UnlockRequest{
@@ -713,7 +713,7 @@ func (s *GatewayOpsTestSuite) TestUnlock() {
 			Key:            docId,
 			Cas:            galResp.Cas,
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
-		assertRpcSuccess(s.T(), galResp, err)
+		requireRpcSuccess(s.T(), galResp, err)
 	})
 
 	s.Run("WrongCas", func() {
@@ -725,7 +725,7 @@ func (s *GatewayOpsTestSuite) TestUnlock() {
 			Key:            galDocId,
 			LockTime:       30,
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
-		assertRpcSuccess(s.T(), galResp, err)
+		requireRpcSuccess(s.T(), galResp, err)
 
 		// Check that unlock fails with the wrong cas
 		_, err = kvClient.Unlock(context.Background(), &kv_v1.UnlockRequest{
@@ -777,7 +777,7 @@ func (s *GatewayOpsTestSuite) TestExists() {
 			CollectionName: s.collectionName,
 			Key:            s.testDocId(),
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
-		assertRpcSuccess(s.T(), resp, err)
+		requireRpcSuccess(s.T(), resp, err)
 		assertValidCas(s.T(), resp.Cas)
 		assert.True(s.T(), resp.Result)
 	})
@@ -789,7 +789,7 @@ func (s *GatewayOpsTestSuite) TestExists() {
 			CollectionName: s.collectionName,
 			Key:            s.missingDocId(),
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
-		assertRpcSuccess(s.T(), resp, err)
+		requireRpcSuccess(s.T(), resp, err)
 		assert.Zero(s.T(), resp.Cas)
 		assert.False(s.T(), resp.Result)
 	})
@@ -801,7 +801,7 @@ func (s *GatewayOpsTestSuite) TestExists() {
 			CollectionName: s.collectionName,
 			Key:            s.lockedDocId(),
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
-		assertRpcSuccess(s.T(), resp, err)
+		requireRpcSuccess(s.T(), resp, err)
 	})
 
 	s.RunCommonErrorCases(func(opts *commonErrorTestData) (interface{}, error) {
@@ -838,7 +838,7 @@ func (s *GatewayOpsTestSuite) TestIncrement() {
 			Key:            docId,
 			Delta:          1,
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
-		assertRpcSuccess(s.T(), resp, err)
+		requireRpcSuccess(s.T(), resp, err)
 		assertValidCas(s.T(), resp.Cas)
 		assert.Equal(s.T(), int64(6), resp.Content)
 
@@ -857,7 +857,7 @@ func (s *GatewayOpsTestSuite) TestIncrement() {
 			Delta:          1,
 			Initial:        &initialValue,
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
-		assertRpcSuccess(s.T(), resp, err)
+		requireRpcSuccess(s.T(), resp, err)
 		assertValidCas(s.T(), resp.Cas)
 		assert.Equal(s.T(), int64(6), resp.Content)
 
@@ -876,7 +876,7 @@ func (s *GatewayOpsTestSuite) TestIncrement() {
 			Delta:          1,
 			Initial:        &initialValue,
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
-		assertRpcSuccess(s.T(), resp, err)
+		requireRpcSuccess(s.T(), resp, err)
 		assertValidCas(s.T(), resp.Cas)
 		assert.Equal(s.T(), int64(5), resp.Content)
 
@@ -950,7 +950,7 @@ func (s *GatewayOpsTestSuite) TestDecrement() {
 			Key:            docId,
 			Delta:          1,
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
-		assertRpcSuccess(s.T(), resp, err)
+		requireRpcSuccess(s.T(), resp, err)
 		assertValidCas(s.T(), resp.Cas)
 		assert.Equal(s.T(), int64(4), resp.Content)
 
@@ -969,7 +969,7 @@ func (s *GatewayOpsTestSuite) TestDecrement() {
 			Delta:          1,
 			Initial:        &initialValue,
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
-		assertRpcSuccess(s.T(), resp, err)
+		requireRpcSuccess(s.T(), resp, err)
 		assertValidCas(s.T(), resp.Cas)
 		assert.Equal(s.T(), int64(4), resp.Content)
 
@@ -988,7 +988,7 @@ func (s *GatewayOpsTestSuite) TestDecrement() {
 			Delta:          1,
 			Initial:        &initialValue,
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
-		assertRpcSuccess(s.T(), resp, err)
+		requireRpcSuccess(s.T(), resp, err)
 		assertValidCas(s.T(), resp.Cas)
 		assert.Equal(s.T(), int64(5), resp.Content)
 
@@ -1051,7 +1051,7 @@ func (s *GatewayOpsTestSuite) TestAppend() {
 			Key:            docId,
 			Content:        []byte("world"),
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
-		assertRpcSuccess(s.T(), resp, err)
+		requireRpcSuccess(s.T(), resp, err)
 		assertValidCas(s.T(), resp.Cas)
 
 		s.checkDocument(s.T(), checkDocumentOptions{
@@ -1150,7 +1150,7 @@ func (s *GatewayOpsTestSuite) TestPrepend() {
 			Key:            docId,
 			Content:        []byte("world"),
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
-		assertRpcSuccess(s.T(), resp, err)
+		requireRpcSuccess(s.T(), resp, err)
 		assertValidCas(s.T(), resp.Cas)
 
 		s.checkDocument(s.T(), checkDocumentOptions{
@@ -1250,7 +1250,7 @@ func (s *GatewayOpsTestSuite) TestLookupIn() {
 				Key:            docId,
 				Specs:          []*kv_v1.LookupInRequest_Spec{spec},
 			}, grpc.PerRPCCredentials(s.basicRpcCreds))
-			assertRpcStatus(s.T(), err, codes.OK)
+			requireRpcSuccess(s.T(), resp, err)
 			assertValidCas(s.T(), resp.Cas)
 
 			return resp
@@ -1318,7 +1318,7 @@ func (s *GatewayOpsTestSuite) TestLookupIn() {
 					},
 				},
 			}, grpc.PerRPCCredentials(s.basicRpcCreds))
-			assertRpcStatus(s.T(), err, codes.OK)
+			requireRpcSuccess(s.T(), resp, err)
 			assertValidCas(s.T(), resp.Cas)
 
 			assert.Len(s.T(), resp.Specs, 1)
@@ -1353,7 +1353,7 @@ func (s *GatewayOpsTestSuite) TestLookupIn() {
 				},
 			},
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
-		assertRpcStatus(s.T(), err, codes.OK)
+		requireRpcSuccess(s.T(), resp, err)
 		assertValidCas(s.T(), resp.Cas)
 
 		assert.Len(s.T(), resp.Specs, 1)
@@ -1379,7 +1379,7 @@ func (s *GatewayOpsTestSuite) TestLookupIn() {
 				},
 			},
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
-		assertRpcStatus(s.T(), err, codes.OK)
+		requireRpcSuccess(s.T(), resp, err)
 		assertValidCas(s.T(), resp.Cas)
 
 		assert.Len(s.T(), resp.Specs, 1)
@@ -1405,7 +1405,7 @@ func (s *GatewayOpsTestSuite) TestLookupIn() {
 				},
 			},
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
-		assertRpcStatus(s.T(), err, codes.OK)
+		requireRpcSuccess(s.T(), resp, err)
 		assertValidCas(s.T(), resp.Cas)
 
 		assert.Len(s.T(), resp.Specs, 1)
@@ -1430,7 +1430,7 @@ func (s *GatewayOpsTestSuite) TestLookupIn() {
 				},
 			},
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
-		assertRpcStatus(s.T(), err, codes.OK)
+		requireRpcSuccess(s.T(), resp, err)
 		assertValidCas(s.T(), resp.Cas)
 
 		assert.Len(s.T(), resp.Specs, 1)
@@ -1456,7 +1456,7 @@ func (s *GatewayOpsTestSuite) TestLookupIn() {
 				},
 			},
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
-		assertRpcStatus(s.T(), err, codes.OK)
+		requireRpcSuccess(s.T(), resp, err)
 		assertValidCas(s.T(), resp.Cas)
 
 		assert.Len(s.T(), resp.Specs, 1)
@@ -1478,7 +1478,7 @@ func (s *GatewayOpsTestSuite) TestLookupIn() {
 				},
 			},
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
-		assertRpcStatus(s.T(), err, codes.OK)
+		requireRpcSuccess(s.T(), resp, err)
 		assertValidCas(s.T(), resp.Cas)
 
 		assert.Len(s.T(), resp.Specs, 1)
@@ -1504,7 +1504,7 @@ func (s *GatewayOpsTestSuite) TestLookupIn() {
 				},
 			},
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
-		assertRpcStatus(s.T(), err, codes.OK)
+		requireRpcSuccess(s.T(), resp, err)
 		assertValidCas(s.T(), resp.Cas)
 
 		assert.Len(s.T(), resp.Specs, 1)
@@ -1602,7 +1602,7 @@ func (s *GatewayOpsTestSuite) TestMutateIn() {
 				Key:            docId,
 				Specs:          []*kv_v1.MutateInRequest_Spec{spec},
 			}, grpc.PerRPCCredentials(s.basicRpcCreds))
-			assertRpcStatus(s.T(), err, codes.OK)
+			requireRpcSuccess(s.T(), resp, err)
 			assertValidCas(s.T(), resp.Cas)
 			assertValidMutationToken(s.T(), resp.MutationToken, s.bucketName)
 		}
