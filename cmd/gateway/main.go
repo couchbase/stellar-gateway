@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"github.com/couchbase/stellar-gateway/gateway"
 	"github.com/couchbase/stellar-gateway/pkg/version"
@@ -30,7 +31,11 @@ var caCertPath = flag.String("cacert", "", "path to root CA cert")
 func main() {
 	flag.Parse()
 
-	logger, err := zap.NewProduction()
+	loggerConfig := zap.NewProductionConfig()
+	loggerConfig.EncoderConfig.TimeKey = "timestamp"
+	loggerConfig.EncoderConfig.EncodeTime = zapcore.TimeEncoderOfLayout(time.RFC3339)
+
+	logger, err := loggerConfig.Build()
 	if err != nil {
 		log.Printf("failed to initialize logging: %s", err)
 		os.Exit(1)
