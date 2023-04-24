@@ -2,6 +2,7 @@ package server_v1
 
 import (
 	"encoding/json"
+	"errors"
 
 	"github.com/couchbase/gocbcorex"
 	"github.com/couchbase/gocbcorex/cbqueryx"
@@ -26,6 +27,24 @@ func NewQueryServer(
 		logger:      logger,
 		authHandler: authHandler,
 	}
+}
+
+func (s *QueryServer) translateError(err error) *status.Status {
+	var queryErrs *cbqueryx.QueryServerErrors
+	if errors.As(err, &queryErrs) {
+		if len(queryErrs.Errors) == 0 {
+			return newInternalStatus()
+		}
+
+		firstErr := queryErrs.Errors[0]
+		if errors.Is(firstErr, cbqueryx.ErrParsingFailure) {
+			return newInvalidQueryStatus(err, firstErr.Msg)
+		} else if errors.Is(firstErr, cbqueryx.ErrAuthenticationFailure) {
+			return newQueryNoAccessStatus(err)
+		}
+	}
+
+	return cbGenericErrToPsStatus(err, s.logger)
 }
 
 func (s *QueryServer) Query(in *query_v1.QueryRequest, out query_v1.QueryService_QueryServer) error {
@@ -133,7 +152,7 @@ func (s *QueryServer) Query(in *query_v1.QueryRequest, out query_v1.QueryService
 		result, err = agent.Query(out.Context(), &opts)
 	}
 	if err != nil {
-		return cbGenericErrToPsStatus(err, s.logger).Err()
+		return s.translateError(err).Err()
 	}
 
 	var rowCache [][]byte
@@ -143,7 +162,7 @@ func (s *QueryServer) Query(in *query_v1.QueryRequest, out query_v1.QueryService
 	for result.HasMoreRows() {
 		rowBytes, err := result.ReadRow()
 		if err != nil {
-			return cbGenericErrToPsStatus(err, s.logger).Err()
+			return s.translateError(err).Err()
 		}
 
 		rowNumBytes := len(rowBytes)

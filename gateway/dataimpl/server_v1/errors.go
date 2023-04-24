@@ -416,6 +416,25 @@ func newInvalidCredentialsStatus() *status.Status {
 	return st
 }
 
+func newInvalidQueryStatus(baseErr error, queryErrStr string) *status.Status {
+	st := status.New(codes.InvalidArgument,
+		fmt.Sprintf("Query parsing failed: %s", queryErrStr))
+	st = tryAttachCbContext(st, baseErr)
+	return st
+}
+
+func newQueryNoAccessStatus(baseErr error) *status.Status {
+	st := status.New(codes.PermissionDenied,
+		"No permissions to query documents.")
+	st = tryAttachStatusDetails(st, &epb.ResourceInfo{
+		ResourceType: "user",
+		ResourceName: "",
+		Description:  "",
+	})
+	st = tryAttachCbContext(st, baseErr)
+	return st
+}
+
 func cbGenericErrToPsStatus(err error, log *zap.Logger) *status.Status {
 	log.Error("handling generic error", zap.Error(err))
 	if errors.Is(err, context.Canceled) {
