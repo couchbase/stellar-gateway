@@ -76,7 +76,7 @@ func (s *CollectionAdminServer) CreateScope(
 		return nil, errSt.Err()
 	}
 
-	err := bucketAgent.CreateScope(ctx, &cbmgmtx.CreateScopeOptions{
+	_, err := bucketAgent.CreateScope(ctx, &cbmgmtx.CreateScopeOptions{
 		OnBehalfOf: oboInfo,
 		BucketName: in.BucketName,
 		ScopeName:  in.ScopeName,
@@ -97,7 +97,7 @@ func (s *CollectionAdminServer) DeleteScope(
 		return nil, errSt.Err()
 	}
 
-	err := bucketAgent.DeleteScope(ctx, &cbmgmtx.DeleteScopeOptions{
+	_, err := bucketAgent.DeleteScope(ctx, &cbmgmtx.DeleteScopeOptions{
 		OnBehalfOf: oboInfo,
 		BucketName: in.BucketName,
 		ScopeName:  in.ScopeName,
@@ -123,7 +123,7 @@ func (s *CollectionAdminServer) CreateCollection(
 		maxTTL = *in.MaxExpirySecs
 	}
 
-	err := bucketAgent.CreateCollection(ctx, &cbmgmtx.CreateCollectionOptions{
+	_, err := bucketAgent.CreateCollection(ctx, &cbmgmtx.CreateCollectionOptions{
 		OnBehalfOf:     oboInfo,
 		BucketName:     in.BucketName,
 		CollectionName: in.CollectionName,
@@ -146,7 +146,7 @@ func (s *CollectionAdminServer) DeleteCollection(
 		return nil, errSt.Err()
 	}
 
-	err := bucketAgent.DeleteCollection(ctx, &cbmgmtx.DeleteCollectionOptions{
+	_, err := bucketAgent.DeleteCollection(ctx, &cbmgmtx.DeleteCollectionOptions{
 		OnBehalfOf:     oboInfo,
 		BucketName:     in.BucketName,
 		ScopeName:      in.ScopeName,

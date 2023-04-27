@@ -114,7 +114,12 @@ func (a AuthHandler) GetHttpOboInfoFromContext(ctx context.Context) (*cbhttpx.On
 }
 
 func (a AuthHandler) getClusterAgent(ctx context.Context) (*gocbcorex.Agent, *status.Status) {
-	return a.CbClient.GetClusterAgent(), nil
+	agent, err := a.CbClient.GetClusterAgent()
+	if err != nil {
+		return nil, cbGenericErrToPsStatus(err, a.Logger)
+	}
+
+	return agent, nil
 }
 
 func (a AuthHandler) getBucketAgent(ctx context.Context, bucketName string) (*gocbcorex.Agent, *status.Status) {
