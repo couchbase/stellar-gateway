@@ -4,7 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
+	"github.com/couchbase/gocbcorex/cbqueryx"
+	"github.com/couchbase/gocbcorex/cbsearchx"
 	"github.com/couchbase/gocbcorex/memdx"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
@@ -61,8 +64,30 @@ func newInternalStatus() *status.Status {
 }
 
 func newUnknownStatus(baseErr error) *status.Status {
-	st := status.New(codes.Unknown, "An unknown error occurred.")
-	return st
+	var memdErr *memdx.ServerError
+	if errors.As(baseErr, &memdErr) {
+		return status.New(codes.Unknown,
+			fmt.Sprintf("An unknown memcached error occurred (status: %d).", memdErr.Status))
+	}
+
+	var queryErr *cbqueryx.QueryServerErrors
+	if errors.As(baseErr, &queryErr) {
+		var queryErrDescs []string
+		for _, querySubErr := range queryErr.Errors {
+			queryErrDescs = append(queryErrDescs, fmt.Sprintf("%d - %s", querySubErr.Code, querySubErr.Msg))
+		}
+
+		return status.New(codes.Unknown,
+			fmt.Sprintf("An unknown query error occurred (descs: %s).", strings.Join(queryErrDescs, "; ")))
+	}
+
+	var searchErr *cbsearchx.ServerError
+	if errors.As(baseErr, &searchErr) {
+		return status.New(codes.Unknown,
+			fmt.Sprintf("An unknown search error occurred (status: %d).", searchErr.StatusCode))
+	}
+
+	return status.New(codes.Unknown, "An unknown error occurred.")
 }
 
 func newBucketMissingStatus(baseErr error, bucketName string) *status.Status {
