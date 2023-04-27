@@ -439,6 +439,8 @@ func cbGenericErrToPsStatus(err error, log *zap.Logger) *status.Status {
 	log.Error("handling generic error", zap.Error(err))
 	if errors.Is(err, context.Canceled) {
 		return status.New(codes.Canceled, "The request was cancelled.")
+	} else if errors.Is(err, context.DeadlineExceeded) {
+		return status.New(codes.DeadlineExceeded, "The request deadline was exceeded.")
 	}
 
 	return newUnknownStatus(err)
