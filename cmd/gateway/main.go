@@ -129,16 +129,6 @@ func startGateway() {
 	})
 
 	var tlsCertificate tls.Certificate
-	if certPath == "" && keyPath == "" {
-		// use a self-signed certificate
-
-	} else {
-		if certPath == "" || keyPath == "" {
-			logger.Error("both cert and key must be specified if either option is specified")
-			os.Exit(1)
-		}
-	}
-
 	if selfSign {
 		if certPath != "" || keyPath != "" {
 			logger.Error("cannot specify both self-sign along with a cert or key")
