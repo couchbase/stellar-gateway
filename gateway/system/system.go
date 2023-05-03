@@ -7,8 +7,10 @@ import (
 
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/health/grpc_health_v1"
+	"google.golang.org/grpc/status"
 
 	"github.com/couchbase/goprotostellar/genproto/admin_bucket_v1"
 	"github.com/couchbase/goprotostellar/genproto/admin_collection_v1"
@@ -25,6 +27,7 @@ import (
 	"github.com/couchbase/stellar-gateway/gateway/sdimpl"
 	"github.com/couchbase/stellar-gateway/pkg/interceptors"
 	"github.com/couchbase/stellar-gateway/pkg/metrics"
+	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/recovery"
 )
 
 // TODO(brett19): Implement the gateway system as its own component
@@ -53,9 +56,20 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 	hooksManager := hooks.NewHooksManager(opts.Logger.Named("hooks-manager"))
 	metricsInterceptor := interceptors.NewMetricsInterceptor(opts.Metrics)
 
+	customPanicHandlerFunc := func(p any) (err error) {
+		opts.Logger.Error("a panic has been triggered", zap.Any("error: ", p))
+		return status.Errorf(codes.Internal, "An internal error occurred.")
+	}
+
+	panicRecoveryOpts := []recovery.Option{
+		recovery.WithRecoveryHandler(customPanicHandlerFunc),
+	}
+
 	// TODO(abose): Same serverOpts passed; need to break into two, if needed.
 	serverOpts := []grpc.ServerOption{
-		grpc.ChainUnaryInterceptor(hooksManager.UnaryInterceptor(), metricsInterceptor.UnaryConnectionCounterInterceptor),
+		grpc.ChainUnaryInterceptor(hooksManager.UnaryInterceptor(),
+			metricsInterceptor.UnaryConnectionCounterInterceptor,
+			recovery.UnaryServerInterceptor(panicRecoveryOpts...)),
 		grpc.Creds(credentials.NewTLS(opts.TlsConfig)),
 	}
 
