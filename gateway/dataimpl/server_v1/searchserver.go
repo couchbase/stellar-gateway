@@ -15,17 +15,20 @@ import (
 type SearchServer struct {
 	search_v1.UnimplementedSearchServiceServer
 
-	logger      *zap.Logger
-	authHandler *AuthHandler
+	logger       *zap.Logger
+	errorHandler *ErrorHandler
+	authHandler  *AuthHandler
 }
 
 func NewSearchServer(
 	logger *zap.Logger,
+	errorHandler *ErrorHandler,
 	authHandler *AuthHandler,
 ) *SearchServer {
 	return &SearchServer{
-		logger:      logger,
-		authHandler: authHandler,
+		logger:       logger,
+		errorHandler: errorHandler,
+		authHandler:  authHandler,
 	}
 }
 
@@ -154,7 +157,7 @@ func (s *SearchServer) SearchQuery(in *search_v1.SearchQueryRequest, out search_
 
 	result, err := agent.Search(out.Context(), &opts)
 	if err != nil {
-		return cbGenericErrToPsStatus(err, s.logger).Err()
+		return s.errorHandler.NewGenericStatus(err).Err()
 	}
 
 	var rowCache []*search_v1.SearchQueryResponse_SearchQueryRow
@@ -164,7 +167,7 @@ func (s *SearchServer) SearchQuery(in *search_v1.SearchQueryRequest, out search_
 	for result.HasMoreHits() {
 		row, err := result.ReadHit()
 		if err != nil {
-			return cbGenericErrToPsStatus(err, s.logger).Err()
+			return s.errorHandler.NewGenericStatus(err).Err()
 		}
 
 		fragments := make(map[string]*search_v1.SearchQueryResponse_Fragment, len(row.Fragments))
@@ -212,7 +215,7 @@ func (s *SearchServer) SearchQuery(in *search_v1.SearchQueryRequest, out search_
 				Hits: rowCache,
 			})
 			if err != nil {
-				return cbGenericErrToPsStatus(err, s.logger).Err()
+				return s.errorHandler.NewGenericStatus(err).Err()
 			}
 			rowCache = nil
 			rowCacheNumBytes = 0
@@ -335,7 +338,7 @@ func (s *SearchServer) SearchQuery(in *search_v1.SearchQueryRequest, out search_
 			Facets:   facetsPs,
 		})
 		if err != nil {
-			return cbGenericErrToPsStatus(err, s.logger).Err()
+			return s.errorHandler.NewGenericStatus(err).Err()
 		}
 	}
 

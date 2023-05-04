@@ -16,6 +16,7 @@ import (
 
 type AuthHandler struct {
 	Logger        *zap.Logger
+	ErrorHandler  *ErrorHandler
 	Authenticator auth.Authenticator
 	CbClient      *gocbcorex.AgentManager
 }
@@ -50,12 +51,12 @@ func (a AuthHandler) MaybeGetUserPassFromContext(ctx context.Context) (string, s
 	md, hasMd := metadata.FromIncomingContext(ctx)
 	if !hasMd {
 		a.Logger.Error("failed to fetch grpc metadata from context")
-		return "", "", newInternalStatus()
+		return "", "", a.ErrorHandler.NewInternalStatus()
 	}
 
 	username, password, err := a.getUserPassFromMetaData(md)
 	if err != nil {
-		return "", "", newInvalidAuthHeaderStatus(err)
+		return "", "", a.ErrorHandler.NewInvalidAuthHeaderStatus(err)
 	}
 
 	return username, password, nil
@@ -74,11 +75,11 @@ func (a AuthHandler) MaybeGetOboUserFromContext(ctx context.Context) (string, st
 	oboUser, oboDomain, err := a.Authenticator.ValidateUserForObo(username, password)
 	if err != nil {
 		if errors.Is(err, auth.ErrInvalidCredentials) {
-			return "", "", newInvalidCredentialsStatus()
+			return "", "", a.ErrorHandler.NewInvalidCredentialsStatus()
 		}
 
 		a.Logger.Error("received an unexpected authentication error", zap.Error(err))
-		return "", "", newInternalStatus()
+		return "", "", a.ErrorHandler.NewInternalStatus()
 	}
 
 	return oboUser, oboDomain, nil
@@ -91,7 +92,7 @@ func (a AuthHandler) GetOboUserFromContext(ctx context.Context) (string, string,
 	}
 
 	if user == "" {
-		return "", "", newNoAuthStatus()
+		return "", "", a.ErrorHandler.NewNoAuthStatus()
 	}
 
 	return user, domain, nil
@@ -104,7 +105,7 @@ func (a AuthHandler) GetHttpOboInfoFromContext(ctx context.Context) (*cbhttpx.On
 	}
 
 	if username == "" {
-		return nil, newNoAuthStatus()
+		return nil, a.ErrorHandler.NewNoAuthStatus()
 	}
 
 	return &cbhttpx.OnBehalfOfInfo{
@@ -116,7 +117,7 @@ func (a AuthHandler) GetHttpOboInfoFromContext(ctx context.Context) (*cbhttpx.On
 func (a AuthHandler) getClusterAgent(ctx context.Context) (*gocbcorex.Agent, *status.Status) {
 	agent, err := a.CbClient.GetClusterAgent()
 	if err != nil {
-		return nil, cbGenericErrToPsStatus(err, a.Logger)
+		return nil, a.ErrorHandler.NewGenericStatus(err)
 	}
 
 	return agent, nil
@@ -126,10 +127,10 @@ func (a AuthHandler) getBucketAgent(ctx context.Context, bucketName string) (*go
 	bucketAgent, err := a.CbClient.GetBucketAgent(ctx, bucketName)
 	if err != nil {
 		if errors.Is(err, cbmgmtx.ErrBucketNotFound) {
-			return nil, newBucketMissingStatus(err, bucketName)
+			return nil, a.ErrorHandler.NewBucketMissingStatus(err, bucketName)
 		}
 
-		return nil, cbGenericErrToPsStatus(err, a.Logger)
+		return nil, a.ErrorHandler.NewGenericStatus(err)
 	}
 
 	return bucketAgent, nil

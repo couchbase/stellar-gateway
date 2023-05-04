@@ -15,17 +15,20 @@ import (
 type QueryServer struct {
 	query_v1.UnimplementedQueryServiceServer
 
-	logger      *zap.Logger
-	authHandler *AuthHandler
+	logger       *zap.Logger
+	errorHandler *ErrorHandler
+	authHandler  *AuthHandler
 }
 
 func NewQueryServer(
 	logger *zap.Logger,
+	errorHandler *ErrorHandler,
 	authHandler *AuthHandler,
 ) *QueryServer {
 	return &QueryServer{
-		logger:      logger,
-		authHandler: authHandler,
+		logger:       logger,
+		errorHandler: errorHandler,
+		authHandler:  authHandler,
 	}
 }
 
@@ -33,18 +36,18 @@ func (s *QueryServer) translateError(err error) *status.Status {
 	var queryErrs *cbqueryx.QueryServerErrors
 	if errors.As(err, &queryErrs) {
 		if len(queryErrs.Errors) == 0 {
-			return newInternalStatus()
+			return s.errorHandler.NewInternalStatus()
 		}
 
 		firstErr := queryErrs.Errors[0]
 		if errors.Is(firstErr, cbqueryx.ErrParsingFailure) {
-			return newInvalidQueryStatus(err, firstErr.Msg)
+			return s.errorHandler.NewInvalidQueryStatus(err, firstErr.Msg)
 		} else if errors.Is(firstErr, cbqueryx.ErrAuthenticationFailure) {
-			return newQueryNoAccessStatus(err)
+			return s.errorHandler.NewQueryNoAccessStatus(err)
 		}
 	}
 
-	return cbGenericErrToPsStatus(err, s.logger)
+	return s.errorHandler.NewGenericStatus(err)
 }
 
 func (s *QueryServer) Query(in *query_v1.QueryRequest, out query_v1.QueryService_QueryServer) error {
@@ -74,7 +77,7 @@ func (s *QueryServer) Query(in *query_v1.QueryRequest, out query_v1.QueryService
 	}
 
 	if in.ConsistentWith != nil {
-		return newUnsupportedFieldStatus("ConsistentWith").Err()
+		return s.errorHandler.NewUnsupportedFieldStatus("ConsistentWith").Err()
 	}
 
 	if in.TuningOptions != nil {
@@ -175,7 +178,7 @@ func (s *QueryServer) Query(in *query_v1.QueryRequest, out query_v1.QueryService
 				MetaData: nil,
 			})
 			if err != nil {
-				return cbGenericErrToPsStatus(err, s.logger).Err()
+				return s.errorHandler.NewGenericStatus(err).Err()
 			}
 
 			rowCache = nil
@@ -263,7 +266,7 @@ func (s *QueryServer) Query(in *query_v1.QueryRequest, out query_v1.QueryService
 			MetaData: psMetaData,
 		})
 		if err != nil {
-			return cbGenericErrToPsStatus(err, s.logger).Err()
+			return s.errorHandler.NewGenericStatus(err).Err()
 		}
 	}
 

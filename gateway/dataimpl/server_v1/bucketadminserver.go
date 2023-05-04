@@ -15,17 +15,20 @@ import (
 type BucketAdminServer struct {
 	admin_bucket_v1.UnimplementedBucketAdminServiceServer
 
-	logger      *zap.Logger
-	authHandler *AuthHandler
+	logger       *zap.Logger
+	errorHandler *ErrorHandler
+	authHandler  *AuthHandler
 }
 
 func NewBucketAdminServer(
 	logger *zap.Logger,
+	errorHandler *ErrorHandler,
 	authHandler *AuthHandler,
 ) *BucketAdminServer {
 	return &BucketAdminServer{
-		logger:      logger,
-		authHandler: authHandler,
+		logger:       logger,
+		errorHandler: errorHandler,
+		authHandler:  authHandler,
 	}
 }
 
@@ -42,7 +45,7 @@ func (s *BucketAdminServer) ListBuckets(
 		OnBehalfOf: oboInfo,
 	})
 	if err != nil {
-		return nil, cbGenericErrToPsStatus(err, s.logger).Err()
+		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
 
 	var buckets []*admin_bucket_v1.ListBucketsResponse_Bucket
@@ -190,9 +193,9 @@ func (s *BucketAdminServer) CreateBucket(
 	})
 	if err != nil {
 		if errors.Is(err, cbmgmtx.ErrBucketExists) {
-			return nil, newBucketExistsStatus(err, in.BucketName).Err()
+			return nil, s.errorHandler.NewBucketExistsStatus(err, in.BucketName).Err()
 		}
-		return nil, cbGenericErrToPsStatus(err, s.logger).Err()
+		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
 
 	return &admin_bucket_v1.CreateBucketResponse{}, nil
@@ -212,9 +215,9 @@ func (s *BucketAdminServer) UpdateBucket(
 	})
 	if err != nil {
 		if errors.Is(err, cbmgmtx.ErrBucketNotFound) {
-			return nil, newBucketMissingStatus(err, in.BucketName).Err()
+			return nil, s.errorHandler.NewBucketMissingStatus(err, in.BucketName).Err()
 		}
-		return nil, cbGenericErrToPsStatus(err, s.logger).Err()
+		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
 
 	newBucket := bucket.MutableBucketSettings
@@ -272,9 +275,9 @@ func (s *BucketAdminServer) UpdateBucket(
 	})
 	if err != nil {
 		if errors.Is(err, cbmgmtx.ErrBucketNotFound) {
-			return nil, newBucketMissingStatus(err, in.BucketName).Err()
+			return nil, s.errorHandler.NewBucketMissingStatus(err, in.BucketName).Err()
 		}
-		return nil, cbGenericErrToPsStatus(err, s.logger).Err()
+		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
 
 	return &admin_bucket_v1.UpdateBucketResponse{}, nil
@@ -295,9 +298,9 @@ func (s *BucketAdminServer) DeleteBucket(
 	})
 	if err != nil {
 		if errors.Is(err, cbmgmtx.ErrBucketNotFound) {
-			return nil, newBucketMissingStatus(err, in.BucketName).Err()
+			return nil, s.errorHandler.NewBucketMissingStatus(err, in.BucketName).Err()
 		}
-		return nil, cbGenericErrToPsStatus(err, s.logger).Err()
+		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
 
 	return &admin_bucket_v1.DeleteBucketResponse{}, nil
