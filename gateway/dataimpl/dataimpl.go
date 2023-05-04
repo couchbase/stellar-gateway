@@ -28,6 +28,10 @@ type Servers struct {
 }
 
 func New(opts *NewOptions) *Servers {
+	v1ErrHandler := &server_v1.ErrorHandler{
+		Logger: opts.Logger.Named("errors"),
+	}
+
 	v1AuthHandler := &server_v1.AuthHandler{
 		Logger:        opts.Logger.Named("auth"),
 		Authenticator: opts.Authenticator,
@@ -37,34 +41,42 @@ func New(opts *NewOptions) *Servers {
 	return &Servers{
 		KvV1Server: server_v1.NewKvServer(
 			opts.Logger.Named("kv"),
+			v1ErrHandler,
 			v1AuthHandler,
 		),
 		QueryV1Server: server_v1.NewQueryServer(
 			opts.Logger.Named("query"),
+			v1ErrHandler,
 			v1AuthHandler,
 		),
 		SearchV1Server: server_v1.NewSearchServer(
 			opts.Logger.Named("search"),
+			v1ErrHandler,
 			v1AuthHandler,
 		),
 		AnalyticsV1Server: server_v1.NewAnalyticsServer(
 			opts.Logger.Named("analytics"),
+			v1ErrHandler,
 			v1AuthHandler,
 		),
 		AdminBucketV1Server: server_v1.NewBucketAdminServer(
 			opts.Logger.Named("adminbucket"),
+			v1ErrHandler,
 			v1AuthHandler,
 		),
 		AdminCollectionV1Server: server_v1.NewCollectionAdminServer(
 			opts.Logger.Named("admincollection"),
+			v1ErrHandler,
 			v1AuthHandler,
 		),
 		AdminSearchIndexV1Server: server_v1.NewSearchIndexAdminServer(
 			opts.Logger.Named("adminsearchindex"),
+			v1ErrHandler,
 			v1AuthHandler,
 		),
 		TransactionsV1Server: server_v1.NewTransactionsServer(
 			opts.Logger.Named("transactions"),
+			v1ErrHandler,
 			v1AuthHandler,
 		),
 	}

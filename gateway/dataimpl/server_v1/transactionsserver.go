@@ -8,16 +8,19 @@ import (
 type TransactionsServer struct {
 	transactions_v1.UnimplementedTransactionsServiceServer
 
-	logger      *zap.Logger
-	authHandler *AuthHandler
+	logger       *zap.Logger
+	errorHandler *ErrorHandler
+	authHandler  *AuthHandler
 }
 
 func NewTransactionsServer(
 	logger *zap.Logger,
+	errorHandler *ErrorHandler,
 	authHandler *AuthHandler,
 ) *TransactionsServer {
 	return &TransactionsServer{
-		logger:      logger,
-		authHandler: authHandler,
+		logger:       logger,
+		errorHandler: errorHandler,
+		authHandler:  authHandler,
 	}
 }

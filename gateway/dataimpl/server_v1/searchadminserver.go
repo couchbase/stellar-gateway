@@ -14,17 +14,20 @@ import (
 type SearchIndexAdminServer struct {
 	admin_search_v1.UnimplementedSearchAdminServiceServer
 
-	logger      *zap.Logger
-	authHandler *AuthHandler
+	logger       *zap.Logger
+	errorHandler *ErrorHandler
+	authHandler  *AuthHandler
 }
 
 func NewSearchIndexAdminServer(
 	logger *zap.Logger,
+	errorHandler *ErrorHandler,
 	authHandler *AuthHandler,
 ) *SearchIndexAdminServer {
 	return &SearchIndexAdminServer{
-		logger:      logger,
-		authHandler: authHandler,
+		logger:       logger,
+		errorHandler: errorHandler,
+		authHandler:  authHandler,
 	}
 }
 
@@ -77,9 +80,9 @@ func (s *SearchIndexAdminServer) UpsertIndex(ctx context.Context, in *admin_sear
 	})
 	if err != nil {
 		if errors.Is(err, cbsearchx.ErrIndexExists) {
-			return nil, newSearchIndexExistsStatus(err, in.Name).Err()
+			return nil, s.errorHandler.NewSearchIndexExistsStatus(err, in.Name).Err()
 		}
-		return nil, cbGenericErrToPsStatus(err, s.logger).Err()
+		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
 
 	return &admin_search_v1.UpsertIndexResponse{}, nil
@@ -97,9 +100,9 @@ func (s *SearchIndexAdminServer) DeleteIndex(ctx context.Context, in *admin_sear
 	})
 	if err != nil {
 		if errors.Is(err, cbsearchx.ErrIndexExists) {
-			return nil, newSearchIndexMissingStatus(err, in.Name).Err()
+			return nil, s.errorHandler.NewSearchIndexMissingStatus(err, in.Name).Err()
 		}
-		return nil, cbGenericErrToPsStatus(err, s.logger).Err()
+		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
 
 	return &admin_search_v1.DeleteIndexResponse{}, nil

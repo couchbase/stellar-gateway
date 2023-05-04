@@ -11,17 +11,20 @@ import (
 type CollectionAdminServer struct {
 	admin_collection_v1.UnimplementedCollectionAdminServiceServer
 
-	logger      *zap.Logger
-	authHandler *AuthHandler
+	logger       *zap.Logger
+	errorHandler *ErrorHandler
+	authHandler  *AuthHandler
 }
 
 func NewCollectionAdminServer(
 	logger *zap.Logger,
+	errorHandler *ErrorHandler,
 	authHandler *AuthHandler,
 ) *CollectionAdminServer {
 	return &CollectionAdminServer{
-		logger:      logger,
-		authHandler: authHandler,
+		logger:       logger,
+		errorHandler: errorHandler,
+		authHandler:  authHandler,
 	}
 }
 
@@ -39,7 +42,7 @@ func (s *CollectionAdminServer) ListCollections(
 		BucketName: in.BucketName,
 	})
 	if err != nil {
-		return nil, cbGenericErrToPsStatus(err, s.logger).Err()
+		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
 
 	var scopes []*admin_collection_v1.ListCollectionsResponse_Scope
@@ -82,7 +85,7 @@ func (s *CollectionAdminServer) CreateScope(
 		ScopeName:  in.ScopeName,
 	})
 	if err != nil {
-		return nil, cbGenericErrToPsStatus(err, s.logger).Err()
+		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
 
 	return &admin_collection_v1.CreateScopeResponse{}, nil
@@ -103,7 +106,7 @@ func (s *CollectionAdminServer) DeleteScope(
 		ScopeName:  in.ScopeName,
 	})
 	if err != nil {
-		return nil, cbGenericErrToPsStatus(err, s.logger).Err()
+		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
 
 	return &admin_collection_v1.DeleteScopeResponse{}, nil
@@ -131,7 +134,7 @@ func (s *CollectionAdminServer) CreateCollection(
 		MaxTTL:         maxTTL,
 	})
 	if err != nil {
-		return nil, cbGenericErrToPsStatus(err, s.logger).Err()
+		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
 
 	return &admin_collection_v1.CreateCollectionResponse{}, nil
@@ -153,7 +156,7 @@ func (s *CollectionAdminServer) DeleteCollection(
 		CollectionName: in.CollectionName,
 	})
 	if err != nil {
-		return nil, cbGenericErrToPsStatus(err, s.logger).Err()
+		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
 
 	return &admin_collection_v1.DeleteCollectionResponse{}, nil
