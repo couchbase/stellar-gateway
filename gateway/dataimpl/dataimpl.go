@@ -14,6 +14,8 @@ type NewOptions struct {
 	TopologyProvider topology.Provider
 	CbClient         *gocbcorex.AgentManager
 	Authenticator    auth.Authenticator
+
+	Debug bool
 }
 
 type Servers struct {
@@ -30,10 +32,12 @@ type Servers struct {
 func New(opts *NewOptions) *Servers {
 	v1ErrHandler := &server_v1.ErrorHandler{
 		Logger: opts.Logger.Named("errors"),
+		Debug:  opts.Debug,
 	}
 
 	v1AuthHandler := &server_v1.AuthHandler{
 		Logger:        opts.Logger.Named("auth"),
+		ErrorHandler:  v1ErrHandler,
 		Authenticator: opts.Authenticator,
 		CbClient:      opts.CbClient,
 	}
