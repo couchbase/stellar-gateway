@@ -89,17 +89,24 @@ func durabilityLevelToMemdx(dl kv_v1.DurabilityLevel) (memdx.DurabilityLevel, *s
 	return memdx.DurabilityLevel(0), status.New(codes.InvalidArgument, "invalid durability level specified")
 }
 
-func durabilityLevelFromCbmgmtx(dl cbmgmtx.DurabilityLevel) (kv_v1.DurabilityLevel, *status.Status) {
+func durabilityLevelFromCbmgmtx(dl cbmgmtx.DurabilityLevel) (*kv_v1.DurabilityLevel, *status.Status) {
 	switch dl {
+	case cbmgmtx.DurabilityLevelUnset:
+		return nil, nil
+	case cbmgmtx.DurabilityLevelNone:
+		return nil, nil
 	case cbmgmtx.DurabilityLevelMajority:
-		return kv_v1.DurabilityLevel_DURABILITY_LEVEL_MAJORITY, nil
+		lvl := kv_v1.DurabilityLevel_DURABILITY_LEVEL_MAJORITY
+		return &lvl, nil
 	case cbmgmtx.DurabilityLevelMajorityAndPersistOnMaster:
-		return kv_v1.DurabilityLevel_DURABILITY_LEVEL_MAJORITY_AND_PERSIST_TO_ACTIVE, nil
+		lvl := kv_v1.DurabilityLevel_DURABILITY_LEVEL_MAJORITY_AND_PERSIST_TO_ACTIVE
+		return &lvl, nil
 	case cbmgmtx.DurabilityLevelPersistToMajority:
-		return kv_v1.DurabilityLevel_DURABILITY_LEVEL_PERSIST_TO_MAJORITY, nil
+		lvl := kv_v1.DurabilityLevel_DURABILITY_LEVEL_PERSIST_TO_MAJORITY
+		return &lvl, nil
 	}
 
-	return kv_v1.DurabilityLevel(0), status.New(codes.InvalidArgument, "invalid durability level received")
+	return nil, status.New(codes.InvalidArgument, "invalid durability level received")
 }
 
 func durabilityLevelToCbmgmtx(dl kv_v1.DurabilityLevel) (cbmgmtx.DurabilityLevel, *status.Status) {
