@@ -75,7 +75,6 @@ func (s *BucketAdminServer) ListBuckets(
 			return nil, errSt.Err()
 		}
 
-		// TODO(brett19): Fix conflict resolution type in list buckets to return the proper value once gocb is fixed.
 		conflictResolutionType, errSt := conflictResolutionTypeFromCbmgmtx(bucket.ConflictResolutionType)
 		if errSt != nil {
 			return nil, errSt.Err()
