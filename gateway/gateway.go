@@ -46,6 +46,7 @@ type Config struct {
 	NodeID      string
 	ServerGroup string
 	Daemon      bool
+	Debug       bool
 
 	CbConnStr string
 	Username  string
@@ -257,6 +258,7 @@ func (g *Gateway) Run(ctx context.Context) error {
 	startInstance := func(ctx context.Context, instanceIdx int) error {
 		dataImpl := dataimpl.New(&dataimpl.NewOptions{
 			Logger:           config.Logger.Named("data-impl"),
+			Debug:            config.Debug,
 			TopologyProvider: psTopologyManager,
 			CbClient:         agentMgr,
 			Authenticator:    auth.CbAuthAuthenticator{},

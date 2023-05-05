@@ -38,6 +38,7 @@ DEADLINE_EXCEEDED - Timeout occurred while processing.
 
 type ErrorHandler struct {
 	Logger *zap.Logger
+	Debug  bool
 }
 
 func (e ErrorHandler) tryAttachStatusDetails(st *status.Status, details ...protoiface.MessageV1) *status.Status {
@@ -50,7 +51,7 @@ func (e ErrorHandler) tryAttachStatusDetails(st *status.Status, details ...proto
 	return st
 }
 
-func (e ErrorHandler) tryAttachCbContext(st *status.Status, baseErr error) *status.Status {
+func (e ErrorHandler) tryAttachExtraContext(st *status.Status, baseErr error) *status.Status {
 	var memdSrvErr *memdx.ServerErrorWithContext
 	if errors.As(baseErr, &memdSrvErr) {
 		parsedCtx := memdSrvErr.ParseContext()
@@ -60,6 +61,13 @@ func (e ErrorHandler) tryAttachCbContext(st *status.Status, baseErr error) *stat
 			})
 		}
 	}
+
+	if e.Debug {
+		st = e.tryAttachStatusDetails(st, &epb.DebugInfo{
+			Detail: baseErr.Error(),
+		})
+	}
+
 	return st
 }
 
@@ -104,7 +112,7 @@ func (e ErrorHandler) NewBucketMissingStatus(baseErr error, bucketName string) *
 		ResourceName: bucketName,
 		Description:  "",
 	})
-	st = e.tryAttachCbContext(st, baseErr)
+	st = e.tryAttachExtraContext(st, baseErr)
 	return st
 }
 
@@ -117,7 +125,7 @@ func (e ErrorHandler) NewBucketExistsStatus(baseErr error, bucketName string) *s
 		ResourceName: bucketName,
 		Description:  "",
 	})
-	st = e.tryAttachCbContext(st, baseErr)
+	st = e.tryAttachExtraContext(st, baseErr)
 	return st
 }
 
@@ -130,7 +138,7 @@ func (e ErrorHandler) NewScopeMissingStatus(baseErr error, bucketName, scopeName
 		ResourceName: fmt.Sprintf("%s/%s", bucketName, scopeName),
 		Description:  "",
 	})
-	st = e.tryAttachCbContext(st, baseErr)
+	st = e.tryAttachExtraContext(st, baseErr)
 	return st
 }
 
@@ -143,7 +151,7 @@ func (e ErrorHandler) NewCollectionMissingStatus(baseErr error, bucketName, scop
 		ResourceName: fmt.Sprintf("%s/%s/%s", bucketName, scopeName, collectionName),
 		Description:  "",
 	})
-	st = e.tryAttachCbContext(st, baseErr)
+	st = e.tryAttachExtraContext(st, baseErr)
 	return st
 }
 
@@ -156,7 +164,7 @@ func (e ErrorHandler) NewSearchIndexExistsStatus(baseErr error, indexName string
 		ResourceName: indexName,
 		Description:  "",
 	})
-	st = e.tryAttachCbContext(st, baseErr)
+	st = e.tryAttachExtraContext(st, baseErr)
 	return st
 }
 
@@ -169,7 +177,7 @@ func (e ErrorHandler) NewSearchIndexMissingStatus(baseErr error, indexName strin
 		ResourceName: indexName,
 		Description:  "",
 	})
-	st = e.tryAttachCbContext(st, baseErr)
+	st = e.tryAttachExtraContext(st, baseErr)
 	return st
 }
 
@@ -182,7 +190,7 @@ func (e ErrorHandler) NewDocMissingStatus(baseErr error, bucketName, scopeName, 
 		ResourceName: fmt.Sprintf("%s/%s/%s/%s", bucketName, scopeName, collectionName, docId),
 		Description:  "",
 	})
-	st = e.tryAttachCbContext(st, baseErr)
+	st = e.tryAttachExtraContext(st, baseErr)
 	return st
 }
 
@@ -195,7 +203,7 @@ func (e ErrorHandler) NewDocExistsStatus(baseErr error, bucketName, scopeName, c
 		ResourceName: fmt.Sprintf("%s/%s/%s/%s", bucketName, scopeName, collectionName, docId),
 		Description:  "",
 	})
-	st = e.tryAttachCbContext(st, baseErr)
+	st = e.tryAttachExtraContext(st, baseErr)
 	return st
 }
 
@@ -210,7 +218,7 @@ func (e ErrorHandler) NewDocCasMismatchStatus(baseErr error, bucketName, scopeNa
 			Description: "",
 		}},
 	})
-	st = e.tryAttachCbContext(st, baseErr)
+	st = e.tryAttachExtraContext(st, baseErr)
 	return st
 }
 
@@ -225,7 +233,7 @@ func (e ErrorHandler) NewDocLockedStatus(baseErr error, bucketName, scopeName, c
 			Description: "",
 		}},
 	})
-	st = e.tryAttachCbContext(st, baseErr)
+	st = e.tryAttachExtraContext(st, baseErr)
 	return st
 }
 
@@ -238,7 +246,7 @@ func (e ErrorHandler) NewCollectionNoReadAccessStatus(baseErr error, bucketName,
 		ResourceName: fmt.Sprintf("%s/%s/%s", bucketName, scopeName, collectionName),
 		Description:  "",
 	})
-	st = e.tryAttachCbContext(st, baseErr)
+	st = e.tryAttachExtraContext(st, baseErr)
 	return st
 }
 
@@ -251,7 +259,7 @@ func (e ErrorHandler) NewCollectionNoWriteAccessStatus(baseErr error, bucketName
 		ResourceName: fmt.Sprintf("%s/%s/%s", bucketName, scopeName, collectionName),
 		Description:  "",
 	})
-	st = e.tryAttachCbContext(st, baseErr)
+	st = e.tryAttachExtraContext(st, baseErr)
 	return st
 }
 
@@ -266,7 +274,7 @@ func (e ErrorHandler) NewSdDocTooDeepStatus(baseErr error, bucketName, scopeName
 			Description: "",
 		}},
 	})
-	st = e.tryAttachCbContext(st, baseErr)
+	st = e.tryAttachExtraContext(st, baseErr)
 	return st
 }
 
@@ -281,7 +289,7 @@ func (e ErrorHandler) NewSdDocNotJsonStatus(baseErr error, bucketName, scopeName
 			Description: "",
 		}},
 	})
-	st = e.tryAttachCbContext(st, baseErr)
+	st = e.tryAttachExtraContext(st, baseErr)
 	return st
 }
 
@@ -294,7 +302,7 @@ func (e ErrorHandler) NewSdPathNotFoundStatus(baseErr error, bucketName, scopeNa
 		ResourceName: fmt.Sprintf("%s/%s/%s/%s/%s", bucketName, scopeName, collectionName, docId, sdPath),
 		Description:  "",
 	})
-	st = e.tryAttachCbContext(st, baseErr)
+	st = e.tryAttachExtraContext(st, baseErr)
 	return st
 }
 
@@ -307,7 +315,7 @@ func (e ErrorHandler) NewSdPathExistsStatus(baseErr error, bucketName, scopeName
 		ResourceName: fmt.Sprintf("%s/%s/%s/%s/%s", bucketName, scopeName, collectionName, docId, sdPath),
 		Description:  "",
 	})
-	st = e.tryAttachCbContext(st, baseErr)
+	st = e.tryAttachExtraContext(st, baseErr)
 	return st
 }
 
@@ -322,14 +330,14 @@ func (e ErrorHandler) NewSdPathMismatchStatus(baseErr error, bucketName, scopeNa
 			Description: "",
 		}},
 	})
-	st = e.tryAttachCbContext(st, baseErr)
+	st = e.tryAttachExtraContext(st, baseErr)
 	return st
 }
 
 func (e ErrorHandler) NewSdPathTooBigStatus(baseErr error, sdPath string) *status.Status {
 	st := status.New(codes.InvalidArgument,
 		fmt.Sprintf("Subdocument path '%s' is too long", sdPath))
-	st = e.tryAttachCbContext(st, baseErr)
+	st = e.tryAttachExtraContext(st, baseErr)
 	return st
 }
 
@@ -344,7 +352,7 @@ func (e ErrorHandler) NewSdBadValueStatus(baseErr error, sdPath string) *status.
 			Description: "",
 		}},
 	})
-	st = e.tryAttachCbContext(st, baseErr)
+	st = e.tryAttachExtraContext(st, baseErr)
 	return st
 }
 
@@ -359,7 +367,7 @@ func (e ErrorHandler) NewSdBadRangeStatus(baseErr error, bucketName, scopeName, 
 			Description: "",
 		}},
 	})
-	st = e.tryAttachCbContext(st, baseErr)
+	st = e.tryAttachExtraContext(st, baseErr)
 	return st
 }
 
@@ -367,7 +375,7 @@ func (e ErrorHandler) NewSdBadDeltaStatus(baseErr error, sdPath string) *status.
 	st := status.New(codes.InvalidArgument,
 		fmt.Sprintf("Subdocument counter delta for path '%s' was invalid.",
 			sdPath))
-	st = e.tryAttachCbContext(st, baseErr)
+	st = e.tryAttachExtraContext(st, baseErr)
 	return st
 }
 
@@ -375,14 +383,14 @@ func (e ErrorHandler) NewSdValueTooDeepStatus(baseErr error, sdPath string) *sta
 	st := status.New(codes.InvalidArgument,
 		fmt.Sprintf("Subdocument operation content for path '%s' was too deep to parse.",
 			sdPath))
-	st = e.tryAttachCbContext(st, baseErr)
+	st = e.tryAttachExtraContext(st, baseErr)
 	return st
 }
 
 func (e ErrorHandler) NewSdXattrUnknownVattrStatus(baseErr error, sdPath string) *status.Status {
 	st := status.New(codes.InvalidArgument,
 		fmt.Sprintf("Subdocument path '%s' references an invalid virtual attribute.", sdPath))
-	st = e.tryAttachCbContext(st, baseErr)
+	st = e.tryAttachExtraContext(st, baseErr)
 	return st
 }
 
@@ -390,7 +398,7 @@ func (e ErrorHandler) NewSdPathInvalidStatus(baseErr error, sdPath string) *stat
 	st := status.New(codes.InvalidArgument,
 		fmt.Sprintf("Invalid subdocument path syntax '%s'.", sdPath))
 	// TODO(brett19): Probably should include invalid-argument error details.
-	st = e.tryAttachCbContext(st, baseErr)
+	st = e.tryAttachExtraContext(st, baseErr)
 	return st
 }
 
@@ -402,7 +410,7 @@ func (e ErrorHandler) NewUnsupportedFieldStatus(fieldPath string) *status.Status
 
 func (e ErrorHandler) NewInvalidAuthHeaderStatus(baseErr error) *status.Status {
 	st := status.New(codes.InvalidArgument, "Invalid authorization header format.")
-	st = e.tryAttachCbContext(st, baseErr)
+	st = e.tryAttachExtraContext(st, baseErr)
 	return st
 }
 
@@ -424,7 +432,7 @@ func (e ErrorHandler) NewInvalidCredentialsStatus() *status.Status {
 func (e ErrorHandler) NewInvalidQueryStatus(baseErr error, queryErrStr string) *status.Status {
 	st := status.New(codes.InvalidArgument,
 		fmt.Sprintf("Query parsing failed: %s", queryErrStr))
-	st = e.tryAttachCbContext(st, baseErr)
+	st = e.tryAttachExtraContext(st, baseErr)
 	return st
 }
 
@@ -436,7 +444,7 @@ func (e ErrorHandler) NewQueryNoAccessStatus(baseErr error) *status.Status {
 		ResourceName: "",
 		Description:  "",
 	})
-	st = e.tryAttachCbContext(st, baseErr)
+	st = e.tryAttachExtraContext(st, baseErr)
 	return st
 }
 

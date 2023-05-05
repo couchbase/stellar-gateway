@@ -51,6 +51,7 @@ func init() {
 	configFlags.String("cert", "", "path to server tls cert")
 	configFlags.String("key", "", "path to server private tls key")
 	configFlags.String("cacert", "", "path to root CA cert")
+	configFlags.Bool("debug", false, "enable debug mode")
 	rootCmd.Flags().AddFlagSet(configFlags)
 
 	_ = viper.BindPFlags(configFlags)
@@ -97,6 +98,7 @@ func startGateway() {
 	certPath := viper.GetString("cert")
 	keyPath := viper.GetString("key")
 	caCertPath := viper.GetString("cacert")
+	debug := viper.GetBool("debug")
 
 	logger.Info("parsed gateway configuration",
 		zap.String("logLevelStr", logLevelStr),
@@ -111,6 +113,7 @@ func startGateway() {
 		zap.String("certPath", certPath),
 		zap.String("keyPath", keyPath),
 		zap.String("cacertPath", caCertPath),
+		zap.Bool("debug", debug),
 	)
 
 	parsedLogLevel, err := zapcore.ParseLevel(logLevelStr)
@@ -163,6 +166,7 @@ func startGateway() {
 		Username:       cbUser,
 		Password:       cbPass,
 		Daemon:         daemon,
+		Debug:          debug,
 		BindDataPort:   dataPort,
 		BindSdPort:     sdPort,
 		BindAddress:    bindAddress,
