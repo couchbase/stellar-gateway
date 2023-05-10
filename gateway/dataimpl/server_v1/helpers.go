@@ -45,8 +45,24 @@ func timeExpiryToGocbcorex(expiry time.Time) uint32 {
 }
 
 func secsExpiryToGocbcorex(expiry uint32) uint32 {
-	// TODO(brett19): Implement switching to Unix timestamps beyond the server limit
-	return expiry
+	// If the duration is 0, that indicates never-expires
+	if expiry == 0 {
+		return 0
+	}
+
+	// If the duration is less than one second, we must force the
+	// value to 1 to avoid accidentally making it never expire.
+	if expiry < 1 {
+		return 1
+	}
+
+	// If the duration is less than 30 days then send as seconds.
+	if expiry <= 2592000 {
+		return expiry
+	}
+
+	// Send the duration as a unix timestamp of now plus duration.
+	return uint32(time.Now().Add(time.Duration(expiry) * time.Second).Unix())
 }
 
 func tokenFromGocbcorex(bucketName string, token gocbcorex.MutationToken) *kv_v1.MutationToken {

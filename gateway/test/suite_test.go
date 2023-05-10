@@ -289,7 +289,13 @@ const (
 	expiryCheckType_Set
 	expiryCheckType_Past
 	expiryCheckType_Future
+	expiryCheckType_Within
 )
+
+type expiryCheckTypeWithinBounds struct {
+	MinSecs int
+	MaxSecs int
+}
 
 type checkDocumentOptions struct {
 	BucketName     string
@@ -299,7 +305,8 @@ type checkDocumentOptions struct {
 	Content        []byte
 	ContentFlags   uint32
 
-	expiry expiryCheckType
+	expiry       expiryCheckType
+	expiryBounds expiryCheckTypeWithinBounds
 }
 
 func (o checkDocumentOptions) ApplyMissingDefaults() checkDocumentOptions {
@@ -350,15 +357,21 @@ func (s *GatewayOpsTestSuite) checkDocument(t *testing.T, opts checkDocumentOpti
 	case expiryCheckType_None:
 		assert.Nil(s.T(), getResp.Expiry)
 	case expiryCheckType_Set:
-		assertValidTimestamp(s.T(), getResp.Expiry)
+		requireValidTimestamp(s.T(), getResp.Expiry)
 	case expiryCheckType_Future:
-		assertValidTimestamp(s.T(), getResp.Expiry)
+		requireValidTimestamp(s.T(), getResp.Expiry)
 		ts := getResp.Expiry.AsTime()
 		assert.True(t, !ts.Before(time.Now()))
 	case expiryCheckType_Past:
-		assertValidTimestamp(s.T(), getResp.Expiry)
+		requireValidTimestamp(s.T(), getResp.Expiry)
 		ts := getResp.Expiry.AsTime()
 		assert.True(t, !ts.After(time.Now()))
+	case expiryCheckType_Within:
+		requireValidTimestamp(s.T(), getResp.Expiry)
+		expiryTime := time.Unix(getResp.Expiry.Seconds, int64(getResp.Expiry.Nanos))
+		expirySecs := int(time.Until(expiryTime) / time.Second)
+		assert.Greater(s.T(), expirySecs, opts.expiryBounds.MinSecs)
+		assert.LessOrEqual(s.T(), expirySecs, opts.expiryBounds.MaxSecs)
 	default:
 		t.Fatalf("invalid test check, unknown expiry check type")
 	}

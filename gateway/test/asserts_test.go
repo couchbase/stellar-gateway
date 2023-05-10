@@ -100,6 +100,6 @@ func assertValidMutationToken(t *testing.T, token *kv_v1.MutationToken, bucketNa
 	assert.NotZero(t, token.SeqNo)
 }
 
-func assertValidTimestamp(t *testing.T, ts *timestamppb.Timestamp) {
-	assert.NotNil(t, ts)
+func requireValidTimestamp(t *testing.T, ts *timestamppb.Timestamp) {
+	require.NotNil(t, ts)
 }
