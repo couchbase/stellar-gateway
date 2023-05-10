@@ -208,6 +208,98 @@ func (s *GatewayOpsTestSuite) TestInsert() {
 		})
 	})
 
+	s.Run("ExpirySecs", func() {
+		s.Run("ConversionUnder30Days", func() {
+			docId := s.randomDocId()
+			resp, err := kvClient.Insert(context.Background(), &kv_v1.InsertRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+				Content:        TEST_CONTENT,
+				ContentFlags:   TEST_CONTENT_FLAGS,
+				Expiry:         &kv_v1.InsertRequest_ExpirySecs{ExpirySecs: 5},
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			requireRpcSuccess(s.T(), resp, err)
+			assertValidCas(s.T(), resp.Cas)
+			assertValidMutationToken(s.T(), resp.MutationToken, s.bucketName)
+
+			s.checkDocument(s.T(), checkDocumentOptions{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				DocId:          docId,
+				Content:        TEST_CONTENT,
+				ContentFlags:   TEST_CONTENT_FLAGS,
+				expiry:         expiryCheckType_Within,
+				expiryBounds: expiryCheckTypeWithinBounds{
+					MaxSecs: 5,
+					MinSecs: 0,
+				},
+			})
+		})
+
+		s.Run("Conversion30Days", func() {
+			docId := s.randomDocId()
+			resp, err := kvClient.Insert(context.Background(), &kv_v1.InsertRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+				Content:        TEST_CONTENT,
+				ContentFlags:   TEST_CONTENT_FLAGS,
+				Expiry:         &kv_v1.InsertRequest_ExpirySecs{ExpirySecs: uint32((30 * 24 * time.Hour).Seconds())},
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			requireRpcSuccess(s.T(), resp, err)
+			assertValidCas(s.T(), resp.Cas)
+			assertValidMutationToken(s.T(), resp.MutationToken, s.bucketName)
+
+			s.checkDocument(s.T(), checkDocumentOptions{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				DocId:          docId,
+				Content:        TEST_CONTENT,
+				ContentFlags:   TEST_CONTENT_FLAGS,
+				expiry:         expiryCheckType_Within,
+				expiryBounds: expiryCheckTypeWithinBounds{
+					MaxSecs: int((30 * 24 * time.Hour).Seconds()),
+					MinSecs: int((29 * 24 * time.Hour).Seconds()),
+				},
+			})
+		})
+
+		s.Run("ConversionOver30Days", func() {
+			docId := s.randomDocId()
+			resp, err := kvClient.Insert(context.Background(), &kv_v1.InsertRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+				Content:        TEST_CONTENT,
+				ContentFlags:   TEST_CONTENT_FLAGS,
+				Expiry:         &kv_v1.InsertRequest_ExpirySecs{ExpirySecs: uint32((31 * 24 * time.Hour).Seconds())},
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			requireRpcSuccess(s.T(), resp, err)
+			assertValidCas(s.T(), resp.Cas)
+			assertValidMutationToken(s.T(), resp.MutationToken, s.bucketName)
+
+			s.checkDocument(s.T(), checkDocumentOptions{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				DocId:          docId,
+				Content:        TEST_CONTENT,
+				ContentFlags:   TEST_CONTENT_FLAGS,
+				expiry:         expiryCheckType_Within,
+				expiryBounds: expiryCheckTypeWithinBounds{
+					MaxSecs: int((31 * 24 * time.Hour).Seconds()),
+					MinSecs: int((30 * 24 * time.Hour).Seconds()),
+				},
+			})
+		})
+	})
+
 	s.RunCommonErrorCases(func(opts *commonErrorTestData) (interface{}, error) {
 		return kvClient.Insert(context.Background(), &kv_v1.InsertRequest{
 			BucketName:     opts.BucketName,
@@ -260,6 +352,98 @@ func (s *GatewayOpsTestSuite) TestUpsert() {
 		assertRpcErrorDetails(s.T(), err, func(d *epb.PreconditionFailure) {
 			assert.Len(s.T(), d.Violations, 1)
 			assert.Equal(s.T(), d.Violations[0].Type, "LOCKED")
+		})
+	})
+
+	s.Run("ExpirySecs", func() {
+		s.Run("ConversionUnder30Days", func() {
+			docId := s.randomDocId()
+			resp, err := kvClient.Upsert(context.Background(), &kv_v1.UpsertRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+				Content:        TEST_CONTENT,
+				ContentFlags:   TEST_CONTENT_FLAGS,
+				Expiry:         &kv_v1.UpsertRequest_ExpirySecs{ExpirySecs: 5},
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			requireRpcSuccess(s.T(), resp, err)
+			assertValidCas(s.T(), resp.Cas)
+			assertValidMutationToken(s.T(), resp.MutationToken, s.bucketName)
+
+			s.checkDocument(s.T(), checkDocumentOptions{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				DocId:          docId,
+				Content:        TEST_CONTENT,
+				ContentFlags:   TEST_CONTENT_FLAGS,
+				expiry:         expiryCheckType_Within,
+				expiryBounds: expiryCheckTypeWithinBounds{
+					MaxSecs: 5,
+					MinSecs: 0,
+				},
+			})
+		})
+
+		s.Run("Conversion30Days", func() {
+			docId := s.randomDocId()
+			resp, err := kvClient.Upsert(context.Background(), &kv_v1.UpsertRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+				Content:        TEST_CONTENT,
+				ContentFlags:   TEST_CONTENT_FLAGS,
+				Expiry:         &kv_v1.UpsertRequest_ExpirySecs{ExpirySecs: uint32((30 * 24 * time.Hour).Seconds())},
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			requireRpcSuccess(s.T(), resp, err)
+			assertValidCas(s.T(), resp.Cas)
+			assertValidMutationToken(s.T(), resp.MutationToken, s.bucketName)
+
+			s.checkDocument(s.T(), checkDocumentOptions{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				DocId:          docId,
+				Content:        TEST_CONTENT,
+				ContentFlags:   TEST_CONTENT_FLAGS,
+				expiry:         expiryCheckType_Within,
+				expiryBounds: expiryCheckTypeWithinBounds{
+					MaxSecs: int((30 * 24 * time.Hour).Seconds()),
+					MinSecs: int((29 * 24 * time.Hour).Seconds()),
+				},
+			})
+		})
+
+		s.Run("ConversionOver30Days", func() {
+			docId := s.randomDocId()
+			resp, err := kvClient.Upsert(context.Background(), &kv_v1.UpsertRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+				Content:        TEST_CONTENT,
+				ContentFlags:   TEST_CONTENT_FLAGS,
+				Expiry:         &kv_v1.UpsertRequest_ExpirySecs{ExpirySecs: uint32((31 * 24 * time.Hour).Seconds())},
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			requireRpcSuccess(s.T(), resp, err)
+			assertValidCas(s.T(), resp.Cas)
+			assertValidMutationToken(s.T(), resp.MutationToken, s.bucketName)
+
+			s.checkDocument(s.T(), checkDocumentOptions{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				DocId:          docId,
+				Content:        TEST_CONTENT,
+				ContentFlags:   TEST_CONTENT_FLAGS,
+				expiry:         expiryCheckType_Within,
+				expiryBounds: expiryCheckTypeWithinBounds{
+					MaxSecs: int((31 * 24 * time.Hour).Seconds()),
+					MinSecs: int((30 * 24 * time.Hour).Seconds()),
+				},
+			})
 		})
 	})
 
@@ -367,6 +551,98 @@ func (s *GatewayOpsTestSuite) TestReplace() {
 		assertRpcErrorDetails(s.T(), err, func(d *epb.PreconditionFailure) {
 			assert.Len(s.T(), d.Violations, 1)
 			assert.Equal(s.T(), d.Violations[0].Type, "LOCKED")
+		})
+	})
+
+	s.Run("ExpirySecs", func() {
+		s.Run("ConversionUnder30Days", func() {
+			docId := s.testDocId()
+			resp, err := kvClient.Replace(context.Background(), &kv_v1.ReplaceRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+				Content:        TEST_CONTENT,
+				ContentFlags:   TEST_CONTENT_FLAGS,
+				Expiry:         &kv_v1.ReplaceRequest_ExpirySecs{ExpirySecs: 5},
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			requireRpcSuccess(s.T(), resp, err)
+			assertValidCas(s.T(), resp.Cas)
+			assertValidMutationToken(s.T(), resp.MutationToken, s.bucketName)
+
+			s.checkDocument(s.T(), checkDocumentOptions{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				DocId:          docId,
+				Content:        TEST_CONTENT,
+				ContentFlags:   TEST_CONTENT_FLAGS,
+				expiry:         expiryCheckType_Within,
+				expiryBounds: expiryCheckTypeWithinBounds{
+					MaxSecs: 5,
+					MinSecs: 0,
+				},
+			})
+		})
+
+		s.Run("Conversion30Days", func() {
+			docId := s.testDocId()
+			resp, err := kvClient.Replace(context.Background(), &kv_v1.ReplaceRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+				Content:        TEST_CONTENT,
+				ContentFlags:   TEST_CONTENT_FLAGS,
+				Expiry:         &kv_v1.ReplaceRequest_ExpirySecs{ExpirySecs: uint32((30 * 24 * time.Hour).Seconds())},
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			requireRpcSuccess(s.T(), resp, err)
+			assertValidCas(s.T(), resp.Cas)
+			assertValidMutationToken(s.T(), resp.MutationToken, s.bucketName)
+
+			s.checkDocument(s.T(), checkDocumentOptions{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				DocId:          docId,
+				Content:        TEST_CONTENT,
+				ContentFlags:   TEST_CONTENT_FLAGS,
+				expiry:         expiryCheckType_Within,
+				expiryBounds: expiryCheckTypeWithinBounds{
+					MaxSecs: int((30 * 24 * time.Hour).Seconds()),
+					MinSecs: int((29 * 24 * time.Hour).Seconds()),
+				},
+			})
+		})
+
+		s.Run("ConversionOver30Days", func() {
+			docId := s.testDocId()
+			resp, err := kvClient.Replace(context.Background(), &kv_v1.ReplaceRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+				Content:        TEST_CONTENT,
+				ContentFlags:   TEST_CONTENT_FLAGS,
+				Expiry:         &kv_v1.ReplaceRequest_ExpirySecs{ExpirySecs: uint32((31 * 24 * time.Hour).Seconds())},
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			requireRpcSuccess(s.T(), resp, err)
+			assertValidCas(s.T(), resp.Cas)
+			assertValidMutationToken(s.T(), resp.MutationToken, s.bucketName)
+
+			s.checkDocument(s.T(), checkDocumentOptions{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				DocId:          docId,
+				Content:        TEST_CONTENT,
+				ContentFlags:   TEST_CONTENT_FLAGS,
+				expiry:         expiryCheckType_Within,
+				expiryBounds: expiryCheckTypeWithinBounds{
+					MaxSecs: int((31 * 24 * time.Hour).Seconds()),
+					MinSecs: int((30 * 24 * time.Hour).Seconds()),
+				},
+			})
 		})
 	})
 
@@ -506,6 +782,60 @@ func (s *GatewayOpsTestSuite) TestTouch() {
 		assert.LessOrEqual(s.T(), expirySecs, 20)
 	})
 
+	s.Run("Conversion30Days", func() {
+		docId := s.testDocId()
+		resp, err := kvClient.Touch(context.Background(), &kv_v1.TouchRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            docId,
+			Expiry:         &kv_v1.TouchRequest_ExpirySecs{ExpirySecs: uint32((30 * 24 * time.Hour).Seconds())},
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		requireRpcSuccess(s.T(), resp, err)
+		assertValidCas(s.T(), resp.Cas)
+
+		s.checkDocument(s.T(), checkDocumentOptions{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			DocId:          docId,
+			Content:        TEST_CONTENT,
+			ContentFlags:   TEST_CONTENT_FLAGS,
+			expiry:         expiryCheckType_Within,
+			expiryBounds: expiryCheckTypeWithinBounds{
+				MaxSecs: int((30 * 24 * time.Hour).Seconds()),
+				MinSecs: int((29 * 24 * time.Hour).Seconds()),
+			},
+		})
+	})
+
+	s.Run("ConversionOver30Days", func() {
+		docId := s.testDocId()
+		resp, err := kvClient.Touch(context.Background(), &kv_v1.TouchRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            docId,
+			Expiry:         &kv_v1.TouchRequest_ExpirySecs{ExpirySecs: uint32((31 * 24 * time.Hour).Seconds())},
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		requireRpcSuccess(s.T(), resp, err)
+		assertValidCas(s.T(), resp.Cas)
+
+		s.checkDocument(s.T(), checkDocumentOptions{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			DocId:          docId,
+			Content:        TEST_CONTENT,
+			ContentFlags:   TEST_CONTENT_FLAGS,
+			expiry:         expiryCheckType_Within,
+			expiryBounds: expiryCheckTypeWithinBounds{
+				MaxSecs: int((31 * 24 * time.Hour).Seconds()),
+				MinSecs: int((30 * 24 * time.Hour).Seconds()),
+			},
+		})
+	})
+
 	s.Run("DocMissing", func() {
 		_, err := kvClient.Touch(context.Background(), &kv_v1.TouchRequest{
 			BucketName:     s.bucketName,
@@ -576,6 +906,60 @@ func (s *GatewayOpsTestSuite) TestGetAndTouch() {
 		expirySecs := int(time.Until(expiryTime) / time.Second)
 		assert.Greater(s.T(), expirySecs, 0)
 		assert.LessOrEqual(s.T(), expirySecs, 20)
+	})
+
+	s.Run("Conversion30Days", func() {
+		docId := s.testDocId()
+		resp, err := kvClient.GetAndTouch(context.Background(), &kv_v1.GetAndTouchRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            docId,
+			Expiry:         &kv_v1.GetAndTouchRequest_ExpirySecs{ExpirySecs: uint32((30 * 24 * time.Hour).Seconds())},
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		requireRpcSuccess(s.T(), resp, err)
+		assertValidCas(s.T(), resp.Cas)
+
+		s.checkDocument(s.T(), checkDocumentOptions{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			DocId:          docId,
+			Content:        TEST_CONTENT,
+			ContentFlags:   TEST_CONTENT_FLAGS,
+			expiry:         expiryCheckType_Within,
+			expiryBounds: expiryCheckTypeWithinBounds{
+				MaxSecs: int((30 * 24 * time.Hour).Seconds()),
+				MinSecs: int((29 * 24 * time.Hour).Seconds()),
+			},
+		})
+	})
+
+	s.Run("ConversionOver30Days", func() {
+		docId := s.testDocId()
+		resp, err := kvClient.GetAndTouch(context.Background(), &kv_v1.GetAndTouchRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            docId,
+			Expiry:         &kv_v1.GetAndTouchRequest_ExpirySecs{ExpirySecs: uint32((31 * 24 * time.Hour).Seconds())},
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		requireRpcSuccess(s.T(), resp, err)
+		assertValidCas(s.T(), resp.Cas)
+
+		s.checkDocument(s.T(), checkDocumentOptions{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			DocId:          docId,
+			Content:        TEST_CONTENT,
+			ContentFlags:   TEST_CONTENT_FLAGS,
+			expiry:         expiryCheckType_Within,
+			expiryBounds: expiryCheckTypeWithinBounds{
+				MaxSecs: int((31 * 24 * time.Hour).Seconds()),
+				MinSecs: int((30 * 24 * time.Hour).Seconds()),
+			},
+		})
 	})
 
 	s.Run("DocMissing", func() {
@@ -915,6 +1299,99 @@ func (s *GatewayOpsTestSuite) TestIncrement() {
 		})
 	})
 
+	s.Run("ExpirySecs", func() {
+		var initialValue int64 = 5
+		s.Run("ConversionUnder30Days", func() {
+			docId := s.randomDocId()
+			resp, err := kvClient.Increment(context.Background(), &kv_v1.IncrementRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+				Delta:          1,
+				Initial:        &initialValue,
+				Expiry:         &kv_v1.IncrementRequest_ExpirySecs{ExpirySecs: 5},
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			requireRpcSuccess(s.T(), resp, err)
+			assertValidCas(s.T(), resp.Cas)
+			assertValidMutationToken(s.T(), resp.MutationToken, s.bucketName)
+
+			s.checkDocument(s.T(), checkDocumentOptions{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				DocId:          docId,
+				Content:        []byte("5"),
+				ContentFlags:   0,
+				expiry:         expiryCheckType_Within,
+				expiryBounds: expiryCheckTypeWithinBounds{
+					MaxSecs: 5,
+					MinSecs: 0,
+				},
+			})
+		})
+
+		s.Run("Conversion30Days", func() {
+			docId := s.randomDocId()
+			resp, err := kvClient.Increment(context.Background(), &kv_v1.IncrementRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+				Delta:          1,
+				Initial:        &initialValue,
+				Expiry:         &kv_v1.IncrementRequest_ExpirySecs{ExpirySecs: uint32((30 * 24 * time.Hour).Seconds())},
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			requireRpcSuccess(s.T(), resp, err)
+			assertValidCas(s.T(), resp.Cas)
+			assertValidMutationToken(s.T(), resp.MutationToken, s.bucketName)
+
+			s.checkDocument(s.T(), checkDocumentOptions{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				DocId:          docId,
+				Content:        []byte("5"),
+				ContentFlags:   0,
+				expiry:         expiryCheckType_Within,
+				expiryBounds: expiryCheckTypeWithinBounds{
+					MaxSecs: int((30 * 24 * time.Hour).Seconds()),
+					MinSecs: int((29 * 24 * time.Hour).Seconds()),
+				},
+			})
+		})
+
+		s.Run("ConversionOver30Days", func() {
+			docId := s.randomDocId()
+			resp, err := kvClient.Increment(context.Background(), &kv_v1.IncrementRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+				Delta:          1,
+				Initial:        &initialValue,
+				Expiry:         &kv_v1.IncrementRequest_ExpirySecs{ExpirySecs: uint32((31 * 24 * time.Hour).Seconds())},
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			requireRpcSuccess(s.T(), resp, err)
+			assertValidCas(s.T(), resp.Cas)
+			assertValidMutationToken(s.T(), resp.MutationToken, s.bucketName)
+
+			s.checkDocument(s.T(), checkDocumentOptions{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				DocId:          docId,
+				Content:        []byte("5"),
+				ContentFlags:   0,
+				expiry:         expiryCheckType_Within,
+				expiryBounds: expiryCheckTypeWithinBounds{
+					MaxSecs: int((31 * 24 * time.Hour).Seconds()),
+					MinSecs: int((30 * 24 * time.Hour).Seconds()),
+				},
+			})
+		})
+	})
+
 	s.RunCommonErrorCases(func(opts *commonErrorTestData) (interface{}, error) {
 		return kvClient.Increment(context.Background(), &kv_v1.IncrementRequest{
 			BucketName:     opts.BucketName,
@@ -1024,6 +1501,99 @@ func (s *GatewayOpsTestSuite) TestDecrement() {
 		assertRpcErrorDetails(s.T(), err, func(d *epb.PreconditionFailure) {
 			assert.Len(s.T(), d.Violations, 1)
 			assert.Equal(s.T(), d.Violations[0].Type, "LOCKED")
+		})
+	})
+
+	s.Run("ExpirySecs", func() {
+		var initialValue int64 = 5
+		s.Run("ConversionUnder30Days", func() {
+			docId := s.randomDocId()
+			resp, err := kvClient.Decrement(context.Background(), &kv_v1.DecrementRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+				Delta:          1,
+				Initial:        &initialValue,
+				Expiry:         &kv_v1.DecrementRequest_ExpirySecs{ExpirySecs: 5},
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			requireRpcSuccess(s.T(), resp, err)
+			assertValidCas(s.T(), resp.Cas)
+			assertValidMutationToken(s.T(), resp.MutationToken, s.bucketName)
+
+			s.checkDocument(s.T(), checkDocumentOptions{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				DocId:          docId,
+				Content:        []byte("5"),
+				ContentFlags:   0,
+				expiry:         expiryCheckType_Within,
+				expiryBounds: expiryCheckTypeWithinBounds{
+					MaxSecs: 5,
+					MinSecs: 0,
+				},
+			})
+		})
+
+		s.Run("Conversion30Days", func() {
+			docId := s.randomDocId()
+			resp, err := kvClient.Decrement(context.Background(), &kv_v1.DecrementRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+				Delta:          1,
+				Initial:        &initialValue,
+				Expiry:         &kv_v1.DecrementRequest_ExpirySecs{ExpirySecs: uint32((30 * 24 * time.Hour).Seconds())},
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			requireRpcSuccess(s.T(), resp, err)
+			assertValidCas(s.T(), resp.Cas)
+			assertValidMutationToken(s.T(), resp.MutationToken, s.bucketName)
+
+			s.checkDocument(s.T(), checkDocumentOptions{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				DocId:          docId,
+				Content:        []byte("5"),
+				ContentFlags:   0,
+				expiry:         expiryCheckType_Within,
+				expiryBounds: expiryCheckTypeWithinBounds{
+					MaxSecs: int((30 * 24 * time.Hour).Seconds()),
+					MinSecs: int((29 * 24 * time.Hour).Seconds()),
+				},
+			})
+		})
+
+		s.Run("ConversionOver30Days", func() {
+			docId := s.randomDocId()
+			resp, err := kvClient.Decrement(context.Background(), &kv_v1.DecrementRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+				Delta:          1,
+				Initial:        &initialValue,
+				Expiry:         &kv_v1.DecrementRequest_ExpirySecs{ExpirySecs: uint32((31 * 24 * time.Hour).Seconds())},
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			requireRpcSuccess(s.T(), resp, err)
+			assertValidCas(s.T(), resp.Cas)
+			assertValidMutationToken(s.T(), resp.MutationToken, s.bucketName)
+
+			s.checkDocument(s.T(), checkDocumentOptions{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				DocId:          docId,
+				Content:        []byte("5"),
+				ContentFlags:   0,
+				expiry:         expiryCheckType_Within,
+				expiryBounds: expiryCheckTypeWithinBounds{
+					MaxSecs: int((31 * 24 * time.Hour).Seconds()),
+					MinSecs: int((30 * 24 * time.Hour).Seconds()),
+				},
+			})
 		})
 	})
 
@@ -2164,6 +2734,111 @@ func (s *GatewayOpsTestSuite) TestMutateIn() {
 		assertRpcErrorDetails(s.T(), err, func(d *epb.PreconditionFailure) {
 			assert.Len(s.T(), d.Violations, 1)
 			assert.Equal(s.T(), d.Violations[0].Type, "LOCKED")
+		})
+	})
+
+	s.Run("ExpirySecs", func() {
+		semantic := kv_v1.MutateInRequest_STORE_SEMANTIC_UPSERT
+		s.Run("ConversionUnder30Days", func() {
+			docId := s.randomDocId()
+			_, err := kvClient.MutateIn(context.Background(), &kv_v1.MutateInRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+				Specs: []*kv_v1.MutateInRequest_Spec{
+					{
+						Operation: kv_v1.MutateInRequest_Spec_OPERATION_UPSERT,
+						Path:      "a",
+						Content:   []byte(`2`),
+					},
+				},
+				Expiry:        &kv_v1.MutateInRequest_ExpirySecs{ExpirySecs: 5},
+				StoreSemantic: &semantic,
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			assertRpcStatus(s.T(), err, codes.OK)
+
+			s.checkDocument(s.T(), checkDocumentOptions{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				DocId:          docId,
+				Content:        []byte(`{"a":2}`),
+				ContentFlags:   0,
+				expiry:         expiryCheckType_Within,
+				expiryBounds: expiryCheckTypeWithinBounds{
+					MaxSecs: 5,
+					MinSecs: 0,
+				},
+			})
+		})
+
+		s.Run("Conversion30Days", func() {
+			docId := s.randomDocId()
+			_, err := kvClient.MutateIn(context.Background(), &kv_v1.MutateInRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+				Specs: []*kv_v1.MutateInRequest_Spec{
+					{
+						Operation: kv_v1.MutateInRequest_Spec_OPERATION_UPSERT,
+						Path:      "a",
+						Content:   []byte(`2`),
+					},
+				},
+				Expiry:        &kv_v1.MutateInRequest_ExpirySecs{ExpirySecs: uint32((30 * 24 * time.Hour).Seconds())},
+				StoreSemantic: &semantic,
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			assertRpcStatus(s.T(), err, codes.OK)
+
+			s.checkDocument(s.T(), checkDocumentOptions{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				DocId:          docId,
+				Content:        []byte(`{"a":2}`),
+				ContentFlags:   0,
+				expiry:         expiryCheckType_Within,
+				expiryBounds: expiryCheckTypeWithinBounds{
+					MaxSecs: int((30 * 24 * time.Hour).Seconds()),
+					MinSecs: int((29 * 24 * time.Hour).Seconds()),
+				},
+			})
+		})
+
+		s.Run("ConversionOver30Days", func() {
+			docId := s.randomDocId()
+			_, err := kvClient.MutateIn(context.Background(), &kv_v1.MutateInRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+				Specs: []*kv_v1.MutateInRequest_Spec{
+					{
+						Operation: kv_v1.MutateInRequest_Spec_OPERATION_UPSERT,
+						Path:      "a",
+						Content:   []byte(`2`),
+					},
+				},
+				Expiry:        &kv_v1.MutateInRequest_ExpirySecs{ExpirySecs: uint32((31 * 24 * time.Hour).Seconds())},
+				StoreSemantic: &semantic,
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			assertRpcStatus(s.T(), err, codes.OK)
+
+			s.checkDocument(s.T(), checkDocumentOptions{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				DocId:          docId,
+				Content:        []byte(`{"a":2}`),
+				ContentFlags:   0,
+				expiry:         expiryCheckType_Within,
+				expiryBounds: expiryCheckTypeWithinBounds{
+					MaxSecs: int((31 * 24 * time.Hour).Seconds()),
+					MinSecs: int((30 * 24 * time.Hour).Seconds()),
+				},
+			})
 		})
 	})
 
