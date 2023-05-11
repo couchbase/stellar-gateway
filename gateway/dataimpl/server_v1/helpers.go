@@ -7,6 +7,7 @@ import (
 	"github.com/couchbase/gocbcorex/cbmgmtx"
 	"github.com/couchbase/gocbcorex/memdx"
 	"github.com/couchbase/goprotostellar/genproto/admin_bucket_v1"
+	"github.com/couchbase/goprotostellar/genproto/admin_query_v1"
 	"github.com/couchbase/goprotostellar/genproto/kv_v1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -253,4 +254,25 @@ func conflictResolutionTypeToCbmgmtx(t admin_bucket_v1.ConflictResolutionType) (
 	}
 
 	return cbmgmtx.ConflictResolutionType(""), status.New(codes.InvalidArgument, "invalid conflict resolution type specified")
+}
+
+func indexStateFromQueryTableString(s string) (admin_query_v1.IndexState, *status.Status) {
+	switch s {
+	case "deferred":
+		return admin_query_v1.IndexState_INDEX_STATE_DEFERRED, nil
+	case "building":
+		return admin_query_v1.IndexState_INDEX_STATE_BUILDING, nil
+	case "pending":
+		return admin_query_v1.IndexState_INDEX_STATE_PENDING, nil
+	case "online":
+		return admin_query_v1.IndexState_INDEX_STATE_ONLINE, nil
+	case "offline":
+		return admin_query_v1.IndexState_INDEX_STATE_OFFLINE, nil
+	case "abridged":
+		return admin_query_v1.IndexState_INDEX_STATE_ABRIDGED, nil
+	case "scheduled":
+		return admin_query_v1.IndexState_INDEX_STATE_SCHEDULED, nil
+	}
+
+	return admin_query_v1.IndexState(0), status.New(codes.Internal, "invalid index state specified")
 }
