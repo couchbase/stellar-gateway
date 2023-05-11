@@ -448,6 +448,12 @@ func (e ErrorHandler) NewQueryNoAccessStatus(baseErr error) *status.Status {
 	return st
 }
 
+func (e ErrorHandler) NewNeedIndexFieldsStatus() *status.Status {
+	st := status.New(codes.InvalidArgument,
+		"You must specify fields when creating a new index.")
+	return st
+}
+
 func (e ErrorHandler) NewGenericStatus(err error) *status.Status {
 	e.Logger.Error("handling generic error", zap.Error(err))
 

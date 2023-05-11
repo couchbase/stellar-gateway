@@ -25,6 +25,7 @@ type Servers struct {
 	AnalyticsV1Server        *server_v1.AnalyticsServer
 	AdminBucketV1Server      *server_v1.BucketAdminServer
 	AdminCollectionV1Server  *server_v1.CollectionAdminServer
+	AdminQueryIndexV1Server  *server_v1.QueryIndexAdminServer
 	AdminSearchIndexV1Server *server_v1.SearchIndexAdminServer
 	TransactionsV1Server     *server_v1.TransactionsServer
 }
@@ -70,6 +71,11 @@ func New(opts *NewOptions) *Servers {
 		),
 		AdminCollectionV1Server: server_v1.NewCollectionAdminServer(
 			opts.Logger.Named("admincollection"),
+			v1ErrHandler,
+			v1AuthHandler,
+		),
+		AdminQueryIndexV1Server: server_v1.NewQueryIndexAdminServer(
+			opts.Logger.Named("adminqueryindex"),
 			v1ErrHandler,
 			v1AuthHandler,
 		),
