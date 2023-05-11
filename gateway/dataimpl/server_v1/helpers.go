@@ -106,7 +106,7 @@ func durabilityLevelFromCbmgmtx(dl cbmgmtx.DurabilityLevel) (*kv_v1.DurabilityLe
 		return &lvl, nil
 	}
 
-	return nil, status.New(codes.InvalidArgument, "invalid durability level received")
+	return nil, status.New(codes.Internal, "invalid durability level received")
 }
 
 func durabilityLevelToCbmgmtx(dl kv_v1.DurabilityLevel) (cbmgmtx.DurabilityLevel, *status.Status) {
@@ -134,7 +134,7 @@ func bucketTypeFromCbmgmtx(t cbmgmtx.BucketType) (admin_bucket_v1.BucketType, *s
 		return admin_bucket_v1.BucketType_BUCKET_TYPE_EPHEMERAL, nil
 	}
 
-	return admin_bucket_v1.BucketType(0), status.New(codes.InvalidArgument, "invalid bucket type received")
+	return admin_bucket_v1.BucketType(0), status.New(codes.Internal, "invalid bucket type received")
 }
 
 func bucketTypeToCbmgmtx(t admin_bucket_v1.BucketType) (cbmgmtx.BucketType, *status.Status) {
@@ -162,7 +162,7 @@ func evictionModeFromCbmgmtx(em cbmgmtx.EvictionPolicyType) (admin_bucket_v1.Evi
 		return admin_bucket_v1.EvictionMode_EVICTION_MODE_NONE, nil
 	}
 
-	return admin_bucket_v1.EvictionMode(0), status.New(codes.InvalidArgument, "invalid eviction mode received")
+	return admin_bucket_v1.EvictionMode(0), status.New(codes.Internal, "invalid eviction mode received")
 }
 
 func evictionModeToCbmgmtx(em admin_bucket_v1.EvictionMode) (cbmgmtx.EvictionPolicyType, *status.Status) {
@@ -191,7 +191,7 @@ func compressionModeFromCbmgmtx(cm cbmgmtx.CompressionMode) (admin_bucket_v1.Com
 
 	}
 
-	return admin_bucket_v1.CompressionMode(0), status.New(codes.InvalidArgument, "invalid compression mode received")
+	return admin_bucket_v1.CompressionMode(0), status.New(codes.Internal, "invalid compression mode received")
 }
 
 func compressionModeToCbmgmtx(cm admin_bucket_v1.CompressionMode) (cbmgmtx.CompressionMode, *status.Status) {
@@ -215,7 +215,7 @@ func storageBackendFromCbmgmtx(sb cbmgmtx.StorageBackend) (admin_bucket_v1.Stora
 		return admin_bucket_v1.StorageBackend_STORAGE_BACKEND_MAGMA, nil
 	}
 
-	return admin_bucket_v1.StorageBackend(0), status.New(codes.InvalidArgument, "invalid storage backend received")
+	return admin_bucket_v1.StorageBackend(0), status.New(codes.Internal, "invalid storage backend received")
 }
 
 func storageBackendToCbmgmtx(sb admin_bucket_v1.StorageBackend) (cbmgmtx.StorageBackend, *status.Status) {
@@ -239,7 +239,7 @@ func conflictResolutionTypeFromCbmgmtx(t cbmgmtx.ConflictResolutionType) (admin_
 		return admin_bucket_v1.ConflictResolutionType_CONFLICT_RESOLUTION_TYPE_CUSTOM, nil
 	}
 
-	return admin_bucket_v1.ConflictResolutionType(0), status.New(codes.InvalidArgument, "invalid conflict resolution type received")
+	return admin_bucket_v1.ConflictResolutionType(0), status.New(codes.Internal, "invalid conflict resolution type received")
 }
 
 func conflictResolutionTypeToCbmgmtx(t admin_bucket_v1.ConflictResolutionType) (cbmgmtx.ConflictResolutionType, *status.Status) {
