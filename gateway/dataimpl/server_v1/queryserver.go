@@ -3,6 +3,7 @@ package server_v1
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 
 	"github.com/couchbase/gocbcorex"
 	"github.com/couchbase/gocbcorex/cbqueryx"
@@ -63,6 +64,14 @@ func (s *QueryServer) Query(in *query_v1.QueryRequest, out query_v1.QueryService
 
 	// metrics are included by default
 	opts.Metrics = true
+
+	if in.BucketName == nil && in.ScopeName != nil {
+		return status.Errorf(codes.InvalidArgument, "invalid scope and bucket name combination options specified")
+	}
+
+	if in.BucketName != nil && in.ScopeName != nil {
+		opts.QueryContext = fmt.Sprintf("`%s`.`%s`", in.GetBucketName(), in.GetScopeName())
+	}
 
 	if in.ReadOnly != nil {
 		opts.ReadOnly = *in.ReadOnly
