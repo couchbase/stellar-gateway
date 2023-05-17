@@ -772,7 +772,8 @@ func (s *KvServer) LookupIn(ctx context.Context, in *kv_v1.LookupInRequest) (*kv
 			Path:  []byte(spec.Path),
 		}
 	}
-	opts.Ops = ops
+	reordered, indexes := memdx.ReorderSubdocOps(ops)
+	opts.Ops = reordered
 
 	if in.Flags != nil {
 		if in.Flags.GetAccessDeleted() {
@@ -832,7 +833,8 @@ func (s *KvServer) LookupIn(ctx context.Context, in *kv_v1.LookupInRequest) (*kv
 			}
 		}
 
-		resultSpecs[i] = spec
+		index := indexes[i]
+		resultSpecs[index] = spec
 	}
 
 	return &kv_v1.LookupInResponse{
@@ -889,10 +891,10 @@ func (s *KvServer) MutateIn(ctx context.Context, in *kv_v1.MutateInRequest) (*kv
 		var flags memdx.SubdocOpFlag
 		if spec.Flags != nil {
 			if spec.Flags.GetXattr() {
-				flags = memdx.SubdocOpFlagXattrPath
+				flags |= memdx.SubdocOpFlagXattrPath
 			}
 			if spec.Flags.GetCreatePath() {
-				flags = memdx.SubdocOpFlagMkDirP
+				flags |= memdx.SubdocOpFlagMkDirP
 			}
 		}
 		ops[i] = memdx.MutateInOp{
@@ -902,7 +904,8 @@ func (s *KvServer) MutateIn(ctx context.Context, in *kv_v1.MutateInRequest) (*kv
 			Value: spec.Content,
 		}
 	}
-	opts.Ops = ops
+	reordered, indexes := memdx.ReorderSubdocOps(ops)
+	opts.Ops = reordered
 
 	if in.Flags != nil {
 		if in.Flags.GetAccessDeleted() {
@@ -1016,7 +1019,8 @@ func (s *KvServer) MutateIn(ctx context.Context, in *kv_v1.MutateInRequest) (*kv
 			Content: op.Value,
 		}
 
-		resultSpecs[i] = spec
+		index := indexes[i]
+		resultSpecs[index] = spec
 	}
 
 	return &kv_v1.MutateInResponse{
