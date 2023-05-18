@@ -1908,6 +1908,17 @@ func (s *GatewayOpsTestSuite) TestLookupIn() {
 		})
 	})
 
+	s.Run("NoSpecs", func() {
+		_, err := kvClient.LookupIn(context.Background(), &kv_v1.LookupInRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            s.testDocId(),
+			Specs:          nil,
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		assertRpcStatus(s.T(), err, codes.InvalidArgument)
+	})
+
 	s.Run("DocTooDeep", func() {
 		docId := s.binaryDocId(s.tooDeepJson())
 
@@ -2384,6 +2395,17 @@ func (s *GatewayOpsTestSuite) TestMutateIn() {
 			},
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
 		assertRpcStatus(s.T(), err, codes.OK)
+	})
+
+	s.Run("NoSpecs", func() {
+		_, err := kvClient.MutateIn(context.Background(), &kv_v1.MutateInRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            s.testDocId(),
+			Specs:          nil,
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		assertRpcStatus(s.T(), err, codes.InvalidArgument)
 	})
 
 	s.Run("ArrayAddUniqueDuplicate", func() {
