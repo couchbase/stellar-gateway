@@ -743,6 +743,10 @@ func (s *KvServer) LookupIn(ctx context.Context, in *kv_v1.LookupInRequest) (*kv
 	opts.CollectionName = in.CollectionName
 	opts.Key = []byte(in.Key)
 
+	if len(in.Specs) == 0 {
+		return nil, status.New(codes.InvalidArgument, "at least one lookup spec must be specified").Err()
+	}
+
 	ops := make([]memdx.LookupInOp, len(in.Specs))
 	for i, spec := range in.Specs {
 		var op memdx.LookupInOpType
@@ -854,6 +858,10 @@ func (s *KvServer) MutateIn(ctx context.Context, in *kv_v1.MutateInRequest) (*kv
 	opts.ScopeName = in.ScopeName
 	opts.CollectionName = in.CollectionName
 	opts.Key = []byte(in.Key)
+
+	if len(in.Specs) == 0 {
+		return nil, status.New(codes.InvalidArgument, "at least one mutation spec must be specified").Err()
+	}
 
 	ops := make([]memdx.MutateInOp, len(in.Specs))
 	for i, spec := range in.Specs {
