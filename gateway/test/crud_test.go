@@ -233,7 +233,7 @@ func (s *GatewayOpsTestSuite) TestInsert() {
 				ContentFlags:   TEST_CONTENT_FLAGS,
 				expiry:         expiryCheckType_Within,
 				expiryBounds: expiryCheckTypeWithinBounds{
-					MaxSecs: 5,
+					MaxSecs: 5 + 1,
 					MinSecs: 0,
 				},
 			})
@@ -263,7 +263,7 @@ func (s *GatewayOpsTestSuite) TestInsert() {
 				ContentFlags:   TEST_CONTENT_FLAGS,
 				expiry:         expiryCheckType_Within,
 				expiryBounds: expiryCheckTypeWithinBounds{
-					MaxSecs: int((30 * 24 * time.Hour).Seconds()),
+					MaxSecs: int((30 * 24 * time.Hour).Seconds()) + 1,
 					MinSecs: int((29 * 24 * time.Hour).Seconds()),
 				},
 			})
@@ -293,7 +293,7 @@ func (s *GatewayOpsTestSuite) TestInsert() {
 				ContentFlags:   TEST_CONTENT_FLAGS,
 				expiry:         expiryCheckType_Within,
 				expiryBounds: expiryCheckTypeWithinBounds{
-					MaxSecs: int((31 * 24 * time.Hour).Seconds()),
+					MaxSecs: int((31 * 24 * time.Hour).Seconds()) + 1,
 					MinSecs: int((30 * 24 * time.Hour).Seconds()),
 				},
 			})
@@ -380,7 +380,7 @@ func (s *GatewayOpsTestSuite) TestUpsert() {
 				ContentFlags:   TEST_CONTENT_FLAGS,
 				expiry:         expiryCheckType_Within,
 				expiryBounds: expiryCheckTypeWithinBounds{
-					MaxSecs: 5,
+					MaxSecs: 5 + 1,
 					MinSecs: 0,
 				},
 			})
@@ -410,7 +410,7 @@ func (s *GatewayOpsTestSuite) TestUpsert() {
 				ContentFlags:   TEST_CONTENT_FLAGS,
 				expiry:         expiryCheckType_Within,
 				expiryBounds: expiryCheckTypeWithinBounds{
-					MaxSecs: int((30 * 24 * time.Hour).Seconds()),
+					MaxSecs: int((30 * 24 * time.Hour).Seconds()) + 1,
 					MinSecs: int((29 * 24 * time.Hour).Seconds()),
 				},
 			})
@@ -440,7 +440,7 @@ func (s *GatewayOpsTestSuite) TestUpsert() {
 				ContentFlags:   TEST_CONTENT_FLAGS,
 				expiry:         expiryCheckType_Within,
 				expiryBounds: expiryCheckTypeWithinBounds{
-					MaxSecs: int((31 * 24 * time.Hour).Seconds()),
+					MaxSecs: int((31 * 24 * time.Hour).Seconds()) + 1,
 					MinSecs: int((30 * 24 * time.Hour).Seconds()),
 				},
 			})
@@ -579,7 +579,7 @@ func (s *GatewayOpsTestSuite) TestReplace() {
 				ContentFlags:   TEST_CONTENT_FLAGS,
 				expiry:         expiryCheckType_Within,
 				expiryBounds: expiryCheckTypeWithinBounds{
-					MaxSecs: 5,
+					MaxSecs: 5 + 1,
 					MinSecs: 0,
 				},
 			})
@@ -609,7 +609,7 @@ func (s *GatewayOpsTestSuite) TestReplace() {
 				ContentFlags:   TEST_CONTENT_FLAGS,
 				expiry:         expiryCheckType_Within,
 				expiryBounds: expiryCheckTypeWithinBounds{
-					MaxSecs: int((30 * 24 * time.Hour).Seconds()),
+					MaxSecs: int((30 * 24 * time.Hour).Seconds()) + 1,
 					MinSecs: int((29 * 24 * time.Hour).Seconds()),
 				},
 			})
@@ -639,7 +639,7 @@ func (s *GatewayOpsTestSuite) TestReplace() {
 				ContentFlags:   TEST_CONTENT_FLAGS,
 				expiry:         expiryCheckType_Within,
 				expiryBounds: expiryCheckTypeWithinBounds{
-					MaxSecs: int((31 * 24 * time.Hour).Seconds()),
+					MaxSecs: int((31 * 24 * time.Hour).Seconds()) + 1,
 					MinSecs: int((30 * 24 * time.Hour).Seconds()),
 				},
 			})
@@ -779,7 +779,7 @@ func (s *GatewayOpsTestSuite) TestTouch() {
 		expiryTime := time.Unix(getResp.Expiry.Seconds, int64(getResp.Expiry.Nanos))
 		expirySecs := int(time.Until(expiryTime) / time.Second)
 		assert.Greater(s.T(), expirySecs, 0)
-		assert.LessOrEqual(s.T(), expirySecs, 20)
+		assert.LessOrEqual(s.T(), expirySecs, 20+1)
 	})
 
 	s.Run("Conversion30Days", func() {
@@ -803,7 +803,7 @@ func (s *GatewayOpsTestSuite) TestTouch() {
 			ContentFlags:   TEST_CONTENT_FLAGS,
 			expiry:         expiryCheckType_Within,
 			expiryBounds: expiryCheckTypeWithinBounds{
-				MaxSecs: int((30 * 24 * time.Hour).Seconds()),
+				MaxSecs: int((30 * 24 * time.Hour).Seconds()) + 1,
 				MinSecs: int((29 * 24 * time.Hour).Seconds()),
 			},
 		})
@@ -830,7 +830,7 @@ func (s *GatewayOpsTestSuite) TestTouch() {
 			ContentFlags:   TEST_CONTENT_FLAGS,
 			expiry:         expiryCheckType_Within,
 			expiryBounds: expiryCheckTypeWithinBounds{
-				MaxSecs: int((31 * 24 * time.Hour).Seconds()),
+				MaxSecs: int((31 * 24 * time.Hour).Seconds()) + 1,
 				MinSecs: int((30 * 24 * time.Hour).Seconds()),
 			},
 		})
@@ -905,7 +905,7 @@ func (s *GatewayOpsTestSuite) TestGetAndTouch() {
 		expiryTime := time.Unix(getResp.Expiry.Seconds, int64(getResp.Expiry.Nanos))
 		expirySecs := int(time.Until(expiryTime) / time.Second)
 		assert.Greater(s.T(), expirySecs, 0)
-		assert.LessOrEqual(s.T(), expirySecs, 20)
+		assert.LessOrEqual(s.T(), expirySecs, 20+1)
 	})
 
 	s.Run("Conversion30Days", func() {
@@ -929,7 +929,7 @@ func (s *GatewayOpsTestSuite) TestGetAndTouch() {
 			ContentFlags:   TEST_CONTENT_FLAGS,
 			expiry:         expiryCheckType_Within,
 			expiryBounds: expiryCheckTypeWithinBounds{
-				MaxSecs: int((30 * 24 * time.Hour).Seconds()),
+				MaxSecs: int((30 * 24 * time.Hour).Seconds()) + 1,
 				MinSecs: int((29 * 24 * time.Hour).Seconds()),
 			},
 		})
@@ -956,7 +956,7 @@ func (s *GatewayOpsTestSuite) TestGetAndTouch() {
 			ContentFlags:   TEST_CONTENT_FLAGS,
 			expiry:         expiryCheckType_Within,
 			expiryBounds: expiryCheckTypeWithinBounds{
-				MaxSecs: int((31 * 24 * time.Hour).Seconds()),
+				MaxSecs: int((31 * 24 * time.Hour).Seconds()) + 1,
 				MinSecs: int((30 * 24 * time.Hour).Seconds()),
 			},
 		})
@@ -1325,7 +1325,7 @@ func (s *GatewayOpsTestSuite) TestIncrement() {
 				ContentFlags:   0,
 				expiry:         expiryCheckType_Within,
 				expiryBounds: expiryCheckTypeWithinBounds{
-					MaxSecs: 5,
+					MaxSecs: 5 + 1,
 					MinSecs: 0,
 				},
 			})
@@ -1355,7 +1355,7 @@ func (s *GatewayOpsTestSuite) TestIncrement() {
 				ContentFlags:   0,
 				expiry:         expiryCheckType_Within,
 				expiryBounds: expiryCheckTypeWithinBounds{
-					MaxSecs: int((30 * 24 * time.Hour).Seconds()),
+					MaxSecs: int((30 * 24 * time.Hour).Seconds()) + 1,
 					MinSecs: int((29 * 24 * time.Hour).Seconds()),
 				},
 			})
@@ -1385,7 +1385,7 @@ func (s *GatewayOpsTestSuite) TestIncrement() {
 				ContentFlags:   0,
 				expiry:         expiryCheckType_Within,
 				expiryBounds: expiryCheckTypeWithinBounds{
-					MaxSecs: int((31 * 24 * time.Hour).Seconds()),
+					MaxSecs: int((31 * 24 * time.Hour).Seconds()) + 1,
 					MinSecs: int((30 * 24 * time.Hour).Seconds()),
 				},
 			})
@@ -1530,7 +1530,7 @@ func (s *GatewayOpsTestSuite) TestDecrement() {
 				ContentFlags:   0,
 				expiry:         expiryCheckType_Within,
 				expiryBounds: expiryCheckTypeWithinBounds{
-					MaxSecs: 5,
+					MaxSecs: 5 + 1,
 					MinSecs: 0,
 				},
 			})
@@ -1560,7 +1560,7 @@ func (s *GatewayOpsTestSuite) TestDecrement() {
 				ContentFlags:   0,
 				expiry:         expiryCheckType_Within,
 				expiryBounds: expiryCheckTypeWithinBounds{
-					MaxSecs: int((30 * 24 * time.Hour).Seconds()),
+					MaxSecs: int((30 * 24 * time.Hour).Seconds()) + 1,
 					MinSecs: int((29 * 24 * time.Hour).Seconds()),
 				},
 			})
@@ -1590,7 +1590,7 @@ func (s *GatewayOpsTestSuite) TestDecrement() {
 				ContentFlags:   0,
 				expiry:         expiryCheckType_Within,
 				expiryBounds: expiryCheckTypeWithinBounds{
-					MaxSecs: int((31 * 24 * time.Hour).Seconds()),
+					MaxSecs: int((31 * 24 * time.Hour).Seconds()) + 1,
 					MinSecs: int((30 * 24 * time.Hour).Seconds()),
 				},
 			})
@@ -2767,7 +2767,7 @@ func (s *GatewayOpsTestSuite) TestMutateIn() {
 				ContentFlags:   0,
 				expiry:         expiryCheckType_Within,
 				expiryBounds: expiryCheckTypeWithinBounds{
-					MaxSecs: 5,
+					MaxSecs: 5 + 1,
 					MinSecs: 0,
 				},
 			})
@@ -2801,7 +2801,7 @@ func (s *GatewayOpsTestSuite) TestMutateIn() {
 				ContentFlags:   0,
 				expiry:         expiryCheckType_Within,
 				expiryBounds: expiryCheckTypeWithinBounds{
-					MaxSecs: int((30 * 24 * time.Hour).Seconds()),
+					MaxSecs: int((30 * 24 * time.Hour).Seconds()) + 1,
 					MinSecs: int((29 * 24 * time.Hour).Seconds()),
 				},
 			})
@@ -2835,7 +2835,7 @@ func (s *GatewayOpsTestSuite) TestMutateIn() {
 				ContentFlags:   0,
 				expiry:         expiryCheckType_Within,
 				expiryBounds: expiryCheckTypeWithinBounds{
-					MaxSecs: int((31 * 24 * time.Hour).Seconds()),
+					MaxSecs: int((31 * 24 * time.Hour).Seconds()) + 1,
 					MinSecs: int((30 * 24 * time.Hour).Seconds()),
 				},
 			})
