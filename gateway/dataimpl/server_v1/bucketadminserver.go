@@ -83,7 +83,7 @@ func (s *BucketAdminServer) ListBuckets(
 		buckets = append(buckets, &admin_bucket_v1.ListBucketsResponse_Bucket{
 			BucketName:             bucket.Name,
 			FlushEnabled:           bucket.FlushEnabled,
-			RamQuotaBytes:          bucket.RAMQuotaMB * 1024 * 1024,
+			RamQuotaMb:             bucket.RAMQuotaMB,
 			NumReplicas:            bucket.ReplicaNumber,
 			ReplicaIndexes:         !bucket.ReplicaIndexDisabled,
 			BucketType:             bucketType,
@@ -178,7 +178,7 @@ func (s *BucketAdminServer) CreateBucket(
 			MutableBucketSettings: cbmgmtx.MutableBucketSettings{
 				FlushEnabled:         flushEnabled,
 				ReplicaIndexDisabled: replicaIndexes,
-				RAMQuotaMB:           in.RamQuotaBytes / 1024 / 1024,
+				RAMQuotaMB:           in.RamQuotaMb,
 				ReplicaNumber:        in.NumReplicas,
 				BucketType:           bucketType,
 				EvictionPolicy:       evictionPolicy,
@@ -225,8 +225,8 @@ func (s *BucketAdminServer) UpdateBucket(
 		newBucket.FlushEnabled = *in.FlushEnabled
 	}
 
-	if in.RamQuotaBytes != nil {
-		newBucket.RAMQuotaMB = *in.RamQuotaBytes / 1024 / 1024
+	if in.RamQuotaMb != nil {
+		newBucket.RAMQuotaMB = *in.RamQuotaMb
 	}
 
 	if in.NumReplicas != nil {
