@@ -30,10 +30,6 @@ func (c *routingImpl_KvV1) Unlock(ctx context.Context, in *kv_v1.UnlockRequest, 
 	return c.client.fetchConnForKey(in.BucketName, in.Key).KvV1().Unlock(ctx, in, opts...)
 }
 
-func (c *routingImpl_KvV1) GetReplica(ctx context.Context, in *kv_v1.GetReplicaRequest, opts ...grpc.CallOption) (*kv_v1.GetReplicaResponse, error) {
-	return c.client.fetchConnForKey(in.BucketName, in.Key).KvV1().GetReplica(ctx, in, opts...)
-}
-
 func (c *routingImpl_KvV1) Touch(ctx context.Context, in *kv_v1.TouchRequest, opts ...grpc.CallOption) (*kv_v1.TouchResponse, error) {
 	return c.client.fetchConnForKey(in.BucketName, in.Key).KvV1().Touch(ctx, in, opts...)
 }
@@ -80,6 +76,10 @@ func (c *routingImpl_KvV1) LookupIn(ctx context.Context, in *kv_v1.LookupInReque
 
 func (c *routingImpl_KvV1) MutateIn(ctx context.Context, in *kv_v1.MutateInRequest, opts ...grpc.CallOption) (*kv_v1.MutateInResponse, error) {
 	return c.client.fetchConnForKey(in.BucketName, in.Key).KvV1().MutateIn(ctx, in, opts...)
+}
+
+func (c *routingImpl_KvV1) GetAllReplicas(ctx context.Context, in *kv_v1.GetAllReplicasRequest, opts ...grpc.CallOption) (kv_v1.KvService_GetAllReplicasClient, error) {
+	return c.client.fetchConnForBucket(in.BucketName).KvV1().GetAllReplicas(ctx, in, opts...)
 }
 
 func (c *routingImpl_KvV1) RangeScan(ctx context.Context, in *kv_v1.RangeScanRequest, opts ...grpc.CallOption) (*kv_v1.RangeScanResponse, error) {

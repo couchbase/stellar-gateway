@@ -1037,3 +1037,159 @@ func (s *KvServer) MutateIn(ctx context.Context, in *kv_v1.MutateInRequest) (*kv
 		MutationToken: tokenFromGocbcorex(in.BucketName, result.MutationToken),
 	}, nil
 }
+
+func (s *KvServer) GetAllReplicas(in *kv_v1.GetAllReplicasRequest, out kv_v1.KvService_GetAllReplicasServer) error {
+	bucketAgent, oboUser, errSt := s.authHandler.GetMemdOboAgent(out.Context(), in.BucketName)
+	if errSt != nil {
+		return errSt.Err()
+	}
+
+	getFromMaster := func() (*kv_v1.GetAllReplicasResponse, *status.Status) {
+		var opts gocbcorex.GetOptions
+		opts.OnBehalfOf = oboUser
+		opts.ScopeName = in.ScopeName
+		opts.CollectionName = in.CollectionName
+		opts.Key = []byte(in.Key)
+
+		result, err := bucketAgent.Get(out.Context(), &opts)
+		if err != nil {
+			if errors.Is(err, memdx.ErrUnknownCollectionName) {
+				return nil, s.errorHandler.NewCollectionMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName)
+			} else if errors.Is(err, memdx.ErrUnknownScopeName) {
+				return nil, s.errorHandler.NewScopeMissingStatus(err, in.BucketName, in.ScopeName)
+			} else if errors.Is(err, memdx.ErrAccessError) {
+				return nil, s.errorHandler.NewCollectionNoReadAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName)
+			}
+
+			s.logger.Debug("GetAllReplicas GetFromMaster failed but is being ignored",
+				zap.Error(err))
+			return nil, nil
+		}
+
+		return &kv_v1.GetAllReplicasResponse{
+			IsReplica:    false,
+			Content:      result.Value,
+			ContentFlags: result.Flags,
+			Cas:          result.Cas,
+		}, nil
+	}
+
+	getFromReplica := func(replicaIdx uint32) (*kv_v1.GetAllReplicasResponse, *status.Status) {
+		var opts gocbcorex.GetReplicaOptions
+		opts.OnBehalfOf = oboUser
+		opts.ScopeName = in.ScopeName
+		opts.CollectionName = in.CollectionName
+		opts.Key = []byte(in.Key)
+		opts.ReplicaIdx = replicaIdx
+
+		result, err := bucketAgent.GetReplica(out.Context(), &opts)
+		if err != nil {
+			if errors.Is(err, memdx.ErrUnknownCollectionName) {
+				return nil, s.errorHandler.NewCollectionMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName)
+			} else if errors.Is(err, memdx.ErrUnknownScopeName) {
+				return nil, s.errorHandler.NewScopeMissingStatus(err, in.BucketName, in.ScopeName)
+			} else if errors.Is(err, memdx.ErrAccessError) {
+				return nil, s.errorHandler.NewCollectionNoReadAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName)
+			}
+
+			s.logger.Debug("GetAllReplicas GetFromReplica failed but is being ignored",
+				zap.Uint32("replicaIdx", replicaIdx),
+				zap.Error(err))
+			return nil, nil
+		}
+
+		return &kv_v1.GetAllReplicasResponse{
+			IsReplica:    true,
+			Content:      result.Value,
+			ContentFlags: result.Flags,
+			Cas:          result.Cas,
+		}, nil
+	}
+
+	// our current implementation of GetAllReplicas is somewhat less optimal compared
+	// to what should be possible with full gocbcorex support for this.  primarily, we
+	// execute a replica read on all _possible_ replicas, even if we don't have that
+	// many replicas configured.  Any replicas which are not accessible will return
+	// an ErrInvalidReplicaIdx error, and since all errors are ignored by GetReplicas,
+	// we will simply ignore sending that particular value.
+
+	maxReplicaScans := uint32(3)
+
+	type result struct {
+		res   *kv_v1.GetAllReplicasResponse
+		errSt *status.Status
+	}
+	outCh := make(chan result, maxReplicaScans+1)
+
+	go func() {
+		res, errSt := getFromMaster()
+		outCh <- result{
+			res:   res,
+			errSt: errSt,
+		}
+	}()
+	for replicaIdx := uint32(0); replicaIdx < maxReplicaScans; replicaIdx++ {
+		go func(replicaIdx uint32) {
+			res, errSt := getFromReplica(replicaIdx)
+			outCh <- result{
+				res:   res,
+				errSt: errSt,
+			}
+		}(replicaIdx)
+	}
+
+	remainingReads := 1 + maxReplicaScans
+	asyncReadRemaining := func() {
+		go func() {
+			for remainingReads > 0 {
+				<-outCh
+				remainingReads--
+			}
+			close(outCh)
+		}()
+	}
+
+	for {
+		firstRes := <-outCh
+		remainingReads--
+
+		if firstRes.errSt != nil {
+			// if the first result had some sort of error, we start a goroutine to clean
+			// up the remaining results, and immediately return the generated error.
+
+			asyncReadRemaining()
+			return firstRes.errSt.Err()
+		}
+
+		if firstRes.res != nil {
+			// If we actually got a proper result from this response, we send it and then
+			// break to the remaining handling below, otherwise we fetch the next result.
+			err := out.Send(firstRes.res)
+			if err != nil {
+				asyncReadRemaining()
+				return s.errorHandler.NewGenericStatus(err).Err()
+			}
+
+			break
+		}
+	}
+
+	// once the first read has been successful, we no longer accept errors and simply
+	// pretend like they did not occur
+	for remainingReads > 0 {
+		nextRes := <-outCh
+		remainingReads--
+
+		if nextRes.res != nil {
+			err := out.Send(nextRes.res)
+			if err != nil {
+				asyncReadRemaining()
+				return s.errorHandler.NewGenericStatus(err).Err()
+			}
+		}
+	}
+
+	close(outCh)
+
+	return nil
+}
