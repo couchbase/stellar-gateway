@@ -2,13 +2,16 @@ package test
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io"
 	"math"
 	"testing"
 	"time"
 
 	"github.com/couchbase/goprotostellar/genproto/kv_v1"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -2880,6 +2883,63 @@ func (s *GatewayOpsTestSuite) TestMutateIn() {
 				},
 			},
 		}, opts.CallOptions...)
+	})
+}
+
+func (s *GatewayOpsTestSuite) TestGetAllReplicas() {
+	kvClient := kv_v1.NewKvServiceClient(s.gatewayConn)
+
+	s.Run("Basic", func() {
+		resp, err := kvClient.GetAllReplicas(context.Background(), &kv_v1.GetAllReplicasRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            s.testDocId(),
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		requireRpcSuccess(s.T(), resp, err)
+
+		numResults := 0
+		for {
+			itemResp, err := resp.Recv()
+			if err != nil {
+				break
+			}
+
+			assertValidCas(s.T(), itemResp.Cas)
+			assert.Equal(s.T(), itemResp.Content, TEST_CONTENT)
+			assert.Equal(s.T(), itemResp.ContentFlags, TEST_CONTENT_FLAGS)
+			numResults++
+		}
+
+		// since the document is at least written to the master, we must get
+		// at least a single response, and more is acceptable.
+		require.Greater(s.T(), numResults, 0)
+	})
+
+	s.RunCommonErrorCases(func(opts *commonErrorTestData) (interface{}, error) {
+		resp, err := kvClient.GetAllReplicas(context.Background(), &kv_v1.GetAllReplicasRequest{
+			BucketName:     opts.BucketName,
+			ScopeName:      opts.ScopeName,
+			CollectionName: opts.CollectionName,
+			Key:            s.randomDocId(),
+		}, opts.CallOptions...)
+		requireRpcSuccess(s.T(), resp, err)
+
+		var results []interface{}
+		for {
+			itemResp, err := resp.Recv()
+			if err != nil {
+				if errors.Is(err, io.EOF) {
+					break
+				}
+
+				return nil, err
+			}
+
+			results = append(results, itemResp)
+		}
+
+		return results, nil
 	})
 }
 
