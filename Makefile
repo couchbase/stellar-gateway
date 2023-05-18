@@ -5,7 +5,7 @@ productVersion = $(version)-$(bldNum)
 # The git revision, infinitely more useful than an arbitrary build number.
 REVISION := $(shell git rev-parse HEAD)
 
-ARTIFACTS = build/artifacts/couchbase-stellar-gateway
+ARTIFACTS = build/artifacts/couchbase-cloud-native-gateway
 DOCKER_TAG = v1
 DOCKER_USER = couchbase
 GOPATH := $(shell go env GOPATH)
@@ -50,21 +50,21 @@ build: generate
 	for platform in linux darwin ; do \
 	 for arch in amd64 arm64 ; do \
 	   echo "Building $$platform $$arch binary " ; \
-	   GOOS=$$platform GOARCH=$$arch CGO_ENABLED=0 GO11MODULE=on go build -o bin/$$platform/stellar-nebula-gateway-$$arch -ldflags="$(LDFLAGS)" ./cmd/gateway ; \
+	   GOOS=$$platform GOARCH=$$arch CGO_ENABLED=0 GO11MODULE=on go build -o bin/$$platform/cloud-native-gateway-$$arch -ldflags="$(LDFLAGS)" ./cmd/gateway ; \
 	 done \
 	done
 
 image-artifacts: build
 	mkdir -p $(ARTIFACTS)/bin/linux
-	cp bin/linux/stellar-nebula-* $(ARTIFACTS)/bin/linux
+	cp bin/linux/cloud-native-gateway-* $(ARTIFACTS)/bin/linux
 	cp Dockerfile* README.md LICENSE $(ARTIFACTS)
 
 dist: image-artifacts
 	rm -rf dist
 	mkdir -p dist
-	tar -C $(ARTIFACTS)/.. -czf dist/couchbase-stellar-gateway-image_$(productVersion).tgz .
+	tar -C $(ARTIFACTS)/.. -czf dist/couchbase-cloud-native-gateway-image_$(productVersion).tgz .
 
 container: build
-	docker build -f Dockerfile -t ${DOCKER_USER}/stellar-gateway:${DOCKER_TAG} .
+	docker build -f Dockerfile -t ${DOCKER_USER}/cloud-native-gateway:${DOCKER_TAG} .
 
 .PHONY: all test fmt lint check generate build

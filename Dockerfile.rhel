@@ -16,18 +16,18 @@ ARG PROD_BUILD
 ARG OS_BUILD
 
 # Install Couchbase Stellar Nebula
-COPY bin/linux/stellar-nebula-gateway-${TARGETARCH} /usr/local/bin/stellar-nebula-gateway
+COPY bin/linux/cloud-native-gateway-${TARGETARCH} /usr/local/bin/cloud-native-gateway
 
-LABEL name="couchbase/stellar-nebula-gateway" \
+LABEL name="couchbase/cloud-native-gateway" \
       vendor="Couchbase" \
       version="${PROD_VERSION}" \
       openshift_build="${OS_BUILD}" \
       exporter_build="${PROD_BUILD}" \
       release="Latest" \
-      summary="Couchbase Stellar Nebula Gateway ${PROD_VERSION}" \
-      description="Couchbase Stellar Nebula Gateway ${PROD_VERSION}" \
+      summary="Couchbase Cloud Native Gateway ${PROD_VERSION}" \
+      description="Couchbase Cloud Native Gateway ${PROD_VERSION}" \
       architecture="${TARGETARCH}" \
-      run="docker run --rm stellar-nebula registry.connect.redhat.com/couchbase/stellar-nebula-gateway:${PROD_VERSION}-${OS_BUILD} --help" \
-      io.k8s.description="The Couchbase Stellar Nebula Gateway description goes here."
+      run="docker run --rm cloud-native-gateway registry.connect.redhat.com/couchbase/cloud-native-gateway:${PROD_VERSION}-${OS_BUILD} --help" \
+      io.k8s.description="The Couchbase Cloud Native Gateway description goes here."
 
-ENTRYPOINT ["stellar-nebula-gateway"]
+ENTRYPOINT ["cloud-native-gateway"]
