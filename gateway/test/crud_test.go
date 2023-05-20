@@ -117,6 +117,20 @@ func (s *GatewayOpsTestSuite) TestGet() {
 		assert.Nil(s.T(), resp.Expiry)
 	})
 
+	s.Run("ProjectSimple", func() {
+		resp, err := kvClient.Get(context.Background(), &kv_v1.GetRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            s.testDocId(),
+			Project:        []string{"obj.num", "arr"},
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		requireRpcSuccess(s.T(), resp, err)
+		assertValidCas(s.T(), resp.Cas)
+		assert.JSONEq(s.T(), string(resp.Content), `{"obj":{"num":14},"arr":[3,6,9,12]}`)
+		assert.Equal(s.T(), resp.ContentFlags, uint32(0))
+	})
+
 	s.Run("DocLocked", func() {
 		_, err := kvClient.Get(context.Background(), &kv_v1.GetRequest{
 			BucketName:     s.bucketName,

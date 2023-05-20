@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/couchbase/gocbcorex"
+	"github.com/couchbase/gocbcorex/helpers/subdocpath"
+	"github.com/couchbase/gocbcorex/helpers/subdocprojection"
 	"github.com/couchbase/gocbcorex/memdx"
 	"github.com/couchbase/goprotostellar/genproto/kv_v1"
 	"go.uber.org/zap"
@@ -40,64 +42,169 @@ func (s *KvServer) Get(ctx context.Context, in *kv_v1.GetRequest) (*kv_v1.GetRes
 		return nil, errSt.Err()
 	}
 
-	var opts gocbcorex.LookupInOptions
-	opts.OnBehalfOf = oboUser
-	opts.ScopeName = in.ScopeName
-	opts.CollectionName = in.CollectionName
-	opts.Key = []byte(in.Key)
-	opts.Ops = []memdx.LookupInOp{
-		{
+	var executeGet func(forceFullDoc bool) (*kv_v1.GetResponse, error)
+	executeGet = func(forceFullDoc bool) (*kv_v1.GetResponse, error) {
+		var opts gocbcorex.LookupInOptions
+		opts.OnBehalfOf = oboUser
+		opts.ScopeName = in.ScopeName
+		opts.CollectionName = in.CollectionName
+		opts.Key = []byte(in.Key)
+
+		opts.Ops = append(opts.Ops, memdx.LookupInOp{
 			Op:    memdx.LookupInOpTypeGet,
 			Flags: memdx.SubdocOpFlagXattrPath,
 			Path:  []byte("$document.exptime"),
-		},
-		{
+		})
+		opts.Ops = append(opts.Ops, memdx.LookupInOp{
 			Op:    memdx.LookupInOpTypeGet,
 			Flags: memdx.SubdocOpFlagXattrPath,
 			Path:  []byte("$document.flags"),
-		},
-		{
-			Op:    memdx.LookupInOpTypeGetDoc,
-			Flags: memdx.SubdocOpFlagNone,
-			Path:  nil,
-		},
-	}
+		})
 
-	result, err := bucketAgent.LookupIn(ctx, &opts)
-	if err != nil {
-		if errors.Is(err, memdx.ErrDocLocked) {
-			return nil, s.errorHandler.NewDocLockedStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
-		} else if errors.Is(err, memdx.ErrDocNotFound) {
-			return nil, s.errorHandler.NewDocMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
-		} else if errors.Is(err, memdx.ErrUnknownCollectionName) {
-			return nil, s.errorHandler.NewCollectionMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
-		} else if errors.Is(err, memdx.ErrUnknownScopeName) {
-			return nil, s.errorHandler.NewScopeMissingStatus(err, in.BucketName, in.ScopeName).Err()
-		} else if errors.Is(err, memdx.ErrAccessError) {
-			return nil, s.errorHandler.NewCollectionNoReadAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+		userProjectOffset := len(opts.Ops)
+		maxUserProjections := 16 - userProjectOffset
+
+		isFullDocFetch := false
+		if len(in.Project) > 0 && len(in.Project) < maxUserProjections && !forceFullDoc {
+			for _, projectPath := range in.Project {
+				opts.Ops = append(opts.Ops, memdx.LookupInOp{
+					Op:    memdx.LookupInOpTypeGet,
+					Flags: memdx.SubdocOpFlagNone,
+					Path:  []byte(projectPath),
+				})
+			}
+
+			isFullDocFetch = false
+		} else {
+			opts.Ops = append(opts.Ops, memdx.LookupInOp{
+				Op:    memdx.LookupInOpTypeGetDoc,
+				Flags: memdx.SubdocOpFlagNone,
+				Path:  nil,
+			})
+
+			isFullDocFetch = true
 		}
-		return nil, s.errorHandler.NewGenericStatus(err).Err()
+
+		result, err := bucketAgent.LookupIn(ctx, &opts)
+		if err != nil {
+			if errors.Is(err, memdx.ErrDocLocked) {
+				return nil, s.errorHandler.NewDocLockedStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+			} else if errors.Is(err, memdx.ErrDocNotFound) {
+				return nil, s.errorHandler.NewDocMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+			} else if errors.Is(err, memdx.ErrUnknownCollectionName) {
+				return nil, s.errorHandler.NewCollectionMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+			} else if errors.Is(err, memdx.ErrUnknownScopeName) {
+				return nil, s.errorHandler.NewScopeMissingStatus(err, in.BucketName, in.ScopeName).Err()
+			} else if errors.Is(err, memdx.ErrAccessError) {
+				return nil, s.errorHandler.NewCollectionNoReadAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+			}
+			return nil, s.errorHandler.NewGenericStatus(err).Err()
+		}
+
+		expiryTimeSecs, err := strconv.ParseInt(string(result.Ops[0].Value), 10, 64)
+		if err != nil {
+			return nil, s.errorHandler.NewGenericStatus(err).Err()
+		}
+
+		expiryTime := time.Unix(expiryTimeSecs, 0)
+
+		flags, err := strconv.ParseUint(string(result.Ops[1].Value), 10, 64)
+		if err != nil {
+			return nil, s.errorHandler.NewGenericStatus(err).Err()
+		}
+
+		if len(in.Project) > 0 {
+			var writer subdocprojection.Projector
+
+			if isFullDocFetch {
+				docValue := result.Ops[2].Value
+
+				var reader subdocprojection.Projector
+
+				err := reader.Init(docValue)
+				if err != nil {
+					return nil, s.errorHandler.NewGenericStatus(err).Err()
+				}
+
+				for _, path := range in.Project {
+					parsedPath, err := subdocpath.Parse(path)
+					if err != nil {
+						return nil, s.errorHandler.NewGenericStatus(err).Err()
+					}
+
+					pathValue, err := reader.Get(parsedPath)
+					if err != nil {
+						return nil, s.errorHandler.NewGenericStatus(err).Err()
+					}
+
+					err = writer.Set(parsedPath, pathValue)
+					if err != nil {
+						return nil, s.errorHandler.NewGenericStatus(err).Err()
+					}
+				}
+			} else {
+				for pathIdx, path := range in.Project {
+					op := result.Ops[userProjectOffset+pathIdx]
+
+					if op.Err != nil {
+						if errors.Is(op.Err, memdx.ErrSubDocDocTooDeep) {
+							s.logger.Debug("falling back to fulldoc projection due to ErrSubDocDocTooDeep")
+							return executeGet(true)
+						} else if errors.Is(op.Err, memdx.ErrSubDocNotJSON) {
+							return nil, s.errorHandler.NewSdDocNotJsonStatus(op.Err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+						} else if errors.Is(op.Err, memdx.ErrSubDocPathNotFound) {
+							// path not founds are skipped and not included in the
+							// output document rather than triggering errors.
+							continue
+						} else if errors.Is(op.Err, memdx.ErrSubDocPathInvalid) {
+							return nil, s.errorHandler.NewSdPathInvalidStatus(op.Err, in.Project[pathIdx]).Err()
+						} else if errors.Is(op.Err, memdx.ErrSubDocPathMismatch) {
+							return nil, s.errorHandler.NewSdPathMismatchStatus(op.Err, in.BucketName, in.ScopeName, in.CollectionName, in.Key, in.Project[pathIdx]).Err()
+						} else if errors.Is(op.Err, memdx.ErrSubDocPathTooBig) {
+							s.logger.Debug("falling back to fulldoc projection due to ErrSubDocPathTooBig")
+							return executeGet(true)
+						}
+
+						s.logger.Debug("falling back to fulldoc projection due to unexpected op error", zap.Error(op.Err))
+						return executeGet(true)
+					}
+
+					parsedPath, err := subdocpath.Parse(path)
+					if err != nil {
+						return nil, s.errorHandler.NewGenericStatus(err).Err()
+					}
+
+					err = writer.Set(parsedPath, op.Value)
+					if err != nil {
+						return nil, s.errorHandler.NewGenericStatus(err).Err()
+					}
+				}
+			}
+
+			projectedDocValue, err := writer.Build()
+			if errSt != nil {
+				return nil, s.errorHandler.NewGenericStatus(err).Err()
+			}
+
+			return &kv_v1.GetResponse{
+				Content:      projectedDocValue,
+				ContentFlags: uint32(0),
+				Cas:          result.Cas,
+				Expiry:       timeFromGo(expiryTime),
+			}, nil
+		}
+
+		docValue := result.Ops[2].Value
+
+		return &kv_v1.GetResponse{
+			Content:      docValue,
+			ContentFlags: uint32(flags),
+			Cas:          result.Cas,
+			Expiry:       timeFromGo(expiryTime),
+		}, nil
 	}
 
-	expiryTimeSecs, err := strconv.ParseInt(string(result.Ops[0].Value), 10, 64)
-	if err != nil {
-		return nil, s.errorHandler.NewGenericStatus(err).Err()
-	}
-
-	flags, err := strconv.ParseUint(string(result.Ops[1].Value), 10, 64)
-	if err != nil {
-		return nil, s.errorHandler.NewGenericStatus(err).Err()
-	}
-
-	expiryTime := time.Unix(expiryTimeSecs, 0)
-	docValue := result.Ops[2].Value
-
-	return &kv_v1.GetResponse{
-		Content:      docValue,
-		ContentFlags: uint32(flags),
-		Cas:          result.Cas,
-		Expiry:       timeFromGo(expiryTime),
-	}, nil
+	return executeGet(false)
 }
 
 func (s *KvServer) GetAndTouch(ctx context.Context, in *kv_v1.GetAndTouchRequest) (*kv_v1.GetAndTouchResponse, error) {
