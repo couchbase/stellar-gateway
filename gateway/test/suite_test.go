@@ -252,7 +252,7 @@ func (s *GatewayOpsTestSuite) TearDownSuite() {
 	s.gatewayConn = nil
 }
 
-var TEST_CONTENT = []byte(`{"foo": "bar"}`)
+var TEST_CONTENT = []byte(`{"foo": "bar","obj":{"num":14,"arr":[2,5,8],"str":"zz"},"num":11,"arr":[3,6,9,12]}`)
 var TEST_CONTENT_FLAGS = uint32(0x01000000)
 
 type createDocumentOptions struct {
