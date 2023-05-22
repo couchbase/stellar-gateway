@@ -56,7 +56,7 @@ func (s *QueryIndexAdminServer) buildKeyspace(
 			cbqueryx.EncodeIdentifier(*collection))
 	}
 
-	return "`" + cbqueryx.EncodeIdentifier(bucket) + "`"
+	return cbqueryx.EncodeIdentifier(bucket)
 }
 
 func (s *QueryIndexAdminServer) translateError(
