@@ -155,6 +155,32 @@ func (e ErrorHandler) NewCollectionMissingStatus(baseErr error, bucketName, scop
 	return st
 }
 
+func (e ErrorHandler) NewScopeExistsStatus(baseErr error, bucketName, scopeName string) *status.Status {
+	st := status.New(codes.AlreadyExists,
+		fmt.Sprintf("Scope '%s' already existed in '%s'.",
+			scopeName, bucketName))
+	st = e.tryAttachStatusDetails(st, &epb.ResourceInfo{
+		ResourceType: "scope",
+		ResourceName: fmt.Sprintf("%s/%s", bucketName, scopeName),
+		Description:  "",
+	})
+	st = e.tryAttachExtraContext(st, baseErr)
+	return st
+}
+
+func (e ErrorHandler) NewCollectionExistsStatus(baseErr error, bucketName, scopeName, collectionName string) *status.Status {
+	st := status.New(codes.AlreadyExists,
+		fmt.Sprintf("Collection '%s' already existed in '%s/%s'.",
+			collectionName, bucketName, scopeName))
+	st = e.tryAttachStatusDetails(st, &epb.ResourceInfo{
+		ResourceType: "collection",
+		ResourceName: fmt.Sprintf("%s/%s/%s", bucketName, scopeName, collectionName),
+		Description:  "",
+	})
+	st = e.tryAttachExtraContext(st, baseErr)
+	return st
+}
+
 func (e ErrorHandler) NewSearchIndexExistsStatus(baseErr error, indexName string) *status.Status {
 	st := status.New(codes.NotFound,
 		fmt.Sprintf("Search index '%s' not found.",
