@@ -278,16 +278,22 @@ func (s *SearchServer) SearchQuery(in *search_v1.SearchQueryRequest, out search_
 			} else if len(facet.DateRanges) > 0 {
 				nRanges := make([]*search_v1.SearchQueryResponse_DateRangeResult, len(facet.DateRanges))
 				for i, r := range facet.DateRanges {
-					t, err := time.Parse(time.RFC3339, r.Start)
-					if err != nil {
-						return err
+					var start *timestamppb.Timestamp
+					var end *timestamppb.Timestamp
+					if r.Start != "" {
+						t, err := time.Parse(time.RFC3339, r.Start)
+						if err != nil {
+							return err
+						}
+						start = timestamppb.New(t)
 					}
-					start := timestamppb.New(t)
-					t, err = time.Parse(time.RFC3339, r.End)
-					if err != nil {
-						return err
+					if r.End != "" {
+						t, err := time.Parse(time.RFC3339, r.End)
+						if err != nil {
+							return err
+						}
+						end = timestamppb.New(t)
 					}
-					end := timestamppb.New(t)
 					nRanges[i] = &search_v1.SearchQueryResponse_DateRangeResult{
 						Name: r.Name,
 						// Field: "",
