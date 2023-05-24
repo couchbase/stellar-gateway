@@ -2,6 +2,7 @@ package server_v1
 
 import (
 	"context"
+	"errors"
 
 	"github.com/couchbase/gocbcorex/cbmgmtx"
 	"github.com/couchbase/goprotostellar/genproto/admin_collection_v1"
@@ -42,6 +43,9 @@ func (s *CollectionAdminServer) ListCollections(
 		BucketName: in.BucketName,
 	})
 	if err != nil {
+		if errors.Is(err, cbmgmtx.ErrBucketNotFound) {
+			return nil, s.errorHandler.NewBucketMissingStatus(err, in.BucketName).Err()
+		}
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
 
@@ -85,6 +89,11 @@ func (s *CollectionAdminServer) CreateScope(
 		ScopeName:  in.ScopeName,
 	})
 	if err != nil {
+		if errors.Is(err, cbmgmtx.ErrBucketNotFound) {
+			return nil, s.errorHandler.NewBucketMissingStatus(err, in.BucketName).Err()
+		} else if errors.Is(err, cbmgmtx.ErrScopeExists) {
+			return nil, s.errorHandler.NewScopeExistsStatus(err, in.BucketName, in.ScopeName).Err()
+		}
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
 
@@ -106,6 +115,11 @@ func (s *CollectionAdminServer) DeleteScope(
 		ScopeName:  in.ScopeName,
 	})
 	if err != nil {
+		if errors.Is(err, cbmgmtx.ErrBucketNotFound) {
+			return nil, s.errorHandler.NewBucketMissingStatus(err, in.BucketName).Err()
+		} else if errors.Is(err, cbmgmtx.ErrScopeNotFound) {
+			return nil, s.errorHandler.NewScopeMissingStatus(err, in.BucketName, in.ScopeName).Err()
+		}
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
 
@@ -134,6 +148,13 @@ func (s *CollectionAdminServer) CreateCollection(
 		MaxTTL:         maxTTL,
 	})
 	if err != nil {
+		if errors.Is(err, cbmgmtx.ErrBucketNotFound) {
+			return nil, s.errorHandler.NewBucketMissingStatus(err, in.BucketName).Err()
+		} else if errors.Is(err, cbmgmtx.ErrCollectionExists) {
+			return nil, s.errorHandler.NewCollectionExistsStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+		} else if errors.Is(err, cbmgmtx.ErrScopeNotFound) {
+			return nil, s.errorHandler.NewScopeMissingStatus(err, in.BucketName, in.ScopeName).Err()
+		}
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
 
@@ -156,6 +177,13 @@ func (s *CollectionAdminServer) DeleteCollection(
 		CollectionName: in.CollectionName,
 	})
 	if err != nil {
+		if errors.Is(err, cbmgmtx.ErrBucketNotFound) {
+			return nil, s.errorHandler.NewBucketMissingStatus(err, in.BucketName).Err()
+		} else if errors.Is(err, cbmgmtx.ErrCollectionNotFound) {
+			return nil, s.errorHandler.NewCollectionMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+		} else if errors.Is(err, cbmgmtx.ErrScopeNotFound) {
+			return nil, s.errorHandler.NewScopeMissingStatus(err, in.BucketName, in.ScopeName).Err()
+		}
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
 
