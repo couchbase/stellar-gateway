@@ -125,6 +125,11 @@ func (s *BucketAdminServer) CreateBucket(
 		return nil, errSt.Err()
 	}
 
+	numReplicas := uint32(1)
+	if in.NumReplicas != nil {
+		numReplicas = *in.NumReplicas
+	}
+
 	// TODO(brett19): Figure out how to properly handle default eviction type
 	evictionPolicy := cbmgmtx.EvictionPolicyType("")
 	if in.EvictionMode != nil {
@@ -171,6 +176,20 @@ func (s *BucketAdminServer) CreateBucket(
 		}
 	}
 
+	ramQuotaMb := uint64(0)
+	// we intentionally transmit a value of 0 if we don't have a default for the specified
+	// storage enging and the user did not specify an explicit value.  this is in the hopes
+	// that the server may provide a value itself (although it does not currently).
+	switch storageBackend {
+	case cbmgmtx.StorageBackendCouchstore:
+		ramQuotaMb = 100
+	case cbmgmtx.StorageBackendMagma:
+		ramQuotaMb = 1024
+	}
+	if in.RamQuotaMb != nil {
+		ramQuotaMb = *in.RamQuotaMb
+	}
+
 	err := agent.CreateBucket(ctx, &cbmgmtx.CreateBucketOptions{
 		OnBehalfOf: oboInfo,
 		BucketName: in.BucketName,
@@ -178,8 +197,8 @@ func (s *BucketAdminServer) CreateBucket(
 			MutableBucketSettings: cbmgmtx.MutableBucketSettings{
 				FlushEnabled:         flushEnabled,
 				ReplicaIndexDisabled: replicaIndexes,
-				RAMQuotaMB:           in.RamQuotaMb,
-				ReplicaNumber:        in.NumReplicas,
+				RAMQuotaMB:           ramQuotaMb,
+				ReplicaNumber:        numReplicas,
 				BucketType:           bucketType,
 				EvictionPolicy:       evictionPolicy,
 				MaxTTL:               maxExpiry,
