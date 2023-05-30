@@ -240,7 +240,6 @@ func (s *SearchServer) SearchQuery(in *search_v1.SearchQueryRequest, out search_
 				}
 				f := &search_v1.SearchQueryResponse_FacetResult_TermFacet{
 					TermFacet: &search_v1.SearchQueryResponse_TermFacetResult{
-						Name:    facet.Name,
 						Field:   facet.Field,
 						Total:   int64(facet.Total),
 						Missing: int64(facet.Missing),
@@ -264,7 +263,6 @@ func (s *SearchServer) SearchQuery(in *search_v1.SearchQueryRequest, out search_
 				}
 				f := &search_v1.SearchQueryResponse_FacetResult_NumericRangeFacet{
 					NumericRangeFacet: &search_v1.SearchQueryResponse_NumericRangeFacetResult{
-						Name:          facet.Name,
 						Field:         facet.Field,
 						Total:         int64(facet.Total),
 						Missing:       int64(facet.Missing),
@@ -304,7 +302,6 @@ func (s *SearchServer) SearchQuery(in *search_v1.SearchQueryRequest, out search_
 				}
 				f := &search_v1.SearchQueryResponse_FacetResult_DateRangeFacet{
 					DateRangeFacet: &search_v1.SearchQueryResponse_DateRangeFacetResult{
-						Name:       facet.Name,
 						Field:      facet.Field,
 						Total:      int64(facet.Total),
 						Missing:    int64(facet.Missing),
