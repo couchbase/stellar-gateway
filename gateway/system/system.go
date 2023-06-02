@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"sync"
 
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -68,9 +69,14 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 
 	// TODO(abose): Same serverOpts passed; need to break into two, if needed.
 	serverOpts := []grpc.ServerOption{
-		grpc.ChainUnaryInterceptor(hooksManager.UnaryInterceptor(),
+		grpc.ChainUnaryInterceptor(
+			otelgrpc.UnaryServerInterceptor(),
+			hooksManager.UnaryInterceptor(),
 			metricsInterceptor.UnaryConnectionCounterInterceptor,
 			recovery.UnaryServerInterceptor(panicRecoveryOpts...)),
+		grpc.ChainStreamInterceptor(
+			otelgrpc.StreamServerInterceptor(),
+		),
 		grpc.Creds(credentials.NewTLS(opts.TlsConfig)),
 	}
 
