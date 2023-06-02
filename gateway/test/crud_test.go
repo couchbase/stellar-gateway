@@ -2380,6 +2380,19 @@ func (s *GatewayOpsTestSuite) TestMutateIn() {
 				checkDocumentPath(docId, "num", []byte(`6`))
 			})
 
+			s.Run("IncrementMax", func() {
+				docId := s.binaryDocId([]byte(`{"num": 0}`))
+				maxValStr := fmt.Sprintf("%d", math.MaxInt64)
+
+				testBasicSpec(docId, &kv_v1.MutateInRequest_Spec{
+					Operation: kv_v1.MutateInRequest_Spec_OPERATION_COUNTER,
+					Path:      "num",
+					Content:   []byte(maxValStr),
+				})
+
+				checkDocumentPath(docId, "num", []byte(maxValStr))
+			})
+
 			s.Run("Decrement", func() {
 				docId := s.binaryDocId([]byte(`{"num": 5}`))
 
@@ -2390,6 +2403,21 @@ func (s *GatewayOpsTestSuite) TestMutateIn() {
 				})
 
 				checkDocumentPath(docId, "num", []byte(`4`))
+			})
+
+			s.Run("DecrementMax", func() {
+				docId := s.binaryDocId([]byte(`{"num": 0}`))
+				// We test with MinInt64+1 due to MB-57177 which caused MinInt64 to
+				// fail until it was fixed and our tests run across multiple versions.
+				minValStr := fmt.Sprintf("%d", math.MinInt64+1)
+
+				testBasicSpec(docId, &kv_v1.MutateInRequest_Spec{
+					Operation: kv_v1.MutateInRequest_Spec_OPERATION_COUNTER,
+					Path:      "num",
+					Content:   []byte(minValStr),
+				})
+
+				checkDocumentPath(docId, "num", []byte(minValStr))
 			})
 		})
 	})
