@@ -56,7 +56,7 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 
 	hooksManager := hooks.NewHooksManager(opts.Logger.Named("hooks-manager"))
 	metricsInterceptor := interceptors.NewMetricsInterceptor(opts.Metrics)
-
+	connectionLoggingInterceptor := interceptors.NewConnectionLoggingInterceptor(opts.Logger.Named("connection-logger"))
 	customPanicHandlerFunc := func(p any) (err error) {
 		opts.Logger.Error("a panic has been triggered", zap.Any("error: ", p))
 		return status.Errorf(codes.Internal, "An internal error occurred.")
@@ -70,7 +70,8 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 	serverOpts := []grpc.ServerOption{
 		grpc.ChainUnaryInterceptor(hooksManager.UnaryInterceptor(),
 			metricsInterceptor.UnaryConnectionCounterInterceptor,
-			recovery.UnaryServerInterceptor(panicRecoveryOpts...)),
+			recovery.UnaryServerInterceptor(panicRecoveryOpts...),
+			connectionLoggingInterceptor.UnaryConnectionCounterInterceptor),
 		grpc.Creds(credentials.NewTLS(opts.TlsConfig)),
 	}
 

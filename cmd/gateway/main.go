@@ -62,6 +62,7 @@ func init() {
 func startGateway() {
 	// initialize the logger
 	logLevel := zap.NewAtomicLevel()
+
 	logConfig := zap.NewProductionEncoderConfig()
 	logConfig.EncodeTime = zapcore.ISO8601TimeEncoder
 	jsonEncoder := zapcore.NewJSONEncoder(logConfig)
@@ -122,6 +123,10 @@ func startGateway() {
 		parsedLogLevel = zapcore.InfoLevel
 	}
 	logLevel.SetLevel(parsedLogLevel)
+
+	if debug {
+		logLevel.SetLevel(zap.DebugLevel)
+	}
 
 	// setup the web service
 	webListenAddress := fmt.Sprintf("%s:%v", bindAddress, webPort)
