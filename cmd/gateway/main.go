@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/couchbase/stellar-gateway/gateway"
 	"github.com/couchbase/stellar-gateway/pkg/version"
@@ -14,8 +15,20 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+	"go.opentelemetry.io/otel/metric"
+	noopmetric "go.opentelemetry.io/otel/metric/noop"
+	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/resource"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
+	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"google.golang.org/grpc"
 )
 
 var rootCmd = &cobra.Command{
@@ -51,12 +64,78 @@ func init() {
 	configFlags.String("cert", "", "path to server tls cert")
 	configFlags.String("key", "", "path to server private tls key")
 	configFlags.String("cacert", "", "path to root CA cert")
+	configFlags.String("otlp-endpoint", "", "opentelemetry endpoint to send telemetry to")
 	configFlags.Bool("debug", false, "enable debug mode")
 	rootCmd.Flags().AddFlagSet(configFlags)
 
 	_ = viper.BindPFlags(configFlags)
 	viper.SetEnvPrefix("stg")
 	viper.AutomaticEnv()
+}
+
+func initTelemetry(
+	ctx context.Context,
+	otlpEndpoint string,
+) (
+	trace.TracerProvider,
+	metric.MeterProvider,
+	error,
+) {
+	if otlpEndpoint == "" {
+		traceProvider := trace.NewNoopTracerProvider()
+		meterProvider := noopmetric.NewMeterProvider()
+		return traceProvider, meterProvider, nil
+	}
+
+	res, err := resource.New(ctx,
+		resource.WithFromEnv(),
+		resource.WithProcess(),
+		resource.WithTelemetrySDK(),
+		resource.WithHost(),
+		resource.WithAttributes(
+			// the service name used to display traces in backends
+			semconv.ServiceNameKey.String("couchbase-cloud-native-gateway"),
+		),
+	)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	metricExp, err := otlpmetricgrpc.New(
+		ctx,
+		otlpmetricgrpc.WithInsecure(),
+		otlpmetricgrpc.WithEndpoint(otlpEndpoint))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	meterProvider := sdkmetric.NewMeterProvider(
+		sdkmetric.WithResource(res),
+		sdkmetric.WithReader(
+			sdkmetric.NewPeriodicReader(
+				metricExp,
+				sdkmetric.WithInterval(2*time.Second),
+			),
+		),
+	)
+
+	traceClient := otlptracegrpc.NewClient(
+		otlptracegrpc.WithInsecure(),
+		otlptracegrpc.WithEndpoint(otlpEndpoint),
+		otlptracegrpc.WithDialOption(grpc.WithBlock()))
+	traceExp, err := otlptrace.New(ctx, traceClient)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	bsp := sdktrace.NewBatchSpanProcessor(traceExp)
+	tracerProvider := sdktrace.NewTracerProvider(
+		sdktrace.WithSampler(sdktrace.ParentBased(sdktrace.NeverSample())),
+		sdktrace.WithResource(res),
+		sdktrace.WithSpanProcessor(bsp),
+	)
+
+	return tracerProvider, meterProvider, nil
 }
 
 func startGateway() {
@@ -98,6 +177,7 @@ func startGateway() {
 	certPath := viper.GetString("cert")
 	keyPath := viper.GetString("key")
 	caCertPath := viper.GetString("cacert")
+	otlpEndpoint := viper.GetString("otlp-endpoint")
 	debug := viper.GetBool("debug")
 
 	logger.Info("parsed gateway configuration",
@@ -113,6 +193,7 @@ func startGateway() {
 		zap.String("certPath", certPath),
 		zap.String("keyPath", keyPath),
 		zap.String("cacertPath", caCertPath),
+		zap.String("otlpEndpoint", otlpEndpoint),
 		zap.Bool("debug", debug),
 	)
 
@@ -122,6 +203,18 @@ func startGateway() {
 		parsedLogLevel = zapcore.InfoLevel
 	}
 	logLevel.SetLevel(parsedLogLevel)
+
+	// setup tracing
+	if otlpEndpoint != "" {
+		otlpTracerProvider, otlpMeterProvider, err := initTelemetry(context.Background(), otlpEndpoint)
+		if err != nil {
+			logger.Error("failed to initialize opentelemetry tracing", zap.Error(err))
+			os.Exit(1)
+		}
+
+		otel.SetTracerProvider(otlpTracerProvider)
+		otel.SetMeterProvider(otlpMeterProvider)
+	}
 
 	// setup the web service
 	webListenAddress := fmt.Sprintf("%s:%v", bindAddress, webPort)
