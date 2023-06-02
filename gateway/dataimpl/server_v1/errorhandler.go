@@ -399,7 +399,7 @@ func (e ErrorHandler) NewSdBadRangeStatus(baseErr error, bucketName, scopeName, 
 
 func (e ErrorHandler) NewSdBadDeltaStatus(baseErr error, sdPath string) *status.Status {
 	st := status.New(codes.InvalidArgument,
-		fmt.Sprintf("Subdocument counter delta for path '%s' was invalid.",
+		fmt.Sprintf("Subdocument counter delta for path '%s' was invalid.  Delta must be a non-zero number within the range of an 64-bit signed integer.",
 			sdPath))
 	st = e.tryAttachExtraContext(st, baseErr)
 	return st
