@@ -1,0 +1,257 @@
+package test
+
+import (
+	"context"
+	"encoding/json"
+	"time"
+
+	"github.com/couchbase/goprotostellar/genproto/admin_search_v1"
+	"github.com/google/uuid"
+	"google.golang.org/grpc"
+)
+
+func newIndexName() string {
+	indexName := "a" + uuid.New().String()
+	return indexName
+}
+
+func (s *GatewayOpsTestSuite) TestCreateUpdateGetDeleteIndex() {
+	if !s.SupportsFeature(TestFeatureSearchManagement) {
+		s.T().Skip()
+	}
+	searchAdminClient := admin_search_v1.NewSearchAdminServiceClient(s.gatewayConn)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	indexName := newIndexName()
+
+	var bucket, scope *string
+	if s.scopeName != "" {
+		if !s.SupportsFeature(TestFeatureSearchManagementCollections) {
+			s.T().Skip()
+		}
+		bucket = &s.bucketName
+		scope = &s.scopeName
+	}
+
+	sourceType := "couchbase"
+	resp, err := searchAdminClient.CreateIndex(ctx, &admin_search_v1.CreateIndexRequest{
+		Name:       indexName,
+		BucketName: bucket,
+		ScopeName:  scope,
+		Type:       "fulltext-index",
+		SourceType: &sourceType,
+		SourceName: &s.bucketName,
+	}, grpc.PerRPCCredentials(s.basicRpcCreds))
+	requireRpcSuccess(s.T(), resp, err)
+
+	index, err := searchAdminClient.GetIndex(ctx, &admin_search_v1.GetIndexRequest{
+		Name:       indexName,
+		BucketName: bucket,
+		ScopeName:  scope,
+	}, grpc.PerRPCCredentials(s.basicRpcCreds))
+	requireRpcSuccess(s.T(), index, err)
+
+	s.Assert().Equal(indexName, index.Index.Name)
+	s.Assert().Equal("fulltext-index", index.Index.Type)
+
+	indexes, err := searchAdminClient.ListIndexes(ctx, &admin_search_v1.ListIndexesRequest{
+		BucketName: bucket,
+		ScopeName:  scope,
+	}, grpc.PerRPCCredentials(s.basicRpcCreds))
+	requireRpcSuccess(s.T(), indexes, err)
+
+	var found bool
+	for _, i := range indexes.Indexes {
+		if i.Name == indexName {
+			found = true
+			break
+		}
+	}
+	s.Assert().True(found, "Did not find expected index in GetAllIndexes")
+
+	updateIndex := index.Index
+	planParams := map[string]interface{}{
+		"test":  map[string]interface{}{},
+		"test2": map[string]interface{}{},
+	}
+	b, err := json.Marshal(planParams)
+	s.Require().NoError(err)
+
+	updateIndex.PlanParams = map[string][]byte{
+		"targets": b,
+	}
+	updateResp, err := searchAdminClient.UpdateIndex(ctx, &admin_search_v1.UpdateIndexRequest{
+		Index:      updateIndex,
+		BucketName: bucket,
+		ScopeName:  scope,
+	}, grpc.PerRPCCredentials(s.basicRpcCreds))
+	requireRpcSuccess(s.T(), updateResp, err)
+
+	delResp, err := searchAdminClient.DeleteIndex(ctx, &admin_search_v1.DeleteIndexRequest{
+		Name:       updateIndex.Name,
+		BucketName: bucket,
+		ScopeName:  scope,
+	}, grpc.PerRPCCredentials(s.basicRpcCreds))
+	requireRpcSuccess(s.T(), delResp, err)
+}
+
+func (s *GatewayOpsTestSuite) TestIndexesIngestControl() {
+	if !s.SupportsFeature(TestFeatureSearchManagement) {
+		s.T().Skip()
+	}
+	searchAdminClient := admin_search_v1.NewSearchAdminServiceClient(s.gatewayConn)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	indexName := newIndexName()
+
+	var bucket, scope *string
+	if s.scopeName != "" {
+		if !s.SupportsFeature(TestFeatureSearchManagementCollections) {
+			s.T().Skip()
+		}
+		bucket = &s.bucketName
+		scope = &s.scopeName
+	}
+
+	sourceType := "couchbase"
+	resp, err := searchAdminClient.CreateIndex(ctx, &admin_search_v1.CreateIndexRequest{
+		Name:       indexName,
+		BucketName: bucket,
+		ScopeName:  scope,
+		Type:       "fulltext-index",
+		SourceType: &sourceType,
+		SourceName: &s.bucketName,
+	}, grpc.PerRPCCredentials(s.basicRpcCreds))
+	requireRpcSuccess(s.T(), resp, err)
+	defer func() {
+		_, _ = searchAdminClient.DeleteIndex(ctx, &admin_search_v1.DeleteIndexRequest{
+			Name:       indexName,
+			BucketName: bucket,
+			ScopeName:  scope,
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+	}()
+
+	pauseResp, err := searchAdminClient.PauseIndexIngest(ctx, &admin_search_v1.PauseIndexIngestRequest{
+		Name:       indexName,
+		BucketName: bucket,
+		ScopeName:  scope,
+	}, grpc.PerRPCCredentials(s.basicRpcCreds))
+	requireRpcSuccess(s.T(), pauseResp, err)
+
+	resumeResp, err := searchAdminClient.ResumeIndexIngest(ctx, &admin_search_v1.ResumeIndexIngestRequest{
+		Name:       indexName,
+		BucketName: bucket,
+		ScopeName:  scope,
+	}, grpc.PerRPCCredentials(s.basicRpcCreds))
+	requireRpcSuccess(s.T(), resumeResp, err)
+}
+
+func (s *GatewayOpsTestSuite) TestIndexesQueryControl() {
+	if !s.SupportsFeature(TestFeatureSearchManagement) {
+		s.T().Skip()
+	}
+	searchAdminClient := admin_search_v1.NewSearchAdminServiceClient(s.gatewayConn)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	indexName := newIndexName()
+
+	var bucket, scope *string
+	if s.scopeName != "" {
+		if !s.SupportsFeature(TestFeatureSearchManagementCollections) {
+			s.T().Skip()
+		}
+		bucket = &s.bucketName
+		scope = &s.scopeName
+	}
+
+	sourceType := "couchbase"
+	resp, err := searchAdminClient.CreateIndex(ctx, &admin_search_v1.CreateIndexRequest{
+		Name:       indexName,
+		BucketName: bucket,
+		ScopeName:  scope,
+		Type:       "fulltext-index",
+		SourceType: &sourceType,
+		SourceName: &s.bucketName,
+	}, grpc.PerRPCCredentials(s.basicRpcCreds))
+	requireRpcSuccess(s.T(), resp, err)
+	defer func() {
+		_, _ = searchAdminClient.DeleteIndex(ctx, &admin_search_v1.DeleteIndexRequest{
+			Name:       indexName,
+			BucketName: bucket,
+			ScopeName:  scope,
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+	}()
+
+	disallowResp, err := searchAdminClient.DisallowIndexQuerying(ctx, &admin_search_v1.DisallowIndexQueryingRequest{
+		Name:       indexName,
+		BucketName: bucket,
+		ScopeName:  scope,
+	}, grpc.PerRPCCredentials(s.basicRpcCreds))
+	requireRpcSuccess(s.T(), disallowResp, err)
+
+	allowResp, err := searchAdminClient.AllowIndexQuerying(ctx, &admin_search_v1.AllowIndexQueryingRequest{
+		Name:       indexName,
+		BucketName: bucket,
+		ScopeName:  scope,
+	}, grpc.PerRPCCredentials(s.basicRpcCreds))
+	requireRpcSuccess(s.T(), allowResp, err)
+}
+
+func (s *GatewayOpsTestSuite) TestIndexesPartitionControl() {
+	if !s.SupportsFeature(TestFeatureSearchManagement) {
+		s.T().Skip()
+	}
+	searchAdminClient := admin_search_v1.NewSearchAdminServiceClient(s.gatewayConn)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	indexName := newIndexName()
+
+	var bucket, scope *string
+	if s.scopeName != "" {
+		if !s.SupportsFeature(TestFeatureSearchManagementCollections) {
+			s.T().Skip()
+		}
+		bucket = &s.bucketName
+		scope = &s.scopeName
+	}
+
+	sourceType := "couchbase"
+	resp, err := searchAdminClient.CreateIndex(ctx, &admin_search_v1.CreateIndexRequest{
+		Name:       indexName,
+		BucketName: bucket,
+		ScopeName:  scope,
+		Type:       "fulltext-index",
+		SourceType: &sourceType,
+		SourceName: &s.bucketName,
+	}, grpc.PerRPCCredentials(s.basicRpcCreds))
+	requireRpcSuccess(s.T(), resp, err)
+	defer func() {
+		_, _ = searchAdminClient.DeleteIndex(ctx, &admin_search_v1.DeleteIndexRequest{
+			Name:       indexName,
+			BucketName: bucket,
+			ScopeName:  scope,
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+	}()
+
+	freezeResp, err := searchAdminClient.FreezeIndexPlan(ctx, &admin_search_v1.FreezeIndexPlanRequest{
+		Name:       indexName,
+		BucketName: bucket,
+		ScopeName:  scope,
+	}, grpc.PerRPCCredentials(s.basicRpcCreds))
+	requireRpcSuccess(s.T(), freezeResp, err)
+
+	unfreezeResp, err := searchAdminClient.UnfreezeIndexPlan(ctx, &admin_search_v1.UnfreezeIndexPlanRequest{
+		Name:       indexName,
+		BucketName: bucket,
+		ScopeName:  scope,
+	}, grpc.PerRPCCredentials(s.basicRpcCreds))
+	requireRpcSuccess(s.T(), unfreezeResp, err)
+}

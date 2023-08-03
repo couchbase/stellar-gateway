@@ -5,10 +5,12 @@ const DefaultClusterVer = "7.2.1"
 type TestFeatureCode string
 
 var (
-	TestFeatureKV              = TestFeatureCode("kv")
-	TestFeatureSearch          = TestFeatureCode("search")
-	TestFeatureQuery           = TestFeatureCode("query")
-	TestFeatureQueryManagement = TestFeatureCode("querymgmt")
+	TestFeatureKV                          = TestFeatureCode("kv")
+	TestFeatureSearch                      = TestFeatureCode("search")
+	TestFeatureQuery                       = TestFeatureCode("query")
+	TestFeatureQueryManagement             = TestFeatureCode("querymgmt")
+	TestFeatureSearchManagement            = TestFeatureCode("searchmgmt")
+	TestFeatureSearchManagementCollections = TestFeatureCode("searchmgmtcollections")
 )
 
 type TestFeature struct {
@@ -18,6 +20,7 @@ type TestFeature struct {
 
 var (
 	SrvVer721 = NodeVersion{7, 2, 1, 0, 0, ""}
+	SrvVer750 = NodeVersion{7, 5, 0, 0, 0, ""}
 )
 
 func (s *GatewayOpsTestSuite) SupportsFeature(code TestFeatureCode) bool {
@@ -46,6 +49,10 @@ func (s *GatewayOpsTestSuite) SupportsFeature(code TestFeatureCode) bool {
 		return true
 	case TestFeatureQueryManagement:
 		return true
+	case TestFeatureSearchManagement:
+		return true
+	case TestFeatureSearchManagementCollections:
+		return !s.clusterVersion.Lower(SrvVer750)
 	}
 
 	panic("found unsupported feature code")

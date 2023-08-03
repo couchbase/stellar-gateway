@@ -181,7 +181,7 @@ func (e ErrorHandler) NewCollectionExistsStatus(baseErr error, bucketName, scope
 	return st
 }
 
-func (e ErrorHandler) NewSearchIndexExistsStatus(baseErr error, indexName string) *status.Status {
+func (e ErrorHandler) NewSearchIndexMissingStatus(baseErr error, indexName string) *status.Status {
 	st := status.New(codes.NotFound,
 		fmt.Sprintf("Search index '%s' not found.",
 			indexName))
@@ -194,7 +194,7 @@ func (e ErrorHandler) NewSearchIndexExistsStatus(baseErr error, indexName string
 	return st
 }
 
-func (e ErrorHandler) NewSearchIndexMissingStatus(baseErr error, indexName string) *status.Status {
+func (e ErrorHandler) NewSearchIndexExistsStatus(baseErr error, indexName string) *status.Status {
 	st := status.New(codes.AlreadyExists,
 		fmt.Sprintf("Search index '%s' already existed.",
 			indexName))

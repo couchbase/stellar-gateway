@@ -235,7 +235,7 @@ func (s *testSearchServiceHelper) testSetupSearch() {
 	s.Dataset = dataset
 
 	sourceType := "couchbase"
-	resp, err := s.IndexClient.UpsertIndex(context.Background(), &admin_search_v1.UpsertIndexRequest{
+	resp, err := s.IndexClient.CreateIndex(context.Background(), &admin_search_v1.CreateIndexRequest{
 		Name:       s.IndexName,
 		SourceName: &s.bucketName,
 		SourceType: &sourceType,
