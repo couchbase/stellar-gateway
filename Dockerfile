@@ -1,4 +1,4 @@
 FROM scratch
-ARG TARGETARCH=amd64
+ARG TARGETARCH
 COPY bin/linux/cloud-native-gateway-${TARGETARCH} /cloud-native-gateway
 ENTRYPOINT ["/cloud-native-gateway"]
