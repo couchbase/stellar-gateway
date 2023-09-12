@@ -196,7 +196,7 @@ func (s *BucketAdminServer) CreateBucket(
 		BucketSettings: cbmgmtx.BucketSettings{
 			MutableBucketSettings: cbmgmtx.MutableBucketSettings{
 				FlushEnabled:         flushEnabled,
-				ReplicaIndexDisabled: replicaIndexes,
+				ReplicaIndexDisabled: !replicaIndexes,
 				RAMQuotaMB:           ramQuotaMb,
 				ReplicaNumber:        numReplicas,
 				BucketType:           bucketType,
