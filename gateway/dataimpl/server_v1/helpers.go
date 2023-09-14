@@ -208,15 +208,22 @@ func compressionModeToCbmgmtx(cm admin_bucket_v1.CompressionMode) (cbmgmtx.Compr
 	return cbmgmtx.CompressionMode(""), status.New(codes.InvalidArgument, "invalid compression mode specified")
 }
 
-func storageBackendFromCbmgmtx(sb cbmgmtx.StorageBackend) (admin_bucket_v1.StorageBackend, *status.Status) {
+func storageBackendFromCbmgmtx(sb cbmgmtx.StorageBackend) (*admin_bucket_v1.StorageBackend, *status.Status) {
 	switch sb {
 	case cbmgmtx.StorageBackendCouchstore:
-		return admin_bucket_v1.StorageBackend_STORAGE_BACKEND_COUCHSTORE, nil
+		backend := admin_bucket_v1.StorageBackend_STORAGE_BACKEND_COUCHSTORE
+		return &backend, nil
 	case cbmgmtx.StorageBackendMagma:
-		return admin_bucket_v1.StorageBackend_STORAGE_BACKEND_MAGMA, nil
+		backend := admin_bucket_v1.StorageBackend_STORAGE_BACKEND_MAGMA
+		return &backend, nil
+	case cbmgmtx.StorageBackendUnset:
+		return nil, nil
+	case "undefined":
+		// "undefined is returned by some server versions for memcached buckets.
+		return nil, nil
 	}
 
-	return admin_bucket_v1.StorageBackend(0), status.New(codes.Internal, "invalid storage backend received")
+	return nil, status.New(codes.Internal, "invalid storage backend received")
 }
 
 func storageBackendToCbmgmtx(sb admin_bucket_v1.StorageBackend) (cbmgmtx.StorageBackend, *status.Status) {
