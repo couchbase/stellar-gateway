@@ -38,6 +38,9 @@ type GatewayOpsTestSuite struct {
 	badRpcCreds    credentials.PerRPCCredentials
 	basicRpcCreds  credentials.PerRPCCredentials
 	readRpcCreds   credentials.PerRPCCredentials
+
+	clusterVersion *NodeVersion
+	features       []TestFeature
 }
 
 func (s *GatewayOpsTestSuite) incorrectCas(validCas uint64) uint64 {
@@ -185,6 +188,14 @@ func (s *GatewayOpsTestSuite) SetupSuite() {
 	s.basicRpcCreds = basicRpcCreds
 	s.readRpcCreds = readRpcCreds
 
+	clusterVersionStr := os.Getenv("SGTEST_CLUSTER_VER")
+	if clusterVersionStr == "" {
+		clusterVersionStr = DefaultClusterVer
+	}
+	s.clusterVersion = s.nodeVersionFromString(clusterVersionStr)
+
+	s.ParseSupportedFeatures(os.Getenv("SGTEST_FEATS"))
+
 	s.T().Logf("launching test gateway...")
 
 	logger, err := zap.NewDevelopment()
@@ -250,6 +261,30 @@ func (s *GatewayOpsTestSuite) TearDownSuite() {
 	s.gatewayCloseFunc()
 	<-s.gatewayClosedCh
 	s.gatewayConn = nil
+}
+
+func (s *GatewayOpsTestSuite) ParseSupportedFeatures(featsStr string) {
+	s.features = []TestFeature{}
+
+	if featsStr == "" {
+		return
+	}
+
+	featStrs := strings.Split(featsStr, ",")
+	for _, featStr := range featStrs {
+		featStr = strings.TrimSpace(featStr)
+		feat := TestFeatureCode(strings.TrimLeft(featStr, "+-"))
+
+		enabled := true
+		if strings.HasPrefix(featStr, "-") {
+			enabled = false
+		}
+
+		s.features = append(s.features, TestFeature{
+			Code:    feat,
+			Enabled: enabled,
+		})
+	}
 }
 
 var TEST_CONTENT = []byte(`{"foo": "bar","obj":{"num":14,"arr":[2,5,8],"str":"zz"},"num":11,"arr":[3,6,9,12]}`)
