@@ -14,6 +14,9 @@ import (
 )
 
 func (s *GatewayOpsTestSuite) TestQuery() {
+	if !s.SupportsFeature(TestFeatureQuery) {
+		s.T().Skip()
+	}
 	queryClient := query_v1.NewQueryServiceClient(s.gatewayConn)
 
 	readQueryStream := func(client query_v1.QueryService_QueryClient) ([][]byte, *query_v1.QueryResponse_MetaData, error) {

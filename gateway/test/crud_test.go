@@ -29,6 +29,10 @@ type commonErrorTestData struct {
 func (s *GatewayOpsTestSuite) RunCommonErrorCases(
 	fn func(opts *commonErrorTestData) (interface{}, error),
 ) {
+	if !s.SupportsFeature(TestFeatureKV) {
+		s.T().Skip()
+	}
+
 	s.Run("CollectionMissing", func() {
 		_, err := fn(&commonErrorTestData{
 			BucketName:     s.bucketName,
@@ -101,6 +105,9 @@ func (s *GatewayOpsTestSuite) RunCommonErrorCases(
 }
 
 func (s *GatewayOpsTestSuite) TestGet() {
+	if !s.SupportsFeature(TestFeatureKV) {
+		s.T().Skip()
+	}
 	kvClient := kv_v1.NewKvServiceClient(s.gatewayConn)
 
 	s.Run("Basic", func() {
@@ -169,6 +176,9 @@ func (s *GatewayOpsTestSuite) TestGet() {
 }
 
 func (s *GatewayOpsTestSuite) TestInsert() {
+	if !s.SupportsFeature(TestFeatureKV) {
+		s.T().Skip()
+	}
 	kvClient := kv_v1.NewKvServiceClient(s.gatewayConn)
 
 	s.Run("Basic", func() {
@@ -330,6 +340,9 @@ func (s *GatewayOpsTestSuite) TestInsert() {
 }
 
 func (s *GatewayOpsTestSuite) TestUpsert() {
+	if !s.SupportsFeature(TestFeatureKV) {
+		s.T().Skip()
+	}
 	kvClient := kv_v1.NewKvServiceClient(s.gatewayConn)
 
 	s.Run("Basic", func() {
@@ -477,6 +490,9 @@ func (s *GatewayOpsTestSuite) TestUpsert() {
 }
 
 func (s *GatewayOpsTestSuite) TestReplace() {
+	if !s.SupportsFeature(TestFeatureKV) {
+		s.T().Skip()
+	}
 	kvClient := kv_v1.NewKvServiceClient(s.gatewayConn)
 	newContent := []byte(`{"boo": "baz"}`)
 
@@ -676,6 +692,9 @@ func (s *GatewayOpsTestSuite) TestReplace() {
 }
 
 func (s *GatewayOpsTestSuite) TestRemove() {
+	if !s.SupportsFeature(TestFeatureKV) {
+		s.T().Skip()
+	}
 	kvClient := kv_v1.NewKvServiceClient(s.gatewayConn)
 
 	s.Run("Basic", func() {
@@ -770,6 +789,9 @@ func (s *GatewayOpsTestSuite) TestRemove() {
 }
 
 func (s *GatewayOpsTestSuite) TestTouch() {
+	if !s.SupportsFeature(TestFeatureKV) {
+		s.T().Skip()
+	}
 	kvClient := kv_v1.NewKvServiceClient(s.gatewayConn)
 
 	s.Run("Basic", func() {
@@ -894,6 +916,9 @@ func (s *GatewayOpsTestSuite) TestTouch() {
 }
 
 func (s *GatewayOpsTestSuite) TestGetAndTouch() {
+	if !s.SupportsFeature(TestFeatureKV) {
+		s.T().Skip()
+	}
 	kvClient := kv_v1.NewKvServiceClient(s.gatewayConn)
 
 	s.Run("Basic", func() {
@@ -1020,6 +1045,9 @@ func (s *GatewayOpsTestSuite) TestGetAndTouch() {
 }
 
 func (s *GatewayOpsTestSuite) TestGetAndLock() {
+	if !s.SupportsFeature(TestFeatureKV) {
+		s.T().Skip()
+	}
 	kvClient := kv_v1.NewKvServiceClient(s.gatewayConn)
 
 	s.Run("Basic", func() {
@@ -1093,6 +1121,9 @@ func (s *GatewayOpsTestSuite) TestGetAndLock() {
 }
 
 func (s *GatewayOpsTestSuite) TestUnlock() {
+	if !s.SupportsFeature(TestFeatureKV) {
+		s.T().Skip()
+	}
 	kvClient := kv_v1.NewKvServiceClient(s.gatewayConn)
 
 	s.Run("Basic", func() {
@@ -1169,6 +1200,9 @@ func (s *GatewayOpsTestSuite) TestUnlock() {
 }
 
 func (s *GatewayOpsTestSuite) TestExists() {
+	if !s.SupportsFeature(TestFeatureKV) {
+		s.T().Skip()
+	}
 	kvClient := kv_v1.NewKvServiceClient(s.gatewayConn)
 
 	s.Run("Basic", func() {
@@ -1216,6 +1250,9 @@ func (s *GatewayOpsTestSuite) TestExists() {
 }
 
 func (s *GatewayOpsTestSuite) TestIncrement() {
+	if !s.SupportsFeature(TestFeatureKV) {
+		s.T().Skip()
+	}
 	kvClient := kv_v1.NewKvServiceClient(s.gatewayConn)
 
 	checkDocument := func(docId string, content []byte) {
@@ -1421,6 +1458,9 @@ func (s *GatewayOpsTestSuite) TestIncrement() {
 }
 
 func (s *GatewayOpsTestSuite) TestDecrement() {
+	if !s.SupportsFeature(TestFeatureKV) {
+		s.T().Skip()
+	}
 	kvClient := kv_v1.NewKvServiceClient(s.gatewayConn)
 
 	checkDocument := func(docId string, content []byte) {
@@ -1626,6 +1666,9 @@ func (s *GatewayOpsTestSuite) TestDecrement() {
 }
 
 func (s *GatewayOpsTestSuite) TestAppend() {
+	if !s.SupportsFeature(TestFeatureKV) {
+		s.T().Skip()
+	}
 	kvClient := kv_v1.NewKvServiceClient(s.gatewayConn)
 
 	s.Run("Basic", func() {
@@ -1725,6 +1768,9 @@ func (s *GatewayOpsTestSuite) TestAppend() {
 }
 
 func (s *GatewayOpsTestSuite) TestPrepend() {
+	if !s.SupportsFeature(TestFeatureKV) {
+		s.T().Skip()
+	}
 	kvClient := kv_v1.NewKvServiceClient(s.gatewayConn)
 
 	s.Run("Basic", func() {
@@ -1824,6 +1870,9 @@ func (s *GatewayOpsTestSuite) TestPrepend() {
 }
 
 func (s *GatewayOpsTestSuite) TestLookupIn() {
+	if !s.SupportsFeature(TestFeatureKV) {
+		s.T().Skip()
+	}
 	kvClient := kv_v1.NewKvServiceClient(s.gatewayConn)
 
 	s.Run("Basic", func() {
@@ -2165,6 +2214,9 @@ func (s *GatewayOpsTestSuite) TestLookupIn() {
 }
 
 func (s *GatewayOpsTestSuite) TestMutateIn() {
+	if !s.SupportsFeature(TestFeatureKV) {
+		s.T().Skip()
+	}
 	kvClient := kv_v1.NewKvServiceClient(s.gatewayConn)
 
 	checkDocumentPath := func(docId, path string, content []byte) {
@@ -2929,6 +2981,9 @@ func (s *GatewayOpsTestSuite) TestMutateIn() {
 }
 
 func (s *GatewayOpsTestSuite) TestGetAllReplicas() {
+	if !s.SupportsFeature(TestFeatureKV) {
+		s.T().Skip()
+	}
 	kvClient := kv_v1.NewKvServiceClient(s.gatewayConn)
 
 	s.Run("Basic", func() {

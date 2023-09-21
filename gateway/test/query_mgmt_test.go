@@ -10,6 +10,9 @@ import (
 )
 
 func (s *GatewayOpsTestSuite) TestQueryManagement() {
+	if !s.SupportsFeature(TestFeatureQueryManagement) {
+		s.T().Skip()
+	}
 	queryAdminClient := admin_query_v1.NewQueryAdminServiceClient(s.gatewayConn)
 
 	findIndex := func(

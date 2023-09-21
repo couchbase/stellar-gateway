@@ -16,6 +16,9 @@ import (
 )
 
 func (s *GatewayOpsTestSuite) TestSearchBasic() {
+	if !s.SupportsFeature(TestFeatureSearch) {
+		s.T().Skip()
+	}
 	helper := &testSearchServiceHelper{
 		GatewayOpsTestSuite: s,
 	}

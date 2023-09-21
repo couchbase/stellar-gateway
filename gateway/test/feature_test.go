@@ -1,0 +1,52 @@
+package test
+
+const DefaultClusterVer = "7.2.1"
+
+type TestFeatureCode string
+
+var (
+	TestFeatureKV              = TestFeatureCode("kv")
+	TestFeatureSearch          = TestFeatureCode("search")
+	TestFeatureQuery           = TestFeatureCode("query")
+	TestFeatureQueryManagement = TestFeatureCode("querymgmt")
+)
+
+type TestFeature struct {
+	Code    TestFeatureCode
+	Enabled bool
+}
+
+var (
+	SrvVer721 = NodeVersion{7, 2, 1, 0, 0, ""}
+)
+
+func (s *GatewayOpsTestSuite) SupportsFeature(code TestFeatureCode) bool {
+	featureFlagValue := 0
+	for _, featureFlag := range s.features {
+		if featureFlag.Code == code || featureFlag.Code == "*" {
+			if featureFlag.Enabled {
+				featureFlagValue = +1
+			} else {
+				featureFlagValue = -1
+			}
+		}
+	}
+	if featureFlagValue == +1 {
+		return true
+	} else if featureFlagValue == -1 {
+		return false
+	}
+
+	switch code {
+	case TestFeatureKV:
+		return true
+	case TestFeatureSearch:
+		return true
+	case TestFeatureQuery:
+		return true
+	case TestFeatureQueryManagement:
+		return true
+	}
+
+	panic("found unsupported feature code")
+}
