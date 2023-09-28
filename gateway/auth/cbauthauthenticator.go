@@ -12,12 +12,13 @@ var (
 )
 
 type CbAuthAuthenticator struct {
+	Authenticator cbauth.ExternalAuthenticator
 }
 
 var _ Authenticator = (*CbAuthAuthenticator)(nil)
 
 func (a CbAuthAuthenticator) ValidateUserForObo(user, pass string) (string, string, error) {
-	creds, err := cbauth.Auth(user, pass)
+	creds, err := a.Authenticator.Auth(user, pass)
 	if err != nil {
 		if errors.Is(err, cbauth.ErrNoAuth) {
 			return "", "", ErrInvalidCredentials

@@ -4,7 +4,7 @@ go 1.19
 
 require (
 	github.com/cenkalti/backoff/v4 v4.2.1
-	github.com/couchbase/cbauth v0.1.7
+	github.com/couchbase/cbauth v0.1.11-0.20230814221519-3b2c4d828dda
 	github.com/couchbase/gocb/v2 v2.5.2
 	github.com/couchbase/gocbcore/v10 v10.2.0
 	github.com/couchbase/gocbcorex v0.0.0-20230221114919-ef6a7a7da721
@@ -86,6 +86,3 @@ require (
 replace github.com/couchbase/goprotostellar => ./contrib/goprotostellar
 
 replace github.com/couchbase/gocbcorex => ./contrib/gocbcorex
-
-// use the forked cbauth with STG fixes for now
-replace github.com/couchbase/cbauth => github.com/brett19/cbauth v0.0.0-20230203045612-2a680fc7c1e5
