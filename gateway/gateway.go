@@ -11,7 +11,6 @@ import (
 
 	"github.com/couchbase/cbauth"
 	"github.com/couchbase/gocbcorex"
-	"github.com/couchbase/stellar-gateway/contrib/cbauthauth"
 	"github.com/couchbase/stellar-gateway/contrib/cbconfig"
 	"github.com/couchbase/stellar-gateway/contrib/cbtopology"
 	"github.com/couchbase/stellar-gateway/contrib/goclustering"
@@ -184,7 +183,7 @@ func (g *Gateway) Run(ctx context.Context) error {
 	}
 
 	// initialize cb-auth
-	_, err = cbauth.InternalRetryDefaultInitWithService("stg", mgmtHostPort, config.Username, config.Password)
+	err = cbauth.InitExternalWithHeartbeat("stg", mgmtHostPort, config.Username, config.Password, 5, 10)
 	if err != nil {
 		if strings.Contains(err.Error(), "already initialized") {
 			// we ignore this error
@@ -199,9 +198,12 @@ func (g *Gateway) Run(ctx context.Context) error {
 
 	// try to establish a client connection to the cluster
 	agentMgr, err := gocbcorex.CreateAgentManager(ctx, gocbcorex.AgentManagerOptions{
-		Logger:        config.Logger.Named("gocbcorex"),
-		TLSConfig:     nil,
-		Authenticator: &cbauthauth.CbAuthAuthenticator{},
+		Logger:    config.Logger.Named("gocbcorex"),
+		TLSConfig: nil,
+		Authenticator: &gocbcorex.PasswordAuthenticator{
+			Username: config.Username,
+			Password: config.Password,
+		},
 		SeedConfig: gocbcorex.SeedConfig{
 			HTTPAddrs: []string{mgmtHostPort},
 		},
@@ -261,7 +263,9 @@ func (g *Gateway) Run(ctx context.Context) error {
 			Debug:            config.Debug,
 			TopologyProvider: psTopologyManager,
 			CbClient:         agentMgr,
-			Authenticator:    auth.CbAuthAuthenticator{},
+			Authenticator: auth.CbAuthAuthenticator{
+				Authenticator: cbauth.GetExternalAuthenticator(),
+			},
 		})
 
 		sdImpl := sdimpl.New(&sdimpl.NewOptions{
