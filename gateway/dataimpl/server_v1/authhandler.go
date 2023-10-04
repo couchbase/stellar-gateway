@@ -18,7 +18,7 @@ type AuthHandler struct {
 	Logger        *zap.Logger
 	ErrorHandler  *ErrorHandler
 	Authenticator auth.Authenticator
-	CbClient      *gocbcorex.AgentManager
+	CbClient      *gocbcorex.BucketsTrackingAgentManager
 }
 
 func (a AuthHandler) getUserPassFromMetaData(md metadata.MD) (string, string, error) {
@@ -115,7 +115,7 @@ func (a AuthHandler) GetHttpOboInfoFromContext(ctx context.Context) (*cbhttpx.On
 }
 
 func (a AuthHandler) getClusterAgent(ctx context.Context) (*gocbcorex.Agent, *status.Status) {
-	agent, err := a.CbClient.GetClusterAgent()
+	agent, err := a.CbClient.GetClusterAgent(ctx)
 	if err != nil {
 		return nil, a.ErrorHandler.NewGenericStatus(err)
 	}

@@ -193,18 +193,18 @@ func (s *BucketAdminServer) CreateBucket(
 		BucketName: in.BucketName,
 		BucketSettings: cbmgmtx.BucketSettings{
 			MutableBucketSettings: cbmgmtx.MutableBucketSettings{
-				FlushEnabled:         flushEnabled,
-				ReplicaIndexDisabled: !replicaIndexes,
-				RAMQuotaMB:           ramQuotaMb,
-				ReplicaNumber:        numReplicas,
-				BucketType:           bucketType,
-				EvictionPolicy:       evictionPolicy,
-				MaxTTL:               maxExpiry,
-				CompressionMode:      compressionMode,
-				DurabilityMinLevel:   minimumDurabilityLevel,
-				StorageBackend:       storageBackend,
+				FlushEnabled:       flushEnabled,
+				RAMQuotaMB:         ramQuotaMb,
+				ReplicaNumber:      numReplicas,
+				EvictionPolicy:     evictionPolicy,
+				MaxTTL:             maxExpiry,
+				CompressionMode:    compressionMode,
+				DurabilityMinLevel: minimumDurabilityLevel,
 			},
 			ConflictResolutionType: conflictResolutionType,
+			ReplicaIndexDisabled:   !replicaIndexes,
+			BucketType:             bucketType,
+			StorageBackend:         storageBackend,
 		},
 	})
 	if err != nil {

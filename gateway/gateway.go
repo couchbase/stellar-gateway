@@ -197,7 +197,7 @@ func (g *Gateway) Run(ctx context.Context) error {
 	}
 
 	// try to establish a client connection to the cluster
-	agentMgr, err := gocbcorex.CreateAgentManager(ctx, gocbcorex.AgentManagerOptions{
+	agentMgr, err := gocbcorex.CreateBucketsTrackingAgentManager(ctx, gocbcorex.BucketsTrackingAgentManagerOptions{
 		Logger:    config.Logger.Named("gocbcorex"),
 		TLSConfig: nil,
 		Authenticator: &gocbcorex.PasswordAuthenticator{
