@@ -55,4 +55,4 @@ jobs:
         timeout-minutes: 10
         env:
           SGTEST_CBCONNSTR: 127.0.0.1
-        run: go test $(go list ./... | grep -v /contrib/)
+        run: go test -v $(go list ./... | grep -v /contrib/)

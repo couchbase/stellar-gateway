@@ -12,7 +12,7 @@ type NewOptions struct {
 	Logger *zap.Logger
 
 	TopologyProvider topology.Provider
-	CbClient         *gocbcorex.AgentManager
+	CbClient         *gocbcorex.BucketsTrackingAgentManager
 	Authenticator    auth.Authenticator
 
 	Debug bool
