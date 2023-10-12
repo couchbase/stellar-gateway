@@ -34,6 +34,8 @@ import (
 
 // TODO(brett19): Implement the gateway system as its own component
 
+const maxMsgSize = 25000000 // 25MB
+
 type SystemOptions struct {
 	Logger *zap.Logger
 
@@ -78,6 +80,7 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 			otelgrpc.StreamServerInterceptor(),
 		),
 		grpc.Creds(credentials.NewTLS(opts.TlsConfig)),
+		grpc.MaxRecvMsgSize(maxMsgSize),
 	}
 
 	dataSrv := grpc.NewServer(serverOpts...)
