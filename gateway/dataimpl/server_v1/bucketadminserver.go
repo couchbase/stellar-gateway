@@ -8,8 +8,6 @@ import (
 	"github.com/couchbase/gocbcorex/cbmgmtx"
 	"github.com/couchbase/goprotostellar/genproto/admin_bucket_v1"
 	"go.uber.org/zap"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 type BucketAdminServer struct {
@@ -252,10 +250,6 @@ func (s *BucketAdminServer) UpdateBucket(
 		newBucket.ReplicaNumber = *in.NumReplicas
 	}
 
-	if in.ReplicaIndexes != nil {
-		newBucket.ReplicaIndexDisabled = !*in.ReplicaIndexes
-	}
-
 	if in.EvictionMode != nil {
 		newBucket.EvictionPolicy, errSt = evictionModeToCbmgmtx(*in.EvictionMode)
 		if errSt != nil {
@@ -279,11 +273,6 @@ func (s *BucketAdminServer) UpdateBucket(
 		if errSt != nil {
 			return nil, errSt.Err()
 		}
-	}
-
-	if in.ConflictResolutionType != nil {
-		// TODO(brett19): Implement correct handling of conflict resolution type when gocb bug is fixed.
-		return nil, status.Errorf(codes.Unimplemented, "conflict resolution type updates are not implemented")
 	}
 
 	err = agent.UpdateBucket(ctx, &cbmgmtx.UpdateBucketOptions{
