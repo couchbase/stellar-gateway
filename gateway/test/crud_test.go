@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/couchbase/goprotostellar/genproto/kv_v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -3011,6 +3013,29 @@ func (s *GatewayOpsTestSuite) TestGetAllReplicas() {
 		// since the document is at least written to the master, we must get
 		// at least a single response, and more is acceptable.
 		require.Greater(s.T(), numResults, 0)
+	})
+
+	s.Run("DocNotFound", func() {
+		resp, err := kvClient.GetAllReplicas(context.Background(), &kv_v1.GetAllReplicasRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            uuid.NewString()[:6],
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		requireRpcSuccess(s.T(), resp, err)
+
+		numResults := 0
+		for {
+			_, err := resp.Recv()
+			if err != nil {
+				break
+			}
+
+			numResults++
+		}
+
+		// This document does not exist on any node so resp.Recv should have immediately errored.
+		require.Zero(s.T(), numResults)
 	})
 
 	s.RunCommonErrorCases(func(opts *commonErrorTestData) (interface{}, error) {
