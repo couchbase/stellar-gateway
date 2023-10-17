@@ -1256,7 +1256,10 @@ func (s *KvServer) GetAllReplicas(in *kv_v1.GetAllReplicasRequest, out kv_v1.KvS
 		}()
 	}
 
-	for {
+	// Errors for the get requests are ignored unless they are in a specific set of errors.
+	// This means that we need to bail out when remainingReads is 0 - it's possible for all results
+	// to not write an error or a result into the result written to the channel.
+	for remainingReads > 0 {
 		firstRes := <-outCh
 		remainingReads--
 
