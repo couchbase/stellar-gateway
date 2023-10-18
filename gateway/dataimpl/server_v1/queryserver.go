@@ -45,6 +45,10 @@ func (s *QueryServer) translateError(err error) *status.Status {
 			return s.errorHandler.NewInvalidQueryStatus(err, firstErr.Msg)
 		} else if errors.Is(firstErr, cbqueryx.ErrAuthenticationFailure) {
 			return s.errorHandler.NewQueryNoAccessStatus(err)
+		} else if errors.Is(err, cbqueryx.ErrIndexExists) {
+			return s.errorHandler.NewQueryIndexExistsStatus(err, "")
+		} else if errors.Is(err, cbqueryx.ErrIndexNotFound) {
+			return s.errorHandler.NewQueryIndexMissingStatus(err, "")
 		}
 	}
 

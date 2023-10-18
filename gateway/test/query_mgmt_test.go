@@ -5,8 +5,11 @@ import (
 
 	"github.com/couchbase/goprotostellar/genproto/admin_query_v1"
 	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	epb "google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 )
 
 func (s *GatewayOpsTestSuite) TestQueryManagement() {
@@ -112,6 +115,40 @@ func (s *GatewayOpsTestSuite) TestQueryManagement() {
 			}, grpc.PerRPCCredentials(s.basicRpcCreds))
 			requireRpcSuccess(s.T(), resp, err)
 		})
+
+		s.Run("DropMissing", func() {
+			_, err := queryAdminClient.DropPrimaryIndex(context.Background(), &admin_query_v1.DropPrimaryIndexRequest{
+				Name:           &indexName,
+				BucketName:     s.bucketName,
+				ScopeName:      &s.scopeName,
+				CollectionName: &s.collectionName,
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			assertRpcStatus(s.T(), err, codes.NotFound)
+			assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
+				assert.Equal(s.T(), d.ResourceType, "queryindex")
+			})
+		})
+
+		s.Run("CreateAlreadyExists", func() {
+			resp, err := queryAdminClient.CreatePrimaryIndex(context.Background(), &admin_query_v1.CreatePrimaryIndexRequest{
+				Name:           &indexName,
+				BucketName:     s.bucketName,
+				ScopeName:      &s.scopeName,
+				CollectionName: &s.collectionName,
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			requireRpcSuccess(s.T(), resp, err)
+
+			_, err = queryAdminClient.CreatePrimaryIndex(context.Background(), &admin_query_v1.CreatePrimaryIndexRequest{
+				Name:           &indexName,
+				BucketName:     s.bucketName,
+				ScopeName:      &s.scopeName,
+				CollectionName: &s.collectionName,
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			assertRpcStatus(s.T(), err, codes.AlreadyExists)
+			assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
+				assert.Equal(s.T(), d.ResourceType, "queryindex")
+			})
+		})
 	})
 
 	s.Run("SecondaryIndex", func() {
@@ -195,6 +232,43 @@ func (s *GatewayOpsTestSuite) TestQueryManagement() {
 				CollectionName: &s.collectionName,
 			}, grpc.PerRPCCredentials(s.basicRpcCreds))
 			requireRpcSuccess(s.T(), resp, err)
+		})
+
+		s.Run("DropMissing", func() {
+			_, err := queryAdminClient.DropIndex(context.Background(), &admin_query_v1.DropIndexRequest{
+				Name:           uuid.NewString()[:6],
+				BucketName:     s.bucketName,
+				ScopeName:      &s.scopeName,
+				CollectionName: &s.collectionName,
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			assertRpcStatus(s.T(), err, codes.NotFound)
+			assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
+				assert.Equal(s.T(), d.ResourceType, "queryindex")
+			})
+		})
+
+		s.Run("CreateAlreadyExists", func() {
+			indexName := uuid.NewString()[:6]
+			resp, err := queryAdminClient.CreateIndex(context.Background(), &admin_query_v1.CreateIndexRequest{
+				Name:           indexName,
+				BucketName:     s.bucketName,
+				ScopeName:      &s.scopeName,
+				CollectionName: &s.collectionName,
+				Fields:         []string{"test"},
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			requireRpcSuccess(s.T(), resp, err)
+
+			_, err = queryAdminClient.CreateIndex(context.Background(), &admin_query_v1.CreateIndexRequest{
+				Name:           indexName,
+				BucketName:     s.bucketName,
+				ScopeName:      &s.scopeName,
+				CollectionName: &s.collectionName,
+				Fields:         []string{"test"},
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			assertRpcStatus(s.T(), err, codes.AlreadyExists)
+			assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
+				assert.Equal(s.T(), d.ResourceType, "queryindex")
+			})
 		})
 	})
 
