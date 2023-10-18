@@ -243,6 +243,19 @@ func (e ErrorHandler) NewSearchIndexExistsStatus(baseErr error, indexName string
 	return st
 }
 
+func (e ErrorHandler) NewSearchUUIDMismatchStatus(baseErr error, indexName string) *status.Status {
+	st := status.New(codes.Aborted,
+		fmt.Sprintf("Search index '%s' already existed with a different UUID.",
+			indexName))
+	st = e.tryAttachStatusDetails(st, &epb.ResourceInfo{
+		ResourceType: "searchindex",
+		ResourceName: indexName,
+		Description:  "",
+	})
+	st = e.tryAttachExtraContext(st, baseErr)
+	return st
+}
+
 func (e ErrorHandler) NewDocMissingStatus(baseErr error, bucketName, scopeName, collectionName, docId string) *status.Status {
 	st := status.New(codes.NotFound,
 		fmt.Sprintf("Document '%s' not found in '%s/%s/%s'.",
