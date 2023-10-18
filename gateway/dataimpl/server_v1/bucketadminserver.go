@@ -83,7 +83,7 @@ func (s *BucketAdminServer) ListBuckets(
 			FlushEnabled:           bucket.FlushEnabled,
 			RamQuotaMb:             bucket.RAMQuotaMB,
 			NumReplicas:            bucket.ReplicaNumber,
-			ReplicaIndexes:         !bucket.ReplicaIndexDisabled,
+			ReplicaIndexes:         bucket.ReplicaIndex,
 			BucketType:             bucketType,
 			EvictionMode:           evictionMode,
 			MaxExpirySecs:          uint32(bucket.MaxTTL / time.Second),
@@ -113,7 +113,11 @@ func (s *BucketAdminServer) CreateBucket(
 		flushEnabled = *in.FlushEnabled
 	}
 
-	replicaIndexes := false
+	var replicaIndexes bool
+	if in.BucketType == admin_bucket_v1.BucketType_BUCKET_TYPE_COUCHBASE {
+		// We default to true to match server behaviour.
+		replicaIndexes = true
+	}
 	if in.ReplicaIndexes != nil {
 		replicaIndexes = *in.ReplicaIndexes
 	}
@@ -202,7 +206,7 @@ func (s *BucketAdminServer) CreateBucket(
 				DurabilityMinLevel: minimumDurabilityLevel,
 			},
 			ConflictResolutionType: conflictResolutionType,
-			ReplicaIndexDisabled:   !replicaIndexes,
+			ReplicaIndex:           replicaIndexes,
 			BucketType:             bucketType,
 			StorageBackend:         storageBackend,
 		},

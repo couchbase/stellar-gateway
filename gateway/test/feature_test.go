@@ -11,6 +11,7 @@ var (
 	TestFeatureQueryManagement             = TestFeatureCode("querymgmt")
 	TestFeatureSearchManagement            = TestFeatureCode("searchmgmt")
 	TestFeatureSearchManagementCollections = TestFeatureCode("searchmgmtcollections")
+	TestFeatureBucketManagement            = TestFeatureCode("bucketmgmt")
 )
 
 type TestFeature struct {
@@ -46,6 +47,8 @@ func (s *GatewayOpsTestSuite) SupportsFeature(code TestFeatureCode) bool {
 	case TestFeatureSearch:
 		return true
 	case TestFeatureQuery:
+		return true
+	case TestFeatureBucketManagement:
 		return true
 	case TestFeatureQueryManagement:
 		return true
