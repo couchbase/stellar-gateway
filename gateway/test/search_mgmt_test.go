@@ -5,6 +5,10 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	epb "google.golang.org/genproto/googleapis/rpc/errdetails"
+	"google.golang.org/grpc/codes"
+
 	"github.com/couchbase/goprotostellar/genproto/admin_search_v1"
 	"github.com/google/uuid"
 	"google.golang.org/grpc"
@@ -27,7 +31,7 @@ func (s *GatewayOpsTestSuite) TestCreateUpdateGetDeleteIndex() {
 	indexName := newIndexName()
 
 	var bucket, scope *string
-	if s.scopeName != "" {
+	if s.scopeName != "" && s.scopeName != "_default" {
 		if !s.SupportsFeature(TestFeatureSearchManagementCollections) {
 			s.T().Skip()
 		}
@@ -109,7 +113,7 @@ func (s *GatewayOpsTestSuite) TestIndexesIngestControl() {
 	indexName := newIndexName()
 
 	var bucket, scope *string
-	if s.scopeName != "" {
+	if s.scopeName != "" && s.scopeName != "_default" {
 		if !s.SupportsFeature(TestFeatureSearchManagementCollections) {
 			s.T().Skip()
 		}
@@ -162,7 +166,7 @@ func (s *GatewayOpsTestSuite) TestIndexesQueryControl() {
 	indexName := newIndexName()
 
 	var bucket, scope *string
-	if s.scopeName != "" {
+	if s.scopeName != "" && s.scopeName != "_default" {
 		if !s.SupportsFeature(TestFeatureSearchManagementCollections) {
 			s.T().Skip()
 		}
@@ -215,7 +219,7 @@ func (s *GatewayOpsTestSuite) TestIndexesPartitionControl() {
 	indexName := newIndexName()
 
 	var bucket, scope *string
-	if s.scopeName != "" {
+	if s.scopeName != "" && s.scopeName != "_default" {
 		if !s.SupportsFeature(TestFeatureSearchManagementCollections) {
 			s.T().Skip()
 		}
@@ -254,4 +258,97 @@ func (s *GatewayOpsTestSuite) TestIndexesPartitionControl() {
 		ScopeName:  scope,
 	}, grpc.PerRPCCredentials(s.basicRpcCreds))
 	requireRpcSuccess(s.T(), unfreezeResp, err)
+}
+
+func (s *GatewayOpsTestSuite) TestCreateIndexAlreadyExists() {
+	if !s.SupportsFeature(TestFeatureSearchManagement) {
+		s.T().Skip()
+	}
+	searchAdminClient := admin_search_v1.NewSearchAdminServiceClient(s.gatewayConn)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	indexName := newIndexName()
+
+	var bucket, scope *string
+	if s.scopeName != "" && s.scopeName != "_default" {
+		if !s.SupportsFeature(TestFeatureSearchManagementCollections) {
+			s.T().Skip()
+		}
+		bucket = &s.bucketName
+		scope = &s.scopeName
+	}
+
+	sourceType := "couchbase"
+	resp, err := searchAdminClient.CreateIndex(ctx, &admin_search_v1.CreateIndexRequest{
+		Name:       indexName,
+		BucketName: bucket,
+		ScopeName:  scope,
+		Type:       "fulltext-index",
+		SourceType: &sourceType,
+		SourceName: &s.bucketName,
+	}, grpc.PerRPCCredentials(s.basicRpcCreds))
+	requireRpcSuccess(s.T(), resp, err)
+
+	_, err = searchAdminClient.CreateIndex(ctx, &admin_search_v1.CreateIndexRequest{
+		Name:       indexName,
+		BucketName: bucket,
+		ScopeName:  scope,
+		Type:       "fulltext-index",
+		SourceType: &sourceType,
+		SourceName: &s.bucketName,
+	}, grpc.PerRPCCredentials(s.basicRpcCreds))
+	assertRpcStatus(s.T(), err, codes.AlreadyExists)
+	assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
+		assert.Equal(s.T(), d.ResourceType, "searchindex")
+	})
+}
+
+func (s *GatewayOpsTestSuite) TestUpdateIndexUUIDMismatch() {
+	if !s.SupportsFeature(TestFeatureSearchManagement) {
+		s.T().Skip()
+	}
+	searchAdminClient := admin_search_v1.NewSearchAdminServiceClient(s.gatewayConn)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	indexName := newIndexName()
+
+	var bucket, scope *string
+	if s.scopeName != "" && s.scopeName != "_default" {
+		if !s.SupportsFeature(TestFeatureSearchManagementCollections) {
+			s.T().Skip()
+		}
+		bucket = &s.bucketName
+		scope = &s.scopeName
+	}
+
+	sourceType := "couchbase"
+	resp, err := searchAdminClient.CreateIndex(ctx, &admin_search_v1.CreateIndexRequest{
+		Name:       indexName,
+		BucketName: bucket,
+		ScopeName:  scope,
+		Type:       "fulltext-index",
+		SourceType: &sourceType,
+		SourceName: &s.bucketName,
+	}, grpc.PerRPCCredentials(s.basicRpcCreds))
+	requireRpcSuccess(s.T(), resp, err)
+
+	_, err = searchAdminClient.UpdateIndex(ctx, &admin_search_v1.UpdateIndexRequest{
+		Index: &admin_search_v1.Index{
+			Name:       indexName,
+			Type:       "fulltext-index",
+			SourceType: &sourceType,
+			SourceName: &s.bucketName,
+			Uuid:       "123456",
+		},
+		BucketName: bucket,
+		ScopeName:  scope,
+	}, grpc.PerRPCCredentials(s.basicRpcCreds))
+	assertRpcStatus(s.T(), err, codes.Aborted)
+	assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
+		assert.Equal(s.T(), d.ResourceType, "searchindex")
+	})
 }

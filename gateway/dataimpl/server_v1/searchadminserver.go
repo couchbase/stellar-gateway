@@ -171,6 +171,8 @@ func (s *SearchIndexAdminServer) UpdateIndex(ctx context.Context, in *admin_sear
 	if err != nil {
 		if errors.Is(err, cbsearchx.ErrIndexNotFound) {
 			return nil, s.errorHandler.NewSearchIndexMissingStatus(err, in.Index.Name).Err()
+		} else if errors.Is(err, cbsearchx.ErrIndexExists) {
+			return nil, s.errorHandler.NewSearchUUIDMismatchStatus(err, in.Index.Name).Err()
 		}
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
