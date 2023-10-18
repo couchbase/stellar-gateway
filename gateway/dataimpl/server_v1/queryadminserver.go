@@ -3,16 +3,15 @@ package server_v1
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
 
-	"go.uber.org/zap"
-	"google.golang.org/grpc/status"
-
 	"github.com/couchbase/gocbcorex"
 	"github.com/couchbase/gocbcorex/cbqueryx"
 	"github.com/couchbase/goprotostellar/genproto/admin_query_v1"
+	"go.uber.org/zap"
 )
 
 type QueryIndexAdminServer struct {
@@ -59,20 +58,14 @@ func (s *QueryIndexAdminServer) buildKeyspace(
 	return cbqueryx.EncodeIdentifier(bucket)
 }
 
-func (s *QueryIndexAdminServer) translateError(
-	err error,
-) *status.Status {
-	return s.errorHandler.NewGenericStatus(err)
-}
-
 func (s *QueryIndexAdminServer) executeQuery(
 	ctx context.Context,
 	bucketName *string,
 	statement string,
-) ([]json.RawMessage, *status.Status) {
+) ([]json.RawMessage, error) {
 	agent, oboInfo, errSt := s.authHandler.GetHttpOboAgent(ctx, bucketName)
 	if errSt != nil {
-		return nil, errSt
+		return nil, errSt.Err()
 	}
 
 	var opts gocbcorex.QueryOptions
@@ -80,14 +73,14 @@ func (s *QueryIndexAdminServer) executeQuery(
 	opts.Statement = statement
 	result, err := agent.Query(ctx, &opts)
 	if err != nil {
-		return nil, s.translateError(err)
+		return nil, err
 	}
 
 	var rows []json.RawMessage
 	for result.HasMoreRows() {
 		rowBytes, err := result.ReadRow()
 		if err != nil {
-			return nil, s.translateError(err)
+			return nil, err
 		}
 
 		rows = append(rows, rowBytes)
@@ -152,9 +145,9 @@ func (s *QueryIndexAdminServer) GetAllIndexes(
 	qs := fmt.Sprintf("SELECT `idx`.* FROM system:indexes AS idx WHERE %s ORDER BY is_primary DESC, name ASC",
 		where)
 
-	rows, errSt := s.executeQuery(ctx, in.BucketName, qs)
-	if errSt != nil {
-		return nil, errSt.Err()
+	rows, err := s.executeQuery(ctx, in.BucketName, qs)
+	if err != nil {
+		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
 
 	var indexes []*admin_query_v1.GetAllIndexesResponse_Index
@@ -240,9 +233,18 @@ func (s *QueryIndexAdminServer) CreatePrimaryIndex(
 		qs += " WITH " + string(withBytes)
 	}
 
-	_, errSt := s.executeQuery(ctx, &in.BucketName, qs)
-	if errSt != nil {
-		return nil, errSt.Err()
+	_, err := s.executeQuery(ctx, &in.BucketName, qs)
+	if err != nil {
+		if errors.Is(err, cbqueryx.ErrIndexExists) {
+			var name string
+			if in.Name == nil {
+				name = "#primary"
+			} else {
+				name = *in.Name
+			}
+			return nil, s.errorHandler.NewQueryIndexExistsStatus(err, name).Err()
+		}
+		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
 
 	return &admin_query_v1.CreatePrimaryIndexResponse{}, nil
@@ -289,9 +291,12 @@ func (s *QueryIndexAdminServer) CreateIndex(
 		qs += " WITH " + string(withBytes)
 	}
 
-	_, errSt := s.executeQuery(ctx, &in.BucketName, qs)
-	if errSt != nil {
-		return nil, errSt.Err()
+	_, err := s.executeQuery(ctx, &in.BucketName, qs)
+	if err != nil {
+		if errors.Is(err, cbqueryx.ErrIndexExists) {
+			return nil, s.errorHandler.NewQueryIndexExistsStatus(err, in.Name).Err()
+		}
+		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
 
 	return &admin_query_v1.CreateIndexResponse{}, nil
@@ -317,9 +322,18 @@ func (s *QueryIndexAdminServer) DropPrimaryIndex(
 		}
 	}
 
-	_, errSt := s.executeQuery(ctx, &in.BucketName, qs)
-	if errSt != nil {
-		return nil, errSt.Err()
+	_, err := s.executeQuery(ctx, &in.BucketName, qs)
+	if err != nil {
+		if errors.Is(err, cbqueryx.ErrIndexNotFound) {
+			var name string
+			if in.Name == nil {
+				name = "#primary"
+			} else {
+				name = *in.Name
+			}
+			return nil, s.errorHandler.NewQueryIndexMissingStatus(err, name).Err()
+		}
+		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
 
 	return &admin_query_v1.DropPrimaryIndexResponse{}, nil
@@ -340,9 +354,12 @@ func (s *QueryIndexAdminServer) DropIndex(
 		qs += fmt.Sprintf("DROP INDEX %s.%s", keyspace, encodedName)
 	}
 
-	_, errSt := s.executeQuery(ctx, &in.BucketName, qs)
-	if errSt != nil {
-		return nil, errSt.Err()
+	_, err := s.executeQuery(ctx, &in.BucketName, qs)
+	if err != nil {
+		if errors.Is(err, cbqueryx.ErrIndexNotFound) {
+			return nil, s.errorHandler.NewQueryIndexMissingStatus(err, in.Name).Err()
+		}
+		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
 
 	return &admin_query_v1.DropIndexResponse{}, nil
@@ -384,9 +401,9 @@ func (s *QueryIndexAdminServer) BuildDeferredIndexes(
 	qs += fmt.Sprintf("BUILD INDEX ON %s(%s)",
 		keyspace, strings.Join(escapedIndexNames, ","))
 
-	_, errSt := s.executeQuery(ctx, &in.BucketName, qs)
-	if errSt != nil {
-		return nil, errSt.Err()
+	_, err = s.executeQuery(ctx, &in.BucketName, qs)
+	if err != nil {
+		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
 
 	for {

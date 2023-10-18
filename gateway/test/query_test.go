@@ -3,8 +3,11 @@ package test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"time"
+
+	"github.com/google/uuid"
 
 	"github.com/couchbase/goprotostellar/genproto/query_v1"
 	"github.com/stretchr/testify/assert"
@@ -99,5 +102,46 @@ func (s *GatewayOpsTestSuite) TestQuery() {
 
 		_, _, err = readQueryStream(client)
 		assertRpcStatus(s.T(), err, codes.Unauthenticated)
+	})
+
+	s.Run("CreateIndexExists", func() {
+		name := uuid.NewString()[:6]
+		bucketName := "default"
+		client, err := queryClient.Query(context.Background(), &query_v1.QueryRequest{
+			BucketName: &bucketName,
+			Statement:  fmt.Sprintf("CREATE INDEX `%s` ON default(test)", name),
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		requireRpcSuccess(s.T(), client, err)
+
+		_, _, err = readQueryStream(client)
+		assertRpcStatus(s.T(), err, codes.OK)
+
+		client, err = queryClient.Query(context.Background(), &query_v1.QueryRequest{
+			BucketName: &bucketName,
+			Statement:  fmt.Sprintf("CREATE INDEX `%s` ON default(test)", name),
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		requireRpcSuccess(s.T(), client, err)
+
+		_, _, err = readQueryStream(client)
+		assertRpcStatus(s.T(), err, codes.AlreadyExists)
+		assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
+			assert.Equal(s.T(), d.ResourceType, "queryindex")
+		})
+	})
+
+	s.Run("DropIndexMissing", func() {
+		name := uuid.NewString()[:6]
+		bucketName := "default"
+		client, err := queryClient.Query(context.Background(), &query_v1.QueryRequest{
+			BucketName: &bucketName,
+			Statement:  fmt.Sprintf("DROP INDEX `%s` ON default", name),
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		requireRpcSuccess(s.T(), client, err)
+
+		_, _, err = readQueryStream(client)
+		assertRpcStatus(s.T(), err, codes.NotFound)
+		assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
+			assert.Equal(s.T(), d.ResourceType, "queryindex")
+		})
 	})
 }

@@ -181,6 +181,42 @@ func (e ErrorHandler) NewCollectionExistsStatus(baseErr error, bucketName, scope
 	return st
 }
 
+func (e ErrorHandler) NewQueryIndexMissingStatus(baseErr error, indexName string) *status.Status {
+	var msg string
+	if indexName == "" {
+		msg = "Query index not found."
+	} else {
+		msg = fmt.Sprintf("Query index '%s' not found.",
+			indexName)
+	}
+	st := status.New(codes.NotFound, msg)
+	st = e.tryAttachStatusDetails(st, &epb.ResourceInfo{
+		ResourceType: "queryindex",
+		ResourceName: indexName,
+		Description:  "",
+	})
+	st = e.tryAttachExtraContext(st, baseErr)
+	return st
+}
+
+func (e ErrorHandler) NewQueryIndexExistsStatus(baseErr error, indexName string) *status.Status {
+	var msg string
+	if indexName == "" {
+		msg = "Query index already existed."
+	} else {
+		msg = fmt.Sprintf("Query index '%s' already existed.",
+			indexName)
+	}
+	st := status.New(codes.AlreadyExists, msg)
+	st = e.tryAttachStatusDetails(st, &epb.ResourceInfo{
+		ResourceType: "queryindex",
+		ResourceName: indexName,
+		Description:  "",
+	})
+	st = e.tryAttachExtraContext(st, baseErr)
+	return st
+}
+
 func (e ErrorHandler) NewSearchIndexMissingStatus(baseErr error, indexName string) *status.Status {
 	st := status.New(codes.NotFound,
 		fmt.Sprintf("Search index '%s' not found.",
