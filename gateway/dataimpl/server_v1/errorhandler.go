@@ -283,15 +283,11 @@ func (e ErrorHandler) NewDocExistsStatus(baseErr error, bucketName, scopeName, c
 }
 
 func (e ErrorHandler) NewDocCasMismatchStatus(baseErr error, bucketName, scopeName, collectionName, docId string) *status.Status {
-	st := status.New(codes.FailedPrecondition,
+	st := status.New(codes.Aborted,
 		fmt.Sprintf("The specified CAS for '%s' in '%s/%s/%s' did not match.",
 			docId, bucketName, scopeName, collectionName))
-	st = e.tryAttachStatusDetails(st, &epb.PreconditionFailure{
-		Violations: []*epb.PreconditionFailure_Violation{{
-			Type:        "CAS",
-			Subject:     fmt.Sprintf("%s/%s/%s/%s", bucketName, scopeName, collectionName, docId),
-			Description: "",
-		}},
+	st = e.tryAttachStatusDetails(st, &epb.ErrorInfo{
+		Reason: "CAS_MISMATCH",
 	})
 	st = e.tryAttachExtraContext(st, baseErr)
 	return st
