@@ -127,8 +127,6 @@ func durabilityLevelToCbmgmtx(dl kv_v1.DurabilityLevel) (cbmgmtx.DurabilityLevel
 
 func bucketTypeFromCbmgmtx(t cbmgmtx.BucketType) (admin_bucket_v1.BucketType, *status.Status) {
 	switch t {
-	case cbmgmtx.BucketTypeMemcached:
-		return admin_bucket_v1.BucketType_BUCKET_TYPE_MEMCACHED, nil
 	case cbmgmtx.BucketTypeCouchbase:
 		return admin_bucket_v1.BucketType_BUCKET_TYPE_COUCHBASE, nil
 	case cbmgmtx.BucketTypeEphemeral:
@@ -140,8 +138,6 @@ func bucketTypeFromCbmgmtx(t cbmgmtx.BucketType) (admin_bucket_v1.BucketType, *s
 
 func bucketTypeToCbmgmtx(t admin_bucket_v1.BucketType) (cbmgmtx.BucketType, *status.Status) {
 	switch t {
-	case admin_bucket_v1.BucketType_BUCKET_TYPE_MEMCACHED:
-		return cbmgmtx.BucketTypeMemcached, nil
 	case admin_bucket_v1.BucketType_BUCKET_TYPE_COUCHBASE:
 		return cbmgmtx.BucketTypeCouchbase, nil
 	case admin_bucket_v1.BucketType_BUCKET_TYPE_EPHEMERAL:

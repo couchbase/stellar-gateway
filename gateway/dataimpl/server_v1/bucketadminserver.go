@@ -50,7 +50,9 @@ func (s *BucketAdminServer) ListBuckets(
 	for _, bucket := range result {
 		bucketType, errSt := bucketTypeFromCbmgmtx(bucket.BucketType)
 		if errSt != nil {
-			return nil, errSt.Err()
+			// If we don't know the bucket type then just log and ignore.
+			s.logger.Debug("Unknown bucket type for bucket", zap.String("type", string(bucket.BucketType)), zap.String("name", bucket.Name))
+			continue
 		}
 
 		evictionMode, errSt := evictionModeFromCbmgmtx(bucket.EvictionPolicy)
