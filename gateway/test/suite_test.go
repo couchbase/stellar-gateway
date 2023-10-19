@@ -290,6 +290,15 @@ func (s *GatewayOpsTestSuite) ParseSupportedFeatures(featsStr string) {
 var TEST_CONTENT = []byte(`{"foo": "bar","obj":{"num":14,"arr":[2,5,8],"str":"zz"},"num":11,"arr":[3,6,9,12]}`)
 var TEST_CONTENT_FLAGS = uint32(0x01000000)
 
+func (s *GatewayOpsTestSuite) largeTestContent() []byte {
+	var v []byte
+	for i := 0; i < 21000000; i++ {
+		v = append(v, byte(i))
+	}
+
+	return v
+}
+
 type createDocumentOptions struct {
 	BucketName     string
 	ScopeName      string

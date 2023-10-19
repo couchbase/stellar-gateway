@@ -2,6 +2,7 @@ package test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -329,6 +330,18 @@ func (s *GatewayOpsTestSuite) TestInsert() {
 		})
 	})
 
+	s.Run("ValueTooLarge", func() {
+		_, err := kvClient.Insert(context.Background(), &kv_v1.InsertRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            s.lockedDocId(),
+			Content:        s.largeTestContent(),
+			ContentFlags:   TEST_CONTENT_FLAGS,
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		assertRpcStatus(s.T(), err, codes.InvalidArgument)
+	})
+
 	s.RunCommonErrorCases(func(opts *commonErrorTestData) (interface{}, error) {
 		return kvClient.Insert(context.Background(), &kv_v1.InsertRequest{
 			BucketName:     opts.BucketName,
@@ -477,6 +490,18 @@ func (s *GatewayOpsTestSuite) TestUpsert() {
 				},
 			})
 		})
+	})
+
+	s.Run("ValueTooLarge", func() {
+		_, err := kvClient.Upsert(context.Background(), &kv_v1.UpsertRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            s.lockedDocId(),
+			Content:        s.largeTestContent(),
+			ContentFlags:   TEST_CONTENT_FLAGS,
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		assertRpcStatus(s.T(), err, codes.InvalidArgument)
 	})
 
 	s.RunCommonErrorCases(func(opts *commonErrorTestData) (interface{}, error) {
@@ -679,6 +704,18 @@ func (s *GatewayOpsTestSuite) TestReplace() {
 				},
 			})
 		})
+	})
+
+	s.Run("ValueTooLarge", func() {
+		_, err := kvClient.Replace(context.Background(), &kv_v1.ReplaceRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            s.lockedDocId(),
+			Content:        s.largeTestContent(),
+			ContentFlags:   TEST_CONTENT_FLAGS,
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		assertRpcStatus(s.T(), err, codes.InvalidArgument)
 	})
 
 	s.RunCommonErrorCases(func(opts *commonErrorTestData) (interface{}, error) {
@@ -1758,6 +1795,21 @@ func (s *GatewayOpsTestSuite) TestAppend() {
 		})
 	})
 
+	s.Run("ValueTooLarge", func() {
+		_, err := kvClient.Append(context.Background(), &kv_v1.AppendRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            s.testDocId(),
+			Content:        s.largeTestContent(),
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		assertRpcStatus(s.T(), err, codes.FailedPrecondition)
+		assertRpcErrorDetails(s.T(), err, func(d *epb.PreconditionFailure) {
+			assert.Len(s.T(), d.Violations, 1)
+			assert.Equal(s.T(), "VALUE_TOO_LARGE", d.Violations[0].Type)
+		})
+	})
+
 	s.RunCommonErrorCases(func(opts *commonErrorTestData) (interface{}, error) {
 		return kvClient.Append(context.Background(), &kv_v1.AppendRequest{
 			BucketName:     opts.BucketName,
@@ -1857,6 +1909,21 @@ func (s *GatewayOpsTestSuite) TestPrepend() {
 		assertRpcErrorDetails(s.T(), err, func(d *epb.PreconditionFailure) {
 			assert.Len(s.T(), d.Violations, 1)
 			assert.Equal(s.T(), d.Violations[0].Type, "LOCKED")
+		})
+	})
+
+	s.Run("ValueTooLarge", func() {
+		_, err := kvClient.Prepend(context.Background(), &kv_v1.PrependRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            s.testDocId(),
+			Content:        s.largeTestContent(),
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		assertRpcStatus(s.T(), err, codes.FailedPrecondition)
+		assertRpcErrorDetails(s.T(), err, func(d *epb.PreconditionFailure) {
+			assert.Len(s.T(), d.Violations, 1)
+			assert.Equal(s.T(), d.Violations[0].Type, "VALUE_TOO_LARGE")
 		})
 	})
 
@@ -2960,6 +3027,59 @@ func (s *GatewayOpsTestSuite) TestMutateIn() {
 					MinSecs: int((30 * 24 * time.Hour).Seconds()),
 				},
 			})
+		})
+	})
+
+	s.Run("ValueTooLargeNewDoc", func() {
+		semantic := kv_v1.MutateInRequest_STORE_SEMANTIC_INSERT
+
+		// We have to JSON marshal this, and then truncate it so that it doesn't overflow
+		// the grpc size limit.
+		b, err := json.Marshal(s.largeTestContent())
+		require.NoError(s.T(), err)
+		b = append(b[:21000000], []byte(`"`)...)
+
+		_, err = kvClient.MutateIn(context.Background(), &kv_v1.MutateInRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            s.randomDocId(),
+			Specs: []*kv_v1.MutateInRequest_Spec{
+				{
+					Operation: kv_v1.MutateInRequest_Spec_OPERATION_UPSERT,
+					Path:      "foo",
+					Content:   b,
+				},
+			},
+			StoreSemantic: &semantic,
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		assertRpcStatus(s.T(), err, codes.InvalidArgument)
+	})
+
+	s.Run("ValueTooLargeExistingDoc", func() {
+		// We have to JSON marshal this, and then truncate it so that it doesn't overflow
+		// the grpc size limit.
+		b, err := json.Marshal(s.largeTestContent())
+		require.NoError(s.T(), err)
+		b = append(b[:21000000], []byte(`"`)...)
+
+		_, err = kvClient.MutateIn(context.Background(), &kv_v1.MutateInRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            s.testDocId(),
+			Specs: []*kv_v1.MutateInRequest_Spec{
+				{
+					Operation: kv_v1.MutateInRequest_Spec_OPERATION_UPSERT,
+					Path:      "foo",
+					Content:   b,
+				},
+			},
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		assertRpcStatus(s.T(), err, codes.FailedPrecondition)
+		assertRpcErrorDetails(s.T(), err, func(d *epb.PreconditionFailure) {
+			assert.Len(s.T(), d.Violations, 1)
+			assert.Equal(s.T(), d.Violations[0].Type, "VALUE_TOO_LARGE")
 		})
 	})
 

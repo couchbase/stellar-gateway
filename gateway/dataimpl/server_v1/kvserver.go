@@ -403,6 +403,8 @@ func (s *KvServer) Insert(ctx context.Context, in *kv_v1.InsertRequest) (*kv_v1.
 			return nil, s.errorHandler.NewScopeMissingStatus(err, in.BucketName, in.ScopeName).Err()
 		} else if errors.Is(err, memdx.ErrAccessError) {
 			return nil, s.errorHandler.NewCollectionNoWriteAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+		} else if errors.Is(err, memdx.ErrValueTooLarge) {
+			return nil, s.errorHandler.NewValueTooLargeStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key, false).Err()
 		}
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
@@ -498,6 +500,8 @@ func (s *KvServer) Upsert(ctx context.Context, in *kv_v1.UpsertRequest) (*kv_v1.
 			return nil, s.errorHandler.NewScopeMissingStatus(err, in.BucketName, in.ScopeName).Err()
 		} else if errors.Is(err, memdx.ErrAccessError) {
 			return nil, s.errorHandler.NewCollectionNoWriteAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+		} else if errors.Is(err, memdx.ErrValueTooLarge) {
+			return nil, s.errorHandler.NewValueTooLargeStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key, false).Err()
 		}
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
@@ -560,6 +564,8 @@ func (s *KvServer) Replace(ctx context.Context, in *kv_v1.ReplaceRequest) (*kv_v
 			return nil, s.errorHandler.NewScopeMissingStatus(err, in.BucketName, in.ScopeName).Err()
 		} else if errors.Is(err, memdx.ErrAccessError) {
 			return nil, s.errorHandler.NewCollectionNoWriteAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+		} else if errors.Is(err, memdx.ErrValueTooLarge) {
+			return nil, s.errorHandler.NewValueTooLargeStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key, false).Err()
 		}
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
@@ -779,6 +785,8 @@ func (s *KvServer) Append(ctx context.Context, in *kv_v1.AppendRequest) (*kv_v1.
 			return nil, s.errorHandler.NewScopeMissingStatus(err, in.BucketName, in.ScopeName).Err()
 		} else if errors.Is(err, memdx.ErrAccessError) {
 			return nil, s.errorHandler.NewCollectionNoWriteAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+		} else if errors.Is(err, memdx.ErrValueTooLarge) {
+			return nil, s.errorHandler.NewValueTooLargeStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key, true).Err()
 		}
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
@@ -828,6 +836,8 @@ func (s *KvServer) Prepend(ctx context.Context, in *kv_v1.PrependRequest) (*kv_v
 			return nil, s.errorHandler.NewScopeMissingStatus(err, in.BucketName, in.ScopeName).Err()
 		} else if errors.Is(err, memdx.ErrAccessError) {
 			return nil, s.errorHandler.NewCollectionNoWriteAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+		} else if errors.Is(err, memdx.ErrValueTooLarge) {
+			return nil, s.errorHandler.NewValueTooLargeStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key, true).Err()
 		}
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
@@ -1092,6 +1102,12 @@ func (s *KvServer) MutateIn(ctx context.Context, in *kv_v1.MutateInRequest) (*kv
 			return nil, s.errorHandler.NewScopeMissingStatus(err, in.BucketName, in.ScopeName).Err()
 		} else if errors.Is(err, memdx.ErrAccessError) {
 			return nil, s.errorHandler.NewCollectionNoReadAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+		} else if errors.Is(err, memdx.ErrValueTooLarge) {
+			if in.StoreSemantic != nil && *in.StoreSemantic == kv_v1.MutateInRequest_STORE_SEMANTIC_INSERT {
+				return nil, s.errorHandler.NewValueTooLargeStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key, false).Err()
+			}
+			// We have no way to differentiate whether the document already existed here, so just treat it as expanding.
+			return nil, s.errorHandler.NewValueTooLargeStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key, true).Err()
 		} else {
 			var subdocErr *memdx.SubDocError
 			if errors.As(err, &subdocErr) {

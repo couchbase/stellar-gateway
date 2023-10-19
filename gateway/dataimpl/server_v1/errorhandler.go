@@ -312,6 +312,29 @@ func (e ErrorHandler) NewDocLockedStatus(baseErr error, bucketName, scopeName, c
 	return st
 }
 
+func (e ErrorHandler) NewValueTooLargeStatus(baseErr error, bucketName, scopeName, collectionName, docId string,
+	isExpandingValue bool) *status.Status {
+	var st *status.Status
+	if isExpandingValue {
+		st = status.New(codes.FailedPrecondition,
+			fmt.Sprintf("Updated value '%s' made value too large in '%s/%s/%s'.",
+				docId, bucketName, scopeName, collectionName))
+		st = e.tryAttachStatusDetails(st, &epb.PreconditionFailure{
+			Violations: []*epb.PreconditionFailure_Violation{{
+				Type:        "VALUE_TOO_LARGE",
+				Subject:     fmt.Sprintf("%s/%s/%s/%s", bucketName, scopeName, collectionName, docId),
+				Description: "",
+			}},
+		})
+	} else {
+		st = status.New(codes.InvalidArgument,
+			fmt.Sprintf("Value '%s' for new document was too large in '%s/%s/%s'.",
+				docId, bucketName, scopeName, collectionName))
+	}
+	st = e.tryAttachExtraContext(st, baseErr)
+	return st
+}
+
 func (e ErrorHandler) NewCollectionNoReadAccessStatus(baseErr error, bucketName, scopeName, collectionName string) *status.Status {
 	st := status.New(codes.PermissionDenied,
 		fmt.Sprintf("No permissions to read documents from '%s/%s/%s'.",
