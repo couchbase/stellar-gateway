@@ -576,10 +576,9 @@ func (s *GatewayOpsTestSuite) TestReplace() {
 			ContentFlags:   TEST_CONTENT_FLAGS,
 			Cas:            &incorrectCas,
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
-		assertRpcStatus(s.T(), err, codes.FailedPrecondition)
-		assertRpcErrorDetails(s.T(), err, func(d *epb.PreconditionFailure) {
-			assert.Len(s.T(), d.Violations, 1)
-			assert.Equal(s.T(), d.Violations[0].Type, "CAS")
+		assertRpcStatus(s.T(), err, codes.Aborted)
+		assertRpcErrorDetails(s.T(), err, func(d *epb.ErrorInfo) {
+			assert.Equal(s.T(), d.Reason, "CAS_MISMATCH")
 		})
 	})
 
@@ -781,10 +780,9 @@ func (s *GatewayOpsTestSuite) TestRemove() {
 			Key:            docId,
 			Cas:            &incorrectCas,
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
-		assertRpcStatus(s.T(), err, codes.FailedPrecondition)
-		assertRpcErrorDetails(s.T(), err, func(d *epb.PreconditionFailure) {
-			assert.Len(s.T(), d.Violations, 1)
-			assert.Equal(s.T(), d.Violations[0].Type, "CAS")
+		assertRpcStatus(s.T(), err, codes.Aborted)
+		assertRpcErrorDetails(s.T(), err, func(d *epb.ErrorInfo) {
+			assert.Equal(s.T(), d.Reason, "CAS_MISMATCH")
 		})
 	})
 
@@ -1206,10 +1204,9 @@ func (s *GatewayOpsTestSuite) TestUnlock() {
 			Key:            galDocId,
 			Cas:            s.incorrectCas(galResp.Cas),
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
-		assertRpcStatus(s.T(), err, codes.FailedPrecondition)
-		assertRpcErrorDetails(s.T(), err, func(d *epb.PreconditionFailure) {
-			assert.Len(s.T(), d.Violations, 1)
-			assert.Equal(s.T(), d.Violations[0].Type, "CAS")
+		assertRpcStatus(s.T(), err, codes.Aborted)
+		assertRpcErrorDetails(s.T(), err, func(d *epb.ErrorInfo) {
+			assert.Equal(s.T(), d.Reason, "CAS_MISMATCH")
 		})
 	})
 
@@ -1759,10 +1756,9 @@ func (s *GatewayOpsTestSuite) TestAppend() {
 			Content:        []byte("world"),
 			Cas:            &incorrectCas,
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
-		assertRpcStatus(s.T(), err, codes.FailedPrecondition)
-		assertRpcErrorDetails(s.T(), err, func(d *epb.PreconditionFailure) {
-			assert.Len(s.T(), d.Violations, 1)
-			assert.Equal(s.T(), d.Violations[0].Type, "CAS")
+		assertRpcStatus(s.T(), err, codes.Aborted)
+		assertRpcErrorDetails(s.T(), err, func(d *epb.ErrorInfo) {
+			assert.Equal(s.T(), d.Reason, "CAS_MISMATCH")
 		})
 	})
 
@@ -1876,10 +1872,9 @@ func (s *GatewayOpsTestSuite) TestPrepend() {
 			Content:        []byte("world"),
 			Cas:            &incorrectCas,
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
-		assertRpcStatus(s.T(), err, codes.FailedPrecondition)
-		assertRpcErrorDetails(s.T(), err, func(d *epb.PreconditionFailure) {
-			assert.Len(s.T(), d.Violations, 1)
-			assert.Equal(s.T(), d.Violations[0].Type, "CAS")
+		assertRpcStatus(s.T(), err, codes.Aborted)
+		assertRpcErrorDetails(s.T(), err, func(d *epb.ErrorInfo) {
+			assert.Equal(s.T(), d.Reason, "CAS_MISMATCH")
 		})
 	})
 
@@ -2877,10 +2872,9 @@ func (s *GatewayOpsTestSuite) TestMutateIn() {
 				},
 			},
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
-		assertRpcStatus(s.T(), err, codes.FailedPrecondition)
-		assertRpcErrorDetails(s.T(), err, func(d *epb.PreconditionFailure) {
-			assert.Len(s.T(), d.Violations, 1)
-			assert.Equal(s.T(), d.Violations[0].Type, "CAS")
+		assertRpcStatus(s.T(), err, codes.Aborted)
+		assertRpcErrorDetails(s.T(), err, func(d *epb.ErrorInfo) {
+			assert.Equal(s.T(), d.Reason, "CAS_MISMATCH")
 		})
 	})
 
