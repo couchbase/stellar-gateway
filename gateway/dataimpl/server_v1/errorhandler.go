@@ -488,6 +488,12 @@ func (e ErrorHandler) NewSdXattrUnknownVattrStatus(baseErr error, sdPath string)
 	return st
 }
 
+func (e ErrorHandler) NewSdBadCombo(baseErr error) *status.Status {
+	st := status.New(codes.InvalidArgument, "Invalid subdocument combination specified.")
+	st = e.tryAttachExtraContext(st, baseErr)
+	return st
+}
+
 func (e ErrorHandler) NewSdPathInvalidStatus(baseErr error, sdPath string) *status.Status {
 	st := status.New(codes.InvalidArgument,
 		fmt.Sprintf("Invalid subdocument path syntax '%s'.", sdPath))
