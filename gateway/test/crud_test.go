@@ -2049,6 +2049,25 @@ func (s *GatewayOpsTestSuite) TestLookupIn() {
 		assertRpcStatus(s.T(), err, codes.InvalidArgument)
 	})
 
+	s.Run("TooManySpecs", func() {
+		var specs []*kv_v1.LookupInRequest_Spec
+		for i := 0; i < 17; i++ {
+			specs = append(specs, &kv_v1.LookupInRequest_Spec{
+				Operation: kv_v1.LookupInRequest_Spec_OPERATION_GET,
+				Path:      "a",
+			})
+		}
+
+		_, err := kvClient.LookupIn(context.Background(), &kv_v1.LookupInRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            s.testDocId(),
+			Specs:          specs,
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		assertRpcStatus(s.T(), err, codes.InvalidArgument)
+	})
+
 	s.Run("DocTooDeep", func() {
 		docId := s.binaryDocId(s.tooDeepJson())
 
@@ -2565,6 +2584,26 @@ func (s *GatewayOpsTestSuite) TestMutateIn() {
 			CollectionName: s.collectionName,
 			Key:            s.testDocId(),
 			Specs:          nil,
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		assertRpcStatus(s.T(), err, codes.InvalidArgument)
+	})
+
+	s.Run("TooManySpecs", func() {
+		var specs []*kv_v1.MutateInRequest_Spec
+		for i := 0; i < 17; i++ {
+			specs = append(specs, &kv_v1.MutateInRequest_Spec{
+				Operation: kv_v1.MutateInRequest_Spec_OPERATION_UPSERT,
+				Path:      "a",
+				Content:   []byte(`2`),
+			})
+		}
+
+		_, err := kvClient.MutateIn(context.Background(), &kv_v1.MutateInRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            s.testDocId(),
+			Specs:          specs,
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
 		assertRpcStatus(s.T(), err, codes.InvalidArgument)
 	})

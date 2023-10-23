@@ -914,6 +914,8 @@ func (s *KvServer) LookupIn(ctx context.Context, in *kv_v1.LookupInRequest) (*kv
 			return nil, s.errorHandler.NewScopeMissingStatus(err, in.BucketName, in.ScopeName).Err()
 		} else if errors.Is(err, memdx.ErrAccessError) {
 			return nil, s.errorHandler.NewCollectionNoReadAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+		} else if errors.Is(err, memdx.ErrSubDocInvalidCombo) {
+			return nil, s.errorHandler.NewSdBadCombo(err).Err()
 		}
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
@@ -1108,6 +1110,8 @@ func (s *KvServer) MutateIn(ctx context.Context, in *kv_v1.MutateInRequest) (*kv
 			}
 			// We have no way to differentiate whether the document already existed here, so just treat it as expanding.
 			return nil, s.errorHandler.NewValueTooLargeStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key, true).Err()
+		} else if errors.Is(err, memdx.ErrSubDocInvalidCombo) {
+			return nil, s.errorHandler.NewSdBadCombo(err).Err()
 		} else {
 			var subdocErr *memdx.SubDocError
 			if errors.As(err, &subdocErr) {
