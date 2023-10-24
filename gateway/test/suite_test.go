@@ -141,6 +141,14 @@ func (s *GatewayOpsTestSuite) missingDocId() string {
 	return s.randomDocId()
 }
 
+func (s *GatewayOpsTestSuite) docIdOfLen(len int) string {
+	tooLongIdParts := []string{}
+	for i := 0; i < len; i++ {
+		tooLongIdParts = append(tooLongIdParts, fmt.Sprintf("%c", 'a'+(i%26)))
+	}
+	return strings.Join(tooLongIdParts, "")
+}
+
 func (s *GatewayOpsTestSuite) loadTestData(path string) []byte {
 	b, err := os.ReadFile(path)
 	s.NoErrorf(err, "Failed to read test data for %s", path)

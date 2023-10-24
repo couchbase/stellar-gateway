@@ -589,3 +589,8 @@ func (e ErrorHandler) NewGenericStatus(err error) *status.Status {
 
 	return e.NewUnknownStatus(err)
 }
+
+func (e ErrorHandler) NewKeyTooLongStatus(key string) *status.Status {
+	st := status.New(codes.InvalidArgument, fmt.Sprintf("Document key '%s' is too long", key))
+	return st
+}
