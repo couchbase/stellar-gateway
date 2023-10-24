@@ -42,6 +42,11 @@ func (s *KvServer) Get(ctx context.Context, in *kv_v1.GetRequest) (*kv_v1.GetRes
 		return nil, errSt.Err()
 	}
 
+	errSt = s.checkKey(in.Key)
+	if errSt != nil {
+		return nil, errSt.Err()
+	}
+
 	var executeGet func(forceFullDoc bool) (*kv_v1.GetResponse, error)
 	executeGet = func(forceFullDoc bool) (*kv_v1.GetResponse, error) {
 		var opts gocbcorex.LookupInOptions
@@ -231,6 +236,11 @@ func (s *KvServer) GetAndTouch(ctx context.Context, in *kv_v1.GetAndTouchRequest
 		return nil, errSt.Err()
 	}
 
+	errSt = s.checkKey(in.Key)
+	if errSt != nil {
+		return nil, errSt.Err()
+	}
+
 	var opts gocbcorex.GetAndTouchOptions
 	opts.OnBehalfOf = oboUser
 	opts.ScopeName = in.ScopeName
@@ -291,6 +301,11 @@ func (s *KvServer) GetAndLock(ctx context.Context, in *kv_v1.GetAndLockRequest) 
 		return nil, errSt.Err()
 	}
 
+	errSt = s.checkKey(in.Key)
+	if errSt != nil {
+		return nil, errSt.Err()
+	}
+
 	var opts gocbcorex.GetAndLockOptions
 	opts.OnBehalfOf = oboUser
 	opts.ScopeName = in.ScopeName
@@ -343,6 +358,11 @@ func (s *KvServer) Unlock(ctx context.Context, in *kv_v1.UnlockRequest) (*kv_v1.
 		return nil, errSt.Err()
 	}
 
+	errSt = s.checkKey(in.Key)
+	if errSt != nil {
+		return nil, errSt.Err()
+	}
+
 	var opts gocbcorex.UnlockOptions
 	opts.OnBehalfOf = oboUser
 	opts.ScopeName = in.ScopeName
@@ -371,6 +391,11 @@ func (s *KvServer) Unlock(ctx context.Context, in *kv_v1.UnlockRequest) (*kv_v1.
 
 func (s *KvServer) Touch(ctx context.Context, in *kv_v1.TouchRequest) (*kv_v1.TouchResponse, error) {
 	bucketAgent, oboUser, errSt := s.authHandler.GetMemdOboAgent(ctx, in.BucketName)
+	if errSt != nil {
+		return nil, errSt.Err()
+	}
+
+	errSt = s.checkKey(in.Key)
 	if errSt != nil {
 		return nil, errSt.Err()
 	}
@@ -413,6 +438,11 @@ func (s *KvServer) Touch(ctx context.Context, in *kv_v1.TouchRequest) (*kv_v1.To
 
 func (s *KvServer) Insert(ctx context.Context, in *kv_v1.InsertRequest) (*kv_v1.InsertResponse, error) {
 	bucketAgent, oboUser, errSt := s.authHandler.GetMemdOboAgent(ctx, in.BucketName)
+	if errSt != nil {
+		return nil, errSt.Err()
+	}
+
+	errSt = s.checkKey(in.Key)
 	if errSt != nil {
 		return nil, errSt.Err()
 	}
@@ -480,6 +510,11 @@ func (s *KvServer) Exists(ctx context.Context, in *kv_v1.ExistsRequest) (*kv_v1.
 		return nil, errSt.Err()
 	}
 
+	errSt = s.checkKey(in.Key)
+	if errSt != nil {
+		return nil, errSt.Err()
+	}
+
 	var opts gocbcorex.GetMetaOptions
 	opts.OnBehalfOf = oboUser
 	opts.ScopeName = in.ScopeName
@@ -517,6 +552,11 @@ func (s *KvServer) Exists(ctx context.Context, in *kv_v1.ExistsRequest) (*kv_v1.
 
 func (s *KvServer) Upsert(ctx context.Context, in *kv_v1.UpsertRequest) (*kv_v1.UpsertResponse, error) {
 	bucketAgent, oboUser, errSt := s.authHandler.GetMemdOboAgent(ctx, in.BucketName)
+	if errSt != nil {
+		return nil, errSt.Err()
+	}
+
+	errSt = s.checkKey(in.Key)
 	if errSt != nil {
 		return nil, errSt.Err()
 	}
@@ -600,6 +640,11 @@ func (s *KvServer) Replace(ctx context.Context, in *kv_v1.ReplaceRequest) (*kv_v
 		return nil, errSt.Err()
 	}
 
+	errSt = s.checkKey(in.Key)
+	if errSt != nil {
+		return nil, errSt.Err()
+	}
+
 	var opts gocbcorex.ReplaceOptions
 	opts.OnBehalfOf = oboUser
 	opts.ScopeName = in.ScopeName
@@ -673,6 +718,11 @@ func (s *KvServer) Remove(ctx context.Context, in *kv_v1.RemoveRequest) (*kv_v1.
 		return nil, errSt.Err()
 	}
 
+	errSt = s.checkKey(in.Key)
+	if errSt != nil {
+		return nil, errSt.Err()
+	}
+
 	var opts gocbcorex.DeleteOptions
 	opts.OnBehalfOf = oboUser
 	opts.ScopeName = in.ScopeName
@@ -717,6 +767,11 @@ func (s *KvServer) Remove(ctx context.Context, in *kv_v1.RemoveRequest) (*kv_v1.
 
 func (s *KvServer) Increment(ctx context.Context, in *kv_v1.IncrementRequest) (*kv_v1.IncrementResponse, error) {
 	bucketAgent, oboUser, errSt := s.authHandler.GetMemdOboAgent(ctx, in.BucketName)
+	if errSt != nil {
+		return nil, errSt.Err()
+	}
+
+	errSt = s.checkKey(in.Key)
 	if errSt != nil {
 		return nil, errSt.Err()
 	}
@@ -783,6 +838,11 @@ func (s *KvServer) Decrement(ctx context.Context, in *kv_v1.DecrementRequest) (*
 		return nil, errSt.Err()
 	}
 
+	errSt = s.checkKey(in.Key)
+	if errSt != nil {
+		return nil, errSt.Err()
+	}
+
 	var opts gocbcorex.DecrementOptions
 	opts.OnBehalfOf = oboUser
 	opts.ScopeName = in.ScopeName
@@ -843,6 +903,11 @@ func (s *KvServer) Append(ctx context.Context, in *kv_v1.AppendRequest) (*kv_v1.
 		return nil, errSt.Err()
 	}
 
+	errSt = s.checkKey(in.Key)
+	if errSt != nil {
+		return nil, errSt.Err()
+	}
+
 	var opts gocbcorex.AppendOptions
 	opts.OnBehalfOf = oboUser
 	opts.ScopeName = in.ScopeName
@@ -894,6 +959,11 @@ func (s *KvServer) Prepend(ctx context.Context, in *kv_v1.PrependRequest) (*kv_v
 		return nil, errSt.Err()
 	}
 
+	errSt = s.checkKey(in.Key)
+	if errSt != nil {
+		return nil, errSt.Err()
+	}
+
 	var opts gocbcorex.PrependOptions
 	opts.OnBehalfOf = oboUser
 	opts.ScopeName = in.ScopeName
@@ -941,6 +1011,11 @@ func (s *KvServer) Prepend(ctx context.Context, in *kv_v1.PrependRequest) (*kv_v
 
 func (s *KvServer) LookupIn(ctx context.Context, in *kv_v1.LookupInRequest) (*kv_v1.LookupInResponse, error) {
 	bucketAgent, oboUser, errSt := s.authHandler.GetMemdOboAgent(ctx, in.BucketName)
+	if errSt != nil {
+		return nil, errSt.Err()
+	}
+
+	errSt = s.checkKey(in.Key)
 	if errSt != nil {
 		return nil, errSt.Err()
 	}
@@ -1059,6 +1134,11 @@ func (s *KvServer) LookupIn(ctx context.Context, in *kv_v1.LookupInRequest) (*kv
 
 func (s *KvServer) MutateIn(ctx context.Context, in *kv_v1.MutateInRequest) (*kv_v1.MutateInResponse, error) {
 	bucketAgent, oboUser, errSt := s.authHandler.GetMemdOboAgent(ctx, in.BucketName)
+	if errSt != nil {
+		return nil, errSt.Err()
+	}
+
+	errSt = s.checkKey(in.Key)
 	if errSt != nil {
 		return nil, errSt.Err()
 	}
@@ -1267,6 +1347,11 @@ func (s *KvServer) GetAllReplicas(in *kv_v1.GetAllReplicasRequest, out kv_v1.KvS
 		return errSt.Err()
 	}
 
+	errSt = s.checkKey(in.Key)
+	if errSt != nil {
+		return errSt.Err()
+	}
+
 	getFromMaster := func() (*kv_v1.GetAllReplicasResponse, *status.Status) {
 		var opts gocbcorex.GetOptions
 		opts.OnBehalfOf = oboUser
@@ -1416,6 +1501,14 @@ func (s *KvServer) GetAllReplicas(in *kv_v1.GetAllReplicasRequest, out kv_v1.KvS
 	}
 
 	close(outCh)
+
+	return nil
+}
+
+func (s *KvServer) checkKey(key string) *status.Status {
+	if len(key) > 250 {
+		return s.errorHandler.NewKeyTooLongStatus(key)
+	}
 
 	return nil
 }

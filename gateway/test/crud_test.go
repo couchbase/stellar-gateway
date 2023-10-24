@@ -27,6 +27,7 @@ type commonErrorTestData struct {
 	BucketName     string
 	CollectionName string
 	CallOptions    []grpc.CallOption
+	Key            string
 }
 
 func (s *GatewayOpsTestSuite) RunCommonErrorCases(
@@ -44,6 +45,7 @@ func (s *GatewayOpsTestSuite) RunCommonErrorCases(
 			CallOptions: []grpc.CallOption{
 				grpc.PerRPCCredentials(s.basicRpcCreds),
 			},
+			Key: s.randomDocId(),
 		})
 		assertRpcStatus(s.T(), err, codes.NotFound)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
@@ -59,6 +61,7 @@ func (s *GatewayOpsTestSuite) RunCommonErrorCases(
 			CallOptions: []grpc.CallOption{
 				grpc.PerRPCCredentials(s.basicRpcCreds),
 			},
+			Key: s.randomDocId(),
 		})
 		assertRpcStatus(s.T(), err, codes.NotFound)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
@@ -74,6 +77,7 @@ func (s *GatewayOpsTestSuite) RunCommonErrorCases(
 			CallOptions: []grpc.CallOption{
 				grpc.PerRPCCredentials(s.basicRpcCreds),
 			},
+			Key: s.randomDocId(),
 		})
 		assertRpcStatus(s.T(), err, codes.NotFound)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
@@ -89,6 +93,7 @@ func (s *GatewayOpsTestSuite) RunCommonErrorCases(
 			CallOptions: []grpc.CallOption{
 				grpc.PerRPCCredentials(s.badRpcCreds),
 			},
+			Key: s.randomDocId(),
 		})
 		assertRpcStatus(s.T(), err, codes.PermissionDenied)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
@@ -102,8 +107,22 @@ func (s *GatewayOpsTestSuite) RunCommonErrorCases(
 			ScopeName:      s.scopeName,
 			CollectionName: s.collectionName,
 			CallOptions:    []grpc.CallOption{},
+			Key:            s.randomDocId(),
 		})
 		assertRpcStatus(s.T(), err, codes.Unauthenticated)
+	})
+
+	s.Run("DocKeyTooLong", func() {
+		_, err := fn(&commonErrorTestData{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			CallOptions: []grpc.CallOption{
+				grpc.PerRPCCredentials(s.basicRpcCreds),
+			},
+			Key: s.docIdOfLen(251),
+		})
+		assertRpcStatus(s.T(), err, codes.InvalidArgument)
 	})
 }
 
@@ -186,12 +205,22 @@ func (s *GatewayOpsTestSuite) TestGet() {
 		})
 	})
 
+	s.Run("DocKeyMaxLen", func() {
+		_, err := kvClient.Get(context.Background(), &kv_v1.GetRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            s.docIdOfLen(250),
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		assertRpcStatus(s.T(), err, codes.NotFound)
+	})
+
 	s.RunCommonErrorCases(func(opts *commonErrorTestData) (interface{}, error) {
 		return kvClient.Get(context.Background(), &kv_v1.GetRequest{
 			BucketName:     opts.BucketName,
 			ScopeName:      opts.ScopeName,
 			CollectionName: opts.CollectionName,
-			Key:            s.randomDocId(),
+			Key:            opts.Key,
 		}, opts.CallOptions...)
 	})
 }
@@ -405,7 +434,7 @@ func (s *GatewayOpsTestSuite) TestInsert() {
 			BucketName:     opts.BucketName,
 			ScopeName:      opts.ScopeName,
 			CollectionName: opts.CollectionName,
-			Key:            s.randomDocId(),
+			Key:            opts.Key,
 			Content: &kv_v1.InsertRequest_ContentUncompressed{
 				ContentUncompressed: TEST_CONTENT,
 			},
@@ -834,7 +863,7 @@ func (s *GatewayOpsTestSuite) TestUpsert() {
 			BucketName:     opts.BucketName,
 			ScopeName:      opts.ScopeName,
 			CollectionName: opts.CollectionName,
-			Key:            s.randomDocId(),
+			Key:            opts.Key,
 			Content: &kv_v1.UpsertRequest_ContentUncompressed{
 				ContentUncompressed: TEST_CONTENT,
 			},
@@ -1094,7 +1123,7 @@ func (s *GatewayOpsTestSuite) TestReplace() {
 			BucketName:     opts.BucketName,
 			ScopeName:      opts.ScopeName,
 			CollectionName: opts.CollectionName,
-			Key:            s.randomDocId(),
+			Key:            opts.Key,
 			Content: &kv_v1.ReplaceRequest_ContentUncompressed{
 				ContentUncompressed: TEST_CONTENT,
 			},
@@ -1192,7 +1221,7 @@ func (s *GatewayOpsTestSuite) TestRemove() {
 			BucketName:      opts.BucketName,
 			ScopeName:       opts.ScopeName,
 			CollectionName:  opts.CollectionName,
-			Key:             s.randomDocId(),
+			Key:             opts.Key,
 			Cas:             nil,
 			DurabilityLevel: nil,
 		}, opts.CallOptions...)
@@ -1320,7 +1349,7 @@ func (s *GatewayOpsTestSuite) TestTouch() {
 			BucketName:     opts.BucketName,
 			ScopeName:      opts.ScopeName,
 			CollectionName: opts.CollectionName,
-			Key:            s.randomDocId(),
+			Key:            opts.Key,
 			Expiry:         &kv_v1.TouchRequest_ExpirySecs{ExpirySecs: 10},
 		}, opts.CallOptions...)
 	})
@@ -1467,7 +1496,7 @@ func (s *GatewayOpsTestSuite) TestGetAndTouch() {
 			BucketName:     opts.BucketName,
 			ScopeName:      opts.ScopeName,
 			CollectionName: opts.CollectionName,
-			Key:            s.randomDocId(),
+			Key:            opts.Key,
 			Expiry:         &kv_v1.GetAndTouchRequest_ExpirySecs{ExpirySecs: 10},
 		}, opts.CallOptions...)
 	})
@@ -1564,7 +1593,7 @@ func (s *GatewayOpsTestSuite) TestGetAndLock() {
 			BucketName:     opts.BucketName,
 			ScopeName:      opts.ScopeName,
 			CollectionName: opts.CollectionName,
-			Key:            s.randomDocId(),
+			Key:            opts.Key,
 			LockTime:       5,
 		}, opts.CallOptions...)
 	})
@@ -1642,7 +1671,7 @@ func (s *GatewayOpsTestSuite) TestUnlock() {
 			BucketName:     opts.BucketName,
 			ScopeName:      opts.ScopeName,
 			CollectionName: opts.CollectionName,
-			Key:            s.randomDocId(),
+			Key:            opts.Key,
 			Cas:            10,
 		}, opts.CallOptions...)
 	})
@@ -1693,7 +1722,7 @@ func (s *GatewayOpsTestSuite) TestExists() {
 			BucketName:     opts.BucketName,
 			ScopeName:      opts.ScopeName,
 			CollectionName: opts.CollectionName,
-			Key:            s.randomDocId(),
+			Key:            opts.Key,
 		}, opts.CallOptions...)
 	})
 }
@@ -1900,7 +1929,7 @@ func (s *GatewayOpsTestSuite) TestIncrement() {
 			BucketName:     opts.BucketName,
 			ScopeName:      opts.ScopeName,
 			CollectionName: opts.CollectionName,
-			Key:            s.randomDocId(),
+			Key:            opts.Key,
 			Delta:          1,
 		}, opts.CallOptions...)
 	})
@@ -2108,7 +2137,7 @@ func (s *GatewayOpsTestSuite) TestDecrement() {
 			BucketName:     opts.BucketName,
 			ScopeName:      opts.ScopeName,
 			CollectionName: opts.CollectionName,
-			Key:            s.randomDocId(),
+			Key:            opts.Key,
 			Delta:          1,
 		}, opts.CallOptions...)
 	})
@@ -2224,7 +2253,7 @@ func (s *GatewayOpsTestSuite) TestAppend() {
 			BucketName:     opts.BucketName,
 			ScopeName:      opts.ScopeName,
 			CollectionName: opts.CollectionName,
-			Key:            s.randomDocId(),
+			Key:            opts.Key,
 			Content:        []byte("world"),
 		}, opts.CallOptions...)
 	})
@@ -2340,7 +2369,7 @@ func (s *GatewayOpsTestSuite) TestPrepend() {
 			BucketName:     opts.BucketName,
 			ScopeName:      opts.ScopeName,
 			CollectionName: opts.CollectionName,
-			Key:            s.randomDocId(),
+			Key:            opts.Key,
 			Content:        []byte("world"),
 		}, opts.CallOptions...)
 	})
@@ -2698,7 +2727,7 @@ func (s *GatewayOpsTestSuite) TestLookupIn() {
 			BucketName:     opts.BucketName,
 			ScopeName:      opts.ScopeName,
 			CollectionName: opts.CollectionName,
-			Key:            s.randomDocId(),
+			Key:            opts.Key,
 			Specs: []*kv_v1.LookupInRequest_Spec{
 				{
 					Operation: kv_v1.LookupInRequest_Spec_OPERATION_GET,
@@ -3530,7 +3559,7 @@ func (s *GatewayOpsTestSuite) TestMutateIn() {
 			BucketName:      opts.BucketName,
 			ScopeName:       opts.ScopeName,
 			CollectionName:  opts.CollectionName,
-			Key:             s.randomDocId(),
+			Key:             opts.Key,
 			Cas:             nil,
 			DurabilityLevel: nil,
 			Specs: []*kv_v1.MutateInRequest_Spec{
@@ -3605,7 +3634,7 @@ func (s *GatewayOpsTestSuite) TestGetAllReplicas() {
 			BucketName:     opts.BucketName,
 			ScopeName:      opts.ScopeName,
 			CollectionName: opts.CollectionName,
-			Key:            s.randomDocId(),
+			Key:            opts.Key,
 		}, opts.CallOptions...)
 		requireRpcSuccess(s.T(), resp, err)
 
