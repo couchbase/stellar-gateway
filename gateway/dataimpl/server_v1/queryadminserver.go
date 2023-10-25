@@ -455,5 +455,7 @@ func (s *QueryIndexAdminServer) BuildDeferredIndexes(
 		break
 	}
 
-	return &admin_query_v1.BuildDeferredIndexesResponse{}, nil
+	return &admin_query_v1.BuildDeferredIndexesResponse{
+		IndexNames: deferredIndexNames,
+	}, nil
 }
