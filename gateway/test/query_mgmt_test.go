@@ -305,6 +305,8 @@ func (s *GatewayOpsTestSuite) TestQueryManagement() {
 				CollectionName: &s.collectionName,
 			}, grpc.PerRPCCredentials(s.basicRpcCreds))
 			requireRpcSuccess(s.T(), resp, err)
+
+			require.Contains(s.T(), resp.IndexNames, indexName)
 		})
 
 		s.Run("SeeBuilding", func() {
