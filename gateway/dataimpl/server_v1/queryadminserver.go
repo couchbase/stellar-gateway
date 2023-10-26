@@ -378,32 +378,49 @@ func (s *QueryIndexAdminServer) BuildDeferredIndexes(
 		return nil, err
 	}
 
-	var deferredIndexNames []string
+	deferredIndexes := make(map[string][]*admin_query_v1.BuildDeferredIndexesResponse_Index)
 	for _, index := range getIndexesResp.Indexes {
 		if index.State == admin_query_v1.IndexState_INDEX_STATE_DEFERRED {
-			deferredIndexNames = append(deferredIndexNames, index.Name)
+			deferredIndex := &admin_query_v1.BuildDeferredIndexesResponse_Index{
+				BucketName: index.BucketName,
+				Name:       index.Name,
+			}
+
+			if index.ScopeName != "" {
+				deferredIndex.ScopeName = &index.ScopeName
+			}
+			if index.CollectionName != "" {
+				deferredIndex.CollectionName = &index.CollectionName
+			}
+
+			keyspace := s.buildKeyspace(deferredIndex.BucketName, deferredIndex.ScopeName, deferredIndex.CollectionName)
+			if _, ok := deferredIndexes[keyspace]; !ok {
+				deferredIndexes[keyspace] = []*admin_query_v1.BuildDeferredIndexesResponse_Index{}
+			}
+
+			deferredIndexes[keyspace] = append(deferredIndexes[keyspace], deferredIndex)
 		}
 	}
 
-	if len(deferredIndexNames) == 0 {
+	if len(deferredIndexes) == 0 {
 		// If there are no indexes left to build, we can just return success
 		return &admin_query_v1.BuildDeferredIndexesResponse{}, nil
 	}
 
-	keyspace := s.buildKeyspace(in.BucketName, in.ScopeName, in.CollectionName)
+	for keyspace, indexes := range deferredIndexes {
+		escapedIndexNames := make([]string, len(indexes))
+		for indexIdx, indexName := range indexes {
+			escapedIndexNames[indexIdx] = cbqueryx.EncodeIdentifier(indexName.Name)
+		}
 
-	escapedIndexNames := make([]string, len(deferredIndexNames))
-	for indexIdx, indexName := range deferredIndexNames {
-		escapedIndexNames[indexIdx] = cbqueryx.EncodeIdentifier(indexName)
-	}
+		var qs string
+		qs += fmt.Sprintf("BUILD INDEX ON %s(%s)",
+			keyspace, strings.Join(escapedIndexNames, ","))
 
-	var qs string
-	qs += fmt.Sprintf("BUILD INDEX ON %s(%s)",
-		keyspace, strings.Join(escapedIndexNames, ","))
-
-	_, err = s.executeQuery(ctx, &in.BucketName, qs)
-	if err != nil {
-		return nil, s.errorHandler.NewGenericStatus(err).Err()
+		_, err = s.executeQuery(ctx, &in.BucketName, qs)
+		if err != nil {
+			return nil, s.errorHandler.NewGenericStatus(err).Err()
+		}
 	}
 
 	for {
@@ -416,9 +433,11 @@ func (s *QueryIndexAdminServer) BuildDeferredIndexes(
 			return nil, err
 		}
 
-		getIndex := func(indexName string) *admin_query_v1.GetAllIndexesResponse_Index {
+		getIndex := func(indexCtx *admin_query_v1.BuildDeferredIndexesResponse_Index) *admin_query_v1.GetAllIndexesResponse_Index {
 			for _, index := range watchIndexesResp.Indexes {
-				if index.Name == indexName {
+				if index.Name == indexCtx.Name &&
+					index.ScopeName == indexCtx.GetScopeName() &&
+					index.CollectionName == indexCtx.GetCollectionName() {
 					return index
 				}
 			}
@@ -426,17 +445,19 @@ func (s *QueryIndexAdminServer) BuildDeferredIndexes(
 		}
 
 		allIndexesBuilding := true
-		for _, indexName := range deferredIndexNames {
-			index := getIndex(indexName)
-			if index == nil {
-				// if the index is not found at all, just consider it building
-				s.logger.Warn("an index that was scheduled for building is no longer found", zap.String("indexName", indexName))
-				continue
-			}
+		for _, indexes := range deferredIndexes {
+			for _, index := range indexes {
+				index := getIndex(index)
+				if index == nil {
+					// if the index is not found at all, just consider it building
+					s.logger.Warn("an index that was scheduled for building is no longer found", zap.String("indexName", index.Name))
+					continue
+				}
 
-			if index.State == admin_query_v1.IndexState_INDEX_STATE_DEFERRED {
-				allIndexesBuilding = false
-				break
+				if index.State == admin_query_v1.IndexState_INDEX_STATE_DEFERRED {
+					allIndexesBuilding = false
+					break
+				}
 			}
 		}
 
@@ -455,7 +476,12 @@ func (s *QueryIndexAdminServer) BuildDeferredIndexes(
 		break
 	}
 
+	var indexContexts []*admin_query_v1.BuildDeferredIndexesResponse_Index
+	for _, indexes := range deferredIndexes {
+		indexContexts = append(indexContexts, indexes...)
+	}
+
 	return &admin_query_v1.BuildDeferredIndexesResponse{
-		IndexNames: deferredIndexNames,
+		Indexes: indexContexts,
 	}, nil
 }

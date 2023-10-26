@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/couchbase/goprotostellar/genproto/admin_collection_v1"
+
 	"github.com/couchbase/goprotostellar/genproto/kv_v1"
 	"github.com/couchbase/stellar-gateway/contrib/grpcheaderauth"
 	"github.com/couchbase/stellar-gateway/gateway"
@@ -444,4 +446,42 @@ func (s *GatewayOpsTestSuite) TestHelpers() {
 		Content:        TEST_CONTENT,
 		ContentFlags:   TEST_CONTENT_FLAGS,
 	})
+}
+
+func (s *GatewayOpsTestSuite) CreateScope(bucket, scope string) func() {
+	collectionAdminClient := admin_collection_v1.NewCollectionAdminServiceClient(s.gatewayConn)
+
+	resp, err := collectionAdminClient.CreateScope(context.Background(), &admin_collection_v1.CreateScopeRequest{
+		BucketName: bucket,
+		ScopeName:  scope,
+	}, grpc.PerRPCCredentials(s.basicRpcCreds))
+	requireRpcSuccess(s.T(), resp, err)
+
+	return func() {
+		delResp, err := collectionAdminClient.DeleteScope(context.Background(), &admin_collection_v1.DeleteScopeRequest{
+			BucketName: bucket,
+			ScopeName:  scope,
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		requireRpcSuccess(s.T(), delResp, err)
+	}
+}
+
+func (s *GatewayOpsTestSuite) CreateCollection(bucket, scope, collection string) func() {
+	collectionAdminClient := admin_collection_v1.NewCollectionAdminServiceClient(s.gatewayConn)
+
+	resp, err := collectionAdminClient.CreateCollection(context.Background(), &admin_collection_v1.CreateCollectionRequest{
+		BucketName:     bucket,
+		ScopeName:      scope,
+		CollectionName: collection,
+	}, grpc.PerRPCCredentials(s.basicRpcCreds))
+	requireRpcSuccess(s.T(), resp, err)
+
+	return func() {
+		delResp, err := collectionAdminClient.DeleteCollection(context.Background(), &admin_collection_v1.DeleteCollectionRequest{
+			BucketName:     bucket,
+			ScopeName:      scope,
+			CollectionName: collection,
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		requireRpcSuccess(s.T(), delResp, err)
+	}
 }
