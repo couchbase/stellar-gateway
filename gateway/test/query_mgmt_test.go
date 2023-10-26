@@ -306,7 +306,17 @@ func (s *GatewayOpsTestSuite) TestQueryManagement() {
 			}, grpc.PerRPCCredentials(s.basicRpcCreds))
 			requireRpcSuccess(s.T(), resp, err)
 
-			require.Contains(s.T(), resp.IndexNames, indexName)
+			var found bool
+			for _, index := range resp.Indexes {
+				if index.Name == indexName &&
+					index.BucketName == s.bucketName &&
+					index.GetScopeName() == s.scopeName &&
+					index.GetCollectionName() == s.collectionName {
+					found = true
+				}
+			}
+
+			require.True(s.T(), found, "Did not find index %s in list of deferred indexes %v", indexName, resp.Indexes)
 		})
 
 		s.Run("SeeBuilding", func() {
@@ -329,4 +339,146 @@ func (s *GatewayOpsTestSuite) TestQueryManagement() {
 			requireRpcSuccess(s.T(), resp, err)
 		})
 	})
+}
+
+func (s *GatewayOpsTestSuite) TestQueryManagementBuildDeferredBuildsAllInBucket() {
+	if !s.SupportsFeature(TestFeatureQueryManagement) {
+		s.T().Skip()
+	}
+
+	queryAdminClient := admin_query_v1.NewQueryAdminServiceClient(s.gatewayConn)
+
+	scope1 := uuid.NewString()[:6]
+	collection := uuid.NewString()[:6]
+	scope2 := uuid.NewString()[:6]
+	defaultScope := "_default"
+	defaultCollection := "_default"
+
+	deleteScope1 := s.CreateScope(s.bucketName, scope1)
+	defer deleteScope1()
+
+	deleteScope2 := s.CreateScope(s.bucketName, scope2)
+	defer deleteScope2()
+
+	s.CreateCollection(s.bucketName, scope1, collection)
+	s.CreateCollection(s.bucketName, scope2, collection)
+
+	indexName := uuid.NewString()
+	trueBool := true
+
+	createIndex := func(scopeName, collectionName string) {
+		iResp, err := queryAdminClient.CreateIndex(context.Background(), &admin_query_v1.CreateIndexRequest{
+			Name:           indexName,
+			BucketName:     s.bucketName,
+			ScopeName:      &scopeName,
+			CollectionName: &collectionName,
+			Fields:         []string{"test"},
+			Deferred:       &trueBool,
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		requireRpcSuccess(s.T(), iResp, err)
+	}
+
+	createIndex(scope1, collection)
+	createIndex(scope2, collection)
+	createIndex(defaultScope, defaultCollection)
+
+	// Specifying no scope or collection should build all indexes in the bucket.
+	buildResp, err := queryAdminClient.BuildDeferredIndexes(context.Background(), &admin_query_v1.BuildDeferredIndexesRequest{
+		BucketName: s.bucketName,
+	}, grpc.PerRPCCredentials(s.basicRpcCreds))
+	requireRpcSuccess(s.T(), buildResp, err)
+
+	findIndex := func(indexName, bucketName, scopeName, collectionName string) bool {
+		for _, index := range buildResp.Indexes {
+			if index.Name == indexName &&
+				index.BucketName == bucketName &&
+				index.GetScopeName() == scopeName &&
+				index.GetCollectionName() == collectionName {
+				return true
+			}
+		}
+
+		return false
+	}
+
+	found := findIndex(indexName, s.bucketName, scope1, collection)
+	require.True(s.T(), found, "Did not find index %s.%s.%s.%s in list of deferred indexes %v",
+		s.bucketName, scope1, collection, indexName, buildResp.Indexes)
+
+	found = findIndex(indexName, s.bucketName, scope2, collection)
+	require.True(s.T(), found, "Did not find index %s.%s.%s.%s in list of deferred indexes %v",
+		s.bucketName, scope2, collection, indexName, buildResp.Indexes)
+
+	found = findIndex(indexName, s.bucketName, defaultScope, defaultCollection)
+	require.True(s.T(), found, "Did not find index %s.%s.%s.%s in list of deferred indexes %v",
+		s.bucketName, defaultScope, defaultCollection, indexName, buildResp.Indexes)
+}
+
+func (s *GatewayOpsTestSuite) TestQueryManagementBuildDeferredBuildsSpecificCollection() {
+	if !s.SupportsFeature(TestFeatureQueryManagement) {
+		s.T().Skip()
+	}
+
+	queryAdminClient := admin_query_v1.NewQueryAdminServiceClient(s.gatewayConn)
+
+	scope1 := uuid.NewString()[:6]
+	collection := uuid.NewString()[:6]
+	scope2 := uuid.NewString()[:6]
+	defaultScope := "_default"
+	defaultCollection := "_default"
+
+	deleteScope1 := s.CreateScope(s.bucketName, scope1)
+	defer deleteScope1()
+
+	deleteScope2 := s.CreateScope(s.bucketName, scope2)
+	defer deleteScope2()
+
+	s.CreateCollection(s.bucketName, scope1, collection)
+	s.CreateCollection(s.bucketName, scope2, collection)
+
+	indexName := uuid.NewString()
+	trueBool := true
+
+	createIndex := func(scopeName, collectionName string) {
+		iResp, err := queryAdminClient.CreateIndex(context.Background(), &admin_query_v1.CreateIndexRequest{
+			Name:           indexName,
+			BucketName:     s.bucketName,
+			ScopeName:      &scopeName,
+			CollectionName: &collectionName,
+			Fields:         []string{"test"},
+			Deferred:       &trueBool,
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		requireRpcSuccess(s.T(), iResp, err)
+	}
+
+	createIndex(scope1, collection)
+	createIndex(scope2, collection)
+	createIndex(defaultScope, defaultCollection)
+
+	// Specifying no scope or collection should build all indexes in the bucket.
+	buildResp, err := queryAdminClient.BuildDeferredIndexes(context.Background(), &admin_query_v1.BuildDeferredIndexesRequest{
+		BucketName:     s.bucketName,
+		ScopeName:      &scope1,
+		CollectionName: &collection,
+	}, grpc.PerRPCCredentials(s.basicRpcCreds))
+	requireRpcSuccess(s.T(), buildResp, err)
+
+	findIndex := func(indexName, bucketName, scopeName, collectionName string) bool {
+		for _, index := range buildResp.Indexes {
+			if index.Name == indexName &&
+				index.BucketName == bucketName &&
+				index.GetScopeName() == scopeName &&
+				index.GetCollectionName() == collectionName {
+				return true
+			}
+		}
+
+		return false
+	}
+
+	require.Len(s.T(), buildResp.Indexes, 1)
+
+	found := findIndex(indexName, s.bucketName, scope1, collection)
+	require.True(s.T(), found, "Did not find index %s.%s.%s.%s in list of deferred indexes %v",
+		s.bucketName, scope1, collection, indexName, buildResp.Indexes)
 }
