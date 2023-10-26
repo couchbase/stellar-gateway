@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/couchbase/goprotostellar/genproto/admin_collection_v1"
+	"github.com/golang/snappy"
 
 	"github.com/couchbase/goprotostellar/genproto/kv_v1"
 	"github.com/couchbase/stellar-gateway/contrib/grpcheaderauth"
@@ -19,6 +20,7 @@ import (
 	"github.com/couchbase/stellar-gateway/utils/selfsignedcert"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -292,6 +294,27 @@ func (s *GatewayOpsTestSuite) ParseSupportedFeatures(featsStr string) {
 var TEST_CONTENT = []byte(`{"foo": "bar","obj":{"num":14,"arr":[2,5,8],"str":"zz"},"num":11,"arr":[3,6,9,12]}`)
 var TEST_CONTENT_FLAGS = uint32(0x01000000)
 
+func (s *GatewayOpsTestSuite) compressContent(in []byte) []byte {
+	if in == nil {
+		return nil
+	}
+
+	out := make([]byte, snappy.MaxEncodedLen(len(in)))
+	out = snappy.Encode(out, in)
+	return out
+}
+
+func (s *GatewayOpsTestSuite) decompressContent(in []byte) []byte {
+	if in == nil {
+		return nil
+	}
+
+	out := make([]byte, len(in))
+	out, err := snappy.Decode(out, in)
+	require.NoError(s.T(), err)
+	return out
+}
+
 func (s *GatewayOpsTestSuite) largeTestContent() []byte {
 	var v []byte
 	for i := 0; i < 21000000; i++ {
@@ -318,8 +341,10 @@ func (s *GatewayOpsTestSuite) createDocument(opts createDocumentOptions) uint64 
 		ScopeName:      opts.ScopeName,
 		CollectionName: opts.CollectionName,
 		Key:            opts.DocId,
-		Content:        opts.Content,
-		ContentFlags:   opts.ContentFlags,
+		Content: &kv_v1.UpsertRequest_ContentUncompressed{
+			ContentUncompressed: opts.Content,
+		},
+		ContentFlags: opts.ContentFlags,
 	}, grpc.PerRPCCredentials(s.basicRpcCreds))
 	requireRpcSuccess(s.T(), upsertResp, err)
 	assertValidCas(s.T(), upsertResp.Cas)
@@ -396,7 +421,7 @@ func (s *GatewayOpsTestSuite) checkDocument(t *testing.T, opts checkDocumentOpti
 	requireRpcSuccess(s.T(), getResp, err)
 	assertValidCas(s.T(), getResp.Cas)
 
-	assert.Equal(s.T(), getResp.Content, opts.Content)
+	assert.Equal(s.T(), getResp.GetContentUncompressed(), opts.Content)
 	assert.Equal(s.T(), getResp.ContentFlags, opts.ContentFlags)
 
 	switch opts.expiry {

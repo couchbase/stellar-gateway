@@ -70,7 +70,7 @@ func (c *KvServerClient) handleCmdGetReq(pak *memd.Packet) {
 		CollectionID: 0,
 		Key:          nil,
 		Extras:       nil,
-		Value:        resp.Content,
+		Value:        resp.GetContentUncompressed(),
 	}); err != nil {
 		c.logger.Debug("encountered memd write error", zap.Error(err))
 		return
@@ -85,8 +85,17 @@ func (c *KvServerClient) handleCmdSetReq(pak *memd.Packet) {
 		ScopeName:      scopeName,
 		CollectionName: collectionName,
 		Key:            string(pak.Key),
-		Content:        pak.Value,
 	}
+	if pak.Datatype&uint8(memd.DatatypeFlagCompressed) != 0 {
+		req.Content = &kv_v1.UpsertRequest_ContentCompressed{
+			ContentCompressed: pak.Value,
+		}
+	} else {
+		req.Content = &kv_v1.UpsertRequest_ContentUncompressed{
+			ContentUncompressed: pak.Value,
+		}
+	}
+
 	if pak.DurabilityLevelFrame != nil {
 		dl, s := c.durabilityLevelToPs(pak.DurabilityLevelFrame.DurabilityLevel)
 		if dl == 0 {

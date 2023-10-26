@@ -122,7 +122,24 @@ func (s *GatewayOpsTestSuite) TestGet() {
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
 		requireRpcSuccess(s.T(), resp, err)
 		assertValidCas(s.T(), resp.Cas)
-		assert.Equal(s.T(), resp.Content, TEST_CONTENT)
+		assert.Equal(s.T(), resp.GetContentUncompressed(), TEST_CONTENT)
+		assert.Nil(s.T(), resp.GetContentCompressed())
+		assert.Equal(s.T(), resp.ContentFlags, TEST_CONTENT_FLAGS)
+		assert.Nil(s.T(), resp.Expiry)
+	})
+
+	s.Run("Compressed", func() {
+		resp, err := kvClient.Get(context.Background(), &kv_v1.GetRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            s.testDocId(),
+			Compression:    kv_v1.CompressionEnabled_COMPRESSION_ENABLED_ALWAYS.Enum(),
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		requireRpcSuccess(s.T(), resp, err)
+		assertValidCas(s.T(), resp.Cas)
+		assert.Nil(s.T(), resp.GetContentUncompressed())
+		assert.Equal(s.T(), s.decompressContent(resp.GetContentCompressed()), TEST_CONTENT)
 		assert.Equal(s.T(), resp.ContentFlags, TEST_CONTENT_FLAGS)
 		assert.Nil(s.T(), resp.Expiry)
 	})
@@ -137,7 +154,8 @@ func (s *GatewayOpsTestSuite) TestGet() {
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
 		requireRpcSuccess(s.T(), resp, err)
 		assertValidCas(s.T(), resp.Cas)
-		assert.JSONEq(s.T(), string(resp.Content), `{"obj":{"num":14},"arr":[3,6,9,12]}`)
+		assert.JSONEq(s.T(), string(resp.GetContentUncompressed()), `{"obj":{"num":14},"arr":[3,6,9,12]}`)
+		assert.Nil(s.T(), resp.GetContentCompressed())
 		assert.Equal(s.T(), resp.ContentFlags, uint32(0))
 	})
 
@@ -191,8 +209,36 @@ func (s *GatewayOpsTestSuite) TestInsert() {
 			ScopeName:      s.scopeName,
 			CollectionName: s.collectionName,
 			Key:            docId,
+			Content: &kv_v1.InsertRequest_ContentUncompressed{
+				ContentUncompressed: TEST_CONTENT,
+			},
+			ContentFlags: TEST_CONTENT_FLAGS,
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		requireRpcSuccess(s.T(), resp, err)
+		assertValidCas(s.T(), resp.Cas)
+		assertValidMutationToken(s.T(), resp.MutationToken, s.bucketName)
+
+		s.checkDocument(s.T(), checkDocumentOptions{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			DocId:          docId,
 			Content:        TEST_CONTENT,
 			ContentFlags:   TEST_CONTENT_FLAGS,
+		})
+	})
+
+	s.Run("Compressed", func() {
+		docId := s.randomDocId()
+		resp, err := kvClient.Insert(context.Background(), &kv_v1.InsertRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            docId,
+			Content: &kv_v1.InsertRequest_ContentCompressed{
+				ContentCompressed: s.compressContent(TEST_CONTENT),
+			},
+			ContentFlags: TEST_CONTENT_FLAGS,
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
 		requireRpcSuccess(s.T(), resp, err)
 		assertValidCas(s.T(), resp.Cas)
@@ -214,8 +260,10 @@ func (s *GatewayOpsTestSuite) TestInsert() {
 			ScopeName:      s.scopeName,
 			CollectionName: s.collectionName,
 			Key:            s.testDocId(),
-			Content:        TEST_CONTENT,
-			ContentFlags:   TEST_CONTENT_FLAGS,
+			Content: &kv_v1.InsertRequest_ContentUncompressed{
+				ContentUncompressed: TEST_CONTENT,
+			},
+			ContentFlags: TEST_CONTENT_FLAGS,
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
 		assertRpcStatus(s.T(), err, codes.AlreadyExists)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
@@ -229,8 +277,10 @@ func (s *GatewayOpsTestSuite) TestInsert() {
 			ScopeName:      s.scopeName,
 			CollectionName: s.collectionName,
 			Key:            s.lockedDocId(),
-			Content:        TEST_CONTENT,
-			ContentFlags:   TEST_CONTENT_FLAGS,
+			Content: &kv_v1.InsertRequest_ContentUncompressed{
+				ContentUncompressed: TEST_CONTENT,
+			},
+			ContentFlags: TEST_CONTENT_FLAGS,
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
 		assertRpcStatus(s.T(), err, codes.AlreadyExists)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
@@ -246,9 +296,11 @@ func (s *GatewayOpsTestSuite) TestInsert() {
 				ScopeName:      s.scopeName,
 				CollectionName: s.collectionName,
 				Key:            docId,
-				Content:        TEST_CONTENT,
-				ContentFlags:   TEST_CONTENT_FLAGS,
-				Expiry:         &kv_v1.InsertRequest_ExpirySecs{ExpirySecs: 5},
+				Content: &kv_v1.InsertRequest_ContentUncompressed{
+					ContentUncompressed: TEST_CONTENT,
+				},
+				ContentFlags: TEST_CONTENT_FLAGS,
+				Expiry:       &kv_v1.InsertRequest_ExpirySecs{ExpirySecs: 5},
 			}, grpc.PerRPCCredentials(s.basicRpcCreds))
 			requireRpcSuccess(s.T(), resp, err)
 			assertValidCas(s.T(), resp.Cas)
@@ -276,9 +328,11 @@ func (s *GatewayOpsTestSuite) TestInsert() {
 				ScopeName:      s.scopeName,
 				CollectionName: s.collectionName,
 				Key:            docId,
-				Content:        TEST_CONTENT,
-				ContentFlags:   TEST_CONTENT_FLAGS,
-				Expiry:         &kv_v1.InsertRequest_ExpirySecs{ExpirySecs: uint32((30 * 24 * time.Hour).Seconds())},
+				Content: &kv_v1.InsertRequest_ContentUncompressed{
+					ContentUncompressed: TEST_CONTENT,
+				},
+				ContentFlags: TEST_CONTENT_FLAGS,
+				Expiry:       &kv_v1.InsertRequest_ExpirySecs{ExpirySecs: uint32((30 * 24 * time.Hour).Seconds())},
 			}, grpc.PerRPCCredentials(s.basicRpcCreds))
 			requireRpcSuccess(s.T(), resp, err)
 			assertValidCas(s.T(), resp.Cas)
@@ -306,9 +360,11 @@ func (s *GatewayOpsTestSuite) TestInsert() {
 				ScopeName:      s.scopeName,
 				CollectionName: s.collectionName,
 				Key:            docId,
-				Content:        TEST_CONTENT,
-				ContentFlags:   TEST_CONTENT_FLAGS,
-				Expiry:         &kv_v1.InsertRequest_ExpirySecs{ExpirySecs: uint32((31 * 24 * time.Hour).Seconds())},
+				Content: &kv_v1.InsertRequest_ContentUncompressed{
+					ContentUncompressed: TEST_CONTENT,
+				},
+				ContentFlags: TEST_CONTENT_FLAGS,
+				Expiry:       &kv_v1.InsertRequest_ExpirySecs{ExpirySecs: uint32((31 * 24 * time.Hour).Seconds())},
 			}, grpc.PerRPCCredentials(s.basicRpcCreds))
 			requireRpcSuccess(s.T(), resp, err)
 			assertValidCas(s.T(), resp.Cas)
@@ -336,8 +392,10 @@ func (s *GatewayOpsTestSuite) TestInsert() {
 			ScopeName:      s.scopeName,
 			CollectionName: s.collectionName,
 			Key:            s.lockedDocId(),
-			Content:        s.largeTestContent(),
-			ContentFlags:   TEST_CONTENT_FLAGS,
+			Content: &kv_v1.InsertRequest_ContentUncompressed{
+				ContentUncompressed: s.largeTestContent(),
+			},
+			ContentFlags: TEST_CONTENT_FLAGS,
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
 		assertRpcStatus(s.T(), err, codes.InvalidArgument)
 	})
@@ -348,8 +406,10 @@ func (s *GatewayOpsTestSuite) TestInsert() {
 			ScopeName:      opts.ScopeName,
 			CollectionName: opts.CollectionName,
 			Key:            s.randomDocId(),
-			Content:        TEST_CONTENT,
-			ContentFlags:   TEST_CONTENT_FLAGS,
+			Content: &kv_v1.InsertRequest_ContentUncompressed{
+				ContentUncompressed: TEST_CONTENT,
+			},
+			ContentFlags: TEST_CONTENT_FLAGS,
 		}, opts.CallOptions...)
 	})
 }
@@ -367,8 +427,36 @@ func (s *GatewayOpsTestSuite) TestUpsert() {
 			ScopeName:      s.scopeName,
 			CollectionName: s.collectionName,
 			Key:            docId,
+			Content: &kv_v1.UpsertRequest_ContentUncompressed{
+				ContentUncompressed: TEST_CONTENT,
+			},
+			ContentFlags: TEST_CONTENT_FLAGS,
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		requireRpcSuccess(s.T(), resp, err)
+		assertValidCas(s.T(), resp.Cas)
+		assertValidMutationToken(s.T(), resp.MutationToken, s.bucketName)
+
+		s.checkDocument(s.T(), checkDocumentOptions{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			DocId:          docId,
 			Content:        TEST_CONTENT,
 			ContentFlags:   TEST_CONTENT_FLAGS,
+		})
+	})
+
+	s.Run("Compressed", func() {
+		docId := s.randomDocId()
+		resp, err := kvClient.Upsert(context.Background(), &kv_v1.UpsertRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            docId,
+			Content: &kv_v1.UpsertRequest_ContentCompressed{
+				ContentCompressed: s.compressContent(TEST_CONTENT),
+			},
+			ContentFlags: TEST_CONTENT_FLAGS,
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
 		requireRpcSuccess(s.T(), resp, err)
 		assertValidCas(s.T(), resp.Cas)
@@ -390,8 +478,10 @@ func (s *GatewayOpsTestSuite) TestUpsert() {
 			ScopeName:      s.scopeName,
 			CollectionName: s.collectionName,
 			Key:            s.lockedDocId(),
-			Content:        TEST_CONTENT,
-			ContentFlags:   TEST_CONTENT_FLAGS,
+			Content: &kv_v1.UpsertRequest_ContentUncompressed{
+				ContentUncompressed: TEST_CONTENT,
+			},
+			ContentFlags: TEST_CONTENT_FLAGS,
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
 		assertRpcStatus(s.T(), err, codes.FailedPrecondition)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.PreconditionFailure) {
@@ -408,9 +498,11 @@ func (s *GatewayOpsTestSuite) TestUpsert() {
 				ScopeName:      s.scopeName,
 				CollectionName: s.collectionName,
 				Key:            docId,
-				Content:        TEST_CONTENT,
-				ContentFlags:   TEST_CONTENT_FLAGS,
-				Expiry:         &kv_v1.UpsertRequest_ExpirySecs{ExpirySecs: 5},
+				Content: &kv_v1.UpsertRequest_ContentUncompressed{
+					ContentUncompressed: TEST_CONTENT,
+				},
+				ContentFlags: TEST_CONTENT_FLAGS,
+				Expiry:       &kv_v1.UpsertRequest_ExpirySecs{ExpirySecs: 5},
 			}, grpc.PerRPCCredentials(s.basicRpcCreds))
 			requireRpcSuccess(s.T(), resp, err)
 			assertValidCas(s.T(), resp.Cas)
@@ -438,9 +530,11 @@ func (s *GatewayOpsTestSuite) TestUpsert() {
 				ScopeName:      s.scopeName,
 				CollectionName: s.collectionName,
 				Key:            docId,
-				Content:        TEST_CONTENT,
-				ContentFlags:   TEST_CONTENT_FLAGS,
-				Expiry:         &kv_v1.UpsertRequest_ExpirySecs{ExpirySecs: uint32((30 * 24 * time.Hour).Seconds())},
+				Content: &kv_v1.UpsertRequest_ContentUncompressed{
+					ContentUncompressed: TEST_CONTENT,
+				},
+				ContentFlags: TEST_CONTENT_FLAGS,
+				Expiry:       &kv_v1.UpsertRequest_ExpirySecs{ExpirySecs: uint32((30 * 24 * time.Hour).Seconds())},
 			}, grpc.PerRPCCredentials(s.basicRpcCreds))
 			requireRpcSuccess(s.T(), resp, err)
 			assertValidCas(s.T(), resp.Cas)
@@ -468,9 +562,11 @@ func (s *GatewayOpsTestSuite) TestUpsert() {
 				ScopeName:      s.scopeName,
 				CollectionName: s.collectionName,
 				Key:            docId,
-				Content:        TEST_CONTENT,
-				ContentFlags:   TEST_CONTENT_FLAGS,
-				Expiry:         &kv_v1.UpsertRequest_ExpirySecs{ExpirySecs: uint32((31 * 24 * time.Hour).Seconds())},
+				Content: &kv_v1.UpsertRequest_ContentUncompressed{
+					ContentUncompressed: TEST_CONTENT,
+				},
+				ContentFlags: TEST_CONTENT_FLAGS,
+				Expiry:       &kv_v1.UpsertRequest_ExpirySecs{ExpirySecs: uint32((31 * 24 * time.Hour).Seconds())},
 			}, grpc.PerRPCCredentials(s.basicRpcCreds))
 			requireRpcSuccess(s.T(), resp, err)
 			assertValidCas(s.T(), resp.Cas)
@@ -498,8 +594,10 @@ func (s *GatewayOpsTestSuite) TestUpsert() {
 			ScopeName:      s.scopeName,
 			CollectionName: s.collectionName,
 			Key:            s.lockedDocId(),
-			Content:        s.largeTestContent(),
-			ContentFlags:   TEST_CONTENT_FLAGS,
+			Content: &kv_v1.UpsertRequest_ContentUncompressed{
+				ContentUncompressed: s.largeTestContent(),
+			},
+			ContentFlags: TEST_CONTENT_FLAGS,
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
 		assertRpcStatus(s.T(), err, codes.InvalidArgument)
 	})
@@ -510,8 +608,10 @@ func (s *GatewayOpsTestSuite) TestUpsert() {
 			ScopeName:      opts.ScopeName,
 			CollectionName: opts.CollectionName,
 			Key:            s.randomDocId(),
-			Content:        TEST_CONTENT,
-			ContentFlags:   TEST_CONTENT_FLAGS,
+			Content: &kv_v1.UpsertRequest_ContentUncompressed{
+				ContentUncompressed: TEST_CONTENT,
+			},
+			ContentFlags: TEST_CONTENT_FLAGS,
 		}, opts.CallOptions...)
 	})
 }
@@ -531,8 +631,37 @@ func (s *GatewayOpsTestSuite) TestReplace() {
 			ScopeName:      s.scopeName,
 			CollectionName: s.collectionName,
 			Key:            docId,
+			Content: &kv_v1.ReplaceRequest_ContentUncompressed{
+				ContentUncompressed: newContent,
+			},
+			ContentFlags: TEST_CONTENT_FLAGS,
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		requireRpcSuccess(s.T(), resp, err)
+		assertValidCas(s.T(), resp.Cas)
+		assertValidMutationToken(s.T(), resp.MutationToken, s.bucketName)
+
+		s.checkDocument(s.T(), checkDocumentOptions{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			DocId:          docId,
 			Content:        newContent,
 			ContentFlags:   TEST_CONTENT_FLAGS,
+		})
+	})
+
+	s.Run("Compressed", func() {
+		docId := s.testDocId()
+
+		resp, err := kvClient.Replace(context.Background(), &kv_v1.ReplaceRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            docId,
+			Content: &kv_v1.ReplaceRequest_ContentCompressed{
+				ContentCompressed: s.compressContent(newContent),
+			},
+			ContentFlags: TEST_CONTENT_FLAGS,
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
 		requireRpcSuccess(s.T(), resp, err)
 		assertValidCas(s.T(), resp.Cas)
@@ -556,9 +685,11 @@ func (s *GatewayOpsTestSuite) TestReplace() {
 			ScopeName:      s.scopeName,
 			CollectionName: s.collectionName,
 			Key:            docId,
-			Content:        newContent,
-			ContentFlags:   TEST_CONTENT_FLAGS,
-			Cas:            &docCas,
+			Content: &kv_v1.ReplaceRequest_ContentUncompressed{
+				ContentUncompressed: newContent,
+			},
+			ContentFlags: TEST_CONTENT_FLAGS,
+			Cas:          &docCas,
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
 		assertRpcStatus(s.T(), err, codes.OK)
 	})
@@ -572,9 +703,11 @@ func (s *GatewayOpsTestSuite) TestReplace() {
 			ScopeName:      s.scopeName,
 			CollectionName: s.collectionName,
 			Key:            docId,
-			Content:        newContent,
-			ContentFlags:   TEST_CONTENT_FLAGS,
-			Cas:            &incorrectCas,
+			Content: &kv_v1.ReplaceRequest_ContentUncompressed{
+				ContentUncompressed: newContent,
+			},
+			ContentFlags: TEST_CONTENT_FLAGS,
+			Cas:          &incorrectCas,
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
 		assertRpcStatus(s.T(), err, codes.Aborted)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.ErrorInfo) {
@@ -588,8 +721,10 @@ func (s *GatewayOpsTestSuite) TestReplace() {
 			ScopeName:      s.scopeName,
 			CollectionName: s.collectionName,
 			Key:            s.missingDocId(),
-			Content:        TEST_CONTENT,
-			ContentFlags:   TEST_CONTENT_FLAGS,
+			Content: &kv_v1.ReplaceRequest_ContentUncompressed{
+				ContentUncompressed: TEST_CONTENT,
+			},
+			ContentFlags: TEST_CONTENT_FLAGS,
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
 		assertRpcStatus(s.T(), err, codes.NotFound)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
@@ -603,8 +738,10 @@ func (s *GatewayOpsTestSuite) TestReplace() {
 			ScopeName:      s.scopeName,
 			CollectionName: s.collectionName,
 			Key:            s.lockedDocId(),
-			Content:        TEST_CONTENT,
-			ContentFlags:   TEST_CONTENT_FLAGS,
+			Content: &kv_v1.ReplaceRequest_ContentUncompressed{
+				ContentUncompressed: TEST_CONTENT,
+			},
+			ContentFlags: TEST_CONTENT_FLAGS,
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
 		assertRpcStatus(s.T(), err, codes.FailedPrecondition)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.PreconditionFailure) {
@@ -621,9 +758,11 @@ func (s *GatewayOpsTestSuite) TestReplace() {
 				ScopeName:      s.scopeName,
 				CollectionName: s.collectionName,
 				Key:            docId,
-				Content:        TEST_CONTENT,
-				ContentFlags:   TEST_CONTENT_FLAGS,
-				Expiry:         &kv_v1.ReplaceRequest_ExpirySecs{ExpirySecs: 5},
+				Content: &kv_v1.ReplaceRequest_ContentUncompressed{
+					ContentUncompressed: TEST_CONTENT,
+				},
+				ContentFlags: TEST_CONTENT_FLAGS,
+				Expiry:       &kv_v1.ReplaceRequest_ExpirySecs{ExpirySecs: 5},
 			}, grpc.PerRPCCredentials(s.basicRpcCreds))
 			requireRpcSuccess(s.T(), resp, err)
 			assertValidCas(s.T(), resp.Cas)
@@ -651,9 +790,11 @@ func (s *GatewayOpsTestSuite) TestReplace() {
 				ScopeName:      s.scopeName,
 				CollectionName: s.collectionName,
 				Key:            docId,
-				Content:        TEST_CONTENT,
-				ContentFlags:   TEST_CONTENT_FLAGS,
-				Expiry:         &kv_v1.ReplaceRequest_ExpirySecs{ExpirySecs: uint32((30 * 24 * time.Hour).Seconds())},
+				Content: &kv_v1.ReplaceRequest_ContentUncompressed{
+					ContentUncompressed: TEST_CONTENT,
+				},
+				ContentFlags: TEST_CONTENT_FLAGS,
+				Expiry:       &kv_v1.ReplaceRequest_ExpirySecs{ExpirySecs: uint32((30 * 24 * time.Hour).Seconds())},
 			}, grpc.PerRPCCredentials(s.basicRpcCreds))
 			requireRpcSuccess(s.T(), resp, err)
 			assertValidCas(s.T(), resp.Cas)
@@ -681,9 +822,11 @@ func (s *GatewayOpsTestSuite) TestReplace() {
 				ScopeName:      s.scopeName,
 				CollectionName: s.collectionName,
 				Key:            docId,
-				Content:        TEST_CONTENT,
-				ContentFlags:   TEST_CONTENT_FLAGS,
-				Expiry:         &kv_v1.ReplaceRequest_ExpirySecs{ExpirySecs: uint32((31 * 24 * time.Hour).Seconds())},
+				Content: &kv_v1.ReplaceRequest_ContentUncompressed{
+					ContentUncompressed: TEST_CONTENT,
+				},
+				ContentFlags: TEST_CONTENT_FLAGS,
+				Expiry:       &kv_v1.ReplaceRequest_ExpirySecs{ExpirySecs: uint32((31 * 24 * time.Hour).Seconds())},
 			}, grpc.PerRPCCredentials(s.basicRpcCreds))
 			requireRpcSuccess(s.T(), resp, err)
 			assertValidCas(s.T(), resp.Cas)
@@ -711,8 +854,10 @@ func (s *GatewayOpsTestSuite) TestReplace() {
 			ScopeName:      s.scopeName,
 			CollectionName: s.collectionName,
 			Key:            s.lockedDocId(),
-			Content:        s.largeTestContent(),
-			ContentFlags:   TEST_CONTENT_FLAGS,
+			Content: &kv_v1.ReplaceRequest_ContentUncompressed{
+				ContentUncompressed: s.largeTestContent(),
+			},
+			ContentFlags: TEST_CONTENT_FLAGS,
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
 		assertRpcStatus(s.T(), err, codes.InvalidArgument)
 	})
@@ -723,8 +868,10 @@ func (s *GatewayOpsTestSuite) TestReplace() {
 			ScopeName:      opts.ScopeName,
 			CollectionName: opts.CollectionName,
 			Key:            s.randomDocId(),
-			Content:        TEST_CONTENT,
-			ContentFlags:   TEST_CONTENT_FLAGS,
+			Content: &kv_v1.ReplaceRequest_ContentUncompressed{
+				ContentUncompressed: TEST_CONTENT,
+			},
+			ContentFlags: TEST_CONTENT_FLAGS,
 		}, opts.CallOptions...)
 	})
 }
@@ -969,8 +1116,9 @@ func (s *GatewayOpsTestSuite) TestGetAndTouch() {
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
 		requireRpcSuccess(s.T(), resp, err)
 		assertValidCas(s.T(), resp.Cas)
-		assert.Equal(s.T(), resp.Content, TEST_CONTENT)
-		assert.Equal(s.T(), resp.ContentFlags, TEST_CONTENT_FLAGS)
+		assert.Equal(s.T(), TEST_CONTENT, resp.GetContentUncompressed())
+		assert.Nil(s.T(), resp.GetContentCompressed())
+		assert.Equal(s.T(), TEST_CONTENT_FLAGS, resp.ContentFlags)
 
 		// check that the expiry was actually set
 		getResp, err := kvClient.Get(context.Background(), &kv_v1.GetRequest{
@@ -985,6 +1133,23 @@ func (s *GatewayOpsTestSuite) TestGetAndTouch() {
 		expirySecs := int(time.Until(expiryTime) / time.Second)
 		assert.Greater(s.T(), expirySecs, 0)
 		assert.LessOrEqual(s.T(), expirySecs, 20+1)
+	})
+
+	s.Run("Compressed", func() {
+		docId := s.testDocId()
+		resp, err := kvClient.GetAndTouch(context.Background(), &kv_v1.GetAndTouchRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            docId,
+			Expiry:         &kv_v1.GetAndTouchRequest_ExpirySecs{ExpirySecs: 20},
+			Compression:    kv_v1.CompressionEnabled_COMPRESSION_ENABLED_ALWAYS.Enum(),
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		requireRpcSuccess(s.T(), resp, err)
+		assertValidCas(s.T(), resp.Cas)
+		assert.Nil(s.T(), resp.GetContentUncompressed())
+		assert.Equal(s.T(), TEST_CONTENT, s.decompressContent(resp.GetContentCompressed()))
+		assert.Equal(s.T(), TEST_CONTENT_FLAGS, resp.ContentFlags)
 	})
 
 	s.Run("Conversion30Days", func() {
@@ -1098,8 +1263,9 @@ func (s *GatewayOpsTestSuite) TestGetAndLock() {
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
 		requireRpcSuccess(s.T(), resp, err)
 		assertValidCas(s.T(), resp.Cas)
-		assert.Equal(s.T(), resp.Content, TEST_CONTENT)
-		assert.Equal(s.T(), resp.ContentFlags, TEST_CONTENT_FLAGS)
+		assert.Equal(s.T(), TEST_CONTENT, resp.GetContentUncompressed())
+		assert.Nil(s.T(), resp.GetContentCompressed())
+		assert.Equal(s.T(), TEST_CONTENT_FLAGS, resp.ContentFlags)
 		assert.Nil(s.T(), resp.Expiry)
 
 		// Validate that the document is locked and we can't do updates
@@ -1108,13 +1274,33 @@ func (s *GatewayOpsTestSuite) TestGetAndLock() {
 			ScopeName:      s.scopeName,
 			CollectionName: s.collectionName,
 			Key:            docId,
-			Content:        TEST_CONTENT,
+			Content: &kv_v1.UpsertRequest_ContentUncompressed{
+				ContentUncompressed: TEST_CONTENT,
+			},
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
 		assertRpcStatus(s.T(), err, codes.FailedPrecondition)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.PreconditionFailure) {
 			assert.Len(s.T(), d.Violations, 1)
 			assert.Equal(s.T(), d.Violations[0].Type, "LOCKED")
 		})
+	})
+
+	s.Run("Compressed", func() {
+		docId := s.testDocId()
+		resp, err := kvClient.GetAndLock(context.Background(), &kv_v1.GetAndLockRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            docId,
+			LockTime:       30,
+			Compression:    kv_v1.CompressionEnabled_COMPRESSION_ENABLED_ALWAYS.Enum(),
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		requireRpcSuccess(s.T(), resp, err)
+		assertValidCas(s.T(), resp.Cas)
+		assert.Nil(s.T(), resp.GetContentUncompressed())
+		assert.Equal(s.T(), TEST_CONTENT, s.decompressContent(resp.GetContentCompressed()))
+		assert.Equal(s.T(), TEST_CONTENT_FLAGS, resp.ContentFlags)
+		assert.Nil(s.T(), resp.Expiry)
 	})
 
 	s.Run("DocMissing", func() {
