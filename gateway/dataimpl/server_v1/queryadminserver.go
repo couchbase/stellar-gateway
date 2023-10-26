@@ -212,6 +212,10 @@ func (s *QueryIndexAdminServer) CreatePrimaryIndex(
 		qs += " " + cbqueryx.EncodeIdentifier(*in.Name)
 	}
 
+	if in.GetIgnoreIfExists() {
+		qs += " IF NOT EXISTS "
+	}
+
 	qs += " ON " + s.buildKeyspace(in.BucketName, in.ScopeName, in.CollectionName)
 
 	with := make(map[string]interface{})
@@ -259,6 +263,10 @@ func (s *QueryIndexAdminServer) CreateIndex(
 	qs += "CREATE INDEX"
 
 	qs += " " + cbqueryx.EncodeIdentifier(in.Name)
+
+	if in.GetIgnoreIfExists() {
+		qs += " IF NOT EXISTS "
+	}
 
 	qs += " ON " + s.buildKeyspace(in.BucketName, in.ScopeName, in.CollectionName)
 
@@ -311,14 +319,25 @@ func (s *QueryIndexAdminServer) DropPrimaryIndex(
 	keyspace := s.buildKeyspace(in.BucketName, in.ScopeName, in.CollectionName)
 
 	if in.Name == nil {
-		qs += fmt.Sprintf("DROP PRIMARY INDEX ON %s", keyspace)
+		qs += "DROP PRIMARY INDEX"
+		if in.GetIgnoreIfMissing() {
+			qs += " IF EXISTS "
+		}
+		qs += fmt.Sprintf(" ON %s", keyspace)
 	} else {
 		encodedName := cbqueryx.EncodeIdentifier(*in.Name)
 
 		if in.ScopeName != nil || in.CollectionName != nil {
-			qs += fmt.Sprintf("DROP INDEX %s ON %s", encodedName, keyspace)
+			qs += fmt.Sprintf("DROP INDEX %s", encodedName)
+			if in.GetIgnoreIfMissing() {
+				qs += " IF EXISTS "
+			}
+			qs += fmt.Sprintf(" ON %s", keyspace)
 		} else {
 			qs += fmt.Sprintf("DROP INDEX %s.%s", keyspace, encodedName)
+			if in.GetIgnoreIfMissing() {
+				qs += " IF EXISTS"
+			}
 		}
 	}
 
@@ -349,9 +368,16 @@ func (s *QueryIndexAdminServer) DropIndex(
 	keyspace := s.buildKeyspace(in.BucketName, in.ScopeName, in.CollectionName)
 
 	if in.ScopeName != nil || in.CollectionName != nil {
-		qs += fmt.Sprintf("DROP INDEX %s ON %s", encodedName, keyspace)
+		qs += fmt.Sprintf("DROP INDEX %s", encodedName)
+		if in.GetIgnoreIfMissing() {
+			qs += " IF EXISTS "
+		}
+		qs += fmt.Sprintf(" ON %s", keyspace)
 	} else {
 		qs += fmt.Sprintf("DROP INDEX %s.%s", keyspace, encodedName)
+		if in.GetIgnoreIfMissing() {
+			qs += " IF EXISTS"
+		}
 	}
 
 	_, err := s.executeQuery(ctx, &in.BucketName, qs)
