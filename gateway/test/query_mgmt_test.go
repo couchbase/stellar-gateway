@@ -129,6 +129,18 @@ func (s *GatewayOpsTestSuite) TestQueryManagement() {
 			})
 		})
 
+		s.Run("DropMissingIgnored", func() {
+			trueBool := true
+			resp, err := queryAdminClient.DropPrimaryIndex(context.Background(), &admin_query_v1.DropPrimaryIndexRequest{
+				Name:            &indexName,
+				BucketName:      s.bucketName,
+				ScopeName:       &s.scopeName,
+				CollectionName:  &s.collectionName,
+				IgnoreIfMissing: &trueBool,
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			requireRpcSuccess(s.T(), resp, err)
+		})
+
 		s.Run("CreateAlreadyExists", func() {
 			resp, err := queryAdminClient.CreatePrimaryIndex(context.Background(), &admin_query_v1.CreatePrimaryIndexRequest{
 				Name:           &indexName,
@@ -148,6 +160,27 @@ func (s *GatewayOpsTestSuite) TestQueryManagement() {
 			assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
 				assert.Equal(s.T(), d.ResourceType, "queryindex")
 			})
+		})
+
+		s.Run("CreateAlreadyExistsIgnoreIfExists", func() {
+			trueBool := true
+			resp, err := queryAdminClient.CreatePrimaryIndex(context.Background(), &admin_query_v1.CreatePrimaryIndexRequest{
+				Name:           &indexName,
+				BucketName:     s.bucketName,
+				ScopeName:      &s.scopeName,
+				CollectionName: &s.collectionName,
+				IgnoreIfExists: &trueBool,
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			requireRpcSuccess(s.T(), resp, err)
+
+			_, err = queryAdminClient.CreatePrimaryIndex(context.Background(), &admin_query_v1.CreatePrimaryIndexRequest{
+				Name:           &indexName,
+				BucketName:     s.bucketName,
+				ScopeName:      &s.scopeName,
+				CollectionName: &s.collectionName,
+				IgnoreIfExists: &trueBool,
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			requireRpcSuccess(s.T(), resp, err)
 		})
 	})
 
@@ -247,6 +280,18 @@ func (s *GatewayOpsTestSuite) TestQueryManagement() {
 			})
 		})
 
+		s.Run("DropMissingIgnored", func() {
+			trueBool := true
+			resp, err := queryAdminClient.DropIndex(context.Background(), &admin_query_v1.DropIndexRequest{
+				Name:            uuid.NewString()[:6],
+				BucketName:      s.bucketName,
+				ScopeName:       &s.scopeName,
+				CollectionName:  &s.collectionName,
+				IgnoreIfMissing: &trueBool,
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			requireRpcSuccess(s.T(), resp, err)
+		})
+
 		s.Run("CreateAlreadyExists", func() {
 			indexName := uuid.NewString()[:6]
 			resp, err := queryAdminClient.CreateIndex(context.Background(), &admin_query_v1.CreateIndexRequest{
@@ -269,6 +314,30 @@ func (s *GatewayOpsTestSuite) TestQueryManagement() {
 			assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
 				assert.Equal(s.T(), d.ResourceType, "queryindex")
 			})
+		})
+
+		s.Run("CreateAlreadyExistsIgnoreIfExists", func() {
+			trueBool := true
+			indexName := uuid.NewString()[:6]
+			resp, err := queryAdminClient.CreateIndex(context.Background(), &admin_query_v1.CreateIndexRequest{
+				Name:           indexName,
+				BucketName:     s.bucketName,
+				ScopeName:      &s.scopeName,
+				CollectionName: &s.collectionName,
+				Fields:         []string{"test"},
+				IgnoreIfExists: &trueBool,
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			requireRpcSuccess(s.T(), resp, err)
+
+			resp, err = queryAdminClient.CreateIndex(context.Background(), &admin_query_v1.CreateIndexRequest{
+				Name:           indexName,
+				BucketName:     s.bucketName,
+				ScopeName:      &s.scopeName,
+				CollectionName: &s.collectionName,
+				Fields:         []string{"test"},
+				IgnoreIfExists: &trueBool,
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			requireRpcSuccess(s.T(), resp, err)
 		})
 	})
 
