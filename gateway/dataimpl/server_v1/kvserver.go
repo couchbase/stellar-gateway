@@ -187,7 +187,9 @@ func (s *KvServer) Get(ctx context.Context, in *kv_v1.GetRequest) (*kv_v1.GetRes
 			}
 
 			return &kv_v1.GetResponse{
-				Content:      projectedDocValue,
+				Content: &kv_v1.GetResponse_ContentUncompressed{
+					ContentUncompressed: projectedDocValue,
+				},
 				ContentFlags: uint32(0),
 				Cas:          result.Cas,
 				Expiry:       timeFromGo(expiryTime),
@@ -196,12 +198,28 @@ func (s *KvServer) Get(ctx context.Context, in *kv_v1.GetRequest) (*kv_v1.GetRes
 
 		docValue := result.Ops[2].Value
 
-		return &kv_v1.GetResponse{
-			Content:      docValue,
+		resp := &kv_v1.GetResponse{
 			ContentFlags: uint32(flags),
 			Cas:          result.Cas,
 			Expiry:       timeFromGo(expiryTime),
-		}, nil
+		}
+
+		isCompressed, respValue, errSt :=
+			CompressHandler{}.MaybeCompressContent(docValue, 0, in.Compression)
+		if errSt != nil {
+			return nil, errSt.Err()
+		}
+		if isCompressed {
+			resp.Content = &kv_v1.GetResponse_ContentCompressed{
+				ContentCompressed: respValue,
+			}
+		} else {
+			resp.Content = &kv_v1.GetResponse_ContentUncompressed{
+				ContentUncompressed: respValue,
+			}
+		}
+
+		return resp, nil
 	}
 
 	return executeGet(false)
@@ -244,11 +262,27 @@ func (s *KvServer) GetAndTouch(ctx context.Context, in *kv_v1.GetAndTouchRequest
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
 
-	return &kv_v1.GetAndTouchResponse{
-		Content:      result.Value,
+	resp := &kv_v1.GetAndTouchResponse{
 		ContentFlags: result.Flags,
 		Cas:          result.Cas,
-	}, nil
+	}
+
+	isCompressed, respValue, errSt :=
+		CompressHandler{}.MaybeCompressContent(result.Value, result.Datatype, in.Compression)
+	if errSt != nil {
+		return nil, errSt.Err()
+	}
+	if isCompressed {
+		resp.Content = &kv_v1.GetAndTouchResponse_ContentCompressed{
+			ContentCompressed: respValue,
+		}
+	} else {
+		resp.Content = &kv_v1.GetAndTouchResponse_ContentUncompressed{
+			ContentUncompressed: respValue,
+		}
+	}
+
+	return resp, nil
 }
 
 func (s *KvServer) GetAndLock(ctx context.Context, in *kv_v1.GetAndLockRequest) (*kv_v1.GetAndLockResponse, error) {
@@ -280,11 +314,27 @@ func (s *KvServer) GetAndLock(ctx context.Context, in *kv_v1.GetAndLockRequest) 
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
 
-	return &kv_v1.GetAndLockResponse{
-		Content:      result.Value,
+	resp := &kv_v1.GetAndLockResponse{
 		ContentFlags: result.Flags,
 		Cas:          result.Cas,
-	}, nil
+	}
+
+	isCompressed, respValue, errSt :=
+		CompressHandler{}.MaybeCompressContent(result.Value, result.Datatype, in.Compression)
+	if errSt != nil {
+		return nil, errSt.Err()
+	}
+	if isCompressed {
+		resp.Content = &kv_v1.GetAndLockResponse_ContentCompressed{
+			ContentCompressed: respValue,
+		}
+	} else {
+		resp.Content = &kv_v1.GetAndLockResponse_ContentUncompressed{
+			ContentUncompressed: respValue,
+		}
+	}
+
+	return resp, nil
 }
 
 func (s *KvServer) Unlock(ctx context.Context, in *kv_v1.UnlockRequest) (*kv_v1.UnlockResponse, error) {
@@ -372,8 +422,17 @@ func (s *KvServer) Insert(ctx context.Context, in *kv_v1.InsertRequest) (*kv_v1.
 	opts.ScopeName = in.ScopeName
 	opts.CollectionName = in.CollectionName
 	opts.Key = []byte(in.Key)
-	opts.Value = in.Content
 	opts.Flags = in.ContentFlags
+
+	switch content := in.Content.(type) {
+	case *kv_v1.InsertRequest_ContentUncompressed:
+		opts.Value = content.ContentUncompressed
+	case *kv_v1.InsertRequest_ContentCompressed:
+		opts.Value = content.ContentCompressed
+		opts.Datatype = opts.Datatype | memdx.DatatypeFlagCompressed
+	default:
+		return nil, status.New(codes.InvalidArgument, "CompressedContent or UncompressedContent must be specified.").Err()
+	}
 
 	if in.Expiry != nil {
 		if expirySpec, ok := in.Expiry.(*kv_v1.InsertRequest_ExpiryTime); ok {
@@ -467,8 +526,17 @@ func (s *KvServer) Upsert(ctx context.Context, in *kv_v1.UpsertRequest) (*kv_v1.
 	opts.ScopeName = in.ScopeName
 	opts.CollectionName = in.CollectionName
 	opts.Key = []byte(in.Key)
-	opts.Value = in.Content
 	opts.Flags = in.ContentFlags
+
+	switch content := in.Content.(type) {
+	case *kv_v1.UpsertRequest_ContentUncompressed:
+		opts.Value = content.ContentUncompressed
+	case *kv_v1.UpsertRequest_ContentCompressed:
+		opts.Value = content.ContentCompressed
+		opts.Datatype = opts.Datatype | memdx.DatatypeFlagCompressed
+	default:
+		return nil, status.New(codes.InvalidArgument, "CompressedContent or UncompressedContent must be specified.").Err()
+	}
 
 	if in.Expiry == nil {
 		if in.PreserveExpiryOnExisting != nil && *in.PreserveExpiryOnExisting {
@@ -532,8 +600,17 @@ func (s *KvServer) Replace(ctx context.Context, in *kv_v1.ReplaceRequest) (*kv_v
 	opts.ScopeName = in.ScopeName
 	opts.CollectionName = in.CollectionName
 	opts.Key = []byte(in.Key)
-	opts.Value = in.Content
 	opts.Flags = in.ContentFlags
+
+	switch content := in.Content.(type) {
+	case *kv_v1.ReplaceRequest_ContentUncompressed:
+		opts.Value = content.ContentUncompressed
+	case *kv_v1.ReplaceRequest_ContentCompressed:
+		opts.Value = content.ContentCompressed
+		opts.Datatype = opts.Datatype | memdx.DatatypeFlagCompressed
+	default:
+		return nil, status.New(codes.InvalidArgument, "CompressedContent or UncompressedContent must be specified.").Err()
+	}
 
 	if in.Cas != nil {
 		opts.Cas = *in.Cas

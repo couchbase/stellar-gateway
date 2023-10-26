@@ -50,7 +50,7 @@ func (c *Collection) Get(ctx context.Context, id string, opts *GetOptions) (*Get
 	}
 
 	return &GetResult{
-		Content: resp.Content,
+		Content: resp.GetContentUncompressed(),
 		Cas:     Cas(resp.Cas),
 	}, nil
 }
@@ -116,7 +116,7 @@ func (c *Collection) GetAndTouch(ctx context.Context, id string, expiry time.Dur
 	}
 
 	return &GetResult{
-		Content: resp.Content,
+		Content: resp.GetContentUncompressed(),
 		Cas:     Cas(resp.Cas),
 	}, nil
 }
@@ -146,7 +146,7 @@ func (c *Collection) GetAndLock(ctx context.Context, id string, lockTime time.Du
 	}
 
 	return &GetResult{
-		Content: resp.Content,
+		Content: resp.GetContentUncompressed(),
 		Cas:     Cas(resp.Cas),
 	}, nil
 }
@@ -201,8 +201,10 @@ func (c *Collection) Upsert(ctx context.Context, id string, content []byte, opts
 		ScopeName:      scopeName,
 		CollectionName: collName,
 		Key:            id,
-		Content:        content,
-		ContentFlags:   0,
+		Content: &kv_v1.UpsertRequest_ContentUncompressed{
+			ContentUncompressed: content,
+		},
+		ContentFlags: 0,
 		Expiry: &kv_v1.UpsertRequest_ExpiryTime{
 			ExpiryTime: durationToTimestamp(opts.Expiry),
 		},
@@ -244,8 +246,10 @@ func (c *Collection) Insert(ctx context.Context, id string, content []byte, opts
 		ScopeName:      scopeName,
 		CollectionName: collName,
 		Key:            id,
-		Content:        content,
-		ContentFlags:   0,
+		Content: &kv_v1.InsertRequest_ContentUncompressed{
+			ContentUncompressed: content,
+		},
+		ContentFlags: 0,
 		Expiry: &kv_v1.InsertRequest_ExpiryTime{
 			ExpiryTime: durationToTimestamp(opts.Expiry),
 		},
@@ -294,8 +298,10 @@ func (c *Collection) Replace(ctx context.Context, id string, content []byte, opt
 		ScopeName:      scopeName,
 		CollectionName: collName,
 		Key:            id,
-		Content:        content,
-		ContentFlags:   0,
+		Content: &kv_v1.ReplaceRequest_ContentUncompressed{
+			ContentUncompressed: content,
+		},
+		ContentFlags: 0,
 		Expiry: &kv_v1.ReplaceRequest_ExpiryTime{
 			ExpiryTime: durationToTimestamp(opts.Expiry),
 		},
