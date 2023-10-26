@@ -81,7 +81,3 @@ func (c *routingImpl_KvV1) MutateIn(ctx context.Context, in *kv_v1.MutateInReque
 func (c *routingImpl_KvV1) GetAllReplicas(ctx context.Context, in *kv_v1.GetAllReplicasRequest, opts ...grpc.CallOption) (kv_v1.KvService_GetAllReplicasClient, error) {
 	return c.client.fetchConnForBucket(in.BucketName).KvV1().GetAllReplicas(ctx, in, opts...)
 }
-
-func (c *routingImpl_KvV1) RangeScan(ctx context.Context, in *kv_v1.RangeScanRequest, opts ...grpc.CallOption) (*kv_v1.RangeScanResponse, error) {
-	return c.client.fetchConnForBucket(in.BucketName).KvV1().RangeScan(ctx, in, opts...)
-}

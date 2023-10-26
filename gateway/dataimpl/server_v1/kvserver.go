@@ -471,8 +471,17 @@ func (s *KvServer) Upsert(ctx context.Context, in *kv_v1.UpsertRequest) (*kv_v1.
 	opts.Flags = in.ContentFlags
 
 	if in.Expiry == nil {
+		if in.PreserveExpiryOnExisting != nil && *in.PreserveExpiryOnExisting {
+			return nil, status.New(codes.InvalidArgument,
+				"Cannot specify preserve expiry with no expiry, leave expiry undefined to preserve expiry.").Err()
+		}
+
 		opts.PreserveExpiry = true
-	} else if in.Expiry != nil {
+	} else {
+		if in.PreserveExpiryOnExisting != nil && *in.PreserveExpiryOnExisting {
+			opts.PreserveExpiry = true
+		}
+
 		if expirySpec, ok := in.Expiry.(*kv_v1.UpsertRequest_ExpiryTime); ok {
 			opts.Expiry = timeExpiryToGocbcorex(timeToGo(expirySpec.ExpiryTime))
 		} else if expirySpec, ok := in.Expiry.(*kv_v1.UpsertRequest_ExpirySecs); ok {
