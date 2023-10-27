@@ -66,12 +66,15 @@ type Config struct {
 type Gateway struct {
 	config Config
 
+	isShutdown    atomic.Bool
+	shutdownSig   chan struct{}
 	atomicTlsCert atomic.Pointer[tls.Certificate]
 }
 
 func NewGateway(config *Config) (*Gateway, error) {
 	gw := &Gateway{
-		config: *config,
+		config:      *config,
+		shutdownSig: make(chan struct{}),
 	}
 
 	tlsCert := config.TlsCertificate
@@ -354,6 +357,11 @@ func (g *Gateway) Run(ctx context.Context) error {
 			})
 		}
 
+		go func() {
+			<-g.shutdownSig
+			gatewaySys.Shutdown()
+		}()
+
 		config.Logger.Info("starting to run protostellar system")
 		err = gatewaySys.Serve(ctx, gatewayLis)
 
@@ -368,10 +376,20 @@ func (g *Gateway) Run(ctx context.Context) error {
 			return err
 		}
 
+		err = gatewayLis.Close()
+		if err != nil {
+			config.Logger.Error("failed to close listener")
+			return err
+		}
+
 		err = clusterEntry.Leave(ctx)
 		if err != nil {
 			config.Logger.Error("failed to leave cluster")
 			return err
+		}
+
+		if g.isShutdown.CompareAndSwap(false, true) {
+			close(g.shutdownSig)
 		}
 
 		return nil
@@ -399,4 +417,10 @@ func (g *Gateway) Run(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func (g *Gateway) Shutdown() {
+	if g.isShutdown.CompareAndSwap(false, true) {
+		close(g.shutdownSig)
+	}
 }

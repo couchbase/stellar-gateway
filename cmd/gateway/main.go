@@ -5,6 +5,8 @@ import (
 	"crypto/tls"
 	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/couchbase/stellar-gateway/gateway"
@@ -304,11 +306,39 @@ func startGateway() {
 		go viper.WatchConfig()
 	}
 
+	go func() {
+		sigCh := make(chan os.Signal, 10)
+		signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+
+		beginGracefulShutdown := func() {
+			gw.Shutdown()
+		}
+
+		hasReceivedSigInt := false
+		for sig := range sigCh {
+			if sig == syscall.SIGINT {
+				if hasReceivedSigInt {
+					logger.Info("Received SIGINT a second time, terminating...")
+					os.Exit(1)
+				} else {
+					logger.Info("Received SIGINT, attempting graceful shutdown...")
+					hasReceivedSigInt = true
+					beginGracefulShutdown()
+				}
+			} else if sig == syscall.SIGTERM {
+				logger.Info("Received SIGTERM, attempting graceful shutdown...")
+				beginGracefulShutdown()
+			}
+		}
+	}()
+
 	err = gw.Run(context.Background())
 	if err != nil {
 		logger.Error("failed to run the gateway", zap.Error(err))
 		os.Exit(1)
 	}
+
+	logger.Info("gateway shutdown gracefully")
 }
 
 func main() {
