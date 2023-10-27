@@ -2832,11 +2832,7 @@ func (s *GatewayOpsTestSuite) TestMutateIn() {
 				},
 			},
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
-		assertRpcStatus(s.T(), err, codes.FailedPrecondition)
-		assertRpcErrorDetails(s.T(), err, func(d *epb.PreconditionFailure) {
-			assert.Len(s.T(), d.Violations, 1)
-			assert.Equal(s.T(), d.Violations[0].Type, "WOULD_INVALIDATE_JSON")
-		})
+		assertRpcStatus(s.T(), err, codes.InvalidArgument)
 	})
 
 	s.Run("ValueTooDeep", func() {
@@ -2899,7 +2895,7 @@ func (s *GatewayOpsTestSuite) TestMutateIn() {
 		assertRpcStatus(s.T(), err, codes.FailedPrecondition)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.PreconditionFailure) {
 			assert.Len(s.T(), d.Violations, 1)
-			assert.Equal(s.T(), d.Violations[0].Type, "WOULD_INVALIDATE_JSON")
+			assert.Equal(s.T(), d.Violations[0].Type, "VALUE_OUT_OF_RANGE")
 		})
 	})
 

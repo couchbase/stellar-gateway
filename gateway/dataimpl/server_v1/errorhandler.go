@@ -452,12 +452,20 @@ func (e ErrorHandler) NewSdPathTooBigStatus(baseErr error, sdPath string) *statu
 }
 
 func (e ErrorHandler) NewSdBadValueStatus(baseErr error, sdPath string) *status.Status {
-	st := status.New(codes.FailedPrecondition,
+	st := status.New(codes.InvalidArgument,
 		fmt.Sprintf("Subdocument operation content for path '%s' would invalidate the JSON if added to the document.",
+			sdPath))
+	st = e.tryAttachExtraContext(st, baseErr)
+	return st
+}
+
+func (e ErrorHandler) NewSdValueOutOfRangeStatus(baseErr error, sdPath string) *status.Status {
+	st := status.New(codes.FailedPrecondition,
+		fmt.Sprintf("Counter operation content for path '%s' would put the JSON value out of range.",
 			sdPath))
 	st = e.tryAttachStatusDetails(st, &epb.PreconditionFailure{
 		Violations: []*epb.PreconditionFailure_Violation{{
-			Type:        "WOULD_INVALIDATE_JSON",
+			Type:        "VALUE_OUT_OF_RANGE",
 			Subject:     sdPath,
 			Description: "",
 		}},
