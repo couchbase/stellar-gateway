@@ -147,3 +147,13 @@ func (s *System) Serve(ctx context.Context, l *Listeners) error {
 	wg.Wait()
 	return nil
 }
+
+func (s *System) Shutdown() {
+	if s.dataServer != nil {
+		s.dataServer.GracefulStop()
+	}
+
+	if s.sdServer != nil {
+		s.sdServer.GracefulStop()
+	}
+}
