@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/couchbase/gocbcorex/cbmgmtx"
 	"github.com/couchbase/gocbcorex/cbqueryx"
 	"github.com/couchbase/gocbcorex/cbsearchx"
 	"github.com/couchbase/gocbcorex/memdx"
@@ -79,8 +80,9 @@ func (e ErrorHandler) NewInternalStatus() *status.Status {
 func (e ErrorHandler) NewUnknownStatus(baseErr error) *status.Status {
 	var memdErr *memdx.ServerError
 	if errors.As(baseErr, &memdErr) {
-		return status.New(codes.Unknown,
-			fmt.Sprintf("An unknown memcached error occurred (status: %d).", memdErr.Status))
+		st := status.New(codes.Unknown, fmt.Sprintf("An unknown memcached error occurred (status: %d).", memdErr.Status))
+		st = e.tryAttachExtraContext(st, baseErr)
+		return st
 	}
 
 	var queryErr *cbqueryx.QueryServerErrors
@@ -90,17 +92,31 @@ func (e ErrorHandler) NewUnknownStatus(baseErr error) *status.Status {
 			queryErrDescs = append(queryErrDescs, fmt.Sprintf("%d - %s", querySubErr.Code, querySubErr.Msg))
 		}
 
-		return status.New(codes.Unknown,
+		st := status.New(codes.Unknown,
 			fmt.Sprintf("An unknown query error occurred (descs: %s).", strings.Join(queryErrDescs, "; ")))
+		st = e.tryAttachExtraContext(st, baseErr)
+		return st
 	}
 
 	var searchErr *cbsearchx.ServerError
 	if errors.As(baseErr, &searchErr) {
-		return status.New(codes.Unknown,
+		st := status.New(codes.Unknown,
 			fmt.Sprintf("An unknown search error occurred (status: %d).", searchErr.StatusCode))
+		st = e.tryAttachExtraContext(st, baseErr)
+		return st
 	}
 
-	return status.New(codes.Unknown, "An unknown error occurred.")
+	var serverErr *cbmgmtx.ServerError
+	if errors.As(baseErr, &serverErr) {
+		st := status.New(codes.Unknown,
+			fmt.Sprintf("An unknown server error occurred (status: %d).", serverErr.StatusCode))
+		st = e.tryAttachExtraContext(st, baseErr)
+		return st
+	}
+
+	st := status.New(codes.Unknown, "An unknown error occurred.")
+	st = e.tryAttachExtraContext(st, baseErr)
+	return st
 }
 
 func (e ErrorHandler) NewBucketMissingStatus(baseErr error, bucketName string) *status.Status {
