@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/couchbase/cbauth"
+	"github.com/couchbase/cbauth/revrpc"
 	"github.com/couchbase/gocbcorex"
 	"github.com/couchbase/stellar-gateway/contrib/cbconfig"
 	"github.com/couchbase/stellar-gateway/contrib/cbtopology"
@@ -186,6 +187,16 @@ func (g *Gateway) Run(ctx context.Context) error {
 	}
 
 	// initialize cb-auth
+	cbauthLogger := config.Logger.Named("cbauth")
+	revrpc.DefaultBabysitErrorPolicy = revrpc.DefaultErrorPolicy{
+		RestartsToExit:       -1,
+		SleepBetweenRestarts: time.Second,
+		LogPrint: func(v ...any) {
+			cbauthLogger.Info("cbauth message",
+				zap.String("message", fmt.Sprint(v...)))
+		},
+	}
+
 	err = cbauth.InitExternalWithHeartbeat("stg", mgmtHostPort, config.Username, config.Password, 5, 10)
 	if err != nil {
 		if strings.Contains(err.Error(), "already initialized") {
