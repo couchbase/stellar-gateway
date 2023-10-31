@@ -85,7 +85,7 @@ func (e ErrorHandler) NewUnknownStatus(baseErr error) *status.Status {
 		return st
 	}
 
-	var queryErr *cbqueryx.QueryServerErrors
+	var queryErr *cbqueryx.ServerErrors
 	if errors.As(baseErr, &queryErr) {
 		var queryErrDescs []string
 		for _, querySubErr := range queryErr.Errors {
