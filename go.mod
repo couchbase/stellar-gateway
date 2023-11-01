@@ -7,7 +7,7 @@ require (
 	github.com/couchbase/cbauth v0.1.11-0.20230814221519-3b2c4d828dda
 	github.com/couchbase/gocb/v2 v2.5.2
 	github.com/couchbase/gocbcore/v10 v10.2.0
-	github.com/couchbase/gocbcorex v0.0.0-20230221114919-ef6a7a7da721
+	github.com/couchbase/gocbcorex v0.0.0-20231031115019-0d6b26ab8145
 	github.com/couchbase/goprotostellar v0.0.0
 	github.com/couchbaselabs/gocbconnstr v1.0.5
 	github.com/fsnotify/fsnotify v1.6.0
@@ -84,5 +84,3 @@ require (
 )
 
 replace github.com/couchbase/goprotostellar => ./contrib/goprotostellar
-
-replace github.com/couchbase/gocbcorex => ./contrib/gocbcorex
