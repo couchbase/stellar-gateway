@@ -92,9 +92,7 @@ func (p *InProcProvider) removeWatcherLocked(ch chan *Snapshot) bool {
 		return false
 	}
 
-	watchersLen := len(p.watchers)
-	p.watchers[watchersLen] = p.watchers[watchersLen-1]
-	p.watchers = p.watchers[:watchersLen-1]
+	slices.Delete(p.watchers, watcherIdx, watcherIdx+1)
 
 	return true
 }
