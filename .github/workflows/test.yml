@@ -43,7 +43,7 @@ jobs:
         run: |
           go generate
       - name: Install Dependencies
-        run: go get
+        run: go get ./...
       - name: Initialize Test Cluster
         run: ./.github/bin/init-cluster
       - name: Check Test Cluster

@@ -1,3 +1,0 @@
-[submodule "contrib/protostellar"]
-	path = contrib/protostellar
-	url = git@github.com:couchbase/protostellar.git
