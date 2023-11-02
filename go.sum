@@ -85,6 +85,8 @@ github.com/couchbase/gocbcorex v0.0.0-20231031115019-0d6b26ab8145 h1:AIJO/j8byCz
 github.com/couchbase/gocbcorex v0.0.0-20231031115019-0d6b26ab8145/go.mod h1:On+ek6dOXrkBUybNdAlM4M37OcFoDmT6taRrQ+2vgA8=
 github.com/couchbase/gomemcached v0.2.1 h1:lDONROGbklo8pOt4Sr4eV436PVEaKDr3o9gUlhv9I2U=
 github.com/couchbase/gomemcached v0.2.1/go.mod h1:mxliKQxOv84gQ0bJWbI+w9Wxdpt9HjDvgW9MjCym5Vo=
+github.com/couchbase/goprotostellar v0.0.1-3.0.20231102140456-4b5bcf407d9d h1:0w7U/19DufAhamFZ7ewheJpTPlkN1veAnAt14WKDxSo=
+github.com/couchbase/goprotostellar v0.0.1-3.0.20231102140456-4b5bcf407d9d/go.mod h1:gs1eioLVOHETTFWxDY4v7Q/kRPMgqmX6t/TPcI429ls=
 github.com/couchbase/goutils v0.1.2 h1:gWr8B6XNWPIhfalHNog3qQKfGiYyh4K4VhO3P2o9BCs=
 github.com/couchbase/goutils v0.1.2/go.mod h1:h89Ek/tiOxxqjz30nPPlwZdQbdB8BwgnuBxeoUe/ViE=
 github.com/couchbaselabs/gocaves/client v0.0.0-20220223122017-22859b310bd2 h1:UlwJ2GWpZQAQCLHyO3xHKcqAjUUcX2w7FKpbxCIUQks=
