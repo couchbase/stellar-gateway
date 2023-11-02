@@ -5,12 +5,9 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net/http"
-	"strings"
 	"sync/atomic"
 	"time"
 
-	"github.com/couchbase/cbauth"
-	"github.com/couchbase/cbauth/revrpc"
 	"github.com/couchbase/gocbcorex"
 	"github.com/couchbase/stellar-gateway/contrib/cbconfig"
 	"github.com/couchbase/stellar-gateway/contrib/cbtopology"
@@ -187,27 +184,19 @@ func (g *Gateway) Run(ctx context.Context) error {
 	}
 
 	// initialize cb-auth
-	cbauthLogger := config.Logger.Named("cbauth")
-	revrpc.DefaultBabysitErrorPolicy = revrpc.DefaultErrorPolicy{
-		RestartsToExit:       -1,
-		SleepBetweenRestarts: time.Second,
-		LogPrint: func(v ...any) {
-			cbauthLogger.Info("cbauth message",
-				zap.String("message", fmt.Sprint(v...)))
-		},
-	}
-
-	err = cbauth.InitExternalWithHeartbeat("stg", mgmtHostPort, config.Username, config.Password, 5, 10)
+	authenticator, err := auth.NewCbAuthAuthenticator(auth.NewCbAuthAuthenticatorOptions{
+		Username:      config.Username,
+		Password:      config.Password,
+		BootstrapHost: mgmtHostPort,
+		Service:       "stg",
+		Logger:        config.Logger.Named("cbauth"),
+	})
 	if err != nil {
-		if strings.Contains(err.Error(), "already initialized") {
-			// we ignore this error
-		} else {
-			config.Logger.Error("failed to initialize cbauth connection",
-				zap.Error(err),
-				zap.String("hostPort", mgmtHostPort),
-				zap.String("user", config.Username))
-			return err
-		}
+		config.Logger.Error("failed to initialize cbauth connection",
+			zap.Error(err),
+			zap.String("hostPort", mgmtHostPort),
+			zap.String("user", config.Username))
+		return err
 	}
 
 	// try to establish a client connection to the cluster
@@ -271,15 +260,34 @@ func (g *Gateway) Run(ctx context.Context) error {
 		return err
 	}
 
+	go func() {
+		watchCh := agentMgr.WatchConfig(context.Background())
+		for {
+			select {
+			case <-g.shutdownSig:
+				return
+			case cfg := <-watchCh:
+				if cfg == nil {
+					continue
+				}
+
+				err := authenticator.Reconfigure(auth.CbAuthAuthenticatorReconfigureOptions{
+					Addresses: cfg.Addresses,
+				})
+				if err != nil {
+					config.Logger.Warn("failed to reconfigure cbauth")
+				}
+			}
+		}
+	}()
+
 	startInstance := func(ctx context.Context, instanceIdx int) error {
 		dataImpl := dataimpl.New(&dataimpl.NewOptions{
 			Logger:           config.Logger.Named("data-impl"),
 			Debug:            config.Debug,
 			TopologyProvider: psTopologyManager,
 			CbClient:         agentMgr,
-			Authenticator: auth.CbAuthAuthenticator{
-				Authenticator: cbauth.GetExternalAuthenticator(),
-			},
+			Authenticator:    authenticator,
 		})
 
 		sdImpl := sdimpl.New(&sdimpl.NewOptions{
