@@ -3,6 +3,7 @@ package server_v1
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/couchbase/gocbcorex/cbmgmtx"
@@ -191,6 +192,11 @@ func (s *BucketAdminServer) CreateBucket(
 		ramQuotaMb = 1024
 	}
 	if in.RamQuotaMb != nil {
+		if *in.RamQuotaMb < ramQuotaMb {
+			msg := fmt.Sprintf(
+				"RAMQuotaMB cannot be less than %d for %s bucket %s.", ramQuotaMb, storageBackend, in.BucketName)
+			return nil, s.errorHandler.NewBucketInvalidArgStatus(nil, msg, in.BucketName).Err()
+		}
 		ramQuotaMb = *in.RamQuotaMb
 	}
 
@@ -217,6 +223,11 @@ func (s *BucketAdminServer) CreateBucket(
 		if errors.Is(err, cbmgmtx.ErrBucketExists) {
 			return nil, s.errorHandler.NewBucketExistsStatus(err, in.BucketName).Err()
 		}
+
+		if errors.Is(err, cbmgmtx.ErrServerInvalidArg) {
+			return nil, s.errorHandler.NewBucketInvalidArgStatus(err, "", in.BucketName).Err()
+		}
+
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
 
