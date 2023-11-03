@@ -557,6 +557,11 @@ func (s *KvServer) Upsert(ctx context.Context, in *kv_v1.UpsertRequest) (*kv_v1.
 		} else {
 			return nil, status.New(codes.InvalidArgument, "Expiry time specification is unknown.").Err()
 		}
+
+		if opts.PreserveExpiry && opts.Expiry == 0 {
+			return nil, status.New(codes.InvalidArgument,
+				"Cannot specify preserve expiry with zero expiry, leave expiry undefined to preserve expiry.").Err()
+		}
 	}
 
 	if in.DurabilityLevel != nil {

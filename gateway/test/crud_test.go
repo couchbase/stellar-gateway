@@ -586,6 +586,233 @@ func (s *GatewayOpsTestSuite) TestUpsert() {
 				},
 			})
 		})
+
+		s.Run("Preserve", func() {
+			docId := s.randomDocId()
+
+			// Create a doc with an expiry
+			{
+				resp, err := kvClient.Upsert(context.Background(), &kv_v1.UpsertRequest{
+					BucketName:     s.bucketName,
+					ScopeName:      s.scopeName,
+					CollectionName: s.collectionName,
+					Key:            docId,
+					Content: &kv_v1.UpsertRequest_ContentUncompressed{
+						ContentUncompressed: TEST_CONTENT,
+					},
+					ContentFlags: TEST_CONTENT_FLAGS,
+					Expiry:       &kv_v1.UpsertRequest_ExpirySecs{ExpirySecs: uint32((24 * time.Hour).Seconds())},
+				}, grpc.PerRPCCredentials(s.basicRpcCreds))
+				requireRpcSuccess(s.T(), resp, err)
+			}
+
+			// Upsert the same document again, this time the expiry should be kept
+			{
+				resp, err := kvClient.Upsert(context.Background(), &kv_v1.UpsertRequest{
+					BucketName:     s.bucketName,
+					ScopeName:      s.scopeName,
+					CollectionName: s.collectionName,
+					Key:            docId,
+					Content: &kv_v1.UpsertRequest_ContentUncompressed{
+						ContentUncompressed: TEST_CONTENT,
+					},
+					ContentFlags: TEST_CONTENT_FLAGS,
+				}, grpc.PerRPCCredentials(s.basicRpcCreds))
+				requireRpcSuccess(s.T(), resp, err)
+			}
+
+			s.checkDocument(s.T(), checkDocumentOptions{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				DocId:          docId,
+				Content:        TEST_CONTENT,
+				ContentFlags:   TEST_CONTENT_FLAGS,
+				expiry:         expiryCheckType_Within,
+				expiryBounds: expiryCheckTypeWithinBounds{
+					MaxSecs: int((24 * time.Hour).Seconds()) + 1,
+					MinSecs: int((23 * time.Hour).Seconds()),
+				},
+			})
+		})
+
+		s.Run("ZeroExpiryWithNew", func() {
+			docId := s.randomDocId()
+
+			resp, err := kvClient.Upsert(context.Background(), &kv_v1.UpsertRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+				Content: &kv_v1.UpsertRequest_ContentUncompressed{
+					ContentUncompressed: TEST_CONTENT,
+				},
+				ContentFlags: TEST_CONTENT_FLAGS,
+				Expiry:       &kv_v1.UpsertRequest_ExpirySecs{ExpirySecs: 0},
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			requireRpcSuccess(s.T(), resp, err)
+
+			s.checkDocument(s.T(), checkDocumentOptions{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				DocId:          docId,
+				Content:        TEST_CONTENT,
+				ContentFlags:   TEST_CONTENT_FLAGS,
+				expiry:         expiryCheckType_None,
+			})
+		})
+
+		s.Run("ZeroWithExisting", func() {
+			docId := s.randomDocId()
+
+			// Create a doc with an expiry
+			{
+				resp, err := kvClient.Upsert(context.Background(), &kv_v1.UpsertRequest{
+					BucketName:     s.bucketName,
+					ScopeName:      s.scopeName,
+					CollectionName: s.collectionName,
+					Key:            docId,
+					Content: &kv_v1.UpsertRequest_ContentUncompressed{
+						ContentUncompressed: TEST_CONTENT,
+					},
+					ContentFlags: TEST_CONTENT_FLAGS,
+					Expiry:       &kv_v1.UpsertRequest_ExpirySecs{ExpirySecs: uint32((24 * time.Hour).Seconds())},
+				}, grpc.PerRPCCredentials(s.basicRpcCreds))
+				requireRpcSuccess(s.T(), resp, err)
+			}
+
+			// Upsert the same document again, this time the expiry should be cleared
+			{
+				resp, err := kvClient.Upsert(context.Background(), &kv_v1.UpsertRequest{
+					BucketName:     s.bucketName,
+					ScopeName:      s.scopeName,
+					CollectionName: s.collectionName,
+					Key:            docId,
+					Content: &kv_v1.UpsertRequest_ContentUncompressed{
+						ContentUncompressed: TEST_CONTENT,
+					},
+					ContentFlags: TEST_CONTENT_FLAGS,
+					Expiry:       &kv_v1.UpsertRequest_ExpirySecs{ExpirySecs: 0},
+				}, grpc.PerRPCCredentials(s.basicRpcCreds))
+				requireRpcSuccess(s.T(), resp, err)
+			}
+
+			s.checkDocument(s.T(), checkDocumentOptions{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				DocId:          docId,
+				Content:        TEST_CONTENT,
+				ContentFlags:   TEST_CONTENT_FLAGS,
+				expiry:         expiryCheckType_None,
+			})
+		})
+
+		s.Run("PreserveWithSecsForNew", func() {
+			docId := s.randomDocId()
+			preserveExpiryOnExisting := true
+
+			// New Doc should use new expiry
+			{
+				resp, err := kvClient.Upsert(context.Background(), &kv_v1.UpsertRequest{
+					BucketName:     s.bucketName,
+					ScopeName:      s.scopeName,
+					CollectionName: s.collectionName,
+					Key:            docId,
+					Content: &kv_v1.UpsertRequest_ContentUncompressed{
+						ContentUncompressed: TEST_CONTENT,
+					},
+					ContentFlags:             TEST_CONTENT_FLAGS,
+					Expiry:                   &kv_v1.UpsertRequest_ExpirySecs{ExpirySecs: uint32((24 * time.Hour).Seconds())},
+					PreserveExpiryOnExisting: &preserveExpiryOnExisting,
+				}, grpc.PerRPCCredentials(s.basicRpcCreds))
+				requireRpcSuccess(s.T(), resp, err)
+				assertValidCas(s.T(), resp.Cas)
+				assertValidMutationToken(s.T(), resp.MutationToken, s.bucketName)
+
+				s.checkDocument(s.T(), checkDocumentOptions{
+					BucketName:     s.bucketName,
+					ScopeName:      s.scopeName,
+					CollectionName: s.collectionName,
+					DocId:          docId,
+					Content:        TEST_CONTENT,
+					ContentFlags:   TEST_CONTENT_FLAGS,
+					expiry:         expiryCheckType_Within,
+					expiryBounds: expiryCheckTypeWithinBounds{
+						MaxSecs: int((24 * time.Hour).Seconds()) + 1,
+						MinSecs: int((23 * time.Hour).Seconds()),
+					},
+				})
+			}
+
+			// Existing Doc should keep existing expiry
+			{
+				resp, err := kvClient.Upsert(context.Background(), &kv_v1.UpsertRequest{
+					BucketName:     s.bucketName,
+					ScopeName:      s.scopeName,
+					CollectionName: s.collectionName,
+					Key:            docId,
+					Content: &kv_v1.UpsertRequest_ContentUncompressed{
+						ContentUncompressed: TEST_CONTENT,
+					},
+					ContentFlags:             TEST_CONTENT_FLAGS,
+					Expiry:                   &kv_v1.UpsertRequest_ExpirySecs{ExpirySecs: uint32((48 * time.Hour).Seconds())},
+					PreserveExpiryOnExisting: &preserveExpiryOnExisting,
+				}, grpc.PerRPCCredentials(s.basicRpcCreds))
+				requireRpcSuccess(s.T(), resp, err)
+				assertValidCas(s.T(), resp.Cas)
+				assertValidMutationToken(s.T(), resp.MutationToken, s.bucketName)
+
+				s.checkDocument(s.T(), checkDocumentOptions{
+					BucketName:     s.bucketName,
+					ScopeName:      s.scopeName,
+					CollectionName: s.collectionName,
+					DocId:          docId,
+					Content:        TEST_CONTENT,
+					ContentFlags:   TEST_CONTENT_FLAGS,
+					expiry:         expiryCheckType_Within,
+					expiryBounds: expiryCheckTypeWithinBounds{
+						MaxSecs: int((24 * time.Hour).Seconds()) + 1,
+						MinSecs: int((23 * time.Hour).Seconds()),
+					},
+				})
+			}
+		})
+
+		s.Run("NilWithPreserve", func() {
+			preserveExpiryOnExisting := true
+			_, err := kvClient.Upsert(context.Background(), &kv_v1.UpsertRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            s.randomDocId(),
+				Content: &kv_v1.UpsertRequest_ContentUncompressed{
+					ContentUncompressed: TEST_CONTENT,
+				},
+				ContentFlags:             TEST_CONTENT_FLAGS,
+				Expiry:                   nil,
+				PreserveExpiryOnExisting: &preserveExpiryOnExisting,
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			assertRpcStatus(s.T(), err, codes.InvalidArgument)
+		})
+
+		s.Run("ZeroWithPreserve", func() {
+			preserveExpiryOnExisting := true
+			_, err := kvClient.Upsert(context.Background(), &kv_v1.UpsertRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            s.randomDocId(),
+				Content: &kv_v1.UpsertRequest_ContentUncompressed{
+					ContentUncompressed: TEST_CONTENT,
+				},
+				ContentFlags:             TEST_CONTENT_FLAGS,
+				Expiry:                   &kv_v1.UpsertRequest_ExpirySecs{ExpirySecs: 0},
+				PreserveExpiryOnExisting: &preserveExpiryOnExisting,
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			assertRpcStatus(s.T(), err, codes.InvalidArgument)
+		})
 	})
 
 	s.Run("ValueTooLarge", func() {
