@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 )
 
 func (s *GatewayOpsTestSuite) TestBucketManagement() {
@@ -107,5 +108,16 @@ func (s *GatewayOpsTestSuite) TestBucketManagement() {
 			BucketName: name,
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
 		requireRpcSuccess(s.T(), deleteResp, err)
+	})
+
+	s.Run("CreateWithLessThan100MiBRAM", func() {
+		ramQuota := uint64(99)
+		name := uuid.NewString()[:6]
+		_, err := adminClient.CreateBucket(context.Background(), &admin_bucket_v1.CreateBucketRequest{
+			BucketName: name,
+			BucketType: admin_bucket_v1.BucketType_BUCKET_TYPE_COUCHBASE,
+			RamQuotaMb: &ramQuota,
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		assertRpcStatus(s.T(), err, codes.InvalidArgument)
 	})
 }
