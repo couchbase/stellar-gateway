@@ -1283,6 +1283,8 @@ func (s *KvServer) MutateIn(ctx context.Context, in *kv_v1.MutateInRequest) (*kv
 			return nil, s.errorHandler.NewValueTooLargeStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key, true).Err()
 		} else if errors.Is(err, memdx.ErrSubDocInvalidCombo) {
 			return nil, s.errorHandler.NewSdBadCombo(err).Err()
+		} else if errors.Is(err, memdx.ErrDocExists) {
+			return nil, s.errorHandler.NewDocExistsStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
 		} else {
 			var subdocErr *memdx.SubDocError
 			if errors.As(err, &subdocErr) {
