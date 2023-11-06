@@ -594,3 +594,16 @@ func (e ErrorHandler) NewKeyTooLongStatus(key string) *status.Status {
 	st := status.New(codes.InvalidArgument, fmt.Sprintf("Document key '%s' is too long", key))
 	return st
 }
+
+func (e ErrorHandler) NewSyncWriteInProgressStatus(baseErr error, bucketName, scopeName, collectionName, docId string) *status.Status {
+	st := status.New(codes.Aborted,
+		fmt.Sprintf("Document '%s' in '%s/%s/%s' is being concurrently written.",
+			docId, bucketName, scopeName, collectionName))
+	st = e.tryAttachStatusDetails(st, &epb.ResourceInfo{
+		ResourceType: "document",
+		ResourceName: fmt.Sprintf("%s/%s/%s/%s", bucketName, scopeName, collectionName, docId),
+		Description:  "",
+	})
+	st = e.tryAttachExtraContext(st, baseErr)
+	return st
+}
