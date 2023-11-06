@@ -298,6 +298,7 @@ func (g *Gateway) Run(ctx context.Context) error {
 					return g.atomicTlsCert.Load(), nil
 				},
 			},
+			Debug: config.Debug,
 		})
 		if err != nil {
 			config.Logger.Error("error creating legacy proxy")

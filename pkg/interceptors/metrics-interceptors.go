@@ -17,13 +17,16 @@ func NewMetricsInterceptor(metrics *metrics.SnMetrics) *MetricsInterceptor {
 	}
 }
 
-func (mi *MetricsInterceptor) UnaryConnectionCounterInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (response interface{}, err error) {
-	mi.metrics.NewConnections.Add(1)
-	mi.metrics.ActiveConnections.Inc()
+func (mi *MetricsInterceptor) UnaryInterceptor() grpc.UnaryServerInterceptor {
+	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (response interface{}, err error) {
+		mi.metrics.NewConnections.Add(1)
+		mi.metrics.ActiveConnections.Inc()
 
-	resp, err := handler(ctx, req)
+		resp, err := handler(ctx, req)
 
-	mi.metrics.ActiveConnections.Dec()
+		mi.metrics.ActiveConnections.Dec()
 
-	return resp, err
+		return resp, err
+	}
 }
+
