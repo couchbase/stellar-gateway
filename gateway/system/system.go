@@ -44,6 +44,7 @@ type SystemOptions struct {
 	Metrics  *metrics.SnMetrics
 
 	TlsConfig *tls.Config
+	Debug     bool
 }
 
 type System struct {
@@ -58,27 +59,35 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 	sdImpl := opts.SdImpl
 
 	hooksManager := hooks.NewHooksManager(opts.Logger.Named("hooks-manager"))
+	debugInterceptor := interceptors.NewDebugInterceptor(opts.Logger.Named("grpc-debug"))
 	metricsInterceptor := interceptors.NewMetricsInterceptor(opts.Metrics)
 
-	customPanicHandlerFunc := func(p any) (err error) {
+	recoveryHandler := func(p any) (err error) {
 		opts.Logger.Error("a panic has been triggered", zap.Any("error: ", p))
 		return status.Errorf(codes.Internal, "An internal error occurred.")
 	}
 
-	panicRecoveryOpts := []recovery.Option{
-		recovery.WithRecoveryHandler(customPanicHandlerFunc),
+	var unaryInterceptors []grpc.UnaryServerInterceptor
+	unaryInterceptors = append(unaryInterceptors, otelgrpc.UnaryServerInterceptor())
+	unaryInterceptors = append(unaryInterceptors, metricsInterceptor.UnaryInterceptor())
+	if opts.Debug {
+		unaryInterceptors = append(unaryInterceptors, debugInterceptor.UnaryInterceptor())
+	}
+	unaryInterceptors = append(unaryInterceptors, hooksManager.UnaryInterceptor())
+	unaryInterceptors = append(unaryInterceptors, recovery.UnaryServerInterceptor(
+		recovery.WithRecoveryHandler(recoveryHandler),
+	))
+
+	var streamInterceptors []grpc.StreamServerInterceptor
+	streamInterceptors = append(streamInterceptors, otelgrpc.StreamServerInterceptor())
+	if opts.Debug {
+		streamInterceptors = append(streamInterceptors, debugInterceptor.StreamInterceptor())
 	}
 
 	// TODO(abose): Same serverOpts passed; need to break into two, if needed.
 	serverOpts := []grpc.ServerOption{
-		grpc.ChainUnaryInterceptor(
-			otelgrpc.UnaryServerInterceptor(),
-			hooksManager.UnaryInterceptor(),
-			metricsInterceptor.UnaryConnectionCounterInterceptor,
-			recovery.UnaryServerInterceptor(panicRecoveryOpts...)),
-		grpc.ChainStreamInterceptor(
-			otelgrpc.StreamServerInterceptor(),
-		),
+		grpc.ChainUnaryInterceptor(unaryInterceptors...),
+		grpc.ChainStreamInterceptor(streamInterceptors...),
 		grpc.Creds(credentials.NewTLS(opts.TlsConfig)),
 		grpc.MaxRecvMsgSize(maxMsgSize),
 	}
