@@ -84,6 +84,9 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 	if opts.Debug {
 		streamInterceptors = append(streamInterceptors, debugInterceptor.StreamInterceptor())
 	}
+	streamInterceptors = append(streamInterceptors, recovery.StreamServerInterceptor(
+		recovery.WithRecoveryHandler(recoveryHandler),
+	))
 
 	// TODO(abose): Same serverOpts passed; need to break into two, if needed.
 	serverOpts := []grpc.ServerOption{
