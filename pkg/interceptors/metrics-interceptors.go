@@ -30,3 +30,15 @@ func (mi *MetricsInterceptor) UnaryInterceptor() grpc.UnaryServerInterceptor {
 	}
 }
 
+func (mi *MetricsInterceptor) StreamInterceptor() grpc.StreamServerInterceptor {
+	return func(srv any, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+		mi.metrics.NewConnections.Add(1)
+		mi.metrics.ActiveConnections.Inc()
+
+		err := handler(srv, ss)
+
+		mi.metrics.ActiveConnections.Dec()
+
+		return err
+	}
+}

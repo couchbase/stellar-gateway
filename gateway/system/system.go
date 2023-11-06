@@ -80,6 +80,7 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 
 	var streamInterceptors []grpc.StreamServerInterceptor
 	streamInterceptors = append(streamInterceptors, otelgrpc.StreamServerInterceptor())
+	streamInterceptors = append(streamInterceptors, metricsInterceptor.StreamInterceptor())
 	if opts.Debug {
 		streamInterceptors = append(streamInterceptors, debugInterceptor.StreamInterceptor())
 	}
