@@ -1,6 +1,7 @@
 package gocbps
 
 import (
+	"crypto/tls"
 	"crypto/x509"
 	"strings"
 
@@ -12,7 +13,6 @@ import (
 	"github.com/couchbase/goprotostellar/genproto/view_v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
 type Client struct {
@@ -44,10 +44,14 @@ func Connect(connStr string, opts *ConnectOptions) (*Client, error) {
 			return nil, err
 		}
 
-		transportDialOpt = grpc.WithTransportCredentials(insecure.NewCredentials())
+		transportDialOpt = grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{
+			InsecureSkipVerify: true,
+		}))
 		perRpcDialOpt = grpc.WithPerRPCCredentials(basicAuthCreds)
 	} else {
-		transportDialOpt = grpc.WithTransportCredentials(insecure.NewCredentials())
+		transportDialOpt = grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{
+			InsecureSkipVerify: true,
+		}))
 		perRpcDialOpt = nil
 	}
 

@@ -26,7 +26,10 @@ func main() {
 
 	log.Printf("protostellar test-app starting...")
 
-	client, err := gocbps.Connect(*addr, &gocbps.ConnectOptions{})
+	client, err := gocbps.Connect(*addr, &gocbps.ConnectOptions{
+		Username: "Administrator",
+		Password: "password",
+	})
 	if err != nil {
 		log.Fatalf("failed to connect: %v", err)
 	}
