@@ -3554,6 +3554,28 @@ func (s *GatewayOpsTestSuite) TestMutateIn() {
 		})
 	})
 
+	s.Run("DocExistsWithInsert", func() {
+		ss := kv_v1.MutateInRequest_STORE_SEMANTIC_INSERT
+		_, err := kvClient.MutateIn(context.Background(), &kv_v1.MutateInRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            s.testDocId(),
+			StoreSemantic:  &ss,
+			Specs: []*kv_v1.MutateInRequest_Spec{
+				{
+					Operation: kv_v1.MutateInRequest_Spec_OPERATION_INSERT,
+					Path:      "new_path",
+					Content:   []byte(`"new_content"`),
+				},
+			},
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		assertRpcStatus(s.T(), err, codes.AlreadyExists)
+		assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
+			assert.Equal(s.T(), d.ResourceType, "document")
+		})
+	})
+
 	s.RunCommonErrorCases(func(opts *commonErrorTestData) (interface{}, error) {
 		return kvClient.MutateIn(context.Background(), &kv_v1.MutateInRequest{
 			BucketName:      opts.BucketName,
