@@ -19,12 +19,12 @@ func NewMetricsInterceptor(metrics *metrics.SnMetrics) *MetricsInterceptor {
 
 func (mi *MetricsInterceptor) UnaryInterceptor() grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (response interface{}, err error) {
-		mi.metrics.NewConnections.Add(1)
-		mi.metrics.ActiveConnections.Inc()
+		mi.metrics.NewConnections.Add(ctx, 1)
+		mi.metrics.ActiveConnections.Add(ctx, 1)
 
 		resp, err := handler(ctx, req)
 
-		mi.metrics.ActiveConnections.Dec()
+		mi.metrics.ActiveConnections.Add(ctx, -1)
 
 		return resp, err
 	}
@@ -32,12 +32,12 @@ func (mi *MetricsInterceptor) UnaryInterceptor() grpc.UnaryServerInterceptor {
 
 func (mi *MetricsInterceptor) StreamInterceptor() grpc.StreamServerInterceptor {
 	return func(srv any, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
-		mi.metrics.NewConnections.Add(1)
-		mi.metrics.ActiveConnections.Inc()
+		mi.metrics.NewConnections.Add(ss.Context(), 1)
+		mi.metrics.ActiveConnections.Add(ss.Context(), 1)
 
 		err := handler(srv, ss)
 
-		mi.metrics.ActiveConnections.Dec()
+		mi.metrics.ActiveConnections.Add(ss.Context(), -1)
 
 		return err
 	}
