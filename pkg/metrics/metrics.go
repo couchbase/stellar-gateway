@@ -3,13 +3,14 @@ package metrics
 import (
 	"sync"
 
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promauto"
+	"github.com/couchbase/stellar-gateway/pkg/version"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/metric"
 )
 
 type SnMetrics struct {
-	NewConnections    prometheus.Counter
-	ActiveConnections prometheus.Gauge
+	NewConnections    metric.Float64Counter
+	ActiveConnections metric.Float64UpDownCounter
 }
 
 var (
@@ -32,16 +33,15 @@ func GetSnMetrics() *SnMetrics {
 }
 
 func newSnMetrics() *SnMetrics {
+	meter := otel.Meter(
+		"com.couchbase.cloud-native-gateway",
+		metric.WithInstrumentationVersion(version.WithRevision()))
+
+	newConnections, _ := meter.Float64Counter("grpc_connections_total")
+	activeConnections, _ := meter.Float64UpDownCounter("grpc_connections")
+
 	return &SnMetrics{
-		NewConnections: promauto.NewCounter(prometheus.CounterOpts{
-			Namespace: "sn",
-			Name:      "grpc_new_connections",
-			Help:      "The number of new gRPC connections that have been accepted.",
-		}),
-		ActiveConnections: promauto.NewGauge(prometheus.GaugeOpts{
-			Namespace: "sn",
-			Name:      "grpc_active_connections",
-			Help:      "The number of active grpc connections.",
-		}),
+		NewConnections:    newConnections,
+		ActiveConnections: activeConnections,
 	}
 }

@@ -22,8 +22,8 @@ import (
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+	"go.opentelemetry.io/otel/exporters/prometheus"
 	"go.opentelemetry.io/otel/metric"
-	noopmetric "go.opentelemetry.io/otel/metric/noop"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
@@ -85,12 +85,6 @@ func initTelemetry(
 	metric.MeterProvider,
 	error,
 ) {
-	if otlpEndpoint == "" {
-		traceProvider := trace.NewNoopTracerProvider()
-		meterProvider := noopmetric.NewMeterProvider()
-		return traceProvider, meterProvider, nil
-	}
-
 	res, err := resource.New(ctx,
 		resource.WithFromEnv(),
 		resource.WithProcess(),
@@ -103,6 +97,20 @@ func initTelemetry(
 	)
 	if err != nil {
 		return nil, nil, err
+	}
+
+	promExp, err := prometheus.New()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if otlpEndpoint == "" {
+		meterProvider := sdkmetric.NewMeterProvider(
+			sdkmetric.WithResource(res),
+			sdkmetric.WithReader(promExp),
+		)
+
+		return nil, meterProvider, nil
 	}
 
 	metricExp, err := otlpmetricgrpc.New(
@@ -121,6 +129,7 @@ func initTelemetry(
 				sdkmetric.WithInterval(2*time.Second),
 			),
 		),
+		sdkmetric.WithReader(promExp),
 	)
 
 	traceClient := otlptracegrpc.NewClient(
@@ -228,14 +237,16 @@ func startGateway() {
 	}
 
 	// setup tracing
-	if otlpEndpoint != "" {
-		otlpTracerProvider, otlpMeterProvider, err := initTelemetry(context.Background(), otlpEndpoint)
-		if err != nil {
-			logger.Error("failed to initialize opentelemetry tracing", zap.Error(err))
-			os.Exit(1)
-		}
+	otlpTracerProvider, otlpMeterProvider, err := initTelemetry(context.Background(), otlpEndpoint)
+	if err != nil {
+		logger.Error("failed to initialize opentelemetry tracing", zap.Error(err))
+		os.Exit(1)
+	}
 
+	if otlpTracerProvider != nil {
 		otel.SetTracerProvider(otlpTracerProvider)
+	}
+	if otlpMeterProvider != nil {
 		otel.SetMeterProvider(otlpMeterProvider)
 	}
 
