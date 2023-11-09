@@ -3576,6 +3576,57 @@ func (s *GatewayOpsTestSuite) TestMutateIn() {
 		})
 	})
 
+	s.Run("XattrInsert", func() {
+		semantic := kv_v1.MutateInRequest_STORE_SEMANTIC_INSERT
+		docId := s.randomDocId()
+		trueBool := true
+		flags := kv_v1.MutateInRequest_Spec_Flags{Xattr: &trueBool}
+		resp, err := kvClient.MutateIn(context.Background(), &kv_v1.MutateInRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            docId,
+			Specs: []*kv_v1.MutateInRequest_Spec{
+				{
+					Operation: kv_v1.MutateInRequest_Spec_OPERATION_INSERT,
+					Path:      "testXattr",
+					Content:   []byte(`2`),
+					Flags:     &flags,
+				},
+			},
+			StoreSemantic: &semantic,
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		requireRpcSuccess(s.T(), resp, err)
+
+		s.checkDocument(s.T(), checkDocumentOptions{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			DocId:          docId,
+			Content:        []byte("{}"),
+		})
+
+		lResp, err := kvClient.LookupIn(context.Background(), &kv_v1.LookupInRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            docId,
+			Specs: []*kv_v1.LookupInRequest_Spec{
+				{
+					Operation: kv_v1.LookupInRequest_Spec_OPERATION_GET,
+					Path:      "testXattr",
+					Flags: &kv_v1.LookupInRequest_Spec_Flags{
+						Xattr: &trueBool,
+					},
+				},
+			},
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		requireRpcSuccess(s.T(), lResp, err)
+		assert.Len(s.T(), lResp.Specs, 1)
+		assert.Nil(s.T(), lResp.Specs[0].Status)
+		assert.Equal(s.T(), []byte(`2`), lResp.Specs[0].Content)
+	})
+
 	s.RunCommonErrorCases(func(opts *commonErrorTestData) (interface{}, error) {
 		return kvClient.MutateIn(context.Background(), &kv_v1.MutateInRequest{
 			BucketName:      opts.BucketName,
