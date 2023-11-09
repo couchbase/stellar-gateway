@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"runtime/pprof"
 	"syscall"
 	"time"
 
@@ -68,6 +69,7 @@ func init() {
 	configFlags.String("cacert", "", "path to root CA cert")
 	configFlags.String("otlp-endpoint", "", "opentelemetry endpoint to send telemetry to")
 	configFlags.Bool("debug", false, "enable debug mode")
+	configFlags.String("cpuprofile", "", "write cpu profile to a file")
 	rootCmd.Flags().AddFlagSet(configFlags)
 
 	_ = viper.BindPFlags(configFlags)
@@ -181,6 +183,7 @@ func startGateway() {
 	caCertPath := viper.GetString("cacert")
 	otlpEndpoint := viper.GetString("otlp-endpoint")
 	debug := viper.GetBool("debug")
+	cpuprofile := viper.GetString("cpuprofile")
 
 	logger.Info("parsed gateway configuration",
 		zap.String("logLevelStr", logLevelStr),
@@ -197,6 +200,7 @@ func startGateway() {
 		zap.String("cacertPath", caCertPath),
 		zap.String("otlpEndpoint", otlpEndpoint),
 		zap.Bool("debug", debug),
+		zap.String("cpuprofile", cpuprofile),
 	)
 
 	parsedLogLevel, err := zapcore.ParseLevel(logLevelStr)
@@ -205,6 +209,23 @@ func startGateway() {
 		parsedLogLevel = zapcore.InfoLevel
 	}
 	logLevel.SetLevel(parsedLogLevel)
+
+	// setup profiling
+	if cpuprofile != "" {
+		f, err := os.Create(cpuprofile)
+		if err != nil {
+			logger.Error("failed to create cpu profile file", zap.Error(err))
+			os.Exit(1)
+		}
+
+		err = pprof.StartCPUProfile(f)
+		if err != nil {
+			logger.Error("failed to start cpu profiling", zap.Error(err))
+			os.Exit(1)
+		}
+
+		defer pprof.StopCPUProfile()
+	}
 
 	// setup tracing
 	if otlpEndpoint != "" {
