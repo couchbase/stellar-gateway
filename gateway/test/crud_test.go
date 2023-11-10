@@ -124,6 +124,19 @@ func (s *GatewayOpsTestSuite) RunCommonErrorCases(
 		})
 		assertRpcStatus(s.T(), err, codes.InvalidArgument)
 	})
+
+	s.Run("DocKeyTooShort", func() {
+		_, err := fn(&commonErrorTestData{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			CallOptions: []grpc.CallOption{
+				grpc.PerRPCCredentials(s.basicRpcCreds),
+			},
+			Key: s.docIdOfLen(0),
+		})
+		assertRpcStatus(s.T(), err, codes.InvalidArgument)
+	})
 }
 
 func (s *GatewayOpsTestSuite) TestGet() {
@@ -211,6 +224,16 @@ func (s *GatewayOpsTestSuite) TestGet() {
 			ScopeName:      s.scopeName,
 			CollectionName: s.collectionName,
 			Key:            s.docIdOfLen(250),
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		assertRpcStatus(s.T(), err, codes.NotFound)
+	})
+
+	s.Run("DocKeyMinLen", func() {
+		_, err := kvClient.Get(context.Background(), &kv_v1.GetRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            s.docIdOfLen(1),
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
 		assertRpcStatus(s.T(), err, codes.NotFound)
 	})
@@ -971,6 +994,24 @@ func (s *GatewayOpsTestSuite) TestReplace() {
 		})
 	})
 
+	s.Run("ZeroCas", func() {
+		docId := s.randomDocId()
+		docCas := uint64(0)
+
+		_, err := kvClient.Replace(context.Background(), &kv_v1.ReplaceRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            docId,
+			Content: &kv_v1.ReplaceRequest_ContentUncompressed{
+				ContentUncompressed: newContent,
+			},
+			ContentFlags: TEST_CONTENT_FLAGS,
+			Cas:          &docCas,
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		assertRpcStatus(s.T(), err, codes.InvalidArgument)
+	})
+
 	s.Run("DocMissing", func() {
 		_, err := kvClient.Replace(context.Background(), &kv_v1.ReplaceRequest{
 			BucketName:     s.bucketName,
@@ -1187,6 +1228,20 @@ func (s *GatewayOpsTestSuite) TestRemove() {
 		assertRpcErrorDetails(s.T(), err, func(d *epb.ErrorInfo) {
 			assert.Equal(s.T(), d.Reason, "CAS_MISMATCH")
 		})
+	})
+
+	s.Run("ZeroCas", func() {
+		docId := s.randomDocId()
+		docCas := uint64(0)
+
+		_, err := kvClient.Remove(context.Background(), &kv_v1.RemoveRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            docId,
+			Cas:            &docCas,
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		assertRpcStatus(s.T(), err, codes.InvalidArgument)
 	})
 
 	s.Run("DocMissing", func() {
@@ -1650,6 +1705,27 @@ func (s *GatewayOpsTestSuite) TestUnlock() {
 		assertRpcErrorDetails(s.T(), err, func(d *epb.ErrorInfo) {
 			assert.Equal(s.T(), d.Reason, "CAS_MISMATCH")
 		})
+	})
+
+	s.Run("ZeroCas", func() {
+		galDocId := s.testDocId()
+		galResp, err := kvClient.GetAndLock(context.Background(), &kv_v1.GetAndLockRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            galDocId,
+			LockTime:       30,
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		requireRpcSuccess(s.T(), galResp, err)
+
+		_, err = kvClient.Unlock(context.Background(), &kv_v1.UnlockRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            galDocId,
+			Cas:            0,
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		assertRpcStatus(s.T(), err, codes.InvalidArgument)
 	})
 
 	s.Run("DocMissing", func() {
@@ -2204,6 +2280,21 @@ func (s *GatewayOpsTestSuite) TestAppend() {
 		})
 	})
 
+	s.Run("ZeroCas", func() {
+		docId := s.randomDocId()
+		docCas := uint64(0)
+
+		_, err := kvClient.Append(context.Background(), &kv_v1.AppendRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            docId,
+			Content:        []byte("world"),
+			Cas:            &docCas,
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		assertRpcStatus(s.T(), err, codes.InvalidArgument)
+	})
+
 	s.Run("DocMissing", func() {
 		_, err := kvClient.Append(context.Background(), &kv_v1.AppendRequest{
 			BucketName:     s.bucketName,
@@ -2318,6 +2409,21 @@ func (s *GatewayOpsTestSuite) TestPrepend() {
 		assertRpcErrorDetails(s.T(), err, func(d *epb.ErrorInfo) {
 			assert.Equal(s.T(), d.Reason, "CAS_MISMATCH")
 		})
+	})
+
+	s.Run("ZeroCas", func() {
+		docId := s.randomDocId()
+		docCas := uint64(0)
+
+		_, err := kvClient.Prepend(context.Background(), &kv_v1.PrependRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            docId,
+			Content:        []byte("world"),
+			Cas:            &docCas,
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		assertRpcStatus(s.T(), err, codes.InvalidArgument)
 	})
 
 	s.Run("DocMissing", func() {
@@ -3017,6 +3123,27 @@ func (s *GatewayOpsTestSuite) TestMutateIn() {
 			},
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
 		assertRpcStatus(s.T(), err, codes.OK)
+	})
+
+	s.Run("ZeroCas", func() {
+		docId := s.randomDocId()
+		docCas := uint64(0)
+
+		_, err := kvClient.MutateIn(context.Background(), &kv_v1.MutateInRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            docId,
+			Cas:            &docCas,
+			Specs: []*kv_v1.MutateInRequest_Spec{
+				{
+					Operation: kv_v1.MutateInRequest_Spec_OPERATION_UPSERT,
+					Path:      "a",
+					Content:   []byte(`2`),
+				},
+			},
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		assertRpcStatus(s.T(), err, codes.InvalidArgument)
 	})
 
 	s.Run("NoSpecs", func() {

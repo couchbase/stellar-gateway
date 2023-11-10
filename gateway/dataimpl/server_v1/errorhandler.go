@@ -309,6 +309,11 @@ func (e ErrorHandler) NewDocCasMismatchStatus(baseErr error, bucketName, scopeNa
 	return st
 }
 
+func (e ErrorHandler) NewZeroCasStatus() *status.Status {
+	st := status.New(codes.InvalidArgument, "CAS value cannot be zero.")
+	return st
+}
+
 func (e ErrorHandler) NewDocLockedStatus(baseErr error, bucketName, scopeName, collectionName, docId string) *status.Status {
 	st := status.New(codes.FailedPrecondition,
 		fmt.Sprintf("Cannot perform a write operation against locked document '%s' in '%s/%s/%s'.",
@@ -590,7 +595,9 @@ func (e ErrorHandler) NewGenericStatus(err error) *status.Status {
 	return e.NewUnknownStatus(err)
 }
 
-func (e ErrorHandler) NewKeyTooLongStatus(key string) *status.Status {
-	st := status.New(codes.InvalidArgument, fmt.Sprintf("Document key '%s' is too long", key))
+func (e ErrorHandler) NewInvalidKeyLengthStatus(key string) *status.Status {
+	st := status.New(
+		codes.InvalidArgument,
+		fmt.Sprintf("Length of document key '%s' must be between 1 and 251 characters.", key))
 	return st
 }
