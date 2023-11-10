@@ -103,3 +103,16 @@ func assertValidMutationToken(t *testing.T, token *kv_v1.MutationToken, bucketNa
 func requireValidTimestamp(t *testing.T, ts *timestamppb.Timestamp) {
 	require.NotNil(t, ts)
 }
+
+func assertRpcMessageContains(t *testing.T, err error, msg string) {
+	if err == nil {
+		t.Fatalf("expected rpc error status but got nil")
+	}
+
+	errSt, ok := status.FromError(err)
+	if !ok {
+		t.Fatalf("expected rpc error status, but got non-status error")
+	}
+
+	assert.True(t, strings.Contains(errSt.Message(), msg))
+}

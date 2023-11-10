@@ -363,6 +363,11 @@ func (s *KvServer) Unlock(ctx context.Context, in *kv_v1.UnlockRequest) (*kv_v1.
 		return nil, errSt.Err()
 	}
 
+	errSt = s.checkCAS(&in.Cas)
+	if errSt != nil {
+		return nil, errSt.Err()
+	}
+
 	var opts gocbcorex.UnlockOptions
 	opts.OnBehalfOf = oboUser
 	opts.ScopeName = in.ScopeName
@@ -645,6 +650,11 @@ func (s *KvServer) Replace(ctx context.Context, in *kv_v1.ReplaceRequest) (*kv_v
 		return nil, errSt.Err()
 	}
 
+	errSt = s.checkCAS(in.Cas)
+	if errSt != nil {
+		return nil, errSt.Err()
+	}
+
 	var opts gocbcorex.ReplaceOptions
 	opts.OnBehalfOf = oboUser
 	opts.ScopeName = in.ScopeName
@@ -719,6 +729,11 @@ func (s *KvServer) Remove(ctx context.Context, in *kv_v1.RemoveRequest) (*kv_v1.
 	}
 
 	errSt = s.checkKey(in.Key)
+	if errSt != nil {
+		return nil, errSt.Err()
+	}
+
+	errSt = s.checkCAS(in.Cas)
 	if errSt != nil {
 		return nil, errSt.Err()
 	}
@@ -908,6 +923,11 @@ func (s *KvServer) Append(ctx context.Context, in *kv_v1.AppendRequest) (*kv_v1.
 		return nil, errSt.Err()
 	}
 
+	errSt = s.checkCAS(in.Cas)
+	if errSt != nil {
+		return nil, errSt.Err()
+	}
+
 	var opts gocbcorex.AppendOptions
 	opts.OnBehalfOf = oboUser
 	opts.ScopeName = in.ScopeName
@@ -960,6 +980,11 @@ func (s *KvServer) Prepend(ctx context.Context, in *kv_v1.PrependRequest) (*kv_v
 	}
 
 	errSt = s.checkKey(in.Key)
+	if errSt != nil {
+		return nil, errSt.Err()
+	}
+
+	errSt = s.checkCAS(in.Cas)
 	if errSt != nil {
 		return nil, errSt.Err()
 	}
@@ -1139,6 +1164,11 @@ func (s *KvServer) MutateIn(ctx context.Context, in *kv_v1.MutateInRequest) (*kv
 	}
 
 	errSt = s.checkKey(in.Key)
+	if errSt != nil {
+		return nil, errSt.Err()
+	}
+
+	errSt = s.checkCAS(in.Cas)
 	if errSt != nil {
 		return nil, errSt.Err()
 	}
@@ -1508,8 +1538,16 @@ func (s *KvServer) GetAllReplicas(in *kv_v1.GetAllReplicasRequest, out kv_v1.KvS
 }
 
 func (s *KvServer) checkKey(key string) *status.Status {
-	if len(key) > 250 {
-		return s.errorHandler.NewKeyTooLongStatus(key)
+	if len(key) > 250 || len(key) < 1 {
+		return s.errorHandler.NewInvalidKeyLengthStatus(key)
+	}
+
+	return nil
+}
+
+func (s *KvServer) checkCAS(cas *uint64) *status.Status {
+	if cas != nil && *cas == 0 {
+		return s.errorHandler.NewZeroCasStatus()
 	}
 
 	return nil
