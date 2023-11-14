@@ -424,10 +424,10 @@ func (s *GatewayOpsTestSuite) TestQueryManagementBuildDeferredBuildsAllInBucket(
 	defaultCollection := "_default"
 
 	deleteScope1 := s.CreateScope(s.bucketName, scope1)
-	defer deleteScope1()
+	s.T().Cleanup(deleteScope1)
 
 	deleteScope2 := s.CreateScope(s.bucketName, scope2)
-	defer deleteScope2()
+	s.T().Cleanup(deleteScope2)
 
 	s.CreateCollection(s.bucketName, scope1, collection)
 	s.CreateCollection(s.bucketName, scope2, collection)
@@ -497,10 +497,10 @@ func (s *GatewayOpsTestSuite) TestQueryManagementBuildDeferredBuildsSpecificColl
 	defaultCollection := "_default"
 
 	deleteScope1 := s.CreateScope(s.bucketName, scope1)
-	defer deleteScope1()
+	s.T().Cleanup(deleteScope1)
 
 	deleteScope2 := s.CreateScope(s.bucketName, scope2)
-	defer deleteScope2()
+	s.T().Cleanup(deleteScope2)
 
 	s.CreateCollection(s.bucketName, scope1, collection)
 	s.CreateCollection(s.bucketName, scope2, collection)
