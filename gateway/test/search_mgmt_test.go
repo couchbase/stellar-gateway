@@ -131,13 +131,13 @@ func (s *GatewayOpsTestSuite) TestIndexesIngestControl() {
 		SourceName: &s.bucketName,
 	}, grpc.PerRPCCredentials(s.basicRpcCreds))
 	requireRpcSuccess(s.T(), resp, err)
-	defer func() {
+	s.T().Cleanup(func() {
 		_, _ = searchAdminClient.DeleteIndex(ctx, &admin_search_v1.DeleteIndexRequest{
 			Name:       indexName,
 			BucketName: bucket,
 			ScopeName:  scope,
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
-	}()
+	})
 
 	pauseResp, err := searchAdminClient.PauseIndexIngest(ctx, &admin_search_v1.PauseIndexIngestRequest{
 		Name:       indexName,
@@ -184,13 +184,13 @@ func (s *GatewayOpsTestSuite) TestIndexesQueryControl() {
 		SourceName: &s.bucketName,
 	}, grpc.PerRPCCredentials(s.basicRpcCreds))
 	requireRpcSuccess(s.T(), resp, err)
-	defer func() {
+	s.T().Cleanup(func() {
 		_, _ = searchAdminClient.DeleteIndex(ctx, &admin_search_v1.DeleteIndexRequest{
 			Name:       indexName,
 			BucketName: bucket,
 			ScopeName:  scope,
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
-	}()
+	})
 
 	disallowResp, err := searchAdminClient.DisallowIndexQuerying(ctx, &admin_search_v1.DisallowIndexQueryingRequest{
 		Name:       indexName,
@@ -237,13 +237,13 @@ func (s *GatewayOpsTestSuite) TestIndexesPartitionControl() {
 		SourceName: &s.bucketName,
 	}, grpc.PerRPCCredentials(s.basicRpcCreds))
 	requireRpcSuccess(s.T(), resp, err)
-	defer func() {
+	s.T().Cleanup(func() {
 		_, _ = searchAdminClient.DeleteIndex(ctx, &admin_search_v1.DeleteIndexRequest{
 			Name:       indexName,
 			BucketName: bucket,
 			ScopeName:  scope,
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
-	}()
+	})
 
 	freezeResp, err := searchAdminClient.FreezeIndexPlan(ctx, &admin_search_v1.FreezeIndexPlanRequest{
 		Name:       indexName,
