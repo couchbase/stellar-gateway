@@ -79,6 +79,7 @@ func init() {
 
 func initTelemetry(
 	ctx context.Context,
+	logger *zap.Logger,
 	otlpEndpoint string,
 ) (
 	trace.TracerProvider,
@@ -96,7 +97,11 @@ func initTelemetry(
 		),
 	)
 	if err != nil {
-		return nil, nil, err
+		if res == nil {
+			return nil, nil, err
+		}
+
+		logger.Warn("failed to setup some part of opentelemetry resource", zap.Error(err))
 	}
 
 	promExp, err := prometheus.New()
@@ -237,7 +242,8 @@ func startGateway() {
 	}
 
 	// setup tracing
-	otlpTracerProvider, otlpMeterProvider, err := initTelemetry(context.Background(), otlpEndpoint)
+	otlpTracerProvider, otlpMeterProvider, err :=
+		initTelemetry(context.Background(), logger, otlpEndpoint)
 	if err != nil {
 		logger.Error("failed to initialize opentelemetry tracing", zap.Error(err))
 		os.Exit(1)
