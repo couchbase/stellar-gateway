@@ -53,6 +53,10 @@ func (e ErrorHandler) tryAttachStatusDetails(st *status.Status, details ...proto
 }
 
 func (e ErrorHandler) tryAttachExtraContext(st *status.Status, baseErr error) *status.Status {
+	if baseErr == nil {
+		return st
+	}
+
 	var memdSrvErr *memdx.ServerErrorWithContext
 	if errors.As(baseErr, &memdSrvErr) {
 		parsedCtx := memdSrvErr.ParseContext()
@@ -251,6 +255,21 @@ func (e ErrorHandler) NewQueryIndexExistsStatus(baseErr error, indexName string)
 		ResourceType: "queryindex",
 		ResourceName: indexName,
 		Description:  "",
+	})
+	st = e.tryAttachExtraContext(st, baseErr)
+	return st
+}
+
+func (e ErrorHandler) NewQueryIndexNotBuildingStatus(baseErr error, bucketName, scopeName, collectionName, indexName string) *status.Status {
+	st := status.New(codes.FailedPrecondition,
+		fmt.Sprintf("Cannot wait for index '%s' in '%s/%s/%s' to be ready as it is still deferred.",
+			indexName, bucketName, scopeName, collectionName))
+	st = e.tryAttachStatusDetails(st, &epb.PreconditionFailure{
+		Violations: []*epb.PreconditionFailure_Violation{{
+			Type:        "NOT_BUILDING",
+			Subject:     fmt.Sprintf("%s/%s/%s/%s", bucketName, scopeName, collectionName, indexName),
+			Description: "",
+		}},
 	})
 	st = e.tryAttachExtraContext(st, baseErr)
 	return st
