@@ -8,7 +8,7 @@ require (
 	github.com/couchbase/gocb/v2 v2.6.5
 	github.com/couchbase/gocbcore/v10 v10.2.9
 	github.com/couchbase/gocbcorex v0.0.0-20231120182410-9a3b678a0d5d
-	github.com/couchbase/goprotostellar v0.0.1-3.0.20231102140456-4b5bcf407d9d
+	github.com/couchbase/goprotostellar v1.0.1-0.20231122171617-af784dfc3d53
 	github.com/couchbaselabs/gocbconnstr v1.0.5
 	github.com/fsnotify/fsnotify v1.7.0
 	github.com/golang/snappy v0.0.4

@@ -511,3 +511,57 @@ func (s *QueryIndexAdminServer) BuildDeferredIndexes(
 		Indexes: indexContexts,
 	}, nil
 }
+
+func (s *QueryIndexAdminServer) WaitForIndexOnline(
+	ctx context.Context,
+	in *admin_query_v1.WaitForIndexOnlineRequest,
+) (*admin_query_v1.WaitForIndexOnlineResponse, error) {
+	for {
+		watchIndexesResp, err := s.GetAllIndexes(ctx, &admin_query_v1.GetAllIndexesRequest{
+			BucketName:     &in.BucketName,
+			ScopeName:      &in.ScopeName,
+			CollectionName: &in.CollectionName,
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		var foundIndex *admin_query_v1.GetAllIndexesResponse_Index
+		for _, index := range watchIndexesResp.Indexes {
+			if index.Name == in.Name &&
+				index.CollectionName == in.CollectionName &&
+				index.ScopeName == in.ScopeName &&
+				index.BucketName == in.BucketName {
+				foundIndex = index
+			}
+		}
+
+		if foundIndex == nil {
+			return nil, s.errorHandler.NewQueryIndexMissingStatus(nil, in.Name).Err()
+		}
+
+		if foundIndex.State == admin_query_v1.IndexState_INDEX_STATE_DEFERRED {
+			return nil, s.errorHandler.NewQueryIndexNotBuildingStatus(
+				nil, in.BucketName, in.ScopeName, in.CollectionName, in.Name).Err()
+		}
+
+		if foundIndex.State == admin_query_v1.IndexState_INDEX_STATE_ONLINE {
+			break
+		}
+
+		s.logger.Debug("waiting for an index which is not online",
+			zap.String("currentState", foundIndex.State.String()))
+
+		// if some of the indexes still haven't transitioned out of the deferred state,
+		// we wait 100ms and then scan to see if the index has transitioned.
+		select {
+		case <-time.After(100 * time.Millisecond):
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+
+		continue
+	}
+
+	return &admin_query_v1.WaitForIndexOnlineResponse{}, nil
+}
