@@ -488,6 +488,11 @@ func (s *SearchServer) translatePSQueryToCBSearchX(in *search_v1.Query) (cbsearc
 			Disjuncts: queries,
 			Min:       query.DisjunctionQuery.GetMinimum(),
 		}, nil
+	case *search_v1.Query_DocIdQuery:
+		return &cbsearchx.DocIDQuery{
+			Boost:  query.DocIdQuery.GetBoost(),
+			DocIds: query.DocIdQuery.GetIds(),
+		}, nil
 	case *search_v1.Query_GeoBoundingBoxQuery:
 		return &cbsearchx.GeoBoundingBoxQuery{
 			BottomRight: cbsearchx.Location{
