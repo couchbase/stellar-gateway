@@ -8,6 +8,7 @@ import (
 	"github.com/couchbase/gocbcorex"
 	"github.com/couchbase/gocbcorex/cbqueryx"
 	"github.com/couchbase/goprotostellar/genproto/query_v1"
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -116,6 +117,8 @@ func (s *QueryServer) Query(in *query_v1.QueryRequest, out query_v1.QueryService
 
 	if in.ClientContextId != nil {
 		opts.ClientContextId = *in.ClientContextId
+	} else {
+		opts.ClientContextId = uuid.NewString()
 	}
 
 	if in.ScanConsistency != nil {
