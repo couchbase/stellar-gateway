@@ -565,6 +565,13 @@ func (e ErrorHandler) NewInvalidQueryStatus(baseErr error, queryErrStr string) *
 	return st
 }
 
+func (e ErrorHandler) NewWriteInReadOnlyQueryStatus(baseErr error) *status.Status {
+	st := status.New(codes.InvalidArgument,
+		"Write statements cannot be used in a read-only query")
+	st = e.tryAttachExtraContext(st, baseErr)
+	return st
+}
+
 func (e ErrorHandler) NewQueryNoAccessStatus(baseErr error) *status.Status {
 	st := status.New(codes.PermissionDenied,
 		"No permissions to query documents.")
