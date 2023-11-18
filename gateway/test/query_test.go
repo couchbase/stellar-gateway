@@ -114,7 +114,7 @@ func (s *GatewayOpsTestSuite) TestQuery() {
 		requireRpcSuccess(s.T(), client, err)
 
 		_, _, err = readQueryStream(client)
-		assertRpcStatus(s.T(), err, codes.OK)
+		requireRpcSuccess(s.T(), client, err)
 
 		client, err = queryClient.Query(context.Background(), &query_v1.QueryRequest{
 			BucketName: &bucketName,
@@ -143,5 +143,17 @@ func (s *GatewayOpsTestSuite) TestQuery() {
 		assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
 			assert.Equal(s.T(), d.ResourceType, "queryindex")
 		})
+	})
+
+	s.Run("ReadOnlyWithDML", func() {
+		trueBool := true
+		client, err := queryClient.Query(context.Background(), &query_v1.QueryRequest{
+			ReadOnly:  &trueBool,
+			Statement: `UPSERT INTO default(KEY, VALUE) VALUES ("doc-never-exists", {"foo":"bar"})`,
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		requireRpcSuccess(s.T(), client, err)
+
+		_, _, err = readQueryStream(client)
+		assertRpcStatus(s.T(), err, codes.InvalidArgument)
 	})
 }
