@@ -37,6 +37,13 @@ jobs:
             git status # Show the files that failed to pass the check.
             exit 1
           fi
+      - name: no-replaces
+        run: |
+          REPLACEDMODULES=$(go list -m -json all | jq "select( .Replace != null )")
+          if [ "$REPLACEDMODULES" != "" ]; then
+            echo "This commit contains go.mod replace directives"
+            exit 1
+          fi
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v2
         with:
