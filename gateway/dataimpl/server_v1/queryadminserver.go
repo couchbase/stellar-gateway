@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/couchbase/gocbcorex"
+	"github.com/couchbase/gocbcorex/cbhttpx"
 	"github.com/couchbase/gocbcorex/cbqueryx"
 	"github.com/couchbase/goprotostellar/genproto/admin_query_v1"
 	"go.uber.org/zap"
@@ -62,12 +63,9 @@ func (s *QueryIndexAdminServer) executeQuery(
 	ctx context.Context,
 	bucketName *string,
 	statement string,
+	agent *gocbcorex.Agent,
+	oboInfo *cbhttpx.OnBehalfOfInfo,
 ) ([]json.RawMessage, error) {
-	agent, oboInfo, errSt := s.authHandler.GetHttpOboAgent(ctx, bucketName)
-	if errSt != nil {
-		return nil, errSt.Err()
-	}
-
 	var opts gocbcorex.QueryOptions
 	opts.OnBehalfOf = oboInfo
 	opts.Statement = statement
@@ -87,6 +85,82 @@ func (s *QueryIndexAdminServer) executeQuery(
 	}
 
 	return rows, nil
+}
+
+func (s *QueryIndexAdminServer) validateNames(index, bucket, scope, col *string) error {
+	var missingType string
+	switch {
+	case bucket != nil && *bucket == "":
+		missingType = "Bucket"
+	case scope != nil && *scope == "":
+		missingType = "Scope"
+	case col != nil && *col == "":
+		missingType = "Collection"
+	}
+
+	if index != nil {
+		if strings.ContainsAny(*index, `!,.$%^&*()+={}[]':;|\<>?@`) {
+			return s.errorHandler.NewQueryIndexInvalidArgumentStatus(
+				nil,
+				*index,
+				"Index name cannot contain special characters").Err()
+		}
+
+		if len(*index) >= 220 {
+			return s.errorHandler.NewQueryIndexInvalidArgumentStatus(
+				nil,
+				*index, "Index name cannot be longer than 219 characters.").Err()
+		}
+
+		if *index == "" {
+			return s.errorHandler.NewQueryIndexInvalidArgumentStatus(
+				nil,
+				*index, "Index name cannot be an empty string.").Err()
+		}
+
+		if strings.Contains(*index, " ") {
+			return s.errorHandler.NewQueryIndexInvalidArgumentStatus(
+				nil,
+				*index, "Index name cannot contain spaces.").Err()
+		}
+	}
+
+	var name string
+	if index == nil {
+		name = "#primary"
+	} else {
+		name = *index
+	}
+
+	if bucket != nil && strings.Contains(*bucket, " ") {
+		return s.errorHandler.NewQueryIndexInvalidArgumentStatus(
+			nil,
+			name,
+			fmt.Sprintf(`Bucket name '%s' cannot contain blank spaces.`, *bucket)).Err()
+	}
+
+	if scope != nil && strings.Contains(*scope, " ") {
+		return s.errorHandler.NewQueryIndexInvalidArgumentStatus(
+			nil,
+			name,
+			fmt.Sprintf(`Scope name '%s' cannot contain blank spaces.`, *scope)).Err()
+	}
+
+	if col != nil && strings.Contains(*col, " ") {
+		return s.errorHandler.NewQueryIndexInvalidArgumentStatus(
+			nil,
+			name,
+			fmt.Sprintf(`Collection name '%s' cannot contain blank spaces.`, *col)).Err()
+	}
+
+	if missingType != "" {
+		return s.errorHandler.NewQueryIndexInvalidArgumentStatus(
+			nil,
+			name,
+			fmt.Sprintf("%s name cannot be an empty string.", missingType)).Err()
+	}
+
+	return nil
 }
 
 type queryIndexRowJson struct {
@@ -145,7 +219,12 @@ func (s *QueryIndexAdminServer) GetAllIndexes(
 	qs := fmt.Sprintf("SELECT `idx`.* FROM system:indexes AS idx WHERE %s ORDER BY is_primary DESC, name ASC",
 		where)
 
-	rows, err := s.executeQuery(ctx, in.BucketName, qs)
+	agent, oboInfo, errSt := s.authHandler.GetHttpOboAgent(ctx, in.BucketName)
+	if errSt != nil {
+		return nil, errSt.Err()
+	}
+
+	rows, err := s.executeQuery(ctx, in.BucketName, qs, agent, oboInfo)
 	if err != nil {
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
@@ -206,6 +285,19 @@ func (s *QueryIndexAdminServer) CreatePrimaryIndex(
 ) (*admin_query_v1.CreatePrimaryIndexResponse, error) {
 	var qs string
 
+	if err := s.validateNames(in.Name, &in.BucketName, in.ScopeName, in.CollectionName); err != nil {
+		return nil, err
+	}
+
+	if in.NumReplicas != nil && *in.NumReplicas < 0 {
+		msg := "number of index replicas cannot be negative"
+		var name string
+		if in.Name != nil {
+			name = *in.Name
+		}
+		return nil, s.errorHandler.NewQueryIndexInvalidArgumentStatus(nil, name, msg).Err()
+	}
+
 	qs += "CREATE PRIMARY INDEX"
 
 	if in.Name != nil {
@@ -237,17 +329,42 @@ func (s *QueryIndexAdminServer) CreatePrimaryIndex(
 		qs += " WITH " + string(withBytes)
 	}
 
-	_, err := s.executeQuery(ctx, &in.BucketName, qs)
+	agent, oboInfo, errSt := s.authHandler.GetHttpOboAgent(ctx, &in.BucketName)
+	if errSt != nil {
+		return nil, errSt.Err()
+	}
+
+	_, err := s.executeQuery(ctx, &in.BucketName, qs, agent, oboInfo)
 	if err != nil {
+		var name string
+		if in.Name == nil {
+			name = "#primary"
+		} else {
+			name = *in.Name
+		}
+
 		if errors.Is(err, cbqueryx.ErrIndexExists) {
-			var name string
-			if in.Name == nil {
-				name = "#primary"
-			} else {
-				name = *in.Name
-			}
 			return nil, s.errorHandler.NewQueryIndexExistsStatus(err, name).Err()
 		}
+
+		if errors.Is(err, cbqueryx.ErrScopeNotFound) {
+			return nil, s.errorHandler.NewQueryIndexScopeOrCollectionNotFoundStatus(err, &name, "Scope", in.ScopeName).Err()
+		}
+
+		if errors.Is(err, cbqueryx.ErrCollectionNotFound) {
+			return nil, s.errorHandler.NewQueryIndexScopeOrCollectionNotFoundStatus(err, &name, "Collection", in.CollectionName).Err()
+		}
+
+		if errors.Is(err, cbqueryx.ErrAuthenticationFailure) {
+			return nil, s.errorHandler.NewQueryIndexAuthenticationFailureStatus(err, name).Err()
+		}
+
+		var sErr cbqueryx.ServerInvalidArgError
+		if errors.As(err, &sErr) {
+			msg := fmt.Sprintf("invalid argument: %s - %s", sErr.Argument, sErr.Reason)
+			return nil, s.errorHandler.NewQueryIndexInvalidArgumentStatus(err, name, msg).Err()
+		}
+
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
 
@@ -259,6 +376,15 @@ func (s *QueryIndexAdminServer) CreateIndex(
 	in *admin_query_v1.CreateIndexRequest,
 ) (*admin_query_v1.CreateIndexResponse, error) {
 	var qs string
+
+	if err := s.validateNames(&in.Name, &in.BucketName, in.ScopeName, in.CollectionName); err != nil {
+		return nil, err
+	}
+
+	if in.NumReplicas != nil && *in.NumReplicas < 0 {
+		msg := "number of index replicas cannot be negative"
+		return nil, s.errorHandler.NewQueryIndexInvalidArgumentStatus(nil, in.Name, msg).Err()
+	}
 
 	qs += "CREATE INDEX"
 
@@ -299,11 +425,35 @@ func (s *QueryIndexAdminServer) CreateIndex(
 		qs += " WITH " + string(withBytes)
 	}
 
-	_, err := s.executeQuery(ctx, &in.BucketName, qs)
+	agent, oboInfo, errSt := s.authHandler.GetHttpOboAgent(ctx, &in.BucketName)
+	if errSt != nil {
+		return nil, errSt.Err()
+	}
+
+	_, err := s.executeQuery(ctx, &in.BucketName, qs, agent, oboInfo)
 	if err != nil {
 		if errors.Is(err, cbqueryx.ErrIndexExists) {
 			return nil, s.errorHandler.NewQueryIndexExistsStatus(err, in.Name).Err()
 		}
+
+		if errors.Is(err, cbqueryx.ErrScopeNotFound) {
+			return nil, s.errorHandler.NewQueryIndexScopeOrCollectionNotFoundStatus(err, &in.Name, "Scope", in.ScopeName).Err()
+		}
+
+		if errors.Is(err, cbqueryx.ErrCollectionNotFound) {
+			return nil, s.errorHandler.NewQueryIndexScopeOrCollectionNotFoundStatus(err, &in.Name, "Collection", in.CollectionName).Err()
+		}
+
+		if errors.Is(err, cbqueryx.ErrAuthenticationFailure) {
+			return nil, s.errorHandler.NewQueryIndexAuthenticationFailureStatus(err, in.Name).Err()
+		}
+
+		var sErr cbqueryx.ServerInvalidArgError
+		if errors.As(err, &sErr) {
+			msg := fmt.Sprintf("invalid argument: %s - %s", sErr.Argument, sErr.Reason)
+			return nil, s.errorHandler.NewQueryIndexInvalidArgumentStatus(err, in.Name, msg).Err()
+		}
+
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
 
@@ -315,6 +465,10 @@ func (s *QueryIndexAdminServer) DropPrimaryIndex(
 	in *admin_query_v1.DropPrimaryIndexRequest,
 ) (*admin_query_v1.DropPrimaryIndexResponse, error) {
 	var qs string
+
+	if err := s.validateNames(in.Name, &in.BucketName, in.ScopeName, in.CollectionName); err != nil {
+		return nil, err
+	}
 
 	keyspace := s.buildKeyspace(in.BucketName, in.ScopeName, in.CollectionName)
 
@@ -341,17 +495,36 @@ func (s *QueryIndexAdminServer) DropPrimaryIndex(
 		}
 	}
 
-	_, err := s.executeQuery(ctx, &in.BucketName, qs)
+	agent, oboInfo, errSt := s.authHandler.GetHttpOboAgent(ctx, &in.BucketName)
+	if errSt != nil {
+		return nil, errSt.Err()
+	}
+
+	_, err := s.executeQuery(ctx, &in.BucketName, qs, agent, oboInfo)
 	if err != nil {
+		var name string
+		if in.Name == nil {
+			name = "#primary"
+		} else {
+			name = *in.Name
+		}
+
+		if errors.Is(err, cbqueryx.ErrScopeNotFound) {
+			return nil, s.errorHandler.NewQueryIndexScopeOrCollectionNotFoundStatus(err, in.ScopeName, "Scope", in.ScopeName).Err()
+		}
+
+		if errors.Is(err, cbqueryx.ErrCollectionNotFound) {
+			return nil, s.errorHandler.NewQueryIndexScopeOrCollectionNotFoundStatus(err, in.CollectionName, "Collection", in.CollectionName).Err()
+		}
+
 		if errors.Is(err, cbqueryx.ErrIndexNotFound) {
-			var name string
-			if in.Name == nil {
-				name = "#primary"
-			} else {
-				name = *in.Name
-			}
 			return nil, s.errorHandler.NewQueryIndexMissingStatus(err, name).Err()
 		}
+
+		if errors.Is(err, cbqueryx.ErrAuthenticationFailure) {
+			return nil, s.errorHandler.NewQueryIndexAuthenticationFailureStatus(err, name).Err()
+		}
+
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
 
@@ -363,6 +536,10 @@ func (s *QueryIndexAdminServer) DropIndex(
 	in *admin_query_v1.DropIndexRequest,
 ) (*admin_query_v1.DropIndexResponse, error) {
 	var qs string
+
+	if err := s.validateNames(&in.Name, &in.BucketName, in.ScopeName, in.CollectionName); err != nil {
+		return nil, err
+	}
 
 	encodedName := cbqueryx.EncodeIdentifier(in.Name)
 	keyspace := s.buildKeyspace(in.BucketName, in.ScopeName, in.CollectionName)
@@ -380,11 +557,29 @@ func (s *QueryIndexAdminServer) DropIndex(
 		}
 	}
 
-	_, err := s.executeQuery(ctx, &in.BucketName, qs)
+	agent, oboInfo, errSt := s.authHandler.GetHttpOboAgent(ctx, &in.BucketName)
+	if errSt != nil {
+		return nil, errSt.Err()
+	}
+
+	_, err := s.executeQuery(ctx, &in.BucketName, qs, agent, oboInfo)
 	if err != nil {
+		if errors.Is(err, cbqueryx.ErrScopeNotFound) {
+			return nil, s.errorHandler.NewQueryIndexScopeOrCollectionNotFoundStatus(err, &in.Name, "Scope", in.ScopeName).Err()
+		}
+
+		if errors.Is(err, cbqueryx.ErrCollectionNotFound) {
+			return nil, s.errorHandler.NewQueryIndexScopeOrCollectionNotFoundStatus(err, &in.Name, "Collection", in.CollectionName).Err()
+		}
+
 		if errors.Is(err, cbqueryx.ErrIndexNotFound) {
 			return nil, s.errorHandler.NewQueryIndexMissingStatus(err, in.Name).Err()
 		}
+
+		if errors.Is(err, cbqueryx.ErrAuthenticationFailure) {
+			return nil, s.errorHandler.NewQueryIndexAuthenticationFailureStatus(err, in.Name).Err()
+		}
+
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
 
@@ -443,7 +638,12 @@ func (s *QueryIndexAdminServer) BuildDeferredIndexes(
 		qs += fmt.Sprintf("BUILD INDEX ON %s(%s)",
 			keyspace, strings.Join(escapedIndexNames, ","))
 
-		_, err = s.executeQuery(ctx, &in.BucketName, qs)
+		agent, oboInfo, errSt := s.authHandler.GetHttpOboAgent(ctx, &in.BucketName)
+		if errSt != nil {
+			return nil, errSt.Err()
+		}
+
+		_, err := s.executeQuery(ctx, &in.BucketName, qs, agent, oboInfo)
 		if err != nil {
 			return nil, s.errorHandler.NewGenericStatus(err).Err()
 		}
