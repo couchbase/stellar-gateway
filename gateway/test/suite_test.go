@@ -110,9 +110,9 @@ func (s *GatewayOpsTestSuite) tooDeepJson() []byte {
 	return deepObjBytes
 }
 
-func (s *GatewayOpsTestSuite) tooDeepJsonPath() string {
+func (s *GatewayOpsTestSuite) jsonPathOfDepth(depth int) string {
 	var longPathParts []string
-	for i := 0; i < 48; i++ {
+	for i := 0; i < depth; i++ {
 		longPathParts = append(longPathParts, fmt.Sprintf("%c", 'a'+(i%26)))
 	}
 	return strings.Join(longPathParts, ".")
