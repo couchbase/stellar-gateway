@@ -2763,6 +2763,24 @@ func (s *GatewayOpsTestSuite) TestLookupIn() {
 		assertStatusProto(s.T(), resp.Specs[0].Status, codes.InvalidArgument)
 	})
 
+	s.Run("PathTooLong", func() {
+		docId := s.binaryDocId([]byte(`{"a":4}`))
+
+		_, err := kvClient.LookupIn(context.Background(), &kv_v1.LookupInRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            docId,
+			Specs: []*kv_v1.LookupInRequest_Spec{
+				{
+					Operation: kv_v1.LookupInRequest_Spec_OPERATION_GET,
+					Path:      s.jsonPathOfLen(1025),
+				},
+			},
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		assertRpcStatus(s.T(), err, codes.InvalidArgument)
+	})
+
 	s.Run("UnknownVattr", func() {
 		docId := s.binaryDocId([]byte(`{"a":4}`))
 		trueBool := true
@@ -3451,6 +3469,25 @@ func (s *GatewayOpsTestSuite) TestMutateIn() {
 				{
 					Operation: kv_v1.MutateInRequest_Spec_OPERATION_UPSERT,
 					Path:      s.jsonPathOfDepth(48),
+					Content:   []byte(`2`),
+				},
+			},
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		assertRpcStatus(s.T(), err, codes.InvalidArgument)
+	})
+
+	s.Run("PathTooLong", func() {
+		docId := s.binaryDocId([]byte(`{"a":4}`))
+
+		_, err := kvClient.MutateIn(context.Background(), &kv_v1.MutateInRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            docId,
+			Specs: []*kv_v1.MutateInRequest_Spec{
+				{
+					Operation: kv_v1.MutateInRequest_Spec_OPERATION_UPSERT,
+					Path:      s.jsonPathOfLen(1025),
 					Content:   []byte(`2`),
 				},
 			},
