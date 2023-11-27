@@ -2752,7 +2752,7 @@ func (s *GatewayOpsTestSuite) TestLookupIn() {
 			Specs: []*kv_v1.LookupInRequest_Spec{
 				{
 					Operation: kv_v1.LookupInRequest_Spec_OPERATION_GET,
-					Path:      s.tooDeepJsonPath(),
+					Path:      s.jsonPathOfDepth(48),
 				},
 			},
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
@@ -3450,7 +3450,7 @@ func (s *GatewayOpsTestSuite) TestMutateIn() {
 			Specs: []*kv_v1.MutateInRequest_Spec{
 				{
 					Operation: kv_v1.MutateInRequest_Spec_OPERATION_UPSERT,
-					Path:      s.tooDeepJsonPath(),
+					Path:      s.jsonPathOfDepth(48),
 					Content:   []byte(`2`),
 				},
 			},
