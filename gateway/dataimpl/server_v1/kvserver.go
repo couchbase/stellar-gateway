@@ -1057,6 +1057,10 @@ func (s *KvServer) LookupIn(ctx context.Context, in *kv_v1.LookupInRequest) (*kv
 
 	ops := make([]memdx.LookupInOp, len(in.Specs))
 	for i, spec := range in.Specs {
+		if len(spec.Path) > 1024 {
+			return nil, status.New(codes.InvalidArgument, "sub-document paths must be less than 1024 characters long").Err()
+		}
+
 		var op memdx.LookupInOpType
 		switch spec.Operation {
 		case kv_v1.LookupInRequest_Spec_OPERATION_GET:
@@ -1185,6 +1189,10 @@ func (s *KvServer) MutateIn(ctx context.Context, in *kv_v1.MutateInRequest) (*kv
 
 	ops := make([]memdx.MutateInOp, len(in.Specs))
 	for i, spec := range in.Specs {
+		if len(spec.Path) > 1024 {
+			return nil, status.New(codes.InvalidArgument, "sub-document paths must be less than 1024 characters long").Err()
+		}
+
 		var op memdx.MutateInOpType
 		switch spec.Operation {
 		case kv_v1.MutateInRequest_Spec_OPERATION_UPSERT:

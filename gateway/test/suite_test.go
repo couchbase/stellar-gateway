@@ -118,6 +118,14 @@ func (s *GatewayOpsTestSuite) jsonPathOfDepth(depth int) string {
 	return strings.Join(longPathParts, ".")
 }
 
+func (s *GatewayOpsTestSuite) jsonPathOfLen(len int) string {
+	var longPath string
+	for i := 0; i < len; i++ {
+		longPath = longPath + fmt.Sprintf("%c", 'a'+(i%26))
+	}
+	return longPath
+}
+
 func (s *GatewayOpsTestSuite) lockDoc(docId string) {
 	kvClient := kv_v1.NewKvServiceClient(s.gatewayConn)
 	galResp, err := kvClient.GetAndLock(context.Background(), &kv_v1.GetAndLockRequest{
