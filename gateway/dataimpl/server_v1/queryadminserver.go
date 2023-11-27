@@ -35,6 +35,15 @@ func NewQueryIndexAdminServer(
 	}
 }
 
+func (s *QueryIndexAdminServer) normalizeDefaultName(name *string) string {
+	resourceName := "_default"
+	if name != nil {
+		resourceName = *name
+	}
+
+	return resourceName
+}
+
 func (s *QueryIndexAdminServer) buildKeyspace(
 	bucket string,
 	scope, collection *string,
@@ -190,15 +199,8 @@ func (s *QueryIndexAdminServer) GetAllIndexes(
 			where = "1=1"
 		}
 	} else {
-		scopeName := "_default"
-		if in.ScopeName != nil {
-			scopeName = *in.ScopeName
-		}
-
-		collectionName := "_default"
-		if in.CollectionName != nil {
-			collectionName = *in.CollectionName
-		}
+		scopeName := s.normalizeDefaultName(in.ScopeName)
+		collectionName := s.normalizeDefaultName(in.CollectionName)
 
 		encodedBucket, _ := cbqueryx.EncodeValue(in.BucketName)
 		encodedScope, _ := cbqueryx.EncodeValue(scopeName)
@@ -300,7 +302,11 @@ func (s *QueryIndexAdminServer) CreatePrimaryIndex(
 
 	qs += "CREATE PRIMARY INDEX"
 
-	if in.Name != nil {
+	var indexName string
+	if in.Name == nil {
+		indexName = "#primary"
+	} else {
+		indexName = *in.Name
 		qs += " " + cbqueryx.EncodeIdentifier(*in.Name)
 	}
 
@@ -372,6 +378,20 @@ func (s *QueryIndexAdminServer) CreatePrimaryIndex(
 			}
 		}
 
+		return nil, s.errorHandler.NewGenericStatus(err).Err()
+	}
+
+	scopeName := s.normalizeDefaultName(in.ScopeName)
+	collectionName := s.normalizeDefaultName(in.CollectionName)
+
+	err = agent.EnsureQueryIndexCreated(ctx, &gocbcorex.EnsureQueryIndexCreatedOptions{
+		BucketName:     in.BucketName,
+		ScopeName:      scopeName,
+		CollectionName: collectionName,
+		IndexName:      indexName,
+		OnBehalfOf:     oboInfo,
+	})
+	if err != nil {
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
 
@@ -471,6 +491,20 @@ func (s *QueryIndexAdminServer) CreateIndex(
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
 
+	scopeName := s.normalizeDefaultName(in.ScopeName)
+	collectionName := s.normalizeDefaultName(in.CollectionName)
+
+	err = agent.EnsureQueryIndexCreated(ctx, &gocbcorex.EnsureQueryIndexCreatedOptions{
+		BucketName:     in.BucketName,
+		ScopeName:      scopeName,
+		CollectionName: collectionName,
+		IndexName:      in.Name,
+		OnBehalfOf:     oboInfo,
+	})
+	if err != nil {
+		return nil, s.errorHandler.NewGenericStatus(err).Err()
+	}
+
 	return &admin_query_v1.CreateIndexResponse{}, nil
 }
 
@@ -486,13 +520,16 @@ func (s *QueryIndexAdminServer) DropPrimaryIndex(
 
 	keyspace := s.buildKeyspace(in.BucketName, in.ScopeName, in.CollectionName)
 
+	var indexName string
 	if in.Name == nil {
+		indexName = "#primary"
 		qs += "DROP PRIMARY INDEX"
 		if in.GetIgnoreIfMissing() {
 			qs += " IF EXISTS "
 		}
 		qs += fmt.Sprintf(" ON %s", keyspace)
 	} else {
+		indexName = *in.Name
 		encodedName := cbqueryx.EncodeIdentifier(*in.Name)
 
 		if in.ScopeName != nil || in.CollectionName != nil {
@@ -546,6 +583,20 @@ func (s *QueryIndexAdminServer) DropPrimaryIndex(
 			}
 		}
 
+		return nil, s.errorHandler.NewGenericStatus(err).Err()
+	}
+
+	scopeName := s.normalizeDefaultName(in.ScopeName)
+	collectionName := s.normalizeDefaultName(in.CollectionName)
+
+	err = agent.EnsureQueryIndexDropped(ctx, &gocbcorex.EnsureQueryIndexDroppedOptions{
+		BucketName:     in.BucketName,
+		ScopeName:      scopeName,
+		CollectionName: collectionName,
+		IndexName:      indexName,
+		OnBehalfOf:     oboInfo,
+	})
+	if err != nil {
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
 
@@ -608,6 +659,20 @@ func (s *QueryIndexAdminServer) DropIndex(
 			}
 		}
 
+		return nil, s.errorHandler.NewGenericStatus(err).Err()
+	}
+
+	scopeName := s.normalizeDefaultName(in.ScopeName)
+	collectionName := s.normalizeDefaultName(in.CollectionName)
+
+	err = agent.EnsureQueryIndexDropped(ctx, &gocbcorex.EnsureQueryIndexDroppedOptions{
+		BucketName:     in.BucketName,
+		ScopeName:      scopeName,
+		CollectionName: collectionName,
+		IndexName:      in.Name,
+		OnBehalfOf:     oboInfo,
+	})
+	if err != nil {
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
 
