@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/couchbase/gocbcorex"
 	"github.com/couchbase/gocbcorex/cbmgmtx"
 	"github.com/couchbase/goprotostellar/genproto/admin_bucket_v1"
 	"go.uber.org/zap"
@@ -231,6 +232,14 @@ func (s *BucketAdminServer) CreateBucket(
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
 
+	err = agent.EnsureBucket(ctx, &gocbcorex.EnsureBucketOptions{
+		BucketName:  in.BucketName,
+		WantMissing: false,
+	})
+	if err != nil {
+		return nil, s.errorHandler.NewGenericStatus(err).Err()
+	}
+
 	return &admin_bucket_v1.CreateBucketResponse{}, nil
 }
 
@@ -324,6 +333,14 @@ func (s *BucketAdminServer) DeleteBucket(
 		if errors.Is(err, cbmgmtx.ErrBucketNotFound) {
 			return nil, s.errorHandler.NewBucketMissingStatus(err, in.BucketName).Err()
 		}
+		return nil, s.errorHandler.NewGenericStatus(err).Err()
+	}
+
+	err = agent.EnsureBucket(ctx, &gocbcorex.EnsureBucketOptions{
+		BucketName:  in.BucketName,
+		WantMissing: true,
+	})
+	if err != nil {
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
 
