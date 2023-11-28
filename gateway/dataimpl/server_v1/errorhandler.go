@@ -275,6 +275,32 @@ func (e ErrorHandler) NewQueryIndexNotBuildingStatus(baseErr error, bucketName, 
 	return st
 }
 
+func (e ErrorHandler) NewQueryIndexAuthenticationFailureStatus(baseErr error, indexName string) *status.Status {
+	st := status.New(codes.PermissionDenied, "Insufficient permissions to perform query index operation.")
+	st = e.tryAttachStatusDetails(st, &epb.ResourceInfo{
+		ResourceType: "queryindex",
+		ResourceName: indexName,
+		Description:  "",
+	})
+	st = e.tryAttachExtraContext(st, baseErr)
+	return st
+}
+
+func (e ErrorHandler) NewQueryIndexInvalidArgumentStatus(baseErr error, indexName string, msg string) *status.Status {
+	st := status.New(codes.InvalidArgument, msg)
+	st = e.tryAttachStatusDetails(st, &epb.ResourceInfo{
+		ResourceType: "queryindex",
+		ResourceName: indexName,
+		Description:  "",
+	})
+
+	if baseErr != nil {
+		e.tryAttachExtraContext(st, baseErr)
+	}
+
+	return st
+}
+
 func (e ErrorHandler) NewSearchIndexMissingStatus(baseErr error, indexName string) *status.Status {
 	st := status.New(codes.NotFound,
 		fmt.Sprintf("Search index '%s' not found.",
