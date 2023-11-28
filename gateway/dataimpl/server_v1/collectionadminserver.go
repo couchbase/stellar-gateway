@@ -3,7 +3,9 @@ package server_v1
 import (
 	"context"
 	"errors"
+	"strconv"
 
+	"github.com/couchbase/gocbcorex"
 	"github.com/couchbase/gocbcorex/cbmgmtx"
 	"github.com/couchbase/goprotostellar/genproto/admin_collection_v1"
 	"go.uber.org/zap"
@@ -140,7 +142,7 @@ func (s *CollectionAdminServer) CreateCollection(
 		maxTTL = *in.MaxExpirySecs
 	}
 
-	_, err := bucketAgent.CreateCollection(ctx, &cbmgmtx.CreateCollectionOptions{
+	resp, err := bucketAgent.CreateCollection(ctx, &cbmgmtx.CreateCollectionOptions{
 		OnBehalfOf:     oboInfo,
 		BucketName:     in.BucketName,
 		CollectionName: in.CollectionName,
@@ -158,6 +160,20 @@ func (s *CollectionAdminServer) CreateCollection(
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
 
+	manifestUid, err := strconv.ParseUint(resp.ManifestUid, 16, 64)
+	if err != nil {
+		return nil, s.errorHandler.NewGenericStatus(err).Err()
+	}
+
+	opts := gocbcorex.EnsureManifestOptions{
+		BucketName:  in.BucketName,
+		ManifestUid: manifestUid,
+	}
+	err = bucketAgent.EnsureManifest(ctx, &opts)
+	if err != nil {
+		return nil, s.errorHandler.NewGenericStatus(err).Err()
+	}
+
 	return &admin_collection_v1.CreateCollectionResponse{}, nil
 }
 
@@ -170,7 +186,7 @@ func (s *CollectionAdminServer) DeleteCollection(
 		return nil, errSt.Err()
 	}
 
-	_, err := bucketAgent.DeleteCollection(ctx, &cbmgmtx.DeleteCollectionOptions{
+	resp, err := bucketAgent.DeleteCollection(ctx, &cbmgmtx.DeleteCollectionOptions{
 		OnBehalfOf:     oboInfo,
 		BucketName:     in.BucketName,
 		ScopeName:      in.ScopeName,
@@ -184,6 +200,20 @@ func (s *CollectionAdminServer) DeleteCollection(
 		} else if errors.Is(err, cbmgmtx.ErrScopeNotFound) {
 			return nil, s.errorHandler.NewScopeMissingStatus(err, in.BucketName, in.ScopeName).Err()
 		}
+		return nil, s.errorHandler.NewGenericStatus(err).Err()
+	}
+
+	manifestUid, err := strconv.ParseUint(resp.ManifestUid, 16, 64)
+	if err != nil {
+		return nil, s.errorHandler.NewGenericStatus(err).Err()
+	}
+
+	opts := gocbcorex.EnsureManifestOptions{
+		BucketName:  in.BucketName,
+		ManifestUid: manifestUid,
+	}
+	err = bucketAgent.EnsureManifest(ctx, &opts)
+	if err != nil {
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
 
