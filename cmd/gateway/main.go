@@ -168,7 +168,7 @@ func startGateway() {
 	logger := zap.New(core, zap.AddCaller(), zap.AddStacktrace(zapcore.ErrorLevel))
 
 	// signal that we are starting
-	logger.Info("starting steller-gateway", zap.String("version", version.WithBuildNumberAndRevision()))
+	logger.Info("starting stellar-gateway", zap.String("version", version.WithBuildNumberAndRevision()))
 
 	logger.Info("parsed launch configuration",
 		zap.String("config", cfgFile),

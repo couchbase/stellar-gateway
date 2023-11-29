@@ -30,7 +30,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	logger.Info("starting steller-gateway", zap.String("version", version.WithBuildNumberAndRevision()))
+	logger.Info("starting stellar-gateway", zap.String("version", version.WithBuildNumberAndRevision()))
 
 	// In order to start the bridge, we need to know where the gateway is running,
 	// so we use a channel and a hook in the gateway to get this.
