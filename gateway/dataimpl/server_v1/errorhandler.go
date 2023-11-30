@@ -224,13 +224,23 @@ func (e ErrorHandler) NewCollectionExistsStatus(baseErr error, bucketName, scope
 	return st
 }
 
-func (e ErrorHandler) NewQueryIndexMissingStatus(baseErr error, indexName string) *status.Status {
+func (e ErrorHandler) NewQueryIndexMissingStatus(baseErr error, indexName, bucketName, scopeName, collectionName string) *status.Status {
+	var path string
+	if bucketName != "" {
+		path = bucketName
+		if scopeName != "" {
+			path = path + "/" + scopeName
+			if collectionName != "" {
+				path = path + "/" + collectionName
+			}
+		}
+	}
+
 	var msg string
 	if indexName == "" {
 		msg = "Query index not found."
 	} else {
-		msg = fmt.Sprintf("Query index '%s' not found.",
-			indexName)
+		msg = fmt.Sprintf("Query index '%s' not found in '%s'.", indexName, path)
 	}
 	st := status.New(codes.NotFound, msg)
 	st = e.tryAttachStatusDetails(st, &epb.ResourceInfo{
@@ -242,13 +252,23 @@ func (e ErrorHandler) NewQueryIndexMissingStatus(baseErr error, indexName string
 	return st
 }
 
-func (e ErrorHandler) NewQueryIndexExistsStatus(baseErr error, indexName string) *status.Status {
+func (e ErrorHandler) NewQueryIndexExistsStatus(baseErr error, indexName, bucketName, scopeName, collectionName string) *status.Status {
+	var path string
+	if bucketName != "" {
+		path = bucketName
+		if scopeName != "" {
+			path = path + "/" + scopeName
+			if collectionName != "" {
+				path = path + "/" + collectionName
+			}
+		}
+	}
+
 	var msg string
 	if indexName == "" {
 		msg = "Query index already existed."
 	} else {
-		msg = fmt.Sprintf("Query index '%s' already existed.",
-			indexName)
+		msg = fmt.Sprintf("Query index '%s' already existed in  '%s'.", indexName, path)
 	}
 	st := status.New(codes.AlreadyExists, msg)
 	st = e.tryAttachStatusDetails(st, &epb.ResourceInfo{
@@ -275,18 +295,25 @@ func (e ErrorHandler) NewQueryIndexNotBuildingStatus(baseErr error, bucketName, 
 	return st
 }
 
-func (e ErrorHandler) NewQueryIndexAuthenticationFailureStatus(baseErr error, indexName string) *status.Status {
-	st := status.New(codes.PermissionDenied, "Insufficient permissions to perform query index operation.")
-	st = e.tryAttachStatusDetails(st, &epb.ResourceInfo{
-		ResourceType: "queryindex",
-		ResourceName: indexName,
-		Description:  "",
-	})
+func (e ErrorHandler) NewQueryIndexAuthenticationFailureStatus(baseErr error, bucketName, scopeName, collectionName string) *status.Status {
+	var path string
+	if bucketName != "" {
+		path = bucketName
+		if scopeName != "" {
+			path = path + "/" + scopeName
+			if collectionName != "" {
+				path = path + "/" + collectionName
+			}
+		}
+	}
+
+	msg := fmt.Sprintf("Insufficient permissions to perform query index operation against %s.", path)
+	st := status.New(codes.PermissionDenied, msg)
 	st = e.tryAttachExtraContext(st, baseErr)
 	return st
 }
 
-func (e ErrorHandler) NewQueryIndexInvalidArgumentStatus(baseErr error, indexName string, msg string) *status.Status {
+func (e ErrorHandler) NewQueryIndexInvalidArgumentStatus(baseErr error, indexName, msg string) *status.Status {
 	st := status.New(codes.InvalidArgument, msg)
 	st = e.tryAttachStatusDetails(st, &epb.ResourceInfo{
 		ResourceType: "queryindex",

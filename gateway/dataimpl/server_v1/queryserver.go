@@ -46,12 +46,17 @@ func (s *QueryServer) translateError(err error) *status.Status {
 			return s.errorHandler.NewInvalidQueryStatus(err, firstErr.Msg)
 		} else if errors.Is(firstErr, cbqueryx.ErrAuthenticationFailure) {
 			return s.errorHandler.NewQueryNoAccessStatus(err)
-		} else if errors.Is(err, cbqueryx.ErrIndexExists) {
-			return s.errorHandler.NewQueryIndexExistsStatus(err, "")
-		} else if errors.Is(err, cbqueryx.ErrIndexNotFound) {
-			return s.errorHandler.NewQueryIndexMissingStatus(err, "")
 		} else if errors.Is(err, cbqueryx.ErrWriteInReadOnlyQuery) {
 			return s.errorHandler.NewWriteInReadOnlyQueryStatus(err)
+		}
+
+		var rErr cbqueryx.ResourceError
+		if errors.As(firstErr, &rErr) {
+			if errors.Is(err, cbqueryx.ErrIndexExists) {
+				return s.errorHandler.NewQueryIndexExistsStatus(err, rErr.IndexName, "", "", "")
+			} else if errors.Is(err, cbqueryx.ErrIndexNotFound) {
+				return s.errorHandler.NewQueryIndexMissingStatus(err, rErr.IndexName, "", "", "")
+			}
 		}
 	}
 
