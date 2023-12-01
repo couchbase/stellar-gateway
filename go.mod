@@ -7,7 +7,7 @@ require (
 	github.com/couchbase/cbauth v0.1.2-0.20231214203958-0685e2541e67
 	github.com/couchbase/gocb/v2 v2.6.5
 	github.com/couchbase/gocbcore/v10 v10.2.9
-	github.com/couchbase/gocbcorex v0.0.0-20240417221630-a85931916090
+	github.com/couchbase/gocbcorex v0.0.0-20240424073013-df7f35f42b41
 	github.com/couchbase/goprotostellar v1.0.2-0.20240202223538-0bb16b9c3422
 	github.com/couchbaselabs/gocbconnstr v1.0.5
 	github.com/fsnotify/fsnotify v1.7.0
@@ -77,6 +77,7 @@ require (
 	go.etcd.io/etcd/client/pkg/v3 v3.5.10 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlpmetric v0.42.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.0.0 // indirect
+	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/crypto v0.14.0 // indirect
 	golang.org/x/net v0.17.0 // indirect
