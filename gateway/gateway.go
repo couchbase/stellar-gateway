@@ -3,6 +3,7 @@ package gateway
 import (
 	"context"
 	"crypto/tls"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"sync/atomic"
@@ -117,19 +118,39 @@ func connStrToMgmtHostPort(connStr string) (string, error) {
 	return hostPort, nil
 }
 
-func pingCouchbaseCluster(mgmtHostPort string) error {
-	pollEndpoint := fmt.Sprintf("http://%s", mgmtHostPort)
+func pingCouchbaseCluster(mgmtHostPort, username, password string) (string, error) {
+	pollEndpoint := fmt.Sprintf("http://%s/pools", mgmtHostPort)
 
-	res, err := http.Get(pollEndpoint)
+	req, err := http.NewRequest("GET", pollEndpoint, nil)
 	if err != nil {
-		return errors.Wrap(err, "failed to execute GET operation")
+		return "", errors.Wrap(err, "failed to create request")
 	}
 
-	if res.StatusCode != 200 {
-		return fmt.Errorf("unexpected status code: %d", res.StatusCode)
+	req.SetBasicAuth(username, password)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to execute ping operation")
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return "", fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
 
-	return nil
+	var respData struct {
+		UUID string `json:"uuid"`
+	}
+	err = json.NewDecoder(resp.Body).Decode(&respData)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to decode response")
+	}
+
+	if respData.UUID == "" {
+		return "", errors.New("cluster had no uuid")
+	}
+
+	return respData.UUID, nil
 }
 
 func (g *Gateway) Run(ctx context.Context) error {
@@ -157,8 +178,9 @@ func (g *Gateway) Run(ctx context.Context) error {
 	// ping the cluster first to make sure its alive
 	config.Logger.Info("waiting for couchbase server to become available", zap.String("address", mgmtHostPort))
 
+	var clusterUUID string
 	for {
-		err = pingCouchbaseCluster(mgmtHostPort)
+		currentUUID, err := pingCouchbaseCluster(mgmtHostPort, config.Username, config.Password)
 		if err != nil {
 			config.Logger.Warn("failed to ping cluster", zap.Error(err))
 
@@ -180,11 +202,13 @@ func (g *Gateway) Run(ctx context.Context) error {
 		}
 
 		// once we successfully ping the cluster, we can stop polling
+		clusterUUID = currentUUID
 		break
 	}
 
 	// initialize cb-auth
 	authenticator, err := auth.NewCbAuthAuthenticator(auth.NewCbAuthAuthenticatorOptions{
+		ClusterUUID:   clusterUUID,
 		Username:      config.Username,
 		Password:      config.Password,
 		BootstrapHost: mgmtHostPort,
