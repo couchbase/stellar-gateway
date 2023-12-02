@@ -60,8 +60,8 @@ github.com/coreos/go-semver v0.3.1 h1:yi21YpKnrx1gt5R+la8n5WgS0kCrsPp33dmEyHReZr
 github.com/coreos/go-semver v0.3.1/go.mod h1:irMmmIw/7yzSRPWryHsK7EYSg09caPQL03VsM8rvUec=
 github.com/coreos/go-systemd/v22 v22.5.0 h1:RrqgGjYQKalulkV8NGVIfkXQf6YYmOyiJKk8iXXhfZs=
 github.com/coreos/go-systemd/v22 v22.5.0/go.mod h1:Y58oyj3AT4RCenI/lSvhwexgC+NSVTIJ3seZv2GcEnc=
-github.com/couchbase/cbauth v0.1.11-0.20230814221519-3b2c4d828dda h1:OjoqwmvI3cxbyhNq+XbPYv/oxl5FgyDQUWIgyV9wnOY=
-github.com/couchbase/cbauth v0.1.11-0.20230814221519-3b2c4d828dda/go.mod h1:YHG+5rUI6GoLLlIViT9IfD0nwqEebBcl66TQ4pDFDw4=
+github.com/couchbase/cbauth v0.1.2-0.20231201233522-321fd8cd46a0 h1:Z/oFrOa9Qf27CrdOgbRI4VbAWxYnFqVVnJtzr5mptAY=
+github.com/couchbase/cbauth v0.1.2-0.20231201233522-321fd8cd46a0/go.mod h1:overPK2NvYkkZBWX0eqmuHB82nhhs8rt7A4wi5u7c2g=
 github.com/couchbase/clog v0.1.0 h1:4Kh/YHkhRjMCbdQuvRVsm39XZh4FtL1d8fAwJsHrEPY=
 github.com/couchbase/clog v0.1.0/go.mod h1:7tzUpEOsE+fgU81yfcjy5N1H6XtbVC8SgOz/3mCjmd4=
 github.com/couchbase/go-couchbase v0.1.1 h1:ClFXELcKj/ojyoTYbsY34QUrrYCBi/1G749sXSCkdhk=

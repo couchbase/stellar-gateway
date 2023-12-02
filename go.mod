@@ -4,7 +4,7 @@ go 1.19
 
 require (
 	github.com/cenkalti/backoff/v4 v4.2.1
-	github.com/couchbase/cbauth v0.1.11-0.20230814221519-3b2c4d828dda
+	github.com/couchbase/cbauth v0.1.2-0.20231201233522-321fd8cd46a0
 	github.com/couchbase/gocb/v2 v2.6.5
 	github.com/couchbase/gocbcore/v10 v10.2.9
 	github.com/couchbase/gocbcorex v0.0.0-20231128181433-538b01e28233
