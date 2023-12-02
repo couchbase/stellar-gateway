@@ -25,15 +25,17 @@ type authenticatorState struct {
 type CbAuthAuthenticator struct {
 	authenticatorState gocbcorex.AtomicPointer[authenticatorState]
 
-	logger   *zap.Logger
-	username string
-	password string
-	service  string
+	logger      *zap.Logger
+	username    string
+	password    string
+	service     string
+	clusterUUID string
 }
 
 var _ Authenticator = (*CbAuthAuthenticator)(nil)
 
 type NewCbAuthAuthenticatorOptions struct {
+	ClusterUUID   string
 	Username      string
 	Password      string
 	BootstrapHost string
@@ -43,10 +45,11 @@ type NewCbAuthAuthenticatorOptions struct {
 
 func NewCbAuthAuthenticator(opts NewCbAuthAuthenticatorOptions) (CbAuthAuthenticator, error) {
 	a := CbAuthAuthenticator{
-		username: opts.Username,
-		password: opts.Password,
-		service:  opts.Service,
-		logger:   opts.Logger,
+		clusterUUID: opts.ClusterUUID,
+		username:    opts.Username,
+		password:    opts.Password,
+		service:     opts.Service,
+		logger:      opts.Logger,
 	}
 
 	revrpc.DefaultBabysitErrorPolicy = revrpc.DefaultErrorPolicy{
@@ -64,6 +67,13 @@ func NewCbAuthAuthenticator(opts NewCbAuthAuthenticatorOptions) (CbAuthAuthentic
 	}
 
 	auth := cbauth.GetExternalAuthenticator()
+
+	err = auth.SetExpectedClusterUuid(a.clusterUUID)
+	if err != nil {
+		a.logger.Warn("failed to set expected cluster uuid, running without uuid validation",
+			zap.Error(err))
+	}
+
 	a.authenticatorState.Store(&authenticatorState{
 		Authenticator: auth,
 		HostPort:      opts.BootstrapHost,
@@ -104,6 +114,13 @@ func (a CbAuthAuthenticator) Reconfigure(opts CbAuthAuthenticatorReconfigureOpti
 	}
 
 	auth := cbauth.GetExternalAuthenticator()
+
+	err = auth.SetExpectedClusterUuid(a.clusterUUID)
+	if err != nil {
+		a.logger.Warn("failed to set expected cluster uuid, running without uuid validation",
+			zap.Error(err))
+	}
+
 	if !a.authenticatorState.CompareAndSwap(currentAuth, &authenticatorState{
 		Authenticator: auth,
 		HostPort:      address,
