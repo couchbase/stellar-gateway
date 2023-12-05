@@ -1,5 +1,6 @@
 *.pb.go
-stellar-nebula
+stellar-gateway
+cloud-native-gateway
 genproto/
 *.log
 build/
