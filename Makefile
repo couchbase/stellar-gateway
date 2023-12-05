@@ -1,6 +1,6 @@
 SOURCE = $(shell find . -name *.go -type f)
 bldNum = $(if $(BLD_NUM),$(BLD_NUM),9999)
-version = $(if $(VERSION),$(VERSION),1.0.0)
+version = $(if $(VERSION),$(VERSION),devel)
 productVersion = $(version)-$(bldNum)
 # The git revision, infinitely more useful than an arbitrary build number.
 REVISION := $(shell git rev-parse HEAD)
@@ -16,9 +16,7 @@ GOLINT_VERSION := v1.50.1
 # that a binary came from.
 LDFLAGS = \
   -s -w \
-  -X github.com/couchbase/stellar-gateway/pkg/version.Version=$(version) \
-  -X github.com/couchbase/stellar-gateway/pkg/version.BuildNumber=$(bldNum) \
-  -X github.com/couchbase/stellar-gateway/pkg/revision.gitRevision=$(REVISION)
+  -X github.com/couchbase/stellar-gateway/pkg/version.Version=$(productVersion)
 
 all: lint test build container
 

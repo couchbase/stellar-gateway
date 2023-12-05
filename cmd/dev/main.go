@@ -8,9 +8,9 @@ import (
 	"os"
 	"sync"
 
+	"github.com/couchbase/gocbcorex/contrib/buildversion"
 	"github.com/couchbase/stellar-gateway/gateway"
 	"github.com/couchbase/stellar-gateway/legacybridge"
-	"github.com/couchbase/stellar-gateway/pkg/version"
 	"go.uber.org/zap"
 )
 
@@ -30,7 +30,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	logger.Info("starting stellar-gateway", zap.String("version", version.WithBuildNumberAndRevision()))
+	buildVersion := buildversion.GetVersion("github.com/couchbase/stellar-gateway")
+	logger.Info("starting stellar-gateway", zap.String("version", buildVersion))
 
 	// In order to start the bridge, we need to know where the gateway is running,
 	// so we use a channel and a hook in the gateway to get this.
