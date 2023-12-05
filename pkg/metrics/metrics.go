@@ -3,7 +3,7 @@ package metrics
 import (
 	"sync"
 
-	"github.com/couchbase/stellar-gateway/pkg/version"
+	"github.com/couchbase/gocbcorex/contrib/buildversion"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/metric"
 )
@@ -32,10 +32,12 @@ func GetSnMetrics() *SnMetrics {
 	return snMetrics
 }
 
+var buildVersion string = buildversion.GetVersion("github.com/couchbase/stellar-gateway")
+
 func newSnMetrics() *SnMetrics {
 	meter := otel.Meter(
 		"com.couchbase.cloud-native-gateway",
-		metric.WithInstrumentationVersion(version.WithRevision()))
+		metric.WithInstrumentationVersion(buildVersion))
 
 	newConnections, _ := meter.Float64Counter("grpc_connections_total")
 	activeConnections, _ := meter.Float64UpDownCounter("grpc_connections")

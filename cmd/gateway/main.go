@@ -4,14 +4,16 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"log"
 	"os"
 	"os/signal"
+	"runtime/debug"
 	"runtime/pprof"
 	"syscall"
 	"time"
 
+	"github.com/couchbase/gocbcorex/contrib/buildversion"
 	"github.com/couchbase/stellar-gateway/gateway"
-	"github.com/couchbase/stellar-gateway/pkg/version"
 	"github.com/couchbase/stellar-gateway/pkg/webapi"
 	"github.com/couchbase/stellar-gateway/utils/selfsignedcert"
 	"github.com/fsnotify/fsnotify"
@@ -34,8 +36,10 @@ import (
 	"google.golang.org/grpc"
 )
 
+var buildVersion string = buildversion.GetVersion("github.com/couchbase/stellar-gateway")
+
 var rootCmd = &cobra.Command{
-	Version: version.Version,
+	Version: buildVersion,
 
 	Use:   "stellar-gateway",
 	Short: "A service for accessing Couchbase over GRPC",
@@ -168,7 +172,11 @@ func startGateway() {
 	logger := zap.New(core, zap.AddCaller(), zap.AddStacktrace(zapcore.ErrorLevel))
 
 	// signal that we are starting
-	logger.Info("starting stellar-gateway", zap.String("version", version.WithBuildNumberAndRevision()))
+	buildInfo, _ := debug.ReadBuildInfo()
+	log.Printf("build info: %+v", buildInfo)
+
+	buildVersion := buildversion.GetVersion("github.com/couchbase/stellar-gateway")
+	logger.Info("starting stellar-gateway", zap.String("version", buildVersion))
 
 	logger.Info("parsed launch configuration",
 		zap.String("config", cfgFile),
