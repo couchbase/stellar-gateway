@@ -341,7 +341,9 @@ func (s *QueryIndexAdminServer) CreatePrimaryIndex(
 	}
 
 	_, err := s.executeQuery(ctx, &in.BucketName, qs, agent, oboInfo)
-	if err != nil {
+	if errors.Is(err, cbqueryx.ErrBuildAlreadyInProgress) {
+		// this is considered a success
+	} else if err != nil {
 		var name string
 		if in.Name == nil {
 			name = "#primary"
@@ -458,7 +460,9 @@ func (s *QueryIndexAdminServer) CreateIndex(
 	}
 
 	_, err := s.executeQuery(ctx, &in.BucketName, qs, agent, oboInfo)
-	if err != nil {
+	if errors.Is(err, cbqueryx.ErrBuildAlreadyInProgress) {
+		// this is considered a success
+	} else if err != nil {
 		if errors.Is(err, cbqueryx.ErrIndexExists) {
 			return nil, s.errorHandler.NewQueryIndexExistsStatus(err, in.Name).Err()
 		}
@@ -742,7 +746,9 @@ func (s *QueryIndexAdminServer) BuildDeferredIndexes(
 		}
 
 		_, err := s.executeQuery(ctx, &in.BucketName, qs, agent, oboInfo)
-		if err != nil {
+		if errors.Is(err, cbqueryx.ErrBuildAlreadyInProgress) {
+			// this is considered a success
+		} else if err != nil {
 			return nil, s.errorHandler.NewGenericStatus(err).Err()
 		}
 	}
