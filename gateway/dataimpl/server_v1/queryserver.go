@@ -97,10 +97,6 @@ func (s *QueryServer) Query(in *query_v1.QueryRequest, out query_v1.QueryService
 		opts.PreserveExpiry = *in.PreserveExpiry
 	}
 
-	if in.ConsistentWith != nil {
-		return s.errorHandler.NewUnsupportedFieldStatus("ConsistentWith").Err()
-	}
-
 	if in.TuningOptions != nil {
 		if in.TuningOptions.MaxParallelism != nil {
 			opts.MaxParallelism = *in.TuningOptions.MaxParallelism
@@ -128,7 +124,9 @@ func (s *QueryServer) Query(in *query_v1.QueryRequest, out query_v1.QueryService
 		opts.ClientContextId = uuid.NewString()
 	}
 
-	if in.ScanConsistency != nil {
+	if in.ScanConsistency != nil && len(in.ConsistentWith) > 0 {
+		return status.Errorf(codes.InvalidArgument, "cannot specify both token-based and enumeration-based consistency")
+	} else if in.ScanConsistency != nil {
 		switch *in.ScanConsistency {
 		case query_v1.QueryRequest_SCAN_CONSISTENCY_NOT_BOUNDED:
 			opts.ScanConsistency = cbqueryx.ScanConsistencyNotBounded
@@ -137,7 +135,35 @@ func (s *QueryServer) Query(in *query_v1.QueryRequest, out query_v1.QueryService
 		default:
 			return status.Errorf(codes.InvalidArgument, "invalid scan consistency option specified")
 		}
+	} else if len(in.ConsistentWith) > 0 {
+		vectors := make(map[string]cbqueryx.SparseScanVectors)
+		for _, vector := range in.ConsistentWith {
+			bucketVectors := vectors[vector.BucketName]
+			if bucketVectors == nil {
+				bucketVectors = make(cbqueryx.SparseScanVectors)
+				vectors[vector.BucketName] = bucketVectors
+			}
+
+			bucketVectors[vector.VbucketId] = cbqueryx.ScanVectorEntry{
+				SeqNo:  vector.SeqNo,
+				VbUuid: fmt.Sprintf("%d", vector.VbucketUuid),
+			}
+		}
+
+		jsonVectors := make(map[string]json.RawMessage)
+		for bucketName, bucketVectors := range vectors {
+			bucketJson, err := json.Marshal(bucketVectors)
+			if err != nil {
+				return s.errorHandler.NewGenericStatus(err).Err()
+			}
+
+			jsonVectors[bucketName] = bucketJson
+		}
+
+		opts.ScanConsistency = cbqueryx.ScanConsistencyAtPlus
+		opts.ScanVectors = jsonVectors
 	}
+
 	named := in.GetNamedParameters()
 	pos := in.GetPositionalParameters()
 	if len(named) > 0 && len(pos) > 0 {

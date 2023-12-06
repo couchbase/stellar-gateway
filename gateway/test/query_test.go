@@ -5,10 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/rand"
 	"time"
 
 	"github.com/google/uuid"
 
+	"github.com/couchbase/goprotostellar/genproto/kv_v1"
 	"github.com/couchbase/goprotostellar/genproto/query_v1"
 	"github.com/stretchr/testify/assert"
 	epb "google.golang.org/genproto/googleapis/rpc/errdetails"
@@ -69,6 +71,91 @@ func (s *GatewayOpsTestSuite) TestQuery() {
 			assert.NotNil(s.T(), md)
 			return true
 		}, 30*time.Second, 1*time.Second)
+	})
+
+	s.Run("RequestPlusConsistency", func() {
+		docId := s.testDocId()
+		randNum := rand.Int31()
+
+		kvClient := kv_v1.NewKvServiceClient(s.gatewayConn)
+		kvResp, err := kvClient.Replace(context.Background(), &kv_v1.ReplaceRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            docId,
+			Content: &kv_v1.ReplaceRequest_ContentUncompressed{
+				ContentUncompressed: []byte(fmt.Sprintf(`{"num":%d}`, randNum)),
+			},
+			ContentFlags: TEST_CONTENT_FLAGS,
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		requireRpcSuccess(s.T(), kvResp, err)
+		assertValidCas(s.T(), kvResp.Cas)
+		assertValidMutationToken(s.T(), kvResp.MutationToken, s.bucketName)
+
+		client, err := queryClient.Query(context.Background(), &query_v1.QueryRequest{
+			BucketName: &s.bucketName,
+			Statement: fmt.Sprintf(`SELECT * FROM default._default._default WHERE META().id='%s' AND num=%d`,
+				docId, randNum),
+			ScanConsistency: query_v1.QueryRequest_SCAN_CONSISTENCY_REQUEST_PLUS.Enum(),
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		requireRpcSuccess(s.T(), client, err)
+
+		rows, md, err := readQueryStream(client)
+		requireRpcSuccess(s.T(), client, err)
+
+		assert.Len(s.T(), rows, 1)
+		assert.NotNil(s.T(), md)
+	})
+
+	s.Run("VectorConsistency", func() {
+		docId := s.testDocId()
+		randNum := rand.Int31()
+
+		kvClient := kv_v1.NewKvServiceClient(s.gatewayConn)
+		kvResp, err := kvClient.Replace(context.Background(), &kv_v1.ReplaceRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            docId,
+			Content: &kv_v1.ReplaceRequest_ContentUncompressed{
+				ContentUncompressed: []byte(fmt.Sprintf(`{"num":%d}`, randNum)),
+			},
+			ContentFlags: TEST_CONTENT_FLAGS,
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		requireRpcSuccess(s.T(), kvResp, err)
+		assertValidCas(s.T(), kvResp.Cas)
+		assertValidMutationToken(s.T(), kvResp.MutationToken, s.bucketName)
+
+		client, err := queryClient.Query(context.Background(), &query_v1.QueryRequest{
+			BucketName: &s.bucketName,
+			Statement: fmt.Sprintf(`SELECT * FROM default._default._default WHERE META().id='%s' AND num=%d`,
+				docId, randNum),
+			ConsistentWith: []*kv_v1.MutationToken{
+				kvResp.MutationToken,
+			},
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		requireRpcSuccess(s.T(), client, err)
+
+		rows, md, err := readQueryStream(client)
+		requireRpcSuccess(s.T(), client, err)
+
+		assert.Len(s.T(), rows, 1)
+		assert.NotNil(s.T(), md)
+	})
+
+	s.Run("ConflictingConsistency", func() {
+		client, err := queryClient.Query(context.Background(), &query_v1.QueryRequest{
+			BucketName: &s.bucketName,
+			Statement:  `SELECT * FROM default._default._default`,
+			ConsistentWith: []*kv_v1.MutationToken{
+				{},
+			},
+			ScanConsistency: query_v1.QueryRequest_SCAN_CONSISTENCY_REQUEST_PLUS.Enum(),
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		requireRpcSuccess(s.T(), client, err)
+
+		_, _, err = readQueryStream(client)
+		assertRpcStatus(s.T(), err, codes.InvalidArgument)
 	})
 
 	s.Run("InvalidQueryStatement", func() {
