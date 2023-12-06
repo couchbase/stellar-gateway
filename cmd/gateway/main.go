@@ -4,10 +4,8 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"log"
 	"os"
 	"os/signal"
-	"runtime/debug"
 	"runtime/pprof"
 	"syscall"
 	"time"
@@ -172,9 +170,6 @@ func startGateway() {
 	logger := zap.New(core, zap.AddCaller(), zap.AddStacktrace(zapcore.ErrorLevel))
 
 	// signal that we are starting
-	buildInfo, _ := debug.ReadBuildInfo()
-	log.Printf("build info: %+v", buildInfo)
-
 	buildVersion := buildversion.GetVersion("github.com/couchbase/stellar-gateway")
 	logger.Info("starting stellar-gateway", zap.String("version", buildVersion))
 
