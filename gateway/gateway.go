@@ -299,7 +299,8 @@ func (g *Gateway) Run(ctx context.Context) error {
 					Addresses: cfg.Addresses,
 				})
 				if err != nil {
-					config.Logger.Warn("failed to reconfigure cbauth")
+					config.Logger.Warn("failed to reconfigure cbauth",
+						zap.Error(err))
 				}
 			}
 		}
