@@ -172,6 +172,29 @@ func (e ErrorHandler) NewBucketInvalidArgStatus(baseErr error, msg string, bucke
 	return st
 }
 
+func (e ErrorHandler) NewCollectionInvalidArgStatus(baseErr error, msg string, bucket, scope, collection string) *status.Status {
+	if msg == "" {
+		msg = "invalid argument"
+	}
+	st := status.New(codes.InvalidArgument, msg)
+
+	var sErr *cbmgmtx.ServerInvalidArgError
+	if errors.As(baseErr, &sErr) {
+		st = status.New(codes.InvalidArgument, fmt.Sprintf("invalid argument: %s - %s", sErr.Argument, sErr.Reason))
+	}
+
+	if baseErr != nil {
+		st = e.tryAttachExtraContext(st, baseErr)
+	}
+
+	st = e.tryAttachStatusDetails(st, &epb.ResourceInfo{
+		ResourceType: "collection",
+		ResourceName: fmt.Sprintf("%s/%s/%s", bucket, scope, collection),
+		Description:  "",
+	})
+	return st
+}
+
 func (e ErrorHandler) NewScopeMissingStatus(baseErr error, bucketName, scopeName string) *status.Status {
 	st := status.New(codes.NotFound,
 		fmt.Sprintf("Scope '%s' not found in '%s'.",

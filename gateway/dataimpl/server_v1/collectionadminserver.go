@@ -219,3 +219,37 @@ func (s *CollectionAdminServer) DeleteCollection(
 
 	return &admin_collection_v1.DeleteCollectionResponse{}, nil
 }
+
+func (s *CollectionAdminServer) UpdateCollection(
+	ctx context.Context,
+	in *admin_collection_v1.UpdateCollectionRequest,
+) (*admin_collection_v1.UpdateCollectionResponse, error) {
+	bucketAgent, oboInfo, errSt := s.authHandler.GetHttpOboAgent(ctx, &in.BucketName)
+	if errSt != nil {
+		return nil, errSt.Err()
+	}
+
+	_, err := bucketAgent.UpdateCollection(ctx, &cbmgmtx.UpdateCollectionOptions{
+		OnBehalfOf:     oboInfo,
+		BucketName:     in.BucketName,
+		ScopeName:      in.ScopeName,
+		CollectionName: in.CollectionName,
+		MaxTTL:         in.MaxExpirySecs,
+		HistoryEnabled: in.HistoryRetentionEnabled,
+	})
+
+	if err != nil {
+		if errors.Is(err, cbmgmtx.ErrBucketNotFound) {
+			return nil, s.errorHandler.NewBucketMissingStatus(err, in.BucketName).Err()
+		} else if errors.Is(err, cbmgmtx.ErrCollectionNotFound) {
+			return nil, s.errorHandler.NewCollectionMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+		} else if errors.Is(err, cbmgmtx.ErrScopeNotFound) {
+			return nil, s.errorHandler.NewScopeMissingStatus(err, in.BucketName, in.ScopeName).Err()
+		} else if errors.Is(err, cbmgmtx.ErrServerInvalidArg) {
+			return nil, s.errorHandler.NewCollectionInvalidArgStatus(err, "", in.BucketName, in.ScopeName, in.CollectionName).Err()
+		}
+		return nil, s.errorHandler.NewGenericStatus(err).Err()
+	}
+
+	return &admin_collection_v1.UpdateCollectionResponse{}, nil
+}

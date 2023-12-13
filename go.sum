@@ -70,8 +70,8 @@ github.com/couchbase/gocb/v2 v2.6.5 h1:xaZu29o8UJEV1ZQ3n2s9jcRCUHz/JsQ6+y6JBnVsy
 github.com/couchbase/gocb/v2 v2.6.5/go.mod h1:0vFM09y+VPhnXeNrIb8tS0wKHGpJvjJBrJnriWEiwGs=
 github.com/couchbase/gocbcore/v10 v10.2.9 h1:zph/+ceu3JtZEDKhJMTRc6lGrahq+mnlQY/1dSepJuE=
 github.com/couchbase/gocbcore/v10 v10.2.9/go.mod h1:lYQIIk+tzoMcwtwU5GzPbDdqEkwkH3isI2rkSpfL0oM=
-github.com/couchbase/gocbcorex v0.0.0-20231221114703-1d191dd6b86d h1:8dnOqvNygJhYs778fUqFFDDVJyERxdcAQlnowmhe35Y=
-github.com/couchbase/gocbcorex v0.0.0-20231221114703-1d191dd6b86d/go.mod h1:On+ek6dOXrkBUybNdAlM4M37OcFoDmT6taRrQ+2vgA8=
+github.com/couchbase/gocbcorex v0.0.0-20231221144553-d08268a9d969 h1:1erPfyBfPjHC8UvVGmRZe9Sij7ZaaCEKGAmfbqn+kRk=
+github.com/couchbase/gocbcorex v0.0.0-20231221144553-d08268a9d969/go.mod h1:On+ek6dOXrkBUybNdAlM4M37OcFoDmT6taRrQ+2vgA8=
 github.com/couchbase/gomemcached v0.2.1 h1:lDONROGbklo8pOt4Sr4eV436PVEaKDr3o9gUlhv9I2U=
 github.com/couchbase/gomemcached v0.2.1/go.mod h1:mxliKQxOv84gQ0bJWbI+w9Wxdpt9HjDvgW9MjCym5Vo=
 github.com/couchbase/goprotostellar v1.0.1-0.20231220111120-c4d2428ed125 h1:heAkmH9V4TQVBAc8wg5yba4cXjJ10Fm8iDNVT8FFuT4=
