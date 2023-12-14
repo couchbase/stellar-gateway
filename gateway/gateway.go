@@ -208,12 +208,12 @@ func (g *Gateway) Run(ctx context.Context) error {
 
 	// initialize cb-auth
 	authenticator, err := auth.NewCbAuthAuthenticator(auth.NewCbAuthAuthenticatorOptions{
-		ClusterUUID:   clusterUUID,
-		Username:      config.Username,
-		Password:      config.Password,
-		BootstrapHost: mgmtHostPort,
-		Service:       "stg",
-		Logger:        config.Logger.Named("cbauth"),
+		Service:     "stg",
+		ClusterUUID: clusterUUID,
+		Addresses:   []string{mgmtHostPort},
+		Username:    config.Username,
+		Password:    config.Password,
+		Logger:      config.Logger.Named("cbauth"),
 	})
 	if err != nil {
 		config.Logger.Error("failed to initialize cbauth connection",
@@ -286,23 +286,30 @@ func (g *Gateway) Run(ctx context.Context) error {
 
 	go func() {
 		watchCh := agentMgr.WatchConfig(context.Background())
+	runLoop:
 		for {
 			select {
 			case <-g.shutdownSig:
-				return
+				break runLoop
 			case cfg := <-watchCh:
 				if cfg == nil {
 					continue
 				}
 
 				err := authenticator.Reconfigure(auth.CbAuthAuthenticatorReconfigureOptions{
-					Addresses: cfg.Addresses,
+					Addresses: cfg.Addresses.NonSSL.Mgmt,
 				})
 				if err != nil {
 					config.Logger.Warn("failed to reconfigure cbauth",
 						zap.Error(err))
 				}
 			}
+		}
+
+		err := authenticator.Close()
+		if err != nil {
+			config.Logger.Warn("failed to shutdown cbauth",
+				zap.Error(err))
 		}
 	}()
 
