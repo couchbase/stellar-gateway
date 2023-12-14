@@ -7,7 +7,7 @@ require (
 	github.com/couchbase/cbauth v0.1.2-0.20231201233522-321fd8cd46a0
 	github.com/couchbase/gocb/v2 v2.6.5
 	github.com/couchbase/gocbcore/v10 v10.2.9
-	github.com/couchbase/gocbcorex v0.0.0-20231207001327-3e3cee82f99c
+	github.com/couchbase/gocbcorex v0.0.0-20231214154013-2f07e8f85860
 	github.com/couchbase/goprotostellar v1.0.1-0.20231122171617-af784dfc3d53
 	github.com/couchbaselabs/gocbconnstr v1.0.5
 	github.com/fsnotify/fsnotify v1.7.0
