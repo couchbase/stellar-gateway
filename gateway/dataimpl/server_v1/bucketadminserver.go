@@ -10,6 +10,7 @@ import (
 	"github.com/couchbase/gocbcorex/cbmgmtx"
 	"github.com/couchbase/goprotostellar/genproto/admin_bucket_v1"
 	"go.uber.org/zap"
+	"google.golang.org/grpc/status"
 )
 
 type BucketAdminServer struct {
@@ -82,25 +83,60 @@ func (s *BucketAdminServer) ListBuckets(
 			return nil, errSt.Err()
 		}
 
+		duration := uint32(bucket.HistoryRetentionSeconds)
 		buckets = append(buckets, &admin_bucket_v1.ListBucketsResponse_Bucket{
-			BucketName:             bucket.Name,
-			FlushEnabled:           bucket.FlushEnabled,
-			RamQuotaMb:             bucket.RAMQuotaMB,
-			NumReplicas:            bucket.ReplicaNumber,
-			ReplicaIndexes:         bucket.ReplicaIndex,
-			BucketType:             bucketType,
-			EvictionMode:           evictionMode,
-			MaxExpirySecs:          uint32(bucket.MaxTTL / time.Second),
-			CompressionMode:        compressionMode,
-			MinimumDurabilityLevel: minimumDurabilityLevel,
-			StorageBackend:         storageBackend,
-			ConflictResolutionType: conflictResolutionType,
+			BucketName:                        bucket.Name,
+			FlushEnabled:                      bucket.FlushEnabled,
+			RamQuotaMb:                        bucket.RAMQuotaMB,
+			NumReplicas:                       bucket.ReplicaNumber,
+			ReplicaIndexes:                    bucket.ReplicaIndex,
+			BucketType:                        bucketType,
+			EvictionMode:                      evictionMode,
+			MaxExpirySecs:                     uint32(bucket.MaxTTL / time.Second),
+			CompressionMode:                   compressionMode,
+			MinimumDurabilityLevel:            minimumDurabilityLevel,
+			StorageBackend:                    storageBackend,
+			ConflictResolutionType:            conflictResolutionType,
+			HistoryRetentionCollectionDefault: bucket.HistoryRetentionCollectionDefault,
+			HistoryRetentionBytes:             &bucket.HistoryRetentionBytes,
+			HistoryRetentionDurationSecs:      &duration,
 		})
 	}
 
 	return &admin_bucket_v1.ListBucketsResponse{
 		Buckets: buckets,
 	}, nil
+}
+
+func (s *BucketAdminServer) validateHistorySettings(
+	storageBackend cbmgmtx.StorageBackend,
+	name string,
+	historyRetentionCollectionDefault *bool,
+	historyRetentionBytes *uint64,
+	historyRetentionDurationSecs *uint32) *status.Status {
+
+	if storageBackend != cbmgmtx.StorageBackendMagma {
+		if historyRetentionCollectionDefault != nil || historyRetentionBytes != nil || historyRetentionDurationSecs != nil {
+			return s.errorHandler.NewBucketInvalidArgStatus(
+				nil,
+				"Only magma buckets support history retention.",
+				name,
+			)
+		}
+		return nil
+	}
+
+	if historyRetentionBytes != nil {
+		if *historyRetentionBytes < 2147483648 || *historyRetentionBytes > 18446744073709551615 {
+			return s.errorHandler.NewBucketInvalidArgStatus(
+				nil,
+				"HistoryRetentionBytes must be an integer between 2147483648 and 18446744073709551615, inclusive.",
+				name,
+			)
+		}
+	}
+
+	return nil
 }
 
 func (s *BucketAdminServer) CreateBucket(
@@ -182,6 +218,26 @@ func (s *BucketAdminServer) CreateBucket(
 		}
 	}
 
+	errSt = s.validateHistorySettings(
+		storageBackend,
+		in.BucketName,
+		in.HistoryRetentionCollectionDefault,
+		in.HistoryRetentionBytes,
+		in.HistoryRetentionDurationSecs)
+	if errSt != nil {
+		return nil, errSt.Err()
+	}
+
+	var historyBytes uint64
+	if in.HistoryRetentionBytes != nil {
+		historyBytes = *in.HistoryRetentionBytes
+	}
+
+	var historyDuration uint32
+	if in.HistoryRetentionDurationSecs != nil {
+		historyDuration = *in.HistoryRetentionDurationSecs
+	}
+
 	ramQuotaMb := uint64(0)
 	// we intentionally transmit a value of 0 if we don't have a default for the specified
 	// storage enging and the user did not specify an explicit value.  this is in the hopes
@@ -206,13 +262,16 @@ func (s *BucketAdminServer) CreateBucket(
 		BucketName: in.BucketName,
 		BucketSettings: cbmgmtx.BucketSettings{
 			MutableBucketSettings: cbmgmtx.MutableBucketSettings{
-				FlushEnabled:       flushEnabled,
-				RAMQuotaMB:         ramQuotaMb,
-				ReplicaNumber:      numReplicas,
-				EvictionPolicy:     evictionPolicy,
-				MaxTTL:             maxExpiry,
-				CompressionMode:    compressionMode,
-				DurabilityMinLevel: minimumDurabilityLevel,
+				FlushEnabled:                      flushEnabled,
+				RAMQuotaMB:                        ramQuotaMb,
+				ReplicaNumber:                     numReplicas,
+				EvictionPolicy:                    evictionPolicy,
+				MaxTTL:                            maxExpiry,
+				CompressionMode:                   compressionMode,
+				DurabilityMinLevel:                minimumDurabilityLevel,
+				HistoryRetentionCollectionDefault: in.HistoryRetentionCollectionDefault,
+				HistoryRetentionBytes:             historyBytes,
+				HistoryRetentionSeconds:           historyDuration,
 			},
 			ConflictResolutionType: conflictResolutionType,
 			ReplicaIndex:           replicaIndexes,
@@ -299,6 +358,28 @@ func (s *BucketAdminServer) UpdateBucket(
 		if errSt != nil {
 			return nil, errSt.Err()
 		}
+	}
+
+	errSt = s.validateHistorySettings(
+		bucket.BucketSettings.StorageBackend,
+		in.BucketName,
+		in.HistoryRetentionCollectionDefault,
+		in.HistoryRetentionBytes,
+		in.HistoryRetentionDurationSecs)
+	if errSt != nil {
+		return nil, errSt.Err()
+	}
+
+	if in.HistoryRetentionCollectionDefault != nil {
+		newBucket.HistoryRetentionCollectionDefault = in.HistoryRetentionCollectionDefault
+	}
+
+	if in.HistoryRetentionBytes != nil {
+		newBucket.HistoryRetentionBytes = *in.HistoryRetentionBytes
+	}
+
+	if in.HistoryRetentionDurationSecs != nil {
+		newBucket.HistoryRetentionSeconds = *in.HistoryRetentionDurationSecs
 	}
 
 	err = agent.UpdateBucket(ctx, &cbmgmtx.UpdateBucketOptions{
