@@ -4,7 +4,8 @@ go 1.19
 
 require (
 	github.com/cenkalti/backoff/v4 v4.2.1
-	github.com/couchbase/cbauth v0.1.2-0.20231201233522-321fd8cd46a0
+	github.com/couchbase/cbauth v0.1.2-0.20231214203958-0685e2541e67
+	github.com/couchbase/clog v0.1.0
 	github.com/couchbase/gocb/v2 v2.6.5
 	github.com/couchbase/gocbcore/v10 v10.2.9
 	github.com/couchbase/gocbcorex v0.0.0-20231214154013-2f07e8f85860
@@ -45,7 +46,6 @@ require (
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/coreos/go-semver v0.3.1 // indirect
 	github.com/coreos/go-systemd/v22 v22.5.0 // indirect
-	github.com/couchbase/clog v0.1.0 // indirect
 	github.com/couchbase/go-couchbase v0.1.1 // indirect
 	github.com/couchbase/gomemcached v0.2.1 // indirect
 	github.com/couchbase/goutils v0.1.2 // indirect
