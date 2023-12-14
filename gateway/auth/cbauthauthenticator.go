@@ -3,13 +3,15 @@ package auth
 import (
 	"errors"
 	"fmt"
-	"strings"
+	"math/rand"
+	"sync"
 	"time"
 
 	"github.com/couchbase/cbauth"
-	"github.com/couchbase/cbauth/revrpc"
+	"github.com/couchbase/clog"
 	"github.com/couchbase/gocbcorex"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 	"golang.org/x/exp/slices"
 )
 
@@ -19,124 +21,185 @@ var (
 
 type authenticatorState struct {
 	Authenticator cbauth.ExternalAuthenticator
-	HostPort      string
 }
 
 type CbAuthAuthenticator struct {
 	authenticatorState gocbcorex.AtomicPointer[authenticatorState]
 
+	lock           sync.Mutex
+	waitSig        *sync.Cond
+	closed         bool
+	addresses      []string
+	currentAddress string
+
 	logger      *zap.Logger
-	username    string
-	password    string
 	service     string
 	clusterUUID string
+	username    string
+	password    string
 }
 
 var _ Authenticator = (*CbAuthAuthenticator)(nil)
 
 type NewCbAuthAuthenticatorOptions struct {
-	ClusterUUID   string
-	Username      string
-	Password      string
-	BootstrapHost string
-	Service       string
-	Logger        *zap.Logger
+	Service     string
+	ClusterUUID string
+	Addresses   []string
+	Username    string
+	Password    string
+	Logger      *zap.Logger
 }
 
-func NewCbAuthAuthenticator(opts NewCbAuthAuthenticatorOptions) (CbAuthAuthenticator, error) {
-	a := CbAuthAuthenticator{
+func NewCbAuthAuthenticator(opts NewCbAuthAuthenticatorOptions) (*CbAuthAuthenticator, error) {
+	a := &CbAuthAuthenticator{
+		service:     opts.Service,
 		clusterUUID: opts.ClusterUUID,
+		addresses:   opts.Addresses,
 		username:    opts.Username,
 		password:    opts.Password,
-		service:     opts.Service,
 		logger:      opts.Logger,
 	}
 
-	revrpc.DefaultBabysitErrorPolicy = revrpc.DefaultErrorPolicy{
-		RestartsToExit:       -1,
-		SleepBetweenRestarts: time.Second,
-		LogPrint: func(v ...any) {
-			a.logger.Info("cbauth message",
-				zap.String("message", fmt.Sprint(v...)))
-		},
-	}
+	a.waitSig = sync.NewCond(&a.lock)
 
-	err := cbauth.InitExternalWithHeartbeat(a.service, opts.BootstrapHost, a.username, a.password, 5, 10)
-	if err != nil {
-		return CbAuthAuthenticator{}, err
-	}
+	clog.SetLoggerCallback(func(level, format string, args ...interface{}) string {
+		var zapLevel zapcore.Level
+		switch level {
+		case "FATA":
+			zapLevel = zap.ErrorLevel
+		case "CRIT":
+			zapLevel = zap.ErrorLevel
+		case "ERRO":
+			zapLevel = zap.ErrorLevel
+		case "WARN":
+			zapLevel = zap.WarnLevel
+		case "INFO":
+			zapLevel = zap.InfoLevel
+		default:
+			zapLevel = zap.DebugLevel
+		}
 
-	auth := cbauth.GetExternalAuthenticator()
+		a.logger.Log(zapLevel,
+			"cbauth message",
+			zap.String("level", level),
+			zap.String("message", fmt.Sprintf(format, args...)))
 
-	err = auth.SetExpectedClusterUuid(a.clusterUUID)
-	if err != nil {
-		a.logger.Warn("failed to set expected cluster uuid, running without uuid validation",
-			zap.Error(err))
-	}
-
-	a.authenticatorState.Store(&authenticatorState{
-		Authenticator: auth,
-		HostPort:      opts.BootstrapHost,
+		// return blank so its not logged to the default logger
+		return ""
 	})
+
+	a.initExternalAuthenticator()
+
+	go a.runThread()
 
 	return a, nil
 }
 
-type CbAuthAuthenticatorReconfigureOptions struct {
-	Addresses *gocbcorex.ParsedConfigAddresses
+func (a *CbAuthAuthenticator) initExternalAuthenticator() {
+	var availableHosts []string
+	var failedHosts []string
+
+	for {
+		a.lock.Lock()
+		if a.closed {
+			a.lock.Unlock()
+			break
+		}
+
+		availableHosts = availableHosts[:0]
+		for _, address := range a.addresses {
+			if !slices.Contains(failedHosts, address) {
+				availableHosts = append(availableHosts, address)
+			}
+		}
+
+		if len(availableHosts) == 0 {
+			a.lock.Unlock()
+
+			a.logger.Debug("no more available hosts for cbauth to try, waiting...")
+			failedHosts = failedHosts[:0]
+			time.Sleep(1 * time.Second)
+			continue
+		}
+
+		currentAddress := availableHosts[rand.Intn(len(availableHosts))]
+		a.currentAddress = currentAddress
+		a.lock.Unlock()
+
+		a.logger.Debug("attempting to establish new cbauth connection",
+			zap.String("address", currentAddress))
+
+		err := cbauth.InitExternalWithHeartbeat(a.service, currentAddress, a.username, a.password, 5, 10)
+		if err != nil {
+			failedHosts = append(failedHosts, currentAddress)
+
+			a.logger.Warn("failed to initialize cbauth",
+				zap.Error(err))
+			continue
+		}
+
+		auth := cbauth.GetExternalAuthenticator()
+
+		err = auth.SetExpectedClusterUuid(a.clusterUUID)
+		if err != nil {
+			a.logger.Warn("failed to set expected cluster uuid, running without uuid validation",
+				zap.Error(err))
+		}
+
+		a.logger.Debug("successfully connected cbauth to new host",
+			zap.String("address", currentAddress))
+
+		a.authenticatorState.Store(&authenticatorState{
+			Authenticator: auth,
+		})
+		break
+	}
 }
 
-func (a CbAuthAuthenticator) Reconfigure(opts CbAuthAuthenticatorReconfigureOptions) error {
-	if len(opts.Addresses.NonSSL.Mgmt) == 0 {
-		return errors.New("reconfigure called with no mgmt addresses")
-	}
-	currentAuth := a.authenticatorState.Load()
-	if currentAuth != nil {
-		if slices.Contains(opts.Addresses.NonSSL.Mgmt, currentAuth.HostPort) {
-			// Nothing to do here.
-			return nil
+func (a *CbAuthAuthenticator) runThread() {
+	a.lock.Lock()
+
+	for {
+		if a.closed {
+			break
 		}
-	}
 
-	// We need to pick a new node, as ours went away.
-	address := opts.Addresses.NonSSL.Mgmt[0]
+		a.waitSig.Wait()
 
-	a.logger.Debug("Switching cbauth host", zap.String("new-host", address))
-
-	err := cbauth.InitExternalWithHeartbeat(a.service, address, a.username, a.password, 5, 10)
-	if err != nil {
-		if strings.Contains(err.Error(), "already initialized") {
-			// we ignore this error
-			return nil
-		} else {
-			return err
+		// if the current address is already in our config, we don't have
+		// anything we actually need to do.
+		if slices.Contains(a.addresses, a.currentAddress) {
+			continue
 		}
+
+		a.lock.Unlock()
+
+		a.initExternalAuthenticator()
+
+		a.lock.Lock()
 	}
 
-	auth := cbauth.GetExternalAuthenticator()
+	a.lock.Unlock()
+}
 
-	err = auth.SetExpectedClusterUuid(a.clusterUUID)
-	if err != nil {
-		a.logger.Warn("failed to set expected cluster uuid, running without uuid validation",
-			zap.Error(err))
-	}
+type CbAuthAuthenticatorReconfigureOptions struct {
+	Addresses []string
+}
 
-	if !a.authenticatorState.CompareAndSwap(currentAuth, &authenticatorState{
-		Authenticator: auth,
-		HostPort:      address,
-	}) {
-		// This is unexpected and we could be in a weird position here.
-		return errors.New("reconfigure was called concurrently")
-	}
-
+func (a *CbAuthAuthenticator) Reconfigure(opts CbAuthAuthenticatorReconfigureOptions) error {
+	a.lock.Lock()
+	a.addresses = opts.Addresses
+	a.waitSig.Broadcast()
+	a.lock.Unlock()
 	return nil
 }
 
-func (a CbAuthAuthenticator) ValidateUserForObo(user, pass string) (string, string, error) {
+func (a *CbAuthAuthenticator) ValidateUserForObo(user, pass string) (string, string, error) {
 	auth := a.authenticatorState.Load()
 	if auth == nil {
 		return "", "", errors.New("authenticator is not initialized")
 	}
+
 	creds, err := auth.Authenticator.Auth(user, pass)
 	if err != nil {
 		if errors.Is(err, cbauth.ErrNoAuth) {
@@ -148,4 +211,13 @@ func (a CbAuthAuthenticator) ValidateUserForObo(user, pass string) (string, stri
 
 	username, domain := creds.User()
 	return username, domain, nil
+}
+
+func (a *CbAuthAuthenticator) Close() error {
+	a.lock.Lock()
+	a.closed = true
+	a.waitSig.Signal()
+	a.lock.Unlock()
+
+	return nil
 }
