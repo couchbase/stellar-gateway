@@ -16,7 +16,7 @@ GOLINT_VERSION := v1.50.1
 # that a binary came from.
 LDFLAGS = \
   -s -w \
-  -X github.com/couchbase/stellar-gateway/pkg/version.Version=$(productVersion)
+  -X github.com/couchbase/gocbcorex/contrib/buildversion.MainPkgVersion=$(productVersion)
 
 all: lint test build container
 
