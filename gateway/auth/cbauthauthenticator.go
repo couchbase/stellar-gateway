@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/rand"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/couchbase/cbauth"
@@ -25,6 +26,7 @@ type authenticatorState struct {
 
 type CbAuthAuthenticator struct {
 	authenticatorState gocbcorex.AtomicPointer[authenticatorState]
+	errorCount         uint64
 
 	lock           sync.Mutex
 	waitSig        *sync.Cond
@@ -168,13 +170,18 @@ func (a *CbAuthAuthenticator) runThread() {
 
 		// if the current address is already in our config, we don't have
 		// anything we actually need to do.
-		if slices.Contains(a.addresses, a.currentAddress) {
+		if slices.Contains(a.addresses, a.currentAddress) &&
+			atomic.LoadUint64(&a.errorCount) == 0 {
 			continue
 		}
 
 		a.lock.Unlock()
 
+		// initialize the external authenticator again
 		a.initExternalAuthenticator()
+
+		// reset the error count
+		atomic.StoreUint64(&a.errorCount, 0)
 
 		a.lock.Lock()
 	}
@@ -204,6 +211,12 @@ func (a *CbAuthAuthenticator) ValidateUserForObo(user, pass string) (string, str
 	if err != nil {
 		if errors.Is(err, cbauth.ErrNoAuth) {
 			return "", "", ErrInvalidCredentials
+		}
+
+		// when we get an error, we mark the error and request the operation be continued
+		newErrorCount := atomic.AddUint64(&a.errorCount, 1)
+		if newErrorCount == 1 {
+			a.waitSig.Broadcast()
 		}
 
 		return "", "", fmt.Errorf("failed to check credentials with cbauth: %s", err.Error())
