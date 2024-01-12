@@ -1,5 +1,7 @@
 package auth
 
+import "context"
+
 type Authenticator interface {
-	ValidateUserForObo(user, pass string) (string, string, error)
+	ValidateUserForObo(ctx context.Context, user, pass string) (string, string, error)
 }
