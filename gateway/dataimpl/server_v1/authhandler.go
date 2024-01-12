@@ -72,7 +72,7 @@ func (a AuthHandler) MaybeGetOboUserFromContext(ctx context.Context) (string, st
 		return "", "", nil
 	}
 
-	oboUser, oboDomain, err := a.Authenticator.ValidateUserForObo(username, password)
+	oboUser, oboDomain, err := a.Authenticator.ValidateUserForObo(ctx, username, password)
 	if err != nil {
 		if errors.Is(err, auth.ErrInvalidCredentials) {
 			return "", "", a.ErrorHandler.NewInvalidCredentialsStatus()

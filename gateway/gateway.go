@@ -207,12 +207,11 @@ func (g *Gateway) Run(ctx context.Context) error {
 	}
 
 	// initialize cb-auth
-	authenticator, err := auth.NewCbAuthAuthenticator(auth.NewCbAuthAuthenticatorOptions{
-		Service:     "stg",
-		ClusterUUID: clusterUUID,
+	authenticator, err := auth.NewCbAuthAuthenticator(ctx, auth.NewCbAuthAuthenticatorOptions{
 		Addresses:   []string{mgmtHostPort},
 		Username:    config.Username,
 		Password:    config.Password,
+		ClusterUUID: clusterUUID,
 		Logger:      config.Logger.Named("cbauth"),
 	})
 	if err != nil {
@@ -297,7 +296,10 @@ func (g *Gateway) Run(ctx context.Context) error {
 				}
 
 				err := authenticator.Reconfigure(auth.CbAuthAuthenticatorReconfigureOptions{
-					Addresses: cfg.Addresses.NonSSL.Mgmt,
+					Addresses:   cfg.Addresses.NonSSL.Mgmt,
+					Username:    config.Username,
+					Password:    config.Password,
+					ClusterUUID: clusterUUID,
 				})
 				if err != nil {
 					config.Logger.Warn("failed to reconfigure cbauth",
