@@ -414,7 +414,9 @@ func (g *Gateway) Run(ctx context.Context) error {
 			gatewaySys.Shutdown()
 		}()
 
-		config.Logger.Info("starting to run protostellar system")
+		config.Logger.Info("starting to run protostellar system",
+			zap.Int("advertisedPortPS", advertisePorts.PS),
+			zap.Int("advertisedPortSD", advertisePorts.SD))
 		err = gatewaySys.Serve(ctx, gatewayLis)
 
 		if err != nil {
