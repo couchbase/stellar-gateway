@@ -10,8 +10,8 @@ import (
 
 	"github.com/couchbase/goprotostellar/genproto/admin_search_v1"
 	"github.com/couchbase/goprotostellar/genproto/search_v1"
-
 	"github.com/google/uuid"
+
 	"google.golang.org/grpc"
 )
 
@@ -25,10 +25,57 @@ func (s *GatewayOpsTestSuite) TestSearchBasic() {
 
 	if s.Run("SearchSetup", helper.testSetupSearch) {
 
-		s.Run("Test", helper.testSearchBasic)
+		s.Run("Test", helper.TestSearchBasic)
+
+		s.Run("TestQueryStringQuery", helper.TestQueryStringQuery)
+
+		s.Run("TestRegExpQuery", helper.TestRegExpQuery)
+
+		s.Run("TestPrefixQuery", helper.TestPrefixQuery)
+
+		s.Run("TestTermQuery", helper.TestTermQuery)
+
+		s.Run("TestTermRangeQuery", helper.TestTermRangeQuery)
+
+		s.Run("TestPhraseQuery", helper.TestPhraseQuery)
+
+		s.Run("TestWildcardQuery", helper.TestWildcardQuery)
+
+		s.Run("TestDocIDQuery", helper.TestDocIDQuery)
+
+		s.Run("TestMatchQuery", helper.TestMatchQuery)
+
+		s.Run("TestMatchPhraseQuery", helper.TestMatchPhraseQuery)
+
+		s.Run("TestMatchAllQuery", helper.TestMatchAllQuery)
+
+		s.Run("TestMatchNoneQuery", helper.TestMatchNoneQuery)
+
+		s.Run("TestNumericRangeQuery", helper.TestNumericRangeQuery)
+
+		s.Run("TestDisjunctionQuery", helper.TestDisjunctionQuery)
+
+		s.Run("TestBooleanQuery", helper.TestBooleanQuery)
+
+		s.Run("TestBooleanFieldQuery", helper.TestBooleanFieldQuery)
+
+		s.Run("TestDateRangeQuery", helper.TestDateRangeQuery)
+
+		s.Run("TestGeoDistanceQuery", helper.TestGeoDistanceQuery)
+
+		s.Run("TestGeoBoundingBoxQuery", helper.TestGeoBoundingBoxQuery)
+
+		s.Run("TestGeoPolygonQuery", helper.TestGeoPolygonQuery)
 
 		s.Run("Cleanup", helper.testCleanupSearch)
+
 	}
+}
+
+func (s *testSearchServiceHelper) validateNumResults(result search_v1.SearchService_SearchQueryClient, expected int) {
+	res, err := result.Recv()
+	s.Require().NoError(err, "Failed to read row")
+	s.Require().Equal(expected, len(res.Hits))
 }
 
 type testSearchServiceHelper struct {
@@ -38,7 +85,519 @@ type testSearchServiceHelper struct {
 	IndexClient admin_search_v1.SearchAdminServiceClient
 }
 
-func (s *testSearchServiceHelper) testSearchBasic() {
+func (s *testSearchServiceHelper) TestQueryStringQuery() {
+	client := search_v1.NewSearchServiceClient(s.gatewayConn)
+	query := &search_v1.Query_QueryStringQuery{
+		QueryStringQuery: &search_v1.QueryStringQuery{
+			QueryString: "microbrewery",
+		},
+	}
+
+	queryResult, err := client.SearchQuery(context.Background(), &search_v1.SearchQueryRequest{
+		IndexName: s.IndexName,
+		Query: &search_v1.Query{
+			Query: query,
+		},
+	}, grpc.PerRPCCredentials(s.basicRpcCreds))
+	s.Require().NoError(err, "Failed to query index")
+	s.validateNumResults(queryResult, 1)
+}
+
+func (s *testSearchServiceHelper) TestRegExpQuery() {
+	client := search_v1.NewSearchServiceClient(s.gatewayConn)
+	field := "description"
+	query := &search_v1.Query_RegexpQuery{
+		RegexpQuery: &search_v1.RegexpQuery{
+			Regexp: ".*baseball*.",
+			Field:  &field,
+		},
+	}
+
+	queryResult, err := client.SearchQuery(context.Background(), &search_v1.SearchQueryRequest{
+		IndexName: s.IndexName,
+		Query: &search_v1.Query{
+			Query: query,
+		},
+	}, grpc.PerRPCCredentials(s.basicRpcCreds))
+	s.Require().NoError(err, "Failed to query index")
+	s.validateNumResults(queryResult, 1)
+}
+
+func (s *testSearchServiceHelper) TestPrefixQuery() {
+	client := search_v1.NewSearchServiceClient(s.gatewayConn)
+	field := "type"
+	query := &search_v1.Query_PrefixQuery{
+		PrefixQuery: &search_v1.PrefixQuery{
+			Prefix: "brew",
+			Field:  &field,
+		},
+	}
+
+	queryResult, err := client.SearchQuery(context.Background(), &search_v1.SearchQueryRequest{
+		IndexName: s.IndexName,
+		Query: &search_v1.Query{
+			Query: query,
+		},
+	}, grpc.PerRPCCredentials(s.basicRpcCreds))
+	s.Require().NoError(err, "Failed to query index")
+	s.validateNumResults(queryResult, len(s.Dataset))
+}
+
+func (s *testSearchServiceHelper) TestTermQuery() {
+	client := search_v1.NewSearchServiceClient(s.gatewayConn)
+	field := "description"
+	query := &search_v1.Query_TermQuery{
+		TermQuery: &search_v1.TermQuery{
+			Term:  "brews",
+			Field: &field,
+		},
+	}
+
+	queryResult, err := client.SearchQuery(context.Background(), &search_v1.SearchQueryRequest{
+		IndexName: s.IndexName,
+		Query: &search_v1.Query{
+			Query: query,
+		},
+	}, grpc.PerRPCCredentials(s.basicRpcCreds))
+	s.Require().NoError(err, "Failed to query index")
+	s.validateNumResults(queryResult, 2)
+}
+
+func (s *testSearchServiceHelper) TestTermRangeQuery() {
+	client := search_v1.NewSearchServiceClient(s.gatewayConn)
+	min := "brew"
+	max := "brewery"
+	trueBool := true
+	falseBool := false
+	query := &search_v1.Query_TermRangeQuery{
+		TermRangeQuery: &search_v1.TermRangeQuery{
+			Min:          &min,
+			Max:          &max,
+			InclusiveMin: &trueBool,
+			InclusiveMax: &falseBool,
+		},
+	}
+
+	queryResult, err := client.SearchQuery(context.Background(), &search_v1.SearchQueryRequest{
+		IndexName: s.IndexName,
+		Query: &search_v1.Query{
+			Query: query,
+		},
+	}, grpc.PerRPCCredentials(s.basicRpcCreds))
+	s.Require().NoError(err, "Failed to query index")
+	s.validateNumResults(queryResult, 1)
+}
+
+func (s *testSearchServiceHelper) TestPhraseQuery() {
+	client := search_v1.NewSearchServiceClient(s.gatewayConn)
+	field := "description"
+	query := &search_v1.Query_PhraseQuery{
+		PhraseQuery: &search_v1.PhraseQuery{
+			Terms: []string{"grilled", "cuisine"},
+			Field: &field,
+		},
+	}
+
+	queryResult, err := client.SearchQuery(context.Background(), &search_v1.SearchQueryRequest{
+		IndexName: s.IndexName,
+		Query: &search_v1.Query{
+			Query: query,
+		},
+	}, grpc.PerRPCCredentials(s.basicRpcCreds))
+	s.Require().NoError(err, "Failed to query index")
+	s.validateNumResults(queryResult, 1)
+}
+
+func (s *testSearchServiceHelper) TestWildcardQuery() {
+	client := search_v1.NewSearchServiceClient(s.gatewayConn)
+	query := &search_v1.Query_WildcardQuery{
+		WildcardQuery: &search_v1.WildcardQuery{
+			Wildcard: "win*",
+		},
+	}
+
+	queryResult, err := client.SearchQuery(context.Background(), &search_v1.SearchQueryRequest{
+		IndexName: s.IndexName,
+		Query: &search_v1.Query{
+			Query: query,
+		},
+	}, grpc.PerRPCCredentials(s.basicRpcCreds))
+	s.Require().NoError(err, "Failed to query index")
+	s.validateNumResults(queryResult, 1)
+}
+
+func (s *testSearchServiceHelper) TestDocIDQuery() {
+	client := search_v1.NewSearchServiceClient(s.gatewayConn)
+
+	var ids []string
+	for _, doc := range s.Dataset {
+		ids = append(ids, fmt.Sprintf("search-%s", doc.Name))
+	}
+
+	query := &search_v1.Query_DocIdQuery{
+		DocIdQuery: &search_v1.DocIdQuery{
+			Ids: ids,
+		},
+	}
+
+	queryResult, err := client.SearchQuery(context.Background(), &search_v1.SearchQueryRequest{
+		IndexName: s.IndexName,
+		Query: &search_v1.Query{
+			Query: query,
+		},
+	}, grpc.PerRPCCredentials(s.basicRpcCreds))
+	s.Require().NoError(err, "Failed to query index")
+	s.validateNumResults(queryResult, len(s.Dataset))
+}
+
+// TODO - add an analyzer that this uses
+func (s *testSearchServiceHelper) TestMatchQuery() {
+	client := search_v1.NewSearchServiceClient(s.gatewayConn)
+	query := &search_v1.Query_MatchQuery{
+		MatchQuery: &search_v1.MatchQuery{
+			Value: "loft",
+		},
+	}
+
+	queryResult, err := client.SearchQuery(context.Background(), &search_v1.SearchQueryRequest{
+		IndexName: s.IndexName,
+		Query: &search_v1.Query{
+			Query: query,
+		},
+	}, grpc.PerRPCCredentials(s.basicRpcCreds))
+	s.Require().NoError(err, "Failed to query index")
+	s.validateNumResults(queryResult, 1)
+}
+
+func (s *testSearchServiceHelper) TestMatchPhraseQuery() {
+	client := search_v1.NewSearchServiceClient(s.gatewayConn)
+	query := &search_v1.Query_MatchPhraseQuery{
+		MatchPhraseQuery: &search_v1.MatchPhraseQuery{
+			Phrase: "grilled cuisine",
+		},
+	}
+
+	queryResult, err := client.SearchQuery(context.Background(), &search_v1.SearchQueryRequest{
+		IndexName: s.IndexName,
+		Query: &search_v1.Query{
+			Query: query,
+		},
+	}, grpc.PerRPCCredentials(s.basicRpcCreds))
+	s.Require().NoError(err, "Failed to query index")
+	s.validateNumResults(queryResult, 1)
+}
+
+// What is the point in this?
+func (s *testSearchServiceHelper) TestMatchAllQuery() {
+	client := search_v1.NewSearchServiceClient(s.gatewayConn)
+
+	matchQuery := &search_v1.Query_MatchAllQuery{
+		MatchAllQuery: &search_v1.MatchAllQuery{},
+	}
+
+	var ids []string
+	for _, doc := range s.Dataset {
+		ids = append(ids, fmt.Sprintf("search-%s", doc.Name))
+	}
+
+	docIDQuery := &search_v1.Query_DocIdQuery{
+		DocIdQuery: &search_v1.DocIdQuery{
+			Ids: ids,
+		},
+	}
+
+	// There are docs under this index other than those inserted as part of this test. To avoid flakiness caused by
+	// other tests adding/removing docs we use the DocIDQuery to limit the return of MatchAll to those in the dataset
+	query := &search_v1.Query_ConjunctionQuery{
+		ConjunctionQuery: &search_v1.ConjunctionQuery{
+			Queries: []*search_v1.Query{
+				{
+					Query: matchQuery,
+				},
+				{
+					Query: docIDQuery,
+				},
+			},
+		},
+	}
+
+	queryResult, err := client.SearchQuery(context.Background(), &search_v1.SearchQueryRequest{
+		IndexName: s.IndexName,
+		Query: &search_v1.Query{
+			Query: query,
+		},
+	}, grpc.PerRPCCredentials(s.basicRpcCreds))
+	s.Require().NoError(err, "Failed to query index")
+	s.validateNumResults(queryResult, len(s.Dataset))
+}
+
+func (s *testSearchServiceHelper) TestMatchNoneQuery() {
+	client := search_v1.NewSearchServiceClient(s.gatewayConn)
+	query := &search_v1.Query_MatchNoneQuery{
+		MatchNoneQuery: &search_v1.MatchNoneQuery{},
+	}
+
+	queryResult, err := client.SearchQuery(context.Background(), &search_v1.SearchQueryRequest{
+		IndexName: s.IndexName,
+		Query: &search_v1.Query{
+			Query: query,
+		},
+	}, grpc.PerRPCCredentials(s.basicRpcCreds))
+	s.Require().NoError(err, "Failed to query index")
+	s.validateNumResults(queryResult, 0)
+}
+
+func (s *testSearchServiceHelper) TestNumericRangeQuery() {
+	client := search_v1.NewSearchServiceClient(s.gatewayConn)
+	var min, max float32
+	field := "capacity"
+	min = 50
+	max = 150
+	query := &search_v1.Query_NumericRangeQuery{
+		NumericRangeQuery: &search_v1.NumericRangeQuery{
+			Min:   &min,
+			Max:   &max,
+			Field: &field,
+		},
+	}
+
+	queryResult, err := client.SearchQuery(context.Background(), &search_v1.SearchQueryRequest{
+		IndexName: s.IndexName,
+		Query: &search_v1.Query{
+			Query: query,
+		},
+	}, grpc.PerRPCCredentials(s.basicRpcCreds))
+	s.Require().NoError(err, "Failed to query index")
+	s.validateNumResults(queryResult, 2)
+}
+
+func (s *testSearchServiceHelper) TestDisjunctionQuery() {
+	client := search_v1.NewSearchServiceClient(s.gatewayConn)
+
+	texasQuery := &search_v1.Query_QueryStringQuery{
+		QueryStringQuery: &search_v1.QueryStringQuery{
+			QueryString: "Texas",
+		},
+	}
+
+	sanFranQuery := &search_v1.Query_QueryStringQuery{
+		QueryStringQuery: &search_v1.QueryStringQuery{
+			QueryString: "San Francisco",
+		},
+	}
+
+	query := &search_v1.Query_DisjunctionQuery{
+		DisjunctionQuery: &search_v1.DisjunctionQuery{
+			Queries: []*search_v1.Query{
+				{
+					Query: texasQuery,
+				},
+				{
+					Query: sanFranQuery,
+				},
+			},
+		},
+	}
+
+	queryResult, err := client.SearchQuery(context.Background(), &search_v1.SearchQueryRequest{
+		IndexName: s.IndexName,
+		Query: &search_v1.Query{
+			Query: query,
+		},
+	}, grpc.PerRPCCredentials(s.basicRpcCreds))
+	s.Require().NoError(err, "Failed to query index")
+	s.validateNumResults(queryResult, 2)
+}
+
+func (s *testSearchServiceHelper) TestBooleanQuery() {
+	client := search_v1.NewSearchServiceClient(s.gatewayConn)
+
+	beerQuery := &search_v1.Query_QueryStringQuery{
+		QueryStringQuery: &search_v1.QueryStringQuery{
+			QueryString: "beer",
+		},
+	}
+
+	softQuery := &search_v1.Query_QueryStringQuery{
+		QueryStringQuery: &search_v1.QueryStringQuery{
+			QueryString: "soft",
+		},
+	}
+
+	awardQuery := &search_v1.Query_QueryStringQuery{
+		QueryStringQuery: &search_v1.QueryStringQuery{
+			QueryString: "award",
+		},
+	}
+
+	must := &search_v1.ConjunctionQuery{
+		Queries: []*search_v1.Query{
+			{
+				Query: beerQuery,
+			},
+		},
+	}
+
+	mustNot := &search_v1.DisjunctionQuery{
+		Queries: []*search_v1.Query{
+			{
+				Query: softQuery,
+			},
+		},
+	}
+
+	should := &search_v1.DisjunctionQuery{
+		Queries: []*search_v1.Query{
+			{
+				Query: awardQuery,
+			},
+		},
+	}
+
+	query := &search_v1.Query_BooleanQuery{
+		BooleanQuery: &search_v1.BooleanQuery{
+			Must:    must,
+			MustNot: mustNot,
+			Should:  should,
+		},
+	}
+
+	queryResult, err := client.SearchQuery(context.Background(), &search_v1.SearchQueryRequest{
+		IndexName: s.IndexName,
+		Query: &search_v1.Query{
+			Query: query,
+		},
+	}, grpc.PerRPCCredentials(s.basicRpcCreds))
+	s.Require().NoError(err, "Failed to query index")
+	s.validateNumResults(queryResult, 1)
+}
+
+func (s *testSearchServiceHelper) TestBooleanFieldQuery() {
+	client := search_v1.NewSearchServiceClient(s.gatewayConn)
+	field := "dogFriendly"
+
+	query := &search_v1.Query_BooleanFieldQuery{
+		BooleanFieldQuery: &search_v1.BooleanFieldQuery{
+			Field: &field,
+			Value: true,
+		},
+	}
+
+	queryResult, err := client.SearchQuery(context.Background(), &search_v1.SearchQueryRequest{
+		IndexName: s.IndexName,
+		Query: &search_v1.Query{
+			Query: query,
+		},
+	}, grpc.PerRPCCredentials(s.basicRpcCreds))
+	s.Require().NoError(err, "Failed to query index")
+	result, err := queryResult.Recv()
+	s.Require().NoError(err, "Failed to read row")
+	s.Require().Equal(4, len(result.Hits))
+}
+
+func (s *testSearchServiceHelper) TestDateRangeQuery() {
+	client := search_v1.NewSearchServiceClient(s.gatewayConn)
+	start := "1970-01-01"
+	end := "2001-01-01"
+
+	query := &search_v1.Query_DateRangeQuery{
+		DateRangeQuery: &search_v1.DateRangeQuery{
+			StartDate: &start,
+			EndDate:   &end,
+		},
+	}
+
+	queryResult, err := client.SearchQuery(context.Background(), &search_v1.SearchQueryRequest{
+		IndexName: s.IndexName,
+		Query: &search_v1.Query{
+			Query: query,
+		},
+	}, grpc.PerRPCCredentials(s.basicRpcCreds))
+	s.Require().NoError(err, "Failed to query index")
+	s.validateNumResults(queryResult, 3)
+}
+
+func (s *testSearchServiceHelper) TestGeoDistanceQuery() {
+	client := search_v1.NewSearchServiceClient(s.gatewayConn)
+	field := "geo"
+	query := &search_v1.Query_GeoDistanceQuery{
+		GeoDistanceQuery: &search_v1.GeoDistanceQuery{
+			Center: &search_v1.LatLng{
+				Latitude:  51,
+				Longitude: 6,
+			},
+			Distance: "110km",
+			Field:    &field,
+		},
+	}
+
+	queryResult, err := client.SearchQuery(context.Background(), &search_v1.SearchQueryRequest{
+		IndexName: s.IndexName,
+		Query: &search_v1.Query{
+			Query: query,
+		},
+	}, grpc.PerRPCCredentials(s.basicRpcCreds))
+	s.Require().NoError(err, "Failed to query index")
+	s.validateNumResults(queryResult, 1)
+}
+
+func (s *testSearchServiceHelper) TestGeoBoundingBoxQuery() {
+	client := search_v1.NewSearchServiceClient(s.gatewayConn)
+	query := &search_v1.Query_GeoBoundingBoxQuery{
+		GeoBoundingBoxQuery: &search_v1.GeoBoundingBoxQuery{
+			TopLeft: &search_v1.LatLng{
+				Latitude:  38,
+				Longitude: -123,
+			},
+			BottomRight: &search_v1.LatLng{
+				Latitude:  30,
+				Longitude: -96,
+			},
+		},
+	}
+
+	queryResult, err := client.SearchQuery(context.Background(), &search_v1.SearchQueryRequest{
+		IndexName: s.IndexName,
+		Query: &search_v1.Query{
+			Query: query,
+		},
+	}, grpc.PerRPCCredentials(s.basicRpcCreds))
+	s.Require().NoError(err, "Failed to query index")
+	s.validateNumResults(queryResult, 2)
+}
+
+func (s *testSearchServiceHelper) TestGeoPolygonQuery() {
+	client := search_v1.NewSearchServiceClient(s.gatewayConn)
+	query := &search_v1.Query_GeoPolygonQuery{
+		GeoPolygonQuery: &search_v1.GeoPolygonQuery{
+			Vertices: []*search_v1.LatLng{
+				{
+					Latitude:  38,
+					Longitude: -122.393,
+				},
+				{
+					Latitude:  37,
+					Longitude: -123.393,
+				},
+				{
+					Latitude:  37,
+					Longitude: -121.393,
+				},
+			},
+		},
+	}
+
+	queryResult, err := client.SearchQuery(context.Background(), &search_v1.SearchQueryRequest{
+		IndexName: s.IndexName,
+		Query: &search_v1.Query{
+			Query: query,
+		},
+	}, grpc.PerRPCCredentials(s.basicRpcCreds))
+	s.Require().NoError(err, "Failed to query index")
+	s.validateNumResults(queryResult, 1)
+}
+
+func (s *testSearchServiceHelper) TestSearchBasic() {
 	client := search_v1.NewSearchServiceClient(s.gatewayConn)
 
 	field := "service"
@@ -52,8 +611,8 @@ func (s *testSearchServiceHelper) testSearchBasic() {
 	var rows []*search_v1.SearchQueryResponse_SearchQueryRow
 	s.Require().Eventually(func() bool {
 		var err error
-		var min float32 = 30
-		var max float32 = 31
+		var min float32 = 0
+		var max float32 = 501
 		start := "2000-07-22 20:00:20"
 		end := "2020-07-22 20:00:20"
 		queryResult, err := client.SearchQuery(context.Background(), &search_v1.SearchQueryRequest{
@@ -85,11 +644,11 @@ func (s *testSearchServiceHelper) testSearchBasic() {
 				"numeric": {
 					Facet: &search_v1.Facet_NumericRangeFacet{
 						NumericRangeFacet: &search_v1.NumericRangeFacet{
-							Field: "geo.lat",
+							Field: "capacity",
 							Size:  5,
 							NumericRanges: []*search_v1.NumericRange{
 								{
-									Name: "lat",
+									Name: "capacity",
 									Min:  &min,
 									Max:  &max,
 								},
@@ -120,7 +679,7 @@ func (s *testSearchServiceHelper) testSearchBasic() {
 
 		s.T().Logf("Incorrect number of rows, expected: %d, was %d", len(s.Dataset), len(result.Hits))
 		return false
-	}, 60*time.Second, 500*time.Millisecond)
+	}, 120*time.Second, 500*time.Millisecond)
 
 	for _, row := range rows {
 		if s.Greater(len(row.Locations), 0) {
@@ -184,13 +743,13 @@ func (s *testSearchServiceHelper) testSearchBasic() {
 		facet := result.Facets["numeric"]
 		f, ok := facet.SearchFacet.(*search_v1.SearchQueryResponse_FacetResult_NumericRangeFacet)
 		if s.True(ok, "type facet was not a numericrange facet result type") {
-			s.Equal(int64(1), f.NumericRangeFacet.Total)
-			s.Equal("geo.lat", f.NumericRangeFacet.Field)
+			s.Equal(int64(4), f.NumericRangeFacet.Total)
+			s.Equal("capacity", f.NumericRangeFacet.Field)
 			s.Equal(1, len(f.NumericRangeFacet.NumericRanges))
-			s.Equal(uint64(1), f.NumericRangeFacet.NumericRanges[0].Size)
-			s.Equal(uint64(30), f.NumericRangeFacet.NumericRanges[0].Min)
-			s.Equal(uint64(31), f.NumericRangeFacet.NumericRanges[0].Max)
-			s.Equal("lat", f.NumericRangeFacet.NumericRanges[0].Name)
+			s.Equal(uint64(4), f.NumericRangeFacet.NumericRanges[0].Size)
+			s.Equal(uint64(0), f.NumericRangeFacet.NumericRanges[0].Min)
+			s.Equal(uint64(501), f.NumericRangeFacet.NumericRanges[0].Max)
+			s.Equal("capacity", f.NumericRangeFacet.NumericRanges[0].Name)
 		}
 	}
 }
@@ -207,6 +766,7 @@ func (s *testSearchServiceHelper) testCleanupSearch() {
 }
 
 func (s *testSearchServiceHelper) testSetupSearch() {
+
 	raw := s.loadTestData("testdata/beer_sample_brewery_five.json")
 
 	var dataset []testBreweryDocumentJson
@@ -235,12 +795,38 @@ func (s *testSearchServiceHelper) testSetupSearch() {
 	s.Dataset = dataset
 
 	sourceType := "couchbase"
-	resp, err := s.IndexClient.CreateIndex(context.Background(), &admin_search_v1.CreateIndexRequest{
+	opts := &admin_search_v1.CreateIndexRequest{
 		Name:       s.IndexName,
 		SourceName: &s.bucketName,
 		SourceType: &sourceType,
 		Type:       "fulltext-index",
-	}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		Params:     make(map[string][]byte),
+	}
+	opts.Params["mapping"] = []byte(`{
+		"default_analyzer": "standard",
+		"default_datetime_parser": "dateTimeOptional",
+		"default_field": "_all",
+		"default_mapping": {
+		 "dynamic": true,
+		 "enabled": true,
+		 "properties": {
+		  "geo": {
+		   "enabled": true,
+		   "dynamic": false,
+		   "fields": [
+			{
+			 "include_in_all": true,
+			 "index": true,
+			 "name": "geo",
+			 "type": "geopoint"
+			}
+		   ]
+		  }
+		 }
+		}
+	}`)
+
+	resp, err := s.IndexClient.CreateIndex(context.Background(), opts, grpc.PerRPCCredentials(s.basicRpcCreds))
 	requireRpcSuccess(s.T(), resp, err)
 }
 
@@ -251,10 +837,13 @@ type testBreweryGeoJson struct {
 }
 
 type testBreweryDocumentJson struct {
+	Capacity    int                `json:"capacity,omitempty"`
 	City        string             `json:"city,omitempty"`
 	Code        string             `json:"code,omitempty"`
 	Country     string             `json:"country,omitempty"`
 	Description string             `json:"description,omitempty"`
+	DogFriendly bool               `json:"dogFriendly,omitempty"`
+	Established string             `json:"established,omitempty"`
 	Geo         testBreweryGeoJson `json:"geo,omitempty"`
 	Name        string             `json:"name,omitempty"`
 	Phone       string             `json:"phone,omitempty"`
