@@ -3,10 +3,13 @@
     "address": [
       "407 Radam, F200"
     ],
+    "capacity": 40,
     "city": "Austin",
     "code": "78745",
     "country": "United States",
     "description": "(512) Brewing Company is a microbrewery located in the heart of Austin that brews for the community using as many local, domestic and organic ingredients as possible.",
+    "dogFriendly": true,
+    "established": "2000-09-21",
     "geo": {
       "accuracy": "ROOFTOP",
       "lat": 30.2234,
@@ -23,10 +26,13 @@
     "address": [
       "563 Second Street"
     ],
+    "capacity": 60,
     "city": "San Francisco",
     "code": "94107",
     "country": "United States",
     "description": "The 21st Amendment Brewery offers a variety of award winning house made brews and American grilled cuisine in a comfortable loft like setting. Join us before and after Giants baseball games in our outdoor beer garden. A great location for functions and parties in our semi-private Brewers Loft. See you soon at the 21A!",
+    "dogFriendly": true,
+    "established": "2003-01-20",
     "geo": {
       "accuracy": "ROOFTOP",
       "lat": 37.7825,
@@ -43,10 +49,13 @@
     "address": [
       "Hoogstraat 2A"
     ],
+    "capacity": 0,
     "city": "Beersel",
     "code": "",
     "country": "Belgium",
     "description": "",
+    "dogFriendly": true,
+    "established": "1974-02-10",
     "geo": {
       "accuracy": "RANGE_INTERPOLATED",
       "lat": 50.7668,
@@ -63,10 +72,13 @@
     "address": [
       "Ole Steensgt. 10 Postboks 1530"
     ],
+    "capacity": 500,
     "city": "Drammen",
     "code": "",
     "country": "Norway",
     "description": "Aass Brewery was established in 1834 and is the oldest brewery in Norway today. It is located in the city of Drammen, approximately 25 miles south of our capital, Oslo. You will spot it at the banks of the Drammen River at the very same place as it has been since 1834. The annual production of beer is aprox. 10 mill liter (85 000 barrels), and together with the production of 18 mill liters of soft drinks and mineralwater it gives employment to approximately 150 people.  You may wonder how we got our name ? It was a young fellow with the name Poul Lauritz Aass that bought the brewery in 1860. Since then it has been in the same family, and is today run by the 4th generation of Aass. (By the way - A real Norwegian viking would pronounce it Ouse)  The brewery is proud of its history. To us the quality of what we produce has always been and always will be the main issue. In 1516, Duke Wilhelm of Bavaria established a law admitting only malted barley, hops yeast, and water as ingredients in the production of beer. The law is known as the purity law and Aass Brewery is still loyal to Duke Wilhelm of Bavaria. In Norway the brewery is known for outstanding quality and large number of different beer types.",
+    "dogFriendly": true,
+    "established": "1834-12-25",
     "geo": {
       "accuracy": "APPROXIMATE",
       "lat": 59.7451,
@@ -83,10 +95,13 @@
     "address": [
       "Rue de l'Abbaye 8"
     ],
+    "capacity": 100,
     "city": "Rochefort",
     "code": "",
     "country": "Belgium",
     "description": "",
+    "dogFriendly": false,
+    "established": "1994-07-15",
     "geo": {
       "accuracy": "RANGE_INTERPOLATED",
       "lat": 50.1999,
