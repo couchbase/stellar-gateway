@@ -401,6 +401,7 @@ func (s *SearchServer) translatePSQueryToCBSearchX(in *search_v1.Query) (cbsearc
 	case *search_v1.Query_BooleanQuery:
 		var must *cbsearchx.ConjunctionQuery
 		if query.BooleanQuery.Must != nil {
+			must = &cbsearchx.ConjunctionQuery{}
 			must.Boost = query.BooleanQuery.Must.GetBoost()
 			queries := make([]cbsearchx.Query, len(query.BooleanQuery.Must.Queries))
 			for i, thisQ := range query.BooleanQuery.Must.Queries {
@@ -415,6 +416,7 @@ func (s *SearchServer) translatePSQueryToCBSearchX(in *search_v1.Query) (cbsearc
 		}
 		var mustNot *cbsearchx.DisjunctionQuery
 		if query.BooleanQuery.MustNot != nil {
+			mustNot = &cbsearchx.DisjunctionQuery{}
 			mustNot.Boost = query.BooleanQuery.MustNot.GetBoost()
 			mustNot.Min = query.BooleanQuery.MustNot.GetMinimum()
 
@@ -431,6 +433,7 @@ func (s *SearchServer) translatePSQueryToCBSearchX(in *search_v1.Query) (cbsearc
 		}
 		var should *cbsearchx.DisjunctionQuery
 		if query.BooleanQuery.Should != nil {
+			should = &cbsearchx.DisjunctionQuery{}
 			should.Boost = query.BooleanQuery.Should.GetBoost()
 			should.Min = query.BooleanQuery.Should.GetMinimum()
 
