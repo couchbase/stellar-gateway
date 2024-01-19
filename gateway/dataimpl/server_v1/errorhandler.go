@@ -709,13 +709,13 @@ func (e ErrorHandler) NewNeedIndexFieldsStatus() *status.Status {
 }
 
 func (e ErrorHandler) NewGenericStatus(err error) *status.Status {
-	e.Logger.Error("handling generic error", zap.Error(err))
-
 	if errors.Is(err, context.Canceled) {
 		return status.New(codes.Canceled, "The request was cancelled.")
 	} else if errors.Is(err, context.DeadlineExceeded) {
 		return status.New(codes.DeadlineExceeded, "The request deadline was exceeded.")
 	}
+
+	e.Logger.Debug("handling unknown error", zap.Error(err))
 
 	return e.NewUnknownStatus(err)
 }
