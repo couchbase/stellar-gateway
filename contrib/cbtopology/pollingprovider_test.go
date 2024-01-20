@@ -5,15 +5,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/couchbase/gocbcorex/testutils"
+	"github.com/couchbase/gocbcorex/testutilsint"
 	"github.com/couchbase/stellar-gateway/contrib/cbconfig"
 )
 
 func TestWatchClusterConfig(t *testing.T) {
-	testutils.SkipIfShortTest(t)
+	testutilsint.SkipIfShortTest(t)
 
 	fetcher := cbconfig.NewFetcher(cbconfig.FetcherOptions{
-		Host:     "http://" + testutils.TestOpts.HTTPAddrs[0],
+		Host:     "http://" + testutilsint.TestOpts.HTTPAddrs[0],
 		Username: "Administrator",
 		Password: "password",
 	})
@@ -56,10 +56,10 @@ waitCancelLoop:
 }
 
 func TestWatchBucketConfig(t *testing.T) {
-	testutils.SkipIfShortTest(t)
+	testutilsint.SkipIfShortTest(t)
 
 	fetcher := cbconfig.NewFetcher(cbconfig.FetcherOptions{
-		Host:     "http://" + testutils.TestOpts.HTTPAddrs[0],
+		Host:     "http://" + testutilsint.TestOpts.HTTPAddrs[0],
 		Username: "Administrator",
 		Password: "password",
 	})

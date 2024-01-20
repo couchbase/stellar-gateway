@@ -3,9 +3,9 @@ package cbtopology
 import (
 	"testing"
 
-	"github.com/couchbase/gocbcorex/testutils"
+	"github.com/couchbase/gocbcorex/testutilsint"
 )
 
 func TestMain(m *testing.M) {
-	testutils.SetupTests(m)
+	testutilsint.SetupTests(m)
 }
