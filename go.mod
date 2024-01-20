@@ -7,7 +7,7 @@ require (
 	github.com/couchbase/cbauth v0.1.2-0.20231214203958-0685e2541e67
 	github.com/couchbase/gocb/v2 v2.6.5
 	github.com/couchbase/gocbcore/v10 v10.2.9
-	github.com/couchbase/gocbcorex v0.0.0-20240116213205-3b59de990b1d
+	github.com/couchbase/gocbcorex v0.0.0-20240120062118-87565b8271e3
 	github.com/couchbase/goprotostellar v1.0.1-0.20231220111120-c4d2428ed125
 	github.com/couchbaselabs/gocbconnstr v1.0.5
 	github.com/fsnotify/fsnotify v1.7.0
@@ -51,10 +51,11 @@ require (
 	github.com/couchbase/goutils v0.1.2 // indirect
 	github.com/couchbaselabs/gocbconnstr/v2 v2.0.0-20230515165046-68b522a21131 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
-	github.com/go-logr/logr v1.3.0 // indirect
+	github.com/go-logr/logr v1.4.1 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
+	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.18.1 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
