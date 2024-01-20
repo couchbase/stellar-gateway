@@ -3,13 +3,13 @@ package gateway
 import (
 	"context"
 	"crypto/tls"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"sync/atomic"
 	"time"
 
 	"github.com/couchbase/gocbcorex"
+	"github.com/couchbase/gocbcorex/cbmgmtx"
 	"github.com/couchbase/stellar-gateway/contrib/cbconfig"
 	"github.com/couchbase/stellar-gateway/contrib/cbtopology"
 	"github.com/couchbase/stellar-gateway/contrib/goclustering"
@@ -25,6 +25,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
+
+	cbconfigx "github.com/couchbase/gocbcorex/contrib/cbconfig"
 )
 
 type ServicePorts struct {
@@ -118,39 +120,45 @@ func connStrToMgmtHostPort(connStr string) (string, error) {
 	return hostPort, nil
 }
 
-func pingCouchbaseCluster(mgmtHostPort, username, password string) (string, error) {
-	pollEndpoint := fmt.Sprintf("http://%s/pools", mgmtHostPort)
+func pingCouchbaseCluster(
+	ctx context.Context,
+	mgmtHostPort,
+	username, password string,
+) (string, error) {
+	mgmt := &cbmgmtx.Management{
+		Transport: http.DefaultTransport,
+		UserAgent: "cloud-native-gateway-startup",
+		Endpoint:  "http://" + mgmtHostPort,
+		Username:  username,
+		Password:  password,
+	}
 
-	req, err := http.NewRequest("GET", pollEndpoint, nil)
+	clusterConfig, err := mgmt.GetClusterConfig(ctx, &cbmgmtx.GetClusterConfigOptions{})
 	if err != nil {
-		return "", errors.Wrap(err, "failed to create request")
+		return "", errors.Wrap(err, "failed to get cluster config")
 	}
 
-	req.SetBasicAuth(username, password)
+	var thisNode *cbconfigx.FullNodeJson
+	for _, node := range clusterConfig.Nodes {
+		if node.ThisNode {
+			thisNode = &node
+		}
+	}
 
-	resp, err := http.DefaultClient.Do(req)
+	if thisNode == nil {
+		return "", errors.New("failed to find local bootstrap node in node list")
+	}
+
+	if thisNode.ClusterMembership != "active" {
+		return "", errors.New("bootstrap node is not part of a cluster yet")
+	}
+
+	clusterInfo, err := mgmt.GetTerseClusterConfig(ctx, &cbmgmtx.GetTerseClusterConfigOptions{})
 	if err != nil {
-		return "", errors.Wrap(err, "failed to execute ping operation")
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != 200 {
-		return "", fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+		return "", errors.Wrap(err, "failed to get cluster info")
 	}
 
-	var respData struct {
-		UUID string `json:"uuid"`
-	}
-	err = json.NewDecoder(resp.Body).Decode(&respData)
-	if err != nil {
-		return "", errors.Wrap(err, "failed to decode response")
-	}
-
-	if respData.UUID == "" {
-		return "", errors.New("cluster had no uuid")
-	}
-
-	return respData.UUID, nil
+	return clusterInfo.UUID, nil
 }
 
 func (g *Gateway) Run(ctx context.Context) error {
@@ -180,7 +188,7 @@ func (g *Gateway) Run(ctx context.Context) error {
 
 	var clusterUUID string
 	for {
-		currentUUID, err := pingCouchbaseCluster(mgmtHostPort, config.Username, config.Password)
+		currentUUID, err := pingCouchbaseCluster(ctx, mgmtHostPort, config.Username, config.Password)
 		if err != nil {
 			config.Logger.Warn("failed to ping cluster", zap.Error(err))
 
