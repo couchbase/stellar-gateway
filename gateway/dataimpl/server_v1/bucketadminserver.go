@@ -427,3 +427,29 @@ func (s *BucketAdminServer) DeleteBucket(
 
 	return &admin_bucket_v1.DeleteBucketResponse{}, nil
 }
+
+func (s *BucketAdminServer) FlushBucket(
+	ctx context.Context,
+	in *admin_bucket_v1.FlushBucketRequest,
+) (*admin_bucket_v1.FlushBucketResponse, error) {
+	agent, oboInfo, errSt := s.authHandler.GetHttpOboAgent(ctx, nil)
+	if errSt != nil {
+		return nil, errSt.Err()
+	}
+
+	err := agent.FlushBucket(ctx, &cbmgmtx.FlushBucketOptions{
+		OnBehalfOf: oboInfo,
+		BucketName: in.BucketName,
+	})
+	if err != nil {
+		if errors.Is(err, cbmgmtx.ErrBucketNotFound) {
+			return nil, s.errorHandler.NewBucketMissingStatus(err, in.BucketName).Err()
+		}
+		if errors.Is(err, cbmgmtx.ErrFlushDisabled) {
+			return nil, s.errorHandler.NewBucketFlushDisabledStatus(err, in.BucketName).Err()
+		}
+		return nil, s.errorHandler.NewGenericStatus(err).Err()
+	}
+
+	return &admin_bucket_v1.FlushBucketResponse{}, nil
+}
