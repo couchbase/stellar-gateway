@@ -7,7 +7,7 @@ require (
 	github.com/couchbase/cbauth v0.1.2-0.20231214203958-0685e2541e67
 	github.com/couchbase/gocb/v2 v2.6.5
 	github.com/couchbase/gocbcore/v10 v10.2.9
-	github.com/couchbase/gocbcorex v0.0.0-20240120062118-87565b8271e3
+	github.com/couchbase/gocbcorex v0.0.0-20240122224135-8fd707c4821f
 	github.com/couchbase/goprotostellar v1.0.1-0.20231220111120-c4d2428ed125
 	github.com/couchbaselabs/gocbconnstr v1.0.5
 	github.com/fsnotify/fsnotify v1.7.0
@@ -35,6 +35,7 @@ require (
 	go.opentelemetry.io/otel/trace v1.19.0
 	go.uber.org/zap v1.26.0
 	golang.org/x/exp v0.0.0-20231006140011-7918f672742d
+	golang.org/x/mod v0.14.0
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20231106174013-bbf56f31fb17
 	google.golang.org/grpc v1.59.0
 	google.golang.org/protobuf v1.31.0
@@ -78,7 +79,6 @@ require (
 	go.opentelemetry.io/proto/otlp v1.0.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/crypto v0.14.0 // indirect
-	golang.org/x/mod v0.14.0 // indirect
 	golang.org/x/net v0.17.0 // indirect
 	golang.org/x/sys v0.14.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
