@@ -447,6 +447,21 @@ func (e ErrorHandler) NewDocLockedStatus(baseErr error, bucketName, scopeName, c
 	return st
 }
 
+func (e ErrorHandler) NewDocNotLockedStatus(baseErr error, bucketName, scopeName, collectionName, docId string) *status.Status {
+	st := status.New(codes.FailedPrecondition,
+		fmt.Sprintf("Cannot unlock an unlocked document '%s' in '%s/%s/%s'.",
+			docId, bucketName, scopeName, collectionName))
+	st = e.tryAttachStatusDetails(st, &epb.PreconditionFailure{
+		Violations: []*epb.PreconditionFailure_Violation{{
+			Type:        "NOT_LOCKED",
+			Subject:     fmt.Sprintf("%s/%s/%s/%s", bucketName, scopeName, collectionName, docId),
+			Description: "",
+		}},
+	})
+	st = e.tryAttachExtraContext(st, baseErr)
+	return st
+}
+
 func (e ErrorHandler) NewValueTooLargeStatus(baseErr error, bucketName, scopeName, collectionName, docId string,
 	isExpandingValue bool) *status.Status {
 	var st *status.Status

@@ -1742,6 +1742,35 @@ func (s *GatewayOpsTestSuite) TestUnlock() {
 		})
 	})
 
+	s.Run("DocNotLocked", func() {
+		unlockedDocId, cas := s.testDocIdAndCas()
+
+		// This test is a little bit strange as there was a "breaking" change in
+		// server 7.6.  Prior to 7.6, we expect that the KV operation yields a
+		// TmpFail, which leads to internal retries until timeout.  After 7.6,
+		// we instead expect to receive a PreconditionFailure with a violation
+		// type of "NOT_LOCKED".
+
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		_, err := kvClient.Unlock(ctx, &kv_v1.UnlockRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            unlockedDocId,
+			Cas:            cas,
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		if s.IsOlderServerVersion("7.6.0") {
+			assertRpcStatus(s.T(), err, codes.DeadlineExceeded)
+		} else {
+			assertRpcStatus(s.T(), err, codes.FailedPrecondition)
+			assertRpcErrorDetails(s.T(), err, func(d *epb.PreconditionFailure) {
+				assert.Len(s.T(), d.Violations, 1)
+				assert.Equal(s.T(), d.Violations[0].Type, "NOT_LOCKED")
+			})
+		}
+	})
+
 	s.RunCommonErrorCases(func(opts *commonErrorTestData) (interface{}, error) {
 		return kvClient.Unlock(context.Background(), &kv_v1.UnlockRequest{
 			BucketName:     opts.BucketName,
