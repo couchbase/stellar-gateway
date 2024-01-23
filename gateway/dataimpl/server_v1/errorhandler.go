@@ -333,18 +333,27 @@ func (e ErrorHandler) NewQueryIndexNotBuildingStatus(baseErr error, bucketName, 
 
 func (e ErrorHandler) NewQueryIndexAuthenticationFailureStatus(baseErr error, bucketName, scopeName, collectionName string) *status.Status {
 	var path string
+	var resource string
 	if bucketName != "" {
 		path = bucketName
+		resource = "bucket"
 		if scopeName != "" {
 			path = path + "/" + scopeName
+			resource = "scope"
 			if collectionName != "" {
 				path = path + "/" + collectionName
+				resource = "collection"
 			}
 		}
 	}
 
 	msg := fmt.Sprintf("Insufficient permissions to perform query index operation against %s.", path)
 	st := status.New(codes.PermissionDenied, msg)
+	st = e.tryAttachStatusDetails(st, &epb.ResourceInfo{
+		ResourceType: resource,
+		ResourceName: path,
+		Description:  "",
+	})
 	st = e.tryAttachExtraContext(st, baseErr)
 	return st
 }
