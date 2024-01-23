@@ -282,12 +282,9 @@ func (s *BucketAdminServer) CreateBucket(
 	if err != nil {
 		if errors.Is(err, cbmgmtx.ErrBucketExists) {
 			return nil, s.errorHandler.NewBucketExistsStatus(err, in.BucketName).Err()
-		}
-
-		if errors.Is(err, cbmgmtx.ErrServerInvalidArg) {
+		} else if errors.Is(err, cbmgmtx.ErrServerInvalidArg) {
 			return nil, s.errorHandler.NewBucketInvalidArgStatus(err, "", in.BucketName).Err()
 		}
-
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
 
@@ -444,8 +441,7 @@ func (s *BucketAdminServer) FlushBucket(
 	if err != nil {
 		if errors.Is(err, cbmgmtx.ErrBucketNotFound) {
 			return nil, s.errorHandler.NewBucketMissingStatus(err, in.BucketName).Err()
-		}
-		if errors.Is(err, cbmgmtx.ErrFlushDisabled) {
+		} else if errors.Is(err, cbmgmtx.ErrFlushDisabled) {
 			return nil, s.errorHandler.NewBucketFlushDisabledStatus(err, in.BucketName).Err()
 		}
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
