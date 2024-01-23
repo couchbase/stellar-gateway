@@ -5,13 +5,16 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/couchbase/gocbcorex/cbmgmtx"
 	"github.com/couchbase/goprotostellar/genproto/admin_collection_v1"
 	"github.com/golang/snappy"
+	"golang.org/x/mod/semver"
 
 	"github.com/couchbase/goprotostellar/genproto/kv_v1"
 	"github.com/couchbase/stellar-gateway/contrib/grpcheaderauth"
@@ -525,4 +528,29 @@ func (s *GatewayOpsTestSuite) CreateCollection(bucket, scope, collection string)
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
 		requireRpcSuccess(s.T(), delResp, err)
 	}
+}
+
+func (s *GatewayOpsTestSuite) getServerVersion() string {
+	testConfig := testutils.GetTestConfig(s.T())
+
+	mgmt := &cbmgmtx.Management{
+		Transport: http.DefaultTransport,
+		UserAgent: "useragent",
+		Endpoint:  "http://" + testConfig.CbConnStr + ":8091",
+		Username:  testConfig.CbUser,
+		Password:  testConfig.CbPass,
+	}
+
+	clusterInfo, err := mgmt.GetClusterInfo(context.Background(), &cbmgmtx.GetClusterConfigOptions{})
+	require.NoError(s.T(), err)
+
+	// strip the meta-info like -enterprise or build numbers
+	serverVersion := strings.Split(clusterInfo.ImplementationVersion, "-")[0]
+
+	return serverVersion
+}
+
+func (s *GatewayOpsTestSuite) IsOlderServerVersion(checkVersion string) bool {
+	serverVersion := s.getServerVersion()
+	return semver.Compare("v"+serverVersion, "v"+checkVersion) < 0
 }
