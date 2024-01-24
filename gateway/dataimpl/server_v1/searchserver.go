@@ -1,6 +1,7 @@
 package server_v1
 
 import (
+	"errors"
 	"time"
 
 	"github.com/couchbase/gocbcorex/cbsearchx"
@@ -157,6 +158,9 @@ func (s *SearchServer) SearchQuery(in *search_v1.SearchQueryRequest, out search_
 
 	result, err := agent.Search(out.Context(), &opts)
 	if err != nil {
+		if errors.Is(err, cbsearchx.ErrIndexNotFound) {
+			return s.errorHandler.NewSearchIndexMissingStatus(err, in.IndexName).Err()
+		}
 		return s.errorHandler.NewGenericStatus(err).Err()
 	}
 
