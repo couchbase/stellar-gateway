@@ -216,6 +216,7 @@ func (g *Gateway) Run(ctx context.Context) error {
 
 	// initialize cb-auth
 	authenticator, err := auth.NewCbAuthAuthenticator(ctx, auth.NewCbAuthAuthenticatorOptions{
+		NodeId:      nodeID,
 		Addresses:   []string{mgmtHostPort},
 		Username:    config.Username,
 		Password:    config.Password,

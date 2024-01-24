@@ -22,6 +22,7 @@ var _ Authenticator = (*CbAuthAuthenticator)(nil)
 
 type NewCbAuthAuthenticatorOptions struct {
 	Logger      *zap.Logger
+	NodeId      string
 	ClusterUUID string
 	Addresses   []string
 	Username    string
@@ -37,6 +38,11 @@ func rewriteCbAuthAddresses(addresses []string) []string {
 }
 
 func NewCbAuthAuthenticator(ctx context.Context, opts NewCbAuthAuthenticatorOptions) (*CbAuthAuthenticator, error) {
+	shortNodeId := opts.NodeId
+	if len(shortNodeId) > 8 {
+		shortNodeId = shortNodeId[:8]
+	}
+
 	auth, err := cbauthx.NewCbAuth(ctx, &cbauthx.CbAuthConfig{
 		Endpoints:   rewriteCbAuthAddresses(opts.Addresses),
 		Username:    opts.Username,
@@ -44,7 +50,7 @@ func NewCbAuthAuthenticator(ctx context.Context, opts NewCbAuthAuthenticatorOpti
 		ClusterUuid: opts.ClusterUUID,
 	}, &cbauthx.CbAuthOptions{
 		Logger:            opts.Logger,
-		ServiceName:       "stg",
+		ServiceName:       "stg-" + shortNodeId,
 		HeartbeatInterval: 5 * time.Second,
 		HeartbeatTimeout:  15 * time.Second,
 		LivenessTimeout:   20 * time.Second,
