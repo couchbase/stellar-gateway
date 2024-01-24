@@ -373,6 +373,18 @@ func (e ErrorHandler) NewQueryIndexInvalidArgumentStatus(baseErr error, indexNam
 	return st
 }
 
+func (e ErrorHandler) NewSearchServiceNotAvailableStatus(baseErr error, indexName string) *status.Status {
+	st := status.New(codes.Unimplemented, "Search service is not available.")
+	st = e.tryAttachStatusDetails(st, &epb.ResourceInfo{
+		ResourceType: "searchIndex",
+		ResourceName: indexName,
+		Description:  "",
+	})
+	st = e.tryAttachExtraContext(st, baseErr)
+
+	return st
+}
+
 func (e ErrorHandler) NewSearchIndexMissingStatus(baseErr error, indexName string) *status.Status {
 	st := status.New(codes.NotFound,
 		fmt.Sprintf("Search index '%s' not found.",
