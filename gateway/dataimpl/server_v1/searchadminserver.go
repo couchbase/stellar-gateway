@@ -10,6 +10,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/couchbase/gocbcorex"
 	"github.com/couchbase/gocbcorex/cbsearchx"
 
 	"github.com/couchbase/goprotostellar/genproto/admin_search_v1"
@@ -92,7 +93,9 @@ func (s *SearchIndexAdminServer) CreateIndex(ctx context.Context, in *admin_sear
 
 	err := agent.UpsertSearchIndex(ctx, opts)
 	if err != nil {
-		if errors.Is(err, cbsearchx.ErrIndexExists) {
+		if errors.Is(err, gocbcorex.ErrServiceNotAvailable) {
+			return nil, s.errorHandler.NewSearchServiceNotAvailableStatus(err, in.Name).Err()
+		} else if errors.Is(err, cbsearchx.ErrIndexExists) {
 			return nil, s.errorHandler.NewSearchIndexExistsStatus(err, in.Name).Err()
 		}
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
@@ -169,7 +172,9 @@ func (s *SearchIndexAdminServer) UpdateIndex(ctx context.Context, in *admin_sear
 
 	err := agent.UpsertSearchIndex(ctx, opts)
 	if err != nil {
-		if errors.Is(err, cbsearchx.ErrIndexNotFound) {
+		if errors.Is(err, gocbcorex.ErrServiceNotAvailable) {
+			return nil, s.errorHandler.NewSearchServiceNotAvailableStatus(err, in.Index.Name).Err()
+		} else if errors.Is(err, cbsearchx.ErrIndexNotFound) {
 			return nil, s.errorHandler.NewSearchIndexMissingStatus(err, in.Index.Name).Err()
 		} else if errors.Is(err, cbsearchx.ErrIndexExists) {
 			return nil, s.errorHandler.NewSearchUUIDMismatchStatus(err, in.Index.Name).Err()
@@ -201,7 +206,9 @@ func (s *SearchIndexAdminServer) DeleteIndex(ctx context.Context, in *admin_sear
 
 	err := agent.DeleteSearchIndex(ctx, opts)
 	if err != nil {
-		if errors.Is(err, cbsearchx.ErrIndexNotFound) {
+		if errors.Is(err, gocbcorex.ErrServiceNotAvailable) {
+			return nil, s.errorHandler.NewSearchServiceNotAvailableStatus(err, in.Name).Err()
+		} else if errors.Is(err, cbsearchx.ErrIndexNotFound) {
 			return nil, s.errorHandler.NewSearchIndexMissingStatus(err, in.Name).Err()
 		}
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
@@ -231,7 +238,9 @@ func (s *SearchIndexAdminServer) GetIndex(ctx context.Context, in *admin_search_
 
 	index, err := agent.GetSearchIndex(ctx, opts)
 	if err != nil {
-		if errors.Is(err, cbsearchx.ErrIndexNotFound) {
+		if errors.Is(err, gocbcorex.ErrServiceNotAvailable) {
+			return nil, s.errorHandler.NewSearchServiceNotAvailableStatus(err, in.Name).Err()
+		} else if errors.Is(err, cbsearchx.ErrIndexNotFound) {
 			return nil, s.errorHandler.NewSearchIndexMissingStatus(err, in.Name).Err()
 		}
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
@@ -264,6 +273,9 @@ func (s *SearchIndexAdminServer) ListIndexes(ctx context.Context, in *admin_sear
 
 	indexes, err := agent.GetAllSearchIndexes(ctx, opts)
 	if err != nil {
+		if errors.Is(err, gocbcorex.ErrServiceNotAvailable) {
+			return nil, s.errorHandler.NewSearchServiceNotAvailableStatus(err, "").Err()
+		}
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
 
@@ -300,7 +312,9 @@ func (s *SearchIndexAdminServer) AnalyzeDocument(ctx context.Context, in *admin_
 
 	analysis, err := agent.AnalyzeDocument(ctx, opts)
 	if err != nil {
-		if errors.Is(err, cbsearchx.ErrIndexNotFound) {
+		if errors.Is(err, gocbcorex.ErrServiceNotAvailable) {
+			return nil, s.errorHandler.NewSearchServiceNotAvailableStatus(err, in.Name).Err()
+		} else if errors.Is(err, cbsearchx.ErrIndexNotFound) {
 			return nil, s.errorHandler.NewSearchIndexMissingStatus(err, in.Name).Err()
 		}
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
@@ -333,7 +347,9 @@ func (s *SearchIndexAdminServer) GetIndexedDocumentsCount(ctx context.Context, i
 
 	count, err := agent.GetSearchIndexedDocumentsCount(ctx, opts)
 	if err != nil {
-		if errors.Is(err, cbsearchx.ErrIndexNotFound) {
+		if errors.Is(err, gocbcorex.ErrServiceNotAvailable) {
+			return nil, s.errorHandler.NewSearchServiceNotAvailableStatus(err, in.Name).Err()
+		} else if errors.Is(err, cbsearchx.ErrIndexNotFound) {
 			return nil, s.errorHandler.NewSearchIndexMissingStatus(err, in.Name).Err()
 		}
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
@@ -365,7 +381,9 @@ func (s *SearchIndexAdminServer) PauseIndexIngest(ctx context.Context, in *admin
 
 	err := agent.PauseSearchIndexIngest(ctx, opts)
 	if err != nil {
-		if errors.Is(err, cbsearchx.ErrIndexNotFound) {
+		if errors.Is(err, gocbcorex.ErrServiceNotAvailable) {
+			return nil, s.errorHandler.NewSearchServiceNotAvailableStatus(err, in.Name).Err()
+		} else if errors.Is(err, cbsearchx.ErrIndexNotFound) {
 			return nil, s.errorHandler.NewSearchIndexMissingStatus(err, in.Name).Err()
 		}
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
@@ -395,7 +413,9 @@ func (s *SearchIndexAdminServer) ResumeIndexIngest(ctx context.Context, in *admi
 
 	err := agent.ResumeSearchIndexIngest(ctx, opts)
 	if err != nil {
-		if errors.Is(err, cbsearchx.ErrIndexNotFound) {
+		if errors.Is(err, gocbcorex.ErrServiceNotAvailable) {
+			return nil, s.errorHandler.NewSearchServiceNotAvailableStatus(err, in.Name).Err()
+		} else if errors.Is(err, cbsearchx.ErrIndexNotFound) {
 			return nil, s.errorHandler.NewSearchIndexMissingStatus(err, in.Name).Err()
 		}
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
@@ -425,7 +445,9 @@ func (s *SearchIndexAdminServer) AllowIndexQuerying(ctx context.Context, in *adm
 
 	err := agent.AllowSearchIndexQuerying(ctx, opts)
 	if err != nil {
-		if errors.Is(err, cbsearchx.ErrIndexNotFound) {
+		if errors.Is(err, gocbcorex.ErrServiceNotAvailable) {
+			return nil, s.errorHandler.NewSearchServiceNotAvailableStatus(err, in.Name).Err()
+		} else if errors.Is(err, cbsearchx.ErrIndexNotFound) {
 			return nil, s.errorHandler.NewSearchIndexMissingStatus(err, in.Name).Err()
 		}
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
@@ -455,7 +477,9 @@ func (s *SearchIndexAdminServer) DisallowIndexQuerying(ctx context.Context, in *
 
 	err := agent.DisallowSearchIndexQuerying(ctx, opts)
 	if err != nil {
-		if errors.Is(err, cbsearchx.ErrIndexNotFound) {
+		if errors.Is(err, gocbcorex.ErrServiceNotAvailable) {
+			return nil, s.errorHandler.NewSearchServiceNotAvailableStatus(err, in.Name).Err()
+		} else if errors.Is(err, cbsearchx.ErrIndexNotFound) {
 			return nil, s.errorHandler.NewSearchIndexMissingStatus(err, in.Name).Err()
 		}
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
@@ -485,7 +509,9 @@ func (s *SearchIndexAdminServer) FreezeIndexPlan(ctx context.Context, in *admin_
 
 	err := agent.FreezeSearchIndexPlan(ctx, opts)
 	if err != nil {
-		if errors.Is(err, cbsearchx.ErrIndexNotFound) {
+		if errors.Is(err, gocbcorex.ErrServiceNotAvailable) {
+			return nil, s.errorHandler.NewSearchServiceNotAvailableStatus(err, in.Name).Err()
+		} else if errors.Is(err, cbsearchx.ErrIndexNotFound) {
 			return nil, s.errorHandler.NewSearchIndexMissingStatus(err, in.Name).Err()
 		}
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
@@ -515,7 +541,9 @@ func (s *SearchIndexAdminServer) UnfreezeIndexPlan(ctx context.Context, in *admi
 
 	err := agent.UnfreezeSearchIndexPlan(ctx, opts)
 	if err != nil {
-		if errors.Is(err, cbsearchx.ErrIndexNotFound) {
+		if errors.Is(err, gocbcorex.ErrServiceNotAvailable) {
+			return nil, s.errorHandler.NewSearchServiceNotAvailableStatus(err, in.Name).Err()
+		} else if errors.Is(err, cbsearchx.ErrIndexNotFound) {
 			return nil, s.errorHandler.NewSearchIndexMissingStatus(err, in.Name).Err()
 		}
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
