@@ -308,6 +308,9 @@ func startGateway() {
 		BindAddress:    bindAddress,
 		TlsCertificate: tlsCertificate,
 		NumInstances:   1,
+		StartupCallback: func(m *gateway.StartupInfo) {
+			webapi.MarkSystemHealthy()
+		},
 	}
 
 	gw, err := gateway.NewGateway(gatewayConfig)
