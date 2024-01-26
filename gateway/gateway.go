@@ -408,6 +408,15 @@ func (g *Gateway) Run(ctx context.Context) error {
 			return err
 		}
 
+		go func() {
+			<-g.shutdownSig
+			gatewaySys.Shutdown()
+		}()
+
+		config.Logger.Info("starting to run protostellar system",
+			zap.Int("advertisedPortPS", advertisePorts.PS),
+			zap.Int("advertisedPortSD", advertisePorts.SD))
+
 		if instanceIdx == 0 && config.StartupCallback != nil {
 			config.StartupCallback(&StartupInfo{
 				MemberID:      nodeID,
@@ -420,16 +429,7 @@ func (g *Gateway) Run(ctx context.Context) error {
 			})
 		}
 
-		go func() {
-			<-g.shutdownSig
-			gatewaySys.Shutdown()
-		}()
-
-		config.Logger.Info("starting to run protostellar system",
-			zap.Int("advertisedPortPS", advertisePorts.PS),
-			zap.Int("advertisedPortSD", advertisePorts.SD))
 		err = gatewaySys.Serve(ctx, gatewayLis)
-
 		if err != nil {
 			config.Logger.Error("failed to serve protostellar system")
 

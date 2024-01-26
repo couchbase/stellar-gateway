@@ -5,6 +5,7 @@ package webapi
 import (
 	"net/http"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -23,6 +24,7 @@ type WebServer struct {
 	logLevel      *zap.AtomicLevel
 	listenAddress string
 	httpServer    *http.Server
+	isHealthy     atomic.Bool
 }
 
 func newWebServer(opts WebServerOptions) *WebServer {
@@ -35,9 +37,28 @@ func newWebServer(opts WebServerOptions) *WebServer {
 
 func (w *WebServer) handleRoot(rw http.ResponseWriter, r *http.Request) {
 	rw.WriteHeader(200)
-	_, err := rw.Write([]byte("Welcome to the stellar nebula internal webapi"))
+	_, err := rw.Write([]byte("cloud native gateway webapi"))
 	if err != nil {
 		w.logger.Debug("failed to write generic root response", zap.Error(err))
+	}
+}
+
+func (w *WebServer) handleHealth(rw http.ResponseWriter, r *http.Request) {
+	if w.isHealthy.Load() {
+		rw.WriteHeader(200)
+	} else {
+		rw.WriteHeader(503)
+	}
+}
+
+func (w *WebServer) SetHealth(isHealthy bool) {
+	oldIsHealthy := w.isHealthy.Swap(isHealthy)
+	if oldIsHealthy != isHealthy {
+		if isHealthy {
+			w.logger.Info("system health marked as healthy")
+		} else {
+			w.logger.Info("system health marked as unhealthy")
+		}
 	}
 }
 
@@ -45,6 +66,7 @@ func (w *WebServer) ListenAndServe() error {
 	r := mux.NewRouter()
 
 	r.Handle("/metrics", promhttp.Handler())
+	r.HandleFunc("/health", w.handleHealth)
 	r.HandleFunc("/", w.handleRoot)
 
 	w.httpServer = &http.Server{
@@ -53,6 +75,9 @@ func (w *WebServer) ListenAndServe() error {
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
 	}
+
+	w.logger.Info("starting health/metrics server",
+		zap.String("listenAddress", w.listenAddress))
 
 	return w.httpServer.ListenAndServe()
 }
@@ -75,4 +100,20 @@ func InitializeWebServer(opts WebServerOptions) {
 			opts.Logger.Error("Failed to listen and serve web server", zap.Error(err))
 		}
 	}()
+}
+
+func MarkSystemHealthy() {
+	if globalWebServer == nil {
+		return
+	}
+
+	globalWebServer.SetHealth(true)
+}
+
+func MarkSystemUnhealthy() {
+	if globalWebServer == nil {
+		return
+	}
+
+	globalWebServer.SetHealth(false)
 }
