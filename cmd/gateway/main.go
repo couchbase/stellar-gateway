@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"os"
+	"os/exec"
 	"os/signal"
 	"runtime/pprof"
 	"syscall"
@@ -43,6 +44,11 @@ var rootCmd = &cobra.Command{
 	Short: "A service for accessing Couchbase over GRPC",
 
 	Run: func(cmd *cobra.Command, args []string) {
+		if autoRestart && !autoRestartProc {
+			startGatewayWatchdog()
+			return
+		}
+
 		startGateway()
 	},
 }
@@ -50,11 +56,16 @@ var rootCmd = &cobra.Command{
 var cfgFile string
 var watchCfgFile bool
 var daemon bool
+var autoRestart bool
+var autoRestartProc bool
 
 func init() {
 	rootCmd.Flags().StringVar(&cfgFile, "config", "", "specifies a config file to load")
 	rootCmd.Flags().BoolVar(&watchCfgFile, "watch-config", false, "indicates whether to watch the config file for changes")
 	rootCmd.Flags().BoolVar(&daemon, "daemon", false, "in daemon mode, stellar-gateway will not exit on initial failure")
+	rootCmd.Flags().BoolVar(&autoRestart, "auto-restart", false, "in auto-restart mode, we run in a child process to auto-restart on failure")
+	rootCmd.Flags().BoolVar(&autoRestartProc, "auto-restart-proc", false, "in auto-restart mode, indicates we are the child process")
+	_ = rootCmd.Flags().MarkHidden("auto-restart-proc")
 
 	configFlags := pflag.NewFlagSet("", pflag.ContinueOnError)
 	configFlags.String("log-level", "info", "the log level to run at")
@@ -158,8 +169,7 @@ func initTelemetry(
 	return tracerProvider, meterProvider, nil
 }
 
-func startGateway() {
-	// initialize the logger
+func getLogger() (zap.AtomicLevel, *zap.Logger) {
 	logLevel := zap.NewAtomicLevel()
 	logConfig := zap.NewProductionEncoderConfig()
 	logConfig.EncodeTime = zapcore.ISO8601TimeEncoder
@@ -168,6 +178,13 @@ func startGateway() {
 		zapcore.NewCore(jsonEncoder, zapcore.AddSync(os.Stdout), logLevel),
 	)
 	logger := zap.New(core, zap.AddCaller(), zap.AddStacktrace(zapcore.ErrorLevel))
+
+	return logLevel, logger
+}
+
+func startGateway() {
+	// initialize the logger
+	logLevel, logger := getLogger()
 
 	// signal that we are starting
 	buildVersion := buildversion.GetVersion("github.com/couchbase/stellar-gateway")
@@ -383,6 +400,60 @@ func startGateway() {
 	}
 
 	logger.Info("gateway shutdown gracefully")
+}
+
+func startGatewayWatchdog() {
+	_, logger := getLogger()
+	logger = logger.Named("watchdog")
+
+	execProc := os.Args[0]
+	execArgs := append([]string{"--auto-restart-proc"}, os.Args[1:]...)
+
+	hasReceivedSigInt := false
+	go func() {
+		sigCh := make(chan os.Signal, 10)
+		signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+
+		for sig := range sigCh {
+			if sig == syscall.SIGINT {
+				if hasReceivedSigInt {
+					logger.Info("received sigint a second time, terminating...")
+					os.Exit(1)
+				} else {
+					logger.Info("received sigint, waiting for graceful shutdown...")
+					hasReceivedSigInt = true
+				}
+			} else if sig == syscall.SIGTERM {
+				logger.Info("received sigterm, waiting for graceful shutdown...")
+			}
+		}
+	}()
+
+	for {
+		logger.Info("starting sub-process")
+
+		cmd := exec.Command(execProc, execArgs...)
+		cmd.Stderr = os.Stderr
+		cmd.Stdout = os.Stdout
+
+		err := cmd.Start()
+		if err != nil {
+			logger.Info("failed to start sub-process", zap.Error(err))
+		}
+
+		err = cmd.Wait()
+		if err != nil {
+			logger.Info("sub-process exited with error", zap.Error(err))
+		}
+
+		if hasReceivedSigInt {
+			break
+		}
+
+		delayTime := 1 * time.Second
+		logger.Info("crash detected, restarting", zap.Duration("delay", delayTime))
+		time.Sleep(delayTime)
+	}
 }
 
 func main() {
