@@ -43,11 +43,18 @@ func (w *WebServer) handleRoot(rw http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (w *WebServer) handleHealth(rw http.ResponseWriter, r *http.Request) {
+func (w *WebServer) handleLive(rw http.ResponseWriter, r *http.Request) {
+	rw.WriteHeader(200)
+	_, _ = rw.Write([]byte("ok"))
+}
+
+func (w *WebServer) handleReady(rw http.ResponseWriter, r *http.Request) {
 	if w.isHealthy.Load() {
 		rw.WriteHeader(200)
+		_, _ = rw.Write([]byte("ok"))
 	} else {
 		rw.WriteHeader(503)
+		_, _ = rw.Write([]byte("not ok"))
 	}
 }
 
@@ -66,7 +73,9 @@ func (w *WebServer) ListenAndServe() error {
 	r := mux.NewRouter()
 
 	r.Handle("/metrics", promhttp.Handler())
-	r.HandleFunc("/health", w.handleHealth)
+	r.HandleFunc("/health", w.handleReady)
+	r.HandleFunc("/live", w.handleLive)
+	r.HandleFunc("/ready", w.handleReady)
 	r.HandleFunc("/", w.handleRoot)
 
 	w.httpServer = &http.Server{
