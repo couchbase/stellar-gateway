@@ -7,22 +7,27 @@ import (
 	"github.com/couchbase/goprotostellar/genproto/internal_hooks_v1"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/anypb"
 )
 
 type HooksContext struct {
-	lock     sync.Mutex
-	counters map[string]*Counter
-	barriers map[string]*Barrier
-	hooks    map[string]*internal_hooks_v1.Hook
-	logger   *zap.Logger
+	lock        sync.Mutex
+	reqWatchers RequestWatchers
+	counters    map[string]*Counter
+	barriers    map[string]*Barrier
+	hooks       map[string]*internal_hooks_v1.Hook
+	logger      *zap.Logger
 }
 
 func newHooksContext(logger *zap.Logger) *HooksContext {
 	return &HooksContext{
-		counters: make(map[string]*Counter),
-		barriers: make(map[string]*Barrier),
-		hooks:    make(map[string]*internal_hooks_v1.Hook),
-		logger:   logger,
+		reqWatchers: *newRequestWatchers(),
+		counters:    make(map[string]*Counter),
+		barriers:    make(map[string]*Barrier),
+		hooks:       make(map[string]*internal_hooks_v1.Hook),
+		logger:      logger,
 	}
 }
 
@@ -62,6 +67,10 @@ func (i *HooksContext) GetBarrier(name string) *Barrier {
 	return i.getBarrierLocked(name)
 }
 
+func (i *HooksContext) WatchRequests(ctx context.Context) <-chan *RequestInfo {
+	return i.reqWatchers.Watch(ctx)
+}
+
 // TODO(brett19): This is called "AddHook" but technically is more like "SetHook"
 func (i *HooksContext) AddHook(hook *internal_hooks_v1.Hook) {
 	i.lock.Lock()
@@ -70,12 +79,38 @@ func (i *HooksContext) AddHook(hook *internal_hooks_v1.Hook) {
 	i.hooks[hook.TargetMethod] = hook
 }
 
+func (i *HooksContext) dispatchReqToWatchers(
+	ctx context.Context,
+	fullMethod string,
+	req interface{},
+) {
+	reqMsg := req.(proto.Message)
+	reqAny, err := anypb.New(reqMsg)
+	if err != nil {
+		i.logger.Warn("request watcher failed to marshal request",
+			zap.Error(err))
+		return
+	}
+
+	md, _ := metadata.FromIncomingContext(ctx)
+
+	reqInfo := &RequestInfo{
+		MetaData:   md,
+		FullMethod: fullMethod,
+		Request:    reqAny,
+	}
+
+	i.reqWatchers.Send(reqInfo)
+}
+
 func (i *HooksContext) HandleUnaryCall(
 	ctx context.Context,
 	req interface{},
 	info *grpc.UnaryServerInfo,
 	handler grpc.UnaryHandler,
 ) (resp interface{}, err error) {
+	i.dispatchReqToWatchers(ctx, info.FullMethod, req)
+
 	hook := i.findHook(info.FullMethod)
 	if hook == nil {
 		// if there is no hook, we just run the default handler
