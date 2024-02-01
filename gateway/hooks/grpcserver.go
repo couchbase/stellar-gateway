@@ -65,7 +65,7 @@ func (s *grpcHooksServer) WatchBarrier(
 		return status.Errorf(codes.NotFound, "invalid hooks context id")
 	}
 
-	s.logger.Info("starting counter watcher")
+	s.logger.Info("starting barrier watcher")
 
 	barrier := hooksContext.GetBarrier(req.BarrierId)
 	watchCtx, watchCancel := context.WithCancel(stream.Context())
@@ -79,7 +79,12 @@ func (s *grpcHooksServer) WatchBarrier(
 	bufWatchCh := make(chan *BarrierWaiter, 1024)
 	go func() {
 		for {
-			newWaiter := <-watchCh
+			newWaiter, ok := <-watchCh
+			if !ok {
+				watchCancel()
+				close(bufWatchCh)
+				return
+			}
 
 			select {
 			case bufWatchCh <- newWaiter:
@@ -87,12 +92,16 @@ func (s *grpcHooksServer) WatchBarrier(
 				// client is too slow
 				watchCancel()
 				close(bufWatchCh)
+				return
 			}
 		}
 	}()
 
 	for {
-		newWaiter := <-bufWatchCh
+		newWaiter, ok := <-bufWatchCh
+		if !ok {
+			break
+		}
 
 		s.logger.Info("sending barrier watch value", zap.Any("barrier-watch-value", newWaiter))
 		err := stream.Send(&internal_hooks_v1.WatchBarrierResponse{
@@ -104,6 +113,8 @@ func (s *grpcHooksServer) WatchBarrier(
 		}
 		s.logger.Info("sent barrier watch value", zap.Any("barrier-watch-value", newWaiter))
 	}
+
+	return nil
 }
 
 func (s *grpcHooksServer) SignalBarrier(
