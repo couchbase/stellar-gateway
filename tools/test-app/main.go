@@ -168,7 +168,7 @@ func main() {
 	}
 
 	// testing some query directly via the connection
-	{
+	if false {
 		queryResp, err := client.Query(ctx, "SELECT 1", nil)
 		if err != nil {
 			log.Fatalf("could not query: %v", err)
@@ -195,7 +195,7 @@ func main() {
 		log.Printf("done streaming query data")
 	}
 
-	{
+	if false {
 		analyticsResp, err := client.AnalyticsQuery(ctx, "SELECT 1", nil)
 		if err != nil {
 			log.Fatalf("could not analytics: %s", err)
@@ -245,7 +245,7 @@ func main() {
 				{
 					Name:         "test",
 					Description:  "test description",
-					TargetMethod: "/couchbase.data.v1.Data/Upsert",
+					TargetMethod: "/couchbase.kv.v1.KvService/Upsert",
 					Actions: []*internal_hooks_v1.HookAction{
 						{
 							Action: &internal_hooks_v1.HookAction_WaitOnBarrier_{
@@ -307,6 +307,9 @@ func main() {
 			ScopeName:      "",
 			CollectionName: "",
 			Key:            "test-key",
+			Content: &kv_v1.UpsertRequest_ContentUncompressed{
+				ContentUncompressed: []byte(`{"foo":"bar"}`),
+			},
 		})
 		if err != nil {
 			log.Fatalf("failed to perform hooked upsert: %s", err)
