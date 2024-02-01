@@ -228,7 +228,6 @@ func (s *runState) runAction(
 		return s.runAction_ReturnError(ctx, req, action.ReturnError)
 	case *internal_hooks_v1.HookAction_Execute_:
 		return s.runAction_Execute(ctx, req, action.Execute)
-
 	}
 
 	return nil, errors.New("invalid hook action type")
