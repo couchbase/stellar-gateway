@@ -140,3 +140,73 @@ func (s *grpcHooksServer) SignalBarrier(
 
 	return &internal_hooks_v1.SignalBarrierResponse{}, nil
 }
+
+func (s *grpcHooksServer) WatchRequests(
+	req *internal_hooks_v1.WatchRequestsRequest,
+	stream internal_hooks_v1.HooksService_WatchRequestsServer,
+) error {
+	hooksContext := s.manager.GetHooksContext(req.HooksContextId)
+	if hooksContext == nil {
+		return status.Errorf(codes.NotFound, "invalid hooks context id")
+	}
+
+	s.logger.Info("starting request watcher")
+
+	watchCtx, watchCancel := context.WithCancel(stream.Context())
+	watchCh := hooksContext.WatchRequests(watchCtx)
+
+	s.logger.Info("started request watcher")
+
+	// we need to guarentee that we don't block the watch channel, so we move the data
+	// into a buffered channel with 1024 slots, if the buffered channel becomes too filled,
+	// we close the watcher connection because its being too slow.
+	bufWatchCh := make(chan *RequestInfo, 1024)
+	go func() {
+		for {
+			newRequest, ok := <-watchCh
+			if !ok {
+				watchCancel()
+				close(bufWatchCh)
+				return
+			}
+
+			select {
+			case bufWatchCh <- newRequest:
+			default:
+				// client is too slow
+				watchCancel()
+				close(bufWatchCh)
+				return
+			}
+		}
+	}()
+
+	for {
+		newRequest, ok := <-bufWatchCh
+		if !ok {
+			break
+		}
+
+		var metaData []*internal_hooks_v1.WatchRequestsResponse_MetaDataEntry
+		for key, values := range newRequest.MetaData {
+			for _, value := range values {
+				metaData = append(metaData, &internal_hooks_v1.WatchRequestsResponse_MetaDataEntry{
+					Key:   key,
+					Value: value,
+				})
+			}
+		}
+
+		err := stream.Send(&internal_hooks_v1.WatchRequestsResponse{
+			MetaData:   metaData,
+			FullMethod: newRequest.FullMethod,
+			Payload:    newRequest.Request,
+		})
+		if err != nil {
+			s.logger.Error("failed to write watched request", zap.Error(err))
+			return err
+		}
+	}
+
+	return nil
+}

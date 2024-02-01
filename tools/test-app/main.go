@@ -260,6 +260,31 @@ func main() {
 		})
 		log.Printf("registered hook: %s", err)
 
+		// start a goroutine waiting for requests
+		log.Printf("starting request watcher")
+		go func() {
+			watchCtx, watchCancel := context.WithCancel(ctx)
+			watchSrv, err := hc.WatchRequests(watchCtx, &internal_hooks_v1.WatchRequestsRequest{
+				HooksContextId: hooksContextID,
+			})
+			if err != nil {
+				log.Fatalf("failed to watch requests: %s", err)
+			}
+			log.Printf("started requests watch")
+
+			for {
+				watchResp, err := watchSrv.Recv()
+				if err != nil {
+					log.Printf("watching failed: %s", err)
+					break
+				}
+
+				log.Printf("request watcher saw new request: %v", watchResp)
+			}
+
+			watchCancel()
+		}()
+
 		// start a goroutine waiting for the client latch, and set the server latch in response
 		log.Printf("starting latch watcher")
 		go func() {
