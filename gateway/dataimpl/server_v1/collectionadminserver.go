@@ -85,7 +85,7 @@ func (s *CollectionAdminServer) CreateScope(
 		return nil, errSt.Err()
 	}
 
-	_, err := bucketAgent.CreateScope(ctx, &cbmgmtx.CreateScopeOptions{
+	resp, err := bucketAgent.CreateScope(ctx, &cbmgmtx.CreateScopeOptions{
 		OnBehalfOf: oboInfo,
 		BucketName: in.BucketName,
 		ScopeName:  in.ScopeName,
@@ -96,6 +96,20 @@ func (s *CollectionAdminServer) CreateScope(
 		} else if errors.Is(err, cbmgmtx.ErrScopeExists) {
 			return nil, s.errorHandler.NewScopeExistsStatus(err, in.BucketName, in.ScopeName).Err()
 		}
+		return nil, s.errorHandler.NewGenericStatus(err).Err()
+	}
+
+	manifestUid, err := strconv.ParseUint(resp.ManifestUid, 16, 64)
+	if err != nil {
+		return nil, s.errorHandler.NewGenericStatus(err).Err()
+	}
+
+	opts := gocbcorex.EnsureManifestOptions{
+		BucketName:  in.BucketName,
+		ManifestUid: manifestUid,
+	}
+	err = bucketAgent.EnsureManifest(ctx, &opts)
+	if err != nil {
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
 
