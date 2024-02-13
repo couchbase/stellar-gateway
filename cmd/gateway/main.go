@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"runtime/pprof"
+	"strings"
 	"syscall"
 	"time"
 
@@ -86,6 +87,7 @@ func init() {
 	rootCmd.Flags().AddFlagSet(configFlags)
 
 	_ = viper.BindPFlags(configFlags)
+	viper.EnvKeyReplacer(strings.NewReplacer("-", "_"))
 	viper.SetEnvPrefix("stg")
 	viper.AutomaticEnv()
 }
