@@ -86,10 +86,11 @@ func init() {
 	configFlags.String("cpuprofile", "", "write cpu profile to a file")
 	rootCmd.Flags().AddFlagSet(configFlags)
 
-	_ = viper.BindPFlags(configFlags)
-	viper.EnvKeyReplacer(strings.NewReplacer("-", "_"))
+	viper.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
 	viper.SetEnvPrefix("stg")
 	viper.AutomaticEnv()
+
+	_ = viper.BindPFlags(configFlags)
 }
 
 func initTelemetry(
