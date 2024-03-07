@@ -24,6 +24,7 @@ import (
 	"github.com/couchbase/goprotostellar/genproto/routing_v1"
 	"github.com/couchbase/goprotostellar/genproto/search_v1"
 	"github.com/couchbase/goprotostellar/genproto/transactions_v1"
+	"github.com/couchbase/stellar-gateway/contrib/grpcrejectunknown"
 	"github.com/couchbase/stellar-gateway/gateway/dataimpl"
 	"github.com/couchbase/stellar-gateway/gateway/hooks"
 	"github.com/couchbase/stellar-gateway/gateway/sdimpl"
@@ -70,6 +71,8 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 	var unaryInterceptors []grpc.UnaryServerInterceptor
 	unaryInterceptors = append(unaryInterceptors, otelgrpc.UnaryServerInterceptor())
 	unaryInterceptors = append(unaryInterceptors, metricsInterceptor.UnaryInterceptor())
+	unaryInterceptors = append(unaryInterceptors,
+		grpcrejectunknown.MakeGrpcUnaryInterceptor(opts.Logger))
 	if opts.Debug {
 		unaryInterceptors = append(unaryInterceptors, debugInterceptor.UnaryInterceptor())
 	}
