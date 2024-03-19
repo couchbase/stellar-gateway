@@ -10,42 +10,53 @@ Provides translation capabilities for Protostellar to legacy protocols.
 
 ### Dependencies
 
-- Go @ v1.18+
+- Go @ v1.19+
 - protoc @ v3+
 - protoc-gen-go @ v1.28+
 - protoc-gen-go-grpc @ v1.2+
 
 ### Executing the gateway
 
+Building the gateway:
+
 ```
-> git submodule update --recursive --init
-> go generate
 > go build -o stellar-gateway ./cmd/gateway
-> ./stellar-gateway
 ```
 
-### Executing the legacy bridge
-
-Note: This is not currently implemented.
-
+Basic execution which will run generate a self-signed certificate and run against a Couchbase Server instance on localhost:
 ```
-> git submodule update --recursive --init
-> go generate
-> go build ./cmd/bridge
-> ./bridge
+> ./stellar-gateway --self-sign
 ```
 
-### Executing for development
-
-This (by default) starts 3 instances of the gateway and 3 instances
-of the legacy bridge running on the local system on default ports.
-
+To turn up the log level:
 ```
-> git submodule update --recursive --init
-> go generate
-> go run ./cmd/dev
+> ./stellar-gateway --self-sign --log-level debug
+```
+
+To add extra debug information to errors:
+```
+> ./stellar-gateway --self-sign --debug
+```
+
+To execute against a remote Couchbase Server instance:
+```
+> ./stellar-gateway --self-sign --cb-host 192.168.107.128
+```
+
+To execute using an existing certificate (used to connect to the gateway by clients): 
+```
+> ./stellar-gateway --cert /path/to/cert --key /path/to/key
+```
+
+To execute without having to perform a build after every change
+```
+> go run ./cmd/gateway --self-sign
 ```
 
 ## Help
 
-If you encounter any issues, message Brett Lawson on Slack.
+```
+> ./stellar-gateway --help
+```
+
+If you encounter any issues, drop a message into #protostellar on Slack.
