@@ -33,18 +33,9 @@ lint:
 	go install github.com/golangci/golangci-lint/cmd/golangci-lint@$(GOLINT_VERSION)
 	$(GOBIN)/golangci-lint run
 
-check: generate fmt lint test
+check: fmt lint test
 
-$(GOBIN)/protoc-gen-go-grpc:
-	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2
-
-$(GOBIN)/protoc-gen-go:
-	go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28
-
-generate: $(GOBIN)/protoc-gen-go $(GOBIN)/protoc-gen-go-grpc
-	PATH=$(GOBIN):$(PATH) go generate
-
-build: generate
+build:
 	for platform in linux darwin ; do \
 	 for arch in amd64 arm64 ; do \
 	   echo "Building $$platform $$arch binary " ; \
@@ -65,4 +56,4 @@ dist: image-artifacts
 container: build
 	docker build -f Dockerfile -t ${DOCKER_USER}/cloud-native-gateway:${DOCKER_TAG} .
 
-.PHONY: all test fmt lint check generate build
+.PHONY: all test fmt lint check build
