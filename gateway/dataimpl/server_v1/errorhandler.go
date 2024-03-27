@@ -759,8 +759,12 @@ func (e ErrorHandler) NewNeedIndexFieldsStatus() *status.Status {
 
 func (e ErrorHandler) NewGenericStatus(err error) *status.Status {
 	if errors.Is(err, context.Canceled) {
+		e.Logger.Debug("handling canceled operation error", zap.Error(err))
+
 		return status.New(codes.Canceled, "The request was cancelled.")
 	} else if errors.Is(err, context.DeadlineExceeded) {
+		e.Logger.Debug("handling deadline exceeded operation error", zap.Error(err))
+
 		return status.New(codes.DeadlineExceeded, "The request deadline was exceeded.")
 	}
 
