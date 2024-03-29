@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"strings"
 
 	"github.com/couchbase/gocbcorex/cbmgmtx"
@@ -757,7 +758,16 @@ func (e ErrorHandler) NewNeedIndexFieldsStatus() *status.Status {
 	return st
 }
 
+func (e ErrorHandler) NewUnavailableStatus(err error) *status.Status {
+	st := status.New(codes.Unavailable,
+		"One of the underlying services were not available.")
+	e.tryAttachExtraContext(st, err)
+	return st
+}
+
 func (e ErrorHandler) NewGenericStatus(err error) *status.Status {
+	// we do not attach context in these cases, since they almost always don't actually
+	// make it back to the client to be processed anyways.
 	if errors.Is(err, context.Canceled) {
 		e.Logger.Debug("handling canceled operation error", zap.Error(err))
 
@@ -768,8 +778,16 @@ func (e ErrorHandler) NewGenericStatus(err error) *status.Status {
 		return status.New(codes.DeadlineExceeded, "The request deadline was exceeded.")
 	}
 
-	e.Logger.Debug("handling unknown error", zap.Error(err))
+	// if this is a network dial error, we make the assumption that one of the underlying
+	// services neccessary for servicing this request is unavailable.
+	var netOpError *net.OpError
+	if errors.As(err, &netOpError) && netOpError.Op == "dial" {
+		e.Logger.Debug("handling network dial error", zap.Error(err))
+		return e.NewUnavailableStatus(err)
+	}
 
+	// if we still don't know what kind of error this is, we return 'UNKNOWN'
+	e.Logger.Debug("handling unknown error", zap.Error(err))
 	return e.NewUnknownStatus(err)
 }
 
