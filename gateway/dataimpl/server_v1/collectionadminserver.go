@@ -7,6 +7,7 @@ import (
 
 	"github.com/couchbase/gocbcorex"
 	"github.com/couchbase/gocbcorex/cbmgmtx"
+	"github.com/couchbase/gocbcorex/contrib/ptr"
 	"github.com/couchbase/goprotostellar/genproto/admin_collection_v1"
 	"go.uber.org/zap"
 )
@@ -60,7 +61,7 @@ func (s *CollectionAdminServer) ListCollections(
 				Name: collection.Name,
 			}
 			if collection.MaxTTL > 0 {
-				collectionSpec.MaxExpirySecs = &collection.MaxTTL
+				collectionSpec.MaxExpirySecs = ptr.To(uint32(collection.MaxTTL))
 			}
 			collections = append(collections, collectionSpec)
 		}
