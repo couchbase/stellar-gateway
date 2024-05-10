@@ -1,14 +1,19 @@
 package server_v1
 
 import (
+	"context"
+	"fmt"
 	"time"
 
 	"github.com/couchbase/gocbcorex"
 	"github.com/couchbase/gocbcorex/cbmgmtx"
+	"github.com/couchbase/gocbcorex/cbqueryx"
 	"github.com/couchbase/gocbcorex/memdx"
 	"github.com/couchbase/goprotostellar/genproto/admin_bucket_v1"
 	"github.com/couchbase/goprotostellar/genproto/admin_query_v1"
 	"github.com/couchbase/goprotostellar/genproto/kv_v1"
+	"github.com/couchbase/goprotostellar/genproto/query_v1"
+	"github.com/couchbase/stellar-gateway/gateway/apiversion"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/durationpb"
@@ -278,4 +283,44 @@ func indexStateFromQueryTableString(s string) (admin_query_v1.IndexState, *statu
 	}
 
 	return admin_query_v1.IndexState(0), status.New(codes.Internal, "invalid index state specified")
+}
+
+func scanConsistencyToCbqueryx(t query_v1.QueryRequest_ScanConsistency) (cbqueryx.ScanConsistency, *status.Status) {
+	switch t {
+	case query_v1.QueryRequest_SCAN_CONSISTENCY_NOT_BOUNDED:
+		return cbqueryx.ScanConsistencyNotBounded, nil
+	case query_v1.QueryRequest_SCAN_CONSISTENCY_REQUEST_PLUS:
+		return cbqueryx.ScanConsistencyRequestPlus, nil
+	}
+
+	return cbqueryx.ScanConsistency(""), status.New(codes.InvalidArgument, "invalid scan consistency option specified")
+}
+
+func durabilityLevelToCbqueryx(t query_v1.QueryRequest_DurabilityLevel) (cbqueryx.DurabilityLevel, *status.Status) {
+	switch t {
+	case query_v1.QueryRequest_DURABILITY_LEVEL_NONE:
+		return cbqueryx.DurabilityLevelNone, nil
+	case query_v1.QueryRequest_DURABILITY_LEVEL_MAJORITY:
+		return cbqueryx.DurabilityLevelMajority, nil
+	case query_v1.QueryRequest_DURABILITY_LEVEL_MAJORITY_AND_PERSIST_TO_ACTIVE:
+		return cbqueryx.DurabilityLevelMajorityAndPersistActive, nil
+	case query_v1.QueryRequest_DURABILITY_LEVEL_PERSIST_TO_MAJORITY:
+		return cbqueryx.DurabilityLevelPersistToMajority, nil
+	}
+
+	return cbqueryx.DurabilityLevel(""), status.New(codes.InvalidArgument, "invalid durability level specified")
+}
+
+func checkApiVersion(ctx context.Context, requiredVersion uint64, featureName string) *status.Status {
+	apiVersion, err := apiversion.GetAPIVersion(ctx)
+	if err != nil {
+		return status.FromContextError(err)
+	}
+
+	if apiVersion < requiredVersion {
+		return status.New(codes.Unimplemented,
+			fmt.Sprintf("Feature (%s) is not available in the requested API version", featureName))
+	}
+
+	return nil
 }
