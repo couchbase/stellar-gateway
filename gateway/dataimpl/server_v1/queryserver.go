@@ -64,6 +64,10 @@ func (s *QueryServer) translateError(err error) *status.Status {
 }
 
 func (s *QueryServer) Query(in *query_v1.QueryRequest, out query_v1.QueryService_QueryServer) error {
+	if in.DurabilityLevel != nil {
+		checkApiVersion(out.Context(), 20240510, "DurabilityLevel")
+	}
+
 	agent, oboInfo, errSt := s.authHandler.GetHttpOboAgent(out.Context(), in.BucketName)
 	if errSt != nil {
 		return errSt.Err()
@@ -83,6 +87,14 @@ func (s *QueryServer) Query(in *query_v1.QueryRequest, out query_v1.QueryService
 
 	if in.BucketName != nil && in.ScopeName != nil {
 		opts.QueryContext = fmt.Sprintf("`%s`.`%s`", in.GetBucketName(), in.GetScopeName())
+	}
+
+	if in.DurabilityLevel != nil {
+		durabilityLevel, errSt := durabilityLevelToCbqueryx(*in.DurabilityLevel)
+		if errSt != nil {
+			return errSt.Err()
+		}
+		opts.DurabilityLevel = durabilityLevel
 	}
 
 	if in.ReadOnly != nil {
@@ -127,14 +139,11 @@ func (s *QueryServer) Query(in *query_v1.QueryRequest, out query_v1.QueryService
 	if in.ScanConsistency != nil && len(in.ConsistentWith) > 0 {
 		return status.Errorf(codes.InvalidArgument, "cannot specify both token-based and enumeration-based consistency")
 	} else if in.ScanConsistency != nil {
-		switch *in.ScanConsistency {
-		case query_v1.QueryRequest_SCAN_CONSISTENCY_NOT_BOUNDED:
-			opts.ScanConsistency = cbqueryx.ScanConsistencyNotBounded
-		case query_v1.QueryRequest_SCAN_CONSISTENCY_REQUEST_PLUS:
-			opts.ScanConsistency = cbqueryx.ScanConsistencyRequestPlus
-		default:
-			return status.Errorf(codes.InvalidArgument, "invalid scan consistency option specified")
+		scanConsistency, errSt := scanConsistencyToCbqueryx(*in.ScanConsistency)
+		if errSt != nil {
+			return errSt.Err()
 		}
+		opts.ScanConsistency = scanConsistency
 	} else if len(in.ConsistentWith) > 0 {
 		vectors := make(map[string]cbqueryx.SparseScanVectors)
 		for _, vector := range in.ConsistentWith {

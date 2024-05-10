@@ -1,3 +1,3 @@
 package apiversion
 
-const LatestApiVersion uint64 = 20240429
+const LatestApiVersion uint64 = 20240510
