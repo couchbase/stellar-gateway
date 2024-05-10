@@ -9,7 +9,9 @@ import (
 	"github.com/couchbase/gocbcorex/cbmgmtx"
 	"github.com/couchbase/gocbcorex/contrib/ptr"
 	"github.com/couchbase/goprotostellar/genproto/admin_collection_v1"
+	"github.com/couchbase/stellar-gateway/gateway/apiversion"
 	"go.uber.org/zap"
+	"google.golang.org/grpc/status"
 )
 
 type CollectionAdminServer struct {
@@ -36,6 +38,16 @@ func (s *CollectionAdminServer) ListCollections(
 	ctx context.Context,
 	in *admin_collection_v1.ListCollectionsRequest,
 ) (*admin_collection_v1.ListCollectionsResponse, error) {
+	apiVersion, err := apiversion.FromContext(ctx)
+	if err != nil {
+		return nil, status.FromContextError(err).Err()
+	}
+
+	var noExpirySupported bool
+	if apiVersion >= apiversion.CollectionNoExpiry {
+		noExpirySupported = true
+	}
+
 	bucketAgent, oboInfo, errSt := s.authHandler.GetHttpOboAgent(ctx, &in.BucketName)
 	if errSt != nil {
 		return nil, errSt.Err()
@@ -62,6 +74,10 @@ func (s *CollectionAdminServer) ListCollections(
 			}
 			if collection.MaxTTL > 0 {
 				collectionSpec.MaxExpirySecs = ptr.To(uint32(collection.MaxTTL))
+			} else if collection.MaxTTL < 0 && noExpirySupported {
+				// Since protostellar does not support negative values for MaxExpirySecs no_expiry and bucket expiry inheritance
+				// are indicated with MaxExpirySecs = 0, and MaxExpirySecs = nil respectively
+				collectionSpec.MaxExpirySecs = ptr.To(uint32(0))
 			}
 			collections = append(collections, collectionSpec)
 		}
@@ -147,14 +163,28 @@ func (s *CollectionAdminServer) CreateCollection(
 	ctx context.Context,
 	in *admin_collection_v1.CreateCollectionRequest,
 ) (*admin_collection_v1.CreateCollectionResponse, error) {
+	apiVersion, err := apiversion.FromContext(ctx)
+	if err != nil {
+		return nil, status.FromContextError(err).Err()
+	}
+
+	var noExpirySupported bool
+	if apiVersion >= apiversion.CollectionNoExpiry {
+		noExpirySupported = true
+	}
+
 	bucketAgent, oboInfo, errSt := s.authHandler.GetHttpOboAgent(ctx, &in.BucketName)
 	if errSt != nil {
 		return nil, errSt.Err()
 	}
 
-	var maxTTL uint32
+	var maxTTL int32
 	if in.MaxExpirySecs != nil {
-		maxTTL = *in.MaxExpirySecs
+		if *in.MaxExpirySecs > 0 {
+			maxTTL = int32(*in.MaxExpirySecs)
+		} else if noExpirySupported {
+			maxTTL = -1
+		}
 	}
 
 	resp, err := bucketAgent.CreateCollection(ctx, &cbmgmtx.CreateCollectionOptions{
@@ -239,17 +269,36 @@ func (s *CollectionAdminServer) UpdateCollection(
 	ctx context.Context,
 	in *admin_collection_v1.UpdateCollectionRequest,
 ) (*admin_collection_v1.UpdateCollectionResponse, error) {
+	apiVersion, err := apiversion.FromContext(ctx)
+	if err != nil {
+		return nil, status.FromContextError(err).Err()
+	}
+
+	var noExpirySupported bool
+	if apiVersion >= apiversion.CollectionNoExpiry {
+		noExpirySupported = true
+	}
+
 	bucketAgent, oboInfo, errSt := s.authHandler.GetHttpOboAgent(ctx, &in.BucketName)
 	if errSt != nil {
 		return nil, errSt.Err()
 	}
 
-	_, err := bucketAgent.UpdateCollection(ctx, &cbmgmtx.UpdateCollectionOptions{
+	var maxTTL *int32
+	if in.MaxExpirySecs != nil {
+		if *in.MaxExpirySecs == 0 && noExpirySupported {
+			maxTTL = ptr.To(int32(-1))
+		} else if *in.MaxExpirySecs != 0 {
+			maxTTL = ptr.To(int32(*in.MaxExpirySecs))
+		}
+	}
+
+	_, err = bucketAgent.UpdateCollection(ctx, &cbmgmtx.UpdateCollectionOptions{
 		OnBehalfOf:     oboInfo,
 		BucketName:     in.BucketName,
 		ScopeName:      in.ScopeName,
 		CollectionName: in.CollectionName,
-		MaxTTL:         in.MaxExpirySecs,
+		MaxTTL:         maxTTL,
 		HistoryEnabled: in.HistoryRetentionEnabled,
 	})
 
