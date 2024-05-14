@@ -311,8 +311,8 @@ func durabilityLevelToCbqueryx(t query_v1.QueryRequest_DurabilityLevel) (cbquery
 	return cbqueryx.DurabilityLevel(""), status.New(codes.InvalidArgument, "invalid durability level specified")
 }
 
-func checkApiVersion(ctx context.Context, requiredVersion uint64, featureName string) *status.Status {
-	apiVersion, err := apiversion.GetAPIVersion(ctx)
+func checkApiVersion(ctx context.Context, requiredVersion apiversion.ApiVersion, featureName string) *status.Status {
+	apiVersion, err := apiversion.FromContext(ctx)
 	if err != nil {
 		return status.FromContextError(err)
 	}
