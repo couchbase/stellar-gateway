@@ -1,3 +1,9 @@
 package apiversion
 
-const LatestApiVersion uint64 = 20240510
+type ApiVersion uint64
+
+const Latest ApiVersion = 20240510
+
+const (
+	QueryDurabilityLevel ApiVersion = 20240510
+)

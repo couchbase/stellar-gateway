@@ -8,6 +8,7 @@ import (
 	"github.com/couchbase/gocbcorex"
 	"github.com/couchbase/gocbcorex/cbqueryx"
 	"github.com/couchbase/goprotostellar/genproto/query_v1"
+	"github.com/couchbase/stellar-gateway/gateway/apiversion"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
@@ -65,7 +66,10 @@ func (s *QueryServer) translateError(err error) *status.Status {
 
 func (s *QueryServer) Query(in *query_v1.QueryRequest, out query_v1.QueryService_QueryServer) error {
 	if in.DurabilityLevel != nil {
-		checkApiVersion(out.Context(), 20240510, "DurabilityLevel")
+		errSt := checkApiVersion(out.Context(), apiversion.QueryDurabilityLevel, "DurabilityLevel")
+		if errSt != nil {
+			return errSt.Err()
+		}
 	}
 
 	agent, oboInfo, errSt := s.authHandler.GetHttpOboAgent(out.Context(), in.BucketName)
