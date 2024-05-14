@@ -8,11 +8,13 @@ import (
 	"github.com/couchbase/gocbcorex"
 	"github.com/couchbase/gocbcorex/cbmgmtx"
 	"github.com/couchbase/gocbcorex/cbqueryx"
+	"github.com/couchbase/gocbcorex/cbsearchx"
 	"github.com/couchbase/gocbcorex/memdx"
 	"github.com/couchbase/goprotostellar/genproto/admin_bucket_v1"
 	"github.com/couchbase/goprotostellar/genproto/admin_query_v1"
 	"github.com/couchbase/goprotostellar/genproto/kv_v1"
 	"github.com/couchbase/goprotostellar/genproto/query_v1"
+	"github.com/couchbase/goprotostellar/genproto/search_v1"
 	"github.com/couchbase/stellar-gateway/gateway/apiversion"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -309,6 +311,17 @@ func durabilityLevelToCbqueryx(t query_v1.QueryRequest_DurabilityLevel) (cbquery
 	}
 
 	return cbqueryx.DurabilityLevel(""), status.New(codes.InvalidArgument, "invalid durability level specified")
+}
+
+func knnOperatorToCbsearchx(t search_v1.KnnOperator) (cbsearchx.KnnOperator, *status.Status) {
+	switch t {
+	case search_v1.KnnOperator_KNN_OPERATOR_AND:
+		return cbsearchx.KnnOperatorAnd, nil
+	case search_v1.KnnOperator_KNN_OPERATOR_OR:
+		return cbsearchx.KnnOperatorOr, nil
+	}
+
+	return cbsearchx.KnnOperator(""), status.New(codes.InvalidArgument, "invalid knn operator specified")
 }
 
 func checkApiVersion(ctx context.Context, requiredVersion apiversion.ApiVersion, featureName string) *status.Status {
