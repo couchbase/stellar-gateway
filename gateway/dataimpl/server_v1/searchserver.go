@@ -5,7 +5,9 @@ import (
 	"time"
 
 	"github.com/couchbase/gocbcorex/cbsearchx"
+	"github.com/couchbase/gocbcorex/contrib/ptr"
 	"github.com/couchbase/goprotostellar/genproto/search_v1"
+	"github.com/couchbase/stellar-gateway/gateway/apiversion"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -34,6 +36,19 @@ func NewSearchServer(
 }
 
 func (s *SearchServer) SearchQuery(in *search_v1.SearchQueryRequest, out search_v1.SearchService_SearchQueryServer) error {
+	if len(in.Knn) > 0 {
+		errSt := checkApiVersion(out.Context(), apiversion.VectorSearch, "Knn")
+		if errSt != nil {
+			return errSt.Err()
+		}
+	}
+	if in.KnnOperator != nil {
+		errSt := checkApiVersion(out.Context(), apiversion.VectorSearch, "KnnOperator")
+		if errSt != nil {
+			return errSt.Err()
+		}
+	}
+
 	agent, oboInfo, errSt := s.authHandler.GetHttpOboAgent(out.Context(), nil)
 	if errSt != nil {
 		return errSt.Err()
@@ -132,6 +147,28 @@ func (s *SearchServer) SearchQuery(in *search_v1.SearchQueryRequest, out search_
 	opts.Highlight.Fields = in.HighlightFields
 
 	opts.IncludeLocations = in.IncludeLocations
+
+	if len(in.Knn) > 0 {
+		knns := make([]cbsearchx.KnnQuery, len(in.Knn))
+		for i, knnQuery := range in.Knn {
+			knns[i] = cbsearchx.KnnQuery{
+				Boost:  ptr.Deref(knnQuery.Boost, 0),
+				Field:  knnQuery.Field,
+				K:      knnQuery.K,
+				Vector: knnQuery.Vector,
+			}
+		}
+
+		opts.Knn = knns
+	}
+	if in.KnnOperator != nil {
+		knnOperator, errSt := knnOperatorToCbsearchx(*in.KnnOperator)
+		if errSt != nil {
+			return errSt.Err()
+		}
+
+		opts.KnnOperator = knnOperator
+	}
 
 	var err error
 	opts.Query, err = s.translatePSQueryToCBSearchX(in.Query)
