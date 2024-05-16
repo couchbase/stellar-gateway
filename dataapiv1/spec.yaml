@@ -1,0 +1,222 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Minimal Couchbase Data API
+paths:
+  '/v1/buckets/{bucket_name}/scopes/{scope_name}/collections/{collection_name}/docs/{doc_key}':
+    parameters:
+      - name: Authorization
+        in: header
+        schema:
+          type: string
+        required: true
+        description: Header for authentication
+      - name: bucket_name
+        in: path
+        schema:
+          type: string
+        required: true
+        description: name of the bucket containing the document
+      - name: scope_name
+        in: path
+        schema:
+          type: string
+        required: true
+        description: name of the scope containing the document
+      - name: collection_name
+        in: path
+        schema:
+          type: string
+        required: true
+        description: name of the collection containing the document
+      - name: doc_key
+        in: path
+        schema:
+          type: string
+        required: true
+        description: name of the document
+    get:
+      operationId: getDocument
+      tags:
+        - Single Document Operations
+      parameters:
+        - name: Accept-Encoding
+          in: header
+          description: The encoding of the document
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/DocumentEncoding'
+        - name: project
+          in: query
+          description: fields to project from the document
+          required: false
+          style: form
+          explode: false
+          schema:
+            type: array
+            items:
+              type: string
+      responses:
+        '200':
+          description: Successful fetch of the document
+          headers:
+            Content-Encoding:
+              schema:
+                $ref: '#/components/schemas/DocumentEncoding'
+              description: The encoding of the document
+            ETag:
+              schema:
+                type: string
+              description: The CAS of the document.
+            Expires:
+              schema:
+                type: string
+              description: The expiry time of the document.
+            X-CB-Flags:
+              schema:
+                type: integer
+                format: uint32
+              description: The Flags of the document.
+          content:
+            '*':
+              schema:
+                type: string
+                format: binary
+    post:
+      operationId: createDocument
+      tags:
+        - Single Document Operations
+      parameters:
+        - name: Content-Encoding
+          in: header
+          schema:
+            $ref: '#/components/schemas/DocumentEncoding'
+        - name: If-Match
+          in: header
+          schema:
+            type: string
+        - name: Expires
+          in: header
+          schema:
+            type: string
+        - name: X-CB-Flags
+          in: header
+          schema:
+            type: integer
+            format: uint32
+        - name: X-CB-DurabilityLevel
+          in: query
+          schema:
+            $ref: '#/components/schemas/DurabilityLevel'
+      requestBody:
+        required: true
+        content:
+         '*':
+            schema:
+              type: string
+              format: binary
+      responses:
+        '200':
+          description: Successful creation of the document
+          headers:
+            ETag:
+              schema:
+                type: string
+            X-CB-MutationToken:
+              schema:
+                type: string
+    put:
+      operationId: updateDocument
+      tags:
+        - Single Document Operations
+      parameters:
+        - name: Content-Encoding
+          in: header
+          schema:
+            $ref: '#/components/schemas/DocumentEncoding'
+        - name: If-Match
+          in: header
+          schema:
+            type: string
+        - name: Expires
+          in: header
+          schema:
+            type: string
+        - name: X-CB-Flags
+          in: header
+          schema:
+            type: integer
+            format: uint32
+        - name: X-CB-DurabilityLevel
+          in: query
+          schema:
+            $ref: '#/components/schemas/DurabilityLevel'
+      requestBody:
+        required: true
+        content:
+          '*':
+            schema: {}
+      responses:
+        '200':
+          description: Successful creation of the document
+          headers:
+            ETag:
+              schema:
+                type: string
+            X-CB-MutationToken:
+              schema:
+                type: string
+    delete:
+      operationId: deleteDocument
+      tags:
+        - Single Document Operations
+      parameters:
+        - name: If-Match
+          in: header
+          schema:
+            type: string
+        - name: X-CB-DurabilityLevel
+          in: query
+          schema:
+            $ref: '#/components/schemas/DurabilityLevel'
+      responses:
+        '200':
+          description: Successful deletion of the document
+          headers:
+            ETag:
+              schema:
+                type: string
+            X-CB-MutationToken:
+              schema:
+                type: string
+components:
+  securitySchemes:
+    BasicAuth:
+      type: http
+      scheme: basic
+  schemas:
+    DocumentEncoding:
+      title: DocumentEncoding
+      description: DocumentEncoding specifies the compression used for the the document.
+      type: string
+      enum:
+        - identity
+        - snappy
+      x-enum-varnames:
+        - DocumentEncodingIdentity
+        - DocumentEncodingSnappy
+    DurabilityLevel:
+      title: DurabilityLevel
+      description: DurabilityLevel specifies the level of synchronous replication to use.
+      type: string
+      enum:
+        - None
+        - Majority
+        - MajorityAndPersistOnMaster
+        - PersitToMajority
+      x-enum-varnames:
+        - DurabilityLevelNone
+        - DurabilityLevelMajority
+        - DurabilityLevelMajorityAndPersistOnMaster
+        - DurabilityLevelPersitToMajority

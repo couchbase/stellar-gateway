@@ -3,7 +3,9 @@ package system
 import (
 	"context"
 	"crypto/tls"
+	"net/http"
 	"sync"
+	"time"
 
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.uber.org/zap"
@@ -23,7 +25,9 @@ import (
 	"github.com/couchbase/goprotostellar/genproto/query_v1"
 	"github.com/couchbase/goprotostellar/genproto/routing_v1"
 	"github.com/couchbase/goprotostellar/genproto/search_v1"
+	"github.com/couchbase/stellar-gateway/dataapiv1"
 	"github.com/couchbase/stellar-gateway/gateway/apiversion"
+	"github.com/couchbase/stellar-gateway/gateway/dapiimpl"
 	"github.com/couchbase/stellar-gateway/gateway/dataimpl"
 	"github.com/couchbase/stellar-gateway/gateway/hooks"
 	"github.com/couchbase/stellar-gateway/gateway/sdimpl"
@@ -39,6 +43,7 @@ type SystemOptions struct {
 
 	DataImpl *dataimpl.Servers
 	SdImpl   *sdimpl.Servers
+	DapiImpl *dapiimpl.Servers
 	Metrics  *metrics.SnMetrics
 
 	TlsConfig *tls.Config
@@ -50,11 +55,13 @@ type System struct {
 
 	dataServer *grpc.Server
 	sdServer   *grpc.Server
+	dapiServer *http.Server
 }
 
 func NewSystem(opts *SystemOptions) (*System, error) {
 	dataImpl := opts.DataImpl
 	sdImpl := opts.SdImpl
+	dapiImpl := opts.DapiImpl
 
 	hooksManager := hooks.NewHooksManager(opts.Logger.Named("hooks-manager"))
 	debugInterceptor := interceptors.NewDebugInterceptor(opts.Logger.Named("grpc-debug"))
@@ -119,10 +126,23 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 	internal_hooks_v1.RegisterHooksServiceServer(sdSrv, hooksManager.Server())
 	routing_v1.RegisterRoutingServiceServer(sdSrv, sdImpl.RoutingV1Server)
 
+	// data api
+	sh := dataapiv1.NewStrictHandlerWithOptions(dapiImpl.DataApiV1Server, nil, dataapiv1.StrictHTTPServerOptions{
+		ResponseErrorHandlerFunc: dapiimpl.StatusErrorHttpHandler,
+	})
+	h := dataapiv1.Handler(sh)
+	dapiSrv := &http.Server{
+		WriteTimeout: time.Second * 15,
+		ReadTimeout:  time.Second * 15,
+		IdleTimeout:  time.Second * 60,
+		Handler:      h,
+	}
+
 	s := &System{
 		logger:     opts.Logger,
 		dataServer: dataSrv,
 		sdServer:   sdSrv,
+		dapiServer: dapiSrv,
 	}
 
 	return s, nil
@@ -135,6 +155,7 @@ func (s *System) Serve(ctx context.Context, l *Listeners) error {
 		<-ctx.Done()
 		s.dataServer.Stop()
 		s.sdServer.Stop()
+		s.dapiServer.Close()
 	}()
 
 	if l.dataListener != nil {
@@ -159,6 +180,17 @@ func (s *System) Serve(ctx context.Context, l *Listeners) error {
 		}()
 	}
 
+	if l.dapiListener != nil {
+		wg.Add(1)
+		go func() {
+			err := s.dapiServer.Serve(l.dapiListener)
+			if err != nil {
+				s.logger.Warn("data api server serve failed", zap.Error(err))
+			}
+			wg.Done()
+		}()
+	}
+
 	wg.Wait()
 	return nil
 }
@@ -170,5 +202,9 @@ func (s *System) Shutdown() {
 
 	if s.sdServer != nil {
 		s.sdServer.GracefulStop()
+	}
+
+	if s.sdServer != nil {
+		_ = s.dapiServer.Shutdown(context.Background())
 	}
 }

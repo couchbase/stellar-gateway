@@ -1,0 +1,7 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/deepmap/oapi-codegen/HEAD/configuration-schema.json
+package: dataapiv1
+output: spec.gen.go
+generate:
+  models: true
+  gorilla-server: true
+  strict-server: true

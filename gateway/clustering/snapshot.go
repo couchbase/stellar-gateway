@@ -4,8 +4,9 @@ package clustering
 // it to potentially fit easily in UDP gossip messages.
 
 type ServicePorts struct {
-	SD int `json:"s"`
-	PS int `json:"p"`
+	SD   int `json:"s"`
+	PS   int `json:"p"`
+	DAPI int `json:"d"`
 }
 
 type Member struct {

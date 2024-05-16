@@ -2,6 +2,7 @@ package test
 
 import (
 	"fmt"
+	"net/http"
 	"reflect"
 	"strings"
 	"testing"
@@ -102,4 +103,34 @@ func assertValidMutationToken(t *testing.T, token *kv_v1.MutationToken, bucketNa
 
 func requireValidTimestamp(t *testing.T, ts *timestamppb.Timestamp) {
 	require.NotNil(t, ts)
+}
+
+func requireRestSuccess(t *testing.T, resp *testHttpResponse) {
+	require.NotNil(t, resp)
+	require.Equal(t, http.StatusOK, resp.StatusCode, fmt.Sprintf("status code was not 200 body::\n%s", string(resp.Body)))
+}
+
+func assertRestValidEtag(t *testing.T, resp *testHttpResponse) {
+	etag := resp.Headers.Get("Etag")
+	assert.NotEmpty(t, etag)
+}
+
+func assertRestValidMutationToken(t *testing.T, resp *testHttpResponse, bucketName string) {
+	token := resp.Headers.Get("X-CB-MutationToken")
+	assert.NotEmpty(t, token)
+
+	// fmt.Sprintf("%s:%d:%08x:%d", bucketName, token.VbID, token.VbUuid, token.SeqNo)
+	parts := strings.Split(token, ":")
+	assert.Len(t, parts, 4)
+
+	if len(parts) >= 4 {
+		assert.NotEmpty(t, parts[0])
+		assert.Equal(t, bucketName, parts[0])
+
+		assert.NotEmpty(t, parts[1])
+
+		assert.NotEmpty(t, parts[2])
+
+		assert.NotEmpty(t, parts[3])
+	}
 }
