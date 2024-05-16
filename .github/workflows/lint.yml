@@ -25,6 +25,14 @@ jobs:
           go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28
           go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2
           go install golang.org/x/tools/cmd/goimports@latest
+      - name: Generate Files
+        run: |
+          go generate ./dataapiv1
+          if [ -n "$(git status --porcelain)" ]; then
+            echo 'To fix this check, run "go generate ./dataapiv1"'
+            git status # Show the files that failed to pass the check.
+            exit 1
+          fi
       - name: goimports
         run: |
           goimports -w .

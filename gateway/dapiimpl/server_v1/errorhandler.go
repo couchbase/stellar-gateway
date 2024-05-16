@@ -1,0 +1,408 @@
+package server_v1
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"net"
+	"net/http"
+	"strings"
+
+	"github.com/couchbase/gocbcorex/cbmgmtx"
+	"github.com/couchbase/gocbcorex/cbqueryx"
+	"github.com/couchbase/gocbcorex/cbsearchx"
+	"github.com/couchbase/gocbcorex/memdx"
+	"github.com/couchbase/stellar-gateway/dataapiv1"
+	"go.uber.org/zap"
+)
+
+type StatusError struct {
+	S Status
+}
+
+func (e *StatusError) Error() string {
+	return fmt.Sprintf("%s (code: %d, requestId: %s, resourceType: %s, resourceName: %s, debug: %s)",
+		e.S.Message,
+		e.S.StatusCode,
+		e.S.RequestID,
+		e.S.ResourceType,
+		e.S.ResourceName,
+		e.S.DebugMessage)
+}
+
+type Status struct {
+	StatusCode     int    `json:"-"`
+	Message        string `json:"message,omitempty"`
+	RequestID      string `json:"requestId,omitempty"`
+	ResourceType   string `json:"resourceType,omitempty"`
+	ResourceName   string `json:"resourceName,omitempty"`
+	FailureType    string `json:"failureType,omitempty"`
+	FailureSubject string `json:"failureSubject,omitempty"`
+	DebugMessage   string `json:"debug,omitempty"`
+}
+
+func (e *Status) Err() error {
+	return &StatusError{S: *e}
+}
+
+type ErrorHandler struct {
+	Logger *zap.Logger
+	Debug  bool
+}
+
+func (e ErrorHandler) tryAttachExtraContext(st *Status, baseErr error) *Status {
+	if baseErr == nil {
+		return st
+	}
+
+	var memdSrvErr *memdx.ServerErrorWithContext
+	if errors.As(baseErr, &memdSrvErr) {
+		parsedCtx := memdSrvErr.ParseContext()
+		if parsedCtx.Ref != "" {
+			st.RequestID = parsedCtx.Ref
+		}
+	}
+
+	if e.Debug {
+		st.DebugMessage = baseErr.Error()
+	}
+
+	return st
+}
+
+func (e ErrorHandler) NewInvalidAuthHeaderStatus(baseErr error) *Status {
+	st := &Status{
+		StatusCode: http.StatusBadRequest,
+		Message:    "Invalid authorization header format.",
+	}
+	st = e.tryAttachExtraContext(st, baseErr)
+	return st
+}
+
+func (e ErrorHandler) NewNoAuthStatus() *Status {
+	st := &Status{
+		StatusCode: http.StatusUnauthorized,
+		Message:    "You must send authentication to use this endpoint.",
+	}
+	return st
+}
+
+func (e ErrorHandler) NewInvalidCredentialsStatus() *Status {
+	st := &Status{
+		StatusCode:   http.StatusForbidden,
+		Message:      "Your username or password is invalid.",
+		ResourceType: "user",
+		ResourceName: "",
+	}
+	return st
+}
+
+func (e ErrorHandler) NewInternalStatus() *Status {
+	st := &Status{
+		StatusCode: http.StatusInternalServerError,
+		Message:    "An internal error occurred.",
+	}
+	return st
+}
+
+func (e ErrorHandler) NewUnavailableStatus(err error) *Status {
+	st := &Status{
+		StatusCode: http.StatusServiceUnavailable,
+		Message:    "One of the underlying services were not available.",
+	}
+	st = e.tryAttachExtraContext(st, err)
+	return st
+}
+
+func (e ErrorHandler) NewUnknownStatus(baseErr error) *Status {
+	var memdErr *memdx.ServerError
+	if errors.As(baseErr, &memdErr) {
+		st := &Status{
+			StatusCode: http.StatusInternalServerError,
+			Message:    fmt.Sprintf("An unknown memcached error occurred (status: %d).", memdErr.Status),
+		}
+		st = e.tryAttachExtraContext(st, baseErr)
+		return st
+	}
+
+	var queryErr *cbqueryx.ServerErrors
+	if errors.As(baseErr, &queryErr) {
+		var queryErrDescs []string
+		for _, querySubErr := range queryErr.Errors {
+			queryErrDescs = append(queryErrDescs, fmt.Sprintf("%d - %s", querySubErr.Code, querySubErr.Msg))
+		}
+
+		st := &Status{
+			StatusCode: http.StatusInternalServerError,
+			Message:    fmt.Sprintf("An unknown query error occurred (descs: %s).", strings.Join(queryErrDescs, "; ")),
+		}
+		st = e.tryAttachExtraContext(st, baseErr)
+		return st
+	}
+
+	var searchErr *cbsearchx.ServerError
+	if errors.As(baseErr, &searchErr) {
+		st := &Status{
+			StatusCode: http.StatusInternalServerError,
+			Message:    fmt.Sprintf("An unknown search error occurred (status: %d).", searchErr.StatusCode),
+		}
+		st = e.tryAttachExtraContext(st, baseErr)
+		return st
+	}
+
+	var serverErr *cbmgmtx.ServerError
+	if errors.As(baseErr, &serverErr) {
+		st := &Status{
+			StatusCode: http.StatusInternalServerError,
+			Message:    fmt.Sprintf("An unknown server error occurred (status: %d).", serverErr.StatusCode),
+		}
+		st = e.tryAttachExtraContext(st, baseErr)
+		return st
+	}
+
+	st := &Status{
+		StatusCode: http.StatusInternalServerError,
+		Message:    "An unknown error occurred.",
+	}
+	st = e.tryAttachExtraContext(st, baseErr)
+	return st
+}
+
+func (e ErrorHandler) NewGenericStatus(err error) *Status {
+	// we do not attach context in these cases, since they almost always don't actually
+	// make it back to the client to be processed anyways.
+	if errors.Is(err, context.Canceled) {
+		e.Logger.Debug("handling canceled operation error", zap.Error(err))
+
+		return &Status{
+			StatusCode: 499,
+			Message:    "The request was cancelled.",
+		}
+	} else if errors.Is(err, context.DeadlineExceeded) {
+		e.Logger.Debug("handling deadline exceeded operation error", zap.Error(err))
+
+		return &Status{
+			StatusCode: http.StatusGatewayTimeout,
+			Message:    "The request deadline was exceeded.",
+		}
+	}
+
+	// if this is a network dial error, we make the assumption that one of the underlying
+	// services neccessary for servicing this request is unavailable.
+	var netOpError *net.OpError
+	if errors.As(err, &netOpError) && netOpError.Op == "dial" {
+		e.Logger.Debug("handling network dial error", zap.Error(err))
+		return e.NewUnavailableStatus(err)
+	}
+
+	// if we still don't know what kind of error this is, we return 'UNKNOWN'
+	e.Logger.Debug("handling unknown error", zap.Error(err))
+	return e.NewUnknownStatus(err)
+}
+
+func (e ErrorHandler) NewBucketMissingStatus(baseErr error, bucketName string) *Status {
+	st := &Status{
+		StatusCode: http.StatusNotFound,
+		Message: fmt.Sprintf("Bucket '%s' was not found.",
+			bucketName),
+		ResourceType: "bucket",
+		ResourceName: bucketName,
+	}
+	st = e.tryAttachExtraContext(st, baseErr)
+	return st
+}
+
+func (e ErrorHandler) NewBucketExistsStatus(baseErr error, bucketName string) *Status {
+	st := &Status{
+		StatusCode: http.StatusConflict,
+		Message: fmt.Sprintf("Bucket '%s' already existed.",
+			bucketName),
+		ResourceType: "bucket",
+		ResourceName: bucketName,
+	}
+	st = e.tryAttachExtraContext(st, baseErr)
+	return st
+}
+
+func (e ErrorHandler) NewInvalidKeyLengthStatus(key string) *Status {
+	st := &Status{
+		StatusCode: http.StatusBadRequest,
+		Message:    fmt.Sprintf("Length of document key '%s' must be between 1 and 251 characters.", key),
+	}
+	return st
+}
+
+func (e ErrorHandler) NewDocLockedStatus(baseErr error, bucketName, scopeName, collectionName, docId string) *Status {
+	st := &Status{
+		StatusCode: http.StatusBadRequest,
+		Message: fmt.Sprintf("Cannot perform a write operation against locked document '%s' in '%s/%s/%s'.",
+			docId, bucketName, scopeName, collectionName),
+		FailureType:    "LOCKED",
+		FailureSubject: fmt.Sprintf("%s/%s/%s/%s", bucketName, scopeName, collectionName, docId),
+	}
+	st = e.tryAttachExtraContext(st, baseErr)
+	return st
+}
+
+func (e ErrorHandler) NewDocExistsStatus(baseErr error, bucketName, scopeName, collectionName, docId string) *Status {
+	st := &Status{
+		StatusCode: http.StatusConflict,
+		Message: fmt.Sprintf("Document '%s' already existed in '%s/%s/%s'.",
+			docId, bucketName, scopeName, collectionName),
+		ResourceType: "document",
+		ResourceName: fmt.Sprintf("%s/%s/%s/%s", bucketName, scopeName, collectionName, docId),
+	}
+	st = e.tryAttachExtraContext(st, baseErr)
+	return st
+}
+
+func (e ErrorHandler) NewDocMissingStatus(baseErr error, bucketName, scopeName, collectionName, docId string) *Status {
+	st := &Status{
+		StatusCode: http.StatusNotFound,
+		Message: fmt.Sprintf("Document '%s' not found in '%s/%s/%s'.",
+			docId, bucketName, scopeName, collectionName),
+		ResourceType: "document",
+		ResourceName: fmt.Sprintf("%s/%s/%s/%s", bucketName, scopeName, collectionName, docId),
+	}
+	st = e.tryAttachExtraContext(st, baseErr)
+	return st
+}
+
+func (e ErrorHandler) NewCollectionMissingStatus(baseErr error, bucketName, scopeName, collectionName string) *Status {
+	st := &Status{
+		StatusCode: http.StatusNotFound,
+		Message: fmt.Sprintf("Collection '%s' not found in '%s/%s'.",
+			collectionName, bucketName, scopeName),
+		ResourceType: "collection",
+		ResourceName: fmt.Sprintf("%s/%s/%s", bucketName, scopeName, collectionName),
+	}
+	st = e.tryAttachExtraContext(st, baseErr)
+	return st
+}
+
+func (e ErrorHandler) NewScopeMissingStatus(baseErr error, bucketName, scopeName string) *Status {
+	st := &Status{
+		StatusCode: http.StatusNotFound,
+		Message: fmt.Sprintf("Scope '%s' not found in '%s'.",
+			scopeName, bucketName),
+		ResourceType: "scope",
+		ResourceName: fmt.Sprintf("%s/%s", bucketName, scopeName),
+	}
+	st = e.tryAttachExtraContext(st, baseErr)
+	return st
+}
+
+func (e ErrorHandler) NewCollectionNoReadAccessStatus(baseErr error, bucketName, scopeName, collectionName string) *Status {
+	st := &Status{
+		StatusCode: http.StatusForbidden,
+		Message: fmt.Sprintf("No permissions to read documents from '%s/%s/%s'.",
+			bucketName, scopeName, collectionName),
+		ResourceType: "collection",
+		ResourceName: fmt.Sprintf("%s/%s/%s", bucketName, scopeName, collectionName),
+	}
+	st = e.tryAttachExtraContext(st, baseErr)
+	return st
+}
+
+func (e ErrorHandler) NewCollectionNoWriteAccessStatus(baseErr error, bucketName, scopeName, collectionName string) *Status {
+	st := &Status{
+		StatusCode: http.StatusForbidden,
+		Message: fmt.Sprintf("No permissions to write documents into '%s/%s/%s'.",
+			bucketName, scopeName, collectionName),
+		ResourceType: "collection",
+		ResourceName: fmt.Sprintf("%s/%s/%s", bucketName, scopeName, collectionName),
+	}
+	st = e.tryAttachExtraContext(st, baseErr)
+	return st
+}
+
+func (e ErrorHandler) NewValueTooLargeStatus(baseErr error, bucketName, scopeName, collectionName, docId string,
+	isExpandingValue bool) *Status {
+	var st *Status
+	if isExpandingValue {
+		st = &Status{
+			StatusCode: http.StatusBadRequest,
+			Message: fmt.Sprintf("Updated value '%s' made value too large in '%s/%s/%s'.",
+				docId, bucketName, scopeName, collectionName),
+			FailureType:    "VALUE_TOO_LARGE",
+			FailureSubject: fmt.Sprintf("%s/%s/%s/%s", bucketName, scopeName, collectionName, docId),
+		}
+	} else {
+		st = &Status{
+			StatusCode: http.StatusBadRequest,
+			Message: fmt.Sprintf("Value '%s' for new document was too large in '%s/%s/%s'.",
+				docId, bucketName, scopeName, collectionName),
+		}
+	}
+	st = e.tryAttachExtraContext(st, baseErr)
+	return st
+}
+
+func (e ErrorHandler) NewSdDocNotJsonStatus(baseErr error, bucketName, scopeName, collectionName, docId string) *Status {
+	st := &Status{
+		StatusCode: http.StatusBadRequest,
+		Message: fmt.Sprintf("Document '%s' was not JSON in '%s/%s/%s'.",
+			docId, bucketName, scopeName, collectionName),
+		FailureType:    "DOC_NOT_JSON",
+		FailureSubject: fmt.Sprintf("%s/%s/%s/%s", bucketName, scopeName, collectionName, docId),
+	}
+	st = e.tryAttachExtraContext(st, baseErr)
+	return st
+}
+
+func (e ErrorHandler) NewSdPathInvalidStatus(baseErr error, sdPath string) *Status {
+	st := &Status{
+		StatusCode: http.StatusBadRequest,
+		Message:    fmt.Sprintf("Invalid subdocument path syntax '%s'.", sdPath),
+	}
+	st = e.tryAttachExtraContext(st, baseErr)
+	return st
+}
+
+func (e ErrorHandler) NewSdPathMismatchStatus(baseErr error, bucketName, scopeName, collectionName, docId, sdPath string) *Status {
+	st := &Status{
+		StatusCode: http.StatusBadRequest,
+		Message: fmt.Sprintf("Document structure implied by path '%s' did not match document '%s' in '%s/%s/%s'.",
+			sdPath, docId, bucketName, scopeName, collectionName),
+		FailureType:    "PATH_MISMATCH",
+		FailureSubject: sdPath,
+	}
+	st = e.tryAttachExtraContext(st, baseErr)
+	return st
+}
+
+func (e ErrorHandler) NewInvalidContentEncodingStatus(encoding dataapiv1.DocumentEncoding) *Status {
+	st := &Status{
+		StatusCode: http.StatusBadRequest,
+		Message:    fmt.Sprintf("Invalid content encoding '%s'.", encoding),
+	}
+	return st
+}
+
+func (e ErrorHandler) NewInvalidEtagFormatStatus(etag string) *Status {
+	st := &Status{
+		StatusCode: http.StatusBadRequest,
+		Message:    fmt.Sprintf("Invalid etag format '%s'.", etag),
+	}
+	return st
+}
+
+func (e ErrorHandler) NewZeroCasStatus() *Status {
+	st := &Status{
+		StatusCode: http.StatusBadRequest,
+		Message:    "CAS value cannot be zero.",
+	}
+	return st
+}
+
+func (e ErrorHandler) NewDocCasMismatchStatus(baseErr error, bucketName, scopeName, collectionName, docId string) *Status {
+	st := &Status{
+		StatusCode: http.StatusConflict,
+		Message: fmt.Sprintf("The specified CAS for '%s' in '%s/%s/%s' did not match.",
+			docId, bucketName, scopeName, collectionName),
+		FailureType:    "CAS_MISMATCH",
+		FailureSubject: fmt.Sprintf("%s/%s/%s/%s", bucketName, scopeName, collectionName, docId),
+	}
+	st = e.tryAttachExtraContext(st, baseErr)
+	return st
+}

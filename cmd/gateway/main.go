@@ -75,6 +75,7 @@ func init() {
 	configFlags.String("bind-address", "0.0.0.0", "the local address to bind to")
 	configFlags.Int("data-port", 18098, "the data port")
 	configFlags.Int("sd-port", 18099, "the sd port")
+	configFlags.Int("dapi-port", -1, "the data api port")
 	configFlags.Int("web-port", 9091, "the web metrics/health port")
 	configFlags.Bool("self-sign", false, "specifies to use a self-signed certificate rather than specifying them")
 	configFlags.String("cert", "", "path to server tls cert")
@@ -212,6 +213,7 @@ func startGateway() {
 	dataPort := viper.GetInt("data-port")
 	sdPort := viper.GetInt("sd-port")
 	webPort := viper.GetInt("web-port")
+	dapiPort := viper.GetInt("dapi-port")
 	selfSign := viper.GetBool("self-sign")
 	certPath := viper.GetString("cert")
 	keyPath := viper.GetString("key")
@@ -229,6 +231,7 @@ func startGateway() {
 		zap.Int("dataPort", dataPort),
 		zap.Int("sdPort", sdPort),
 		zap.Int("webPort", webPort),
+		zap.Int("dapiPort", dapiPort),
 		zap.Bool("selfSign", selfSign),
 		zap.String("certPath", certPath),
 		zap.String("keyPath", keyPath),
@@ -323,6 +326,7 @@ func startGateway() {
 		Debug:          debug,
 		BindDataPort:   dataPort,
 		BindSdPort:     sdPort,
+		BindDapiPort:   dapiPort,
 		BindAddress:    bindAddress,
 		TlsCertificate: tlsCertificate,
 		NumInstances:   1,

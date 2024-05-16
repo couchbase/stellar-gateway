@@ -3,6 +3,7 @@ package test
 import (
 	"context"
 	"crypto/tls"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -38,6 +39,7 @@ type GatewayOpsTestSuite struct {
 	gatewayCloseFunc func()
 	gatewayConn      *grpc.ClientConn
 	gatewayClosedCh  chan struct{}
+	dapiAddr         string
 
 	bucketName     string
 	scopeName      string
@@ -45,6 +47,10 @@ type GatewayOpsTestSuite struct {
 	badRpcCreds    credentials.PerRPCCredentials
 	basicRpcCreds  credentials.PerRPCCredentials
 	readRpcCreds   credentials.PerRPCCredentials
+
+	badRestCreds   string
+	basicRestCreds string
+	readRestCreds  string
 
 	clusterVersion *NodeVersion
 	features       []TestFeature
@@ -167,6 +173,12 @@ func (s *GatewayOpsTestSuite) loadTestData(path string) []byte {
 	return b
 }
 
+func (s *GatewayOpsTestSuite) makeRestBasicCreds(username, password string) string {
+	return "Basic " + base64.StdEncoding.EncodeToString([]byte(
+		username+":"+password,
+	))
+}
+
 func (s *GatewayOpsTestSuite) SetupSuite() {
 	s.T().Logf("setting up gateway ops suite")
 
@@ -210,6 +222,9 @@ func (s *GatewayOpsTestSuite) SetupSuite() {
 	s.badRpcCreds = badRpcCreds
 	s.basicRpcCreds = basicRpcCreds
 	s.readRpcCreds = readRpcCreds
+	s.badRestCreds = s.makeRestBasicCreds("invalid-user", "invalid-pass")
+	s.basicRestCreds = s.makeRestBasicCreds(testClusterInfo.BasicUser, testClusterInfo.BasicPass)
+	s.readRestCreds = s.makeRestBasicCreds(testClusterInfo.ReadUser, testClusterInfo.ReadPass)
 
 	clusterVersionStr := os.Getenv("SGTEST_CLUSTER_VER")
 	if clusterVersionStr == "" {
@@ -240,6 +255,7 @@ func (s *GatewayOpsTestSuite) SetupSuite() {
 		Password:       testConfig.CbPass,
 		BindDataPort:   0,
 		BindSdPort:     0,
+		BindDapiPort:   0,
 		TlsCertificate: *gwCert,
 		NumInstances:   1,
 
@@ -273,9 +289,12 @@ func (s *GatewayOpsTestSuite) SetupSuite() {
 		s.T().Fatalf("failed to connect to test gateway: %s", err)
 	}
 
+	dapiAddr := fmt.Sprintf("%s:%d", "127.0.0.1", startInfo.AdvertisePorts.DAPI)
+
 	s.gatewayConn = conn
 	s.gatewayCloseFunc = gwCtxCancel
 	s.gatewayClosedCh = gwClosedCh
+	s.dapiAddr = dapiAddr
 }
 
 func (s *GatewayOpsTestSuite) TearDownSuite() {
@@ -440,8 +459,8 @@ func (s *GatewayOpsTestSuite) checkDocument(t *testing.T, opts checkDocumentOpti
 	requireRpcSuccess(s.T(), getResp, err)
 	assertValidCas(s.T(), getResp.Cas)
 
-	assert.Equal(s.T(), getResp.GetContentUncompressed(), opts.Content)
-	assert.Equal(s.T(), getResp.ContentFlags, opts.ContentFlags)
+	assert.Equal(s.T(), opts.Content, getResp.GetContentUncompressed())
+	assert.Equal(s.T(), opts.ContentFlags, getResp.ContentFlags)
 
 	switch opts.expiry {
 	case expiryCheckType_None:

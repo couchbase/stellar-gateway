@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"log"
 	"net/http"
 	"sync/atomic"
 	"time"
@@ -15,6 +16,7 @@ import (
 	"github.com/couchbase/stellar-gateway/contrib/goclustering"
 	"github.com/couchbase/stellar-gateway/gateway/auth"
 	"github.com/couchbase/stellar-gateway/gateway/clustering"
+	"github.com/couchbase/stellar-gateway/gateway/dapiimpl"
 	"github.com/couchbase/stellar-gateway/gateway/dataimpl"
 	"github.com/couchbase/stellar-gateway/gateway/sdimpl"
 	"github.com/couchbase/stellar-gateway/gateway/system"
@@ -30,8 +32,9 @@ import (
 )
 
 type ServicePorts struct {
-	PS int `json:"p,omitempty"`
-	SD int `json:"s,omitempty"`
+	PS   int `json:"p,omitempty"`
+	SD   int `json:"s,omitempty"`
+	DAPI int `json:"d,omitempty"`
 }
 
 type StartupInfo struct {
@@ -55,6 +58,7 @@ type Config struct {
 	BindAddress      string
 	BindDataPort     int
 	BindSdPort       int
+	BindDapiPort     int
 	AdvertiseAddress string
 	AdvertisePorts   ServicePorts
 
@@ -346,11 +350,19 @@ func (g *Gateway) Run(ctx context.Context) error {
 			TopologyProvider: psTopologyManager,
 		})
 
+		dapiImpl := dapiimpl.New(&dapiimpl.NewOptions{
+			Logger:        config.Logger.Named("dapi-impl"),
+			Debug:         config.Debug,
+			CbClient:      agentMgr,
+			Authenticator: authenticator,
+		})
+
 		config.Logger.Info("initializing protostellar system")
 		gatewaySys, err := system.NewSystem(&system.SystemOptions{
 			Logger:   config.Logger.Named("gateway-system"),
 			DataImpl: dataImpl,
 			SdImpl:   sdImpl,
+			DapiImpl: dapiImpl,
 			Metrics:  metrics.GetSnMetrics(),
 			TlsConfig: &tls.Config{
 				GetCertificate: func(chi *tls.ClientHelloInfo) (*tls.Certificate, error) {
@@ -366,17 +378,20 @@ func (g *Gateway) Run(ctx context.Context) error {
 
 		dataPort := config.BindDataPort
 		sdPort := config.BindSdPort
+		dapiPort := config.BindDapiPort
 
 		// the non-0 instance uses randomized ports
 		if instanceIdx > 0 {
 			dataPort = 0
 			sdPort = 0
+			dapiPort = 0
 		}
 
 		gatewayLis, err := system.NewListeners(&system.ListenersOptions{
 			Address:  config.BindAddress,
 			DataPort: dataPort,
 			SdPort:   sdPort,
+			DapiPort: dapiPort,
 		})
 		if err != nil {
 			config.Logger.Error("error creating legacy proxy listeners")
@@ -399,8 +414,9 @@ func (g *Gateway) Run(ctx context.Context) error {
 			return boundPort
 		}
 		advertisePorts := clustering.ServicePorts{
-			PS: pickPort(config.AdvertisePorts.PS, gatewayLis.BoundDataPort()),
-			SD: pickPort(config.AdvertisePorts.SD, gatewayLis.BoundSdPort()),
+			PS:   pickPort(config.AdvertisePorts.PS, gatewayLis.BoundDataPort()),
+			SD:   pickPort(config.AdvertisePorts.SD, gatewayLis.BoundSdPort()),
+			DAPI: pickPort(config.AdvertisePorts.DAPI, gatewayLis.BoundDapiPort()),
 		}
 
 		localMemberData := &clustering.Member{
@@ -423,7 +439,8 @@ func (g *Gateway) Run(ctx context.Context) error {
 
 		config.Logger.Info("starting to run protostellar system",
 			zap.Int("advertisedPortPS", advertisePorts.PS),
-			zap.Int("advertisedPortSD", advertisePorts.SD))
+			zap.Int("advertisedPortSD", advertisePorts.SD),
+			zap.Int("advertisedPortDAPI", advertisePorts.DAPI))
 
 		if instanceIdx == 0 && config.StartupCallback != nil {
 			config.StartupCallback(&StartupInfo{
@@ -431,11 +448,14 @@ func (g *Gateway) Run(ctx context.Context) error {
 				ServerGroup:   serverGroup,
 				AdvertiseAddr: advertiseAddr,
 				AdvertisePorts: ServicePorts{
-					PS: advertisePorts.PS,
-					SD: advertisePorts.SD,
+					PS:   advertisePorts.PS,
+					SD:   advertisePorts.SD,
+					DAPI: advertisePorts.DAPI,
 				},
 			})
 		}
+
+		log.Printf("Starting to serve...")
 
 		err = gatewaySys.Serve(ctx, gatewayLis)
 		if err != nil {
@@ -448,6 +468,8 @@ func (g *Gateway) Run(ctx context.Context) error {
 
 			return err
 		}
+
+		log.Printf("Gateway instance %d has shut down", instanceIdx)
 
 		err = gatewayLis.Close()
 		if err != nil {
