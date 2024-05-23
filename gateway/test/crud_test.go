@@ -226,7 +226,7 @@ func (s *GatewayOpsTestSuite) TestGet() {
 		assertValidCas(s.T(), resp.Cas)
 		assert.JSONEq(s.T(), string(resp.GetContentUncompressed()), `{"obj":{"num":14},"arr":[3,6,9,12]}`)
 		assert.Nil(s.T(), resp.GetContentCompressed())
-		assert.Equal(s.T(), resp.ContentFlags, uint32(0))
+		assert.Equal(s.T(), resp.ContentFlags, TEST_CONTENT_FLAGS)
 	})
 
 	s.Run("DocLocked", func() {
