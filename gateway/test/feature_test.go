@@ -12,6 +12,7 @@ var (
 	TestFeatureSearchManagement            = TestFeatureCode("searchmgmt")
 	TestFeatureSearchManagementCollections = TestFeatureCode("searchmgmtcollections")
 	TestFeatureBucketManagement            = TestFeatureCode("bucketmgmt")
+	TestFeatureCollectionNoExpriy          = TestFeatureCode("collectionnoexpiry")
 )
 
 type TestFeature struct {
@@ -22,6 +23,7 @@ type TestFeature struct {
 var (
 	SrvVer721 = NodeVersion{7, 2, 1, 0, 0, ""}
 	SrvVer750 = NodeVersion{7, 5, 0, 0, 0, ""}
+	SrvVer760 = NodeVersion{7, 6, 0, 0, 0, ""}
 )
 
 func (s *GatewayOpsTestSuite) SupportsFeature(code TestFeatureCode) bool {
@@ -56,6 +58,8 @@ func (s *GatewayOpsTestSuite) SupportsFeature(code TestFeatureCode) bool {
 		return true
 	case TestFeatureSearchManagementCollections:
 		return !s.clusterVersion.Lower(SrvVer750)
+	case TestFeatureCollectionNoExpriy:
+		return !s.clusterVersion.Lower(SrvVer760)
 	}
 
 	panic("found unsupported feature code")
