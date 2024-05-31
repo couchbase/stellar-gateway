@@ -18,6 +18,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
 
 	epb "google.golang.org/genproto/googleapis/rpc/errdetails"
 )
@@ -28,17 +29,20 @@ type commonErrorTestData struct {
 	CollectionName string
 	CallOptions    []grpc.CallOption
 	Key            string
+	APIVersion     string
 }
 
 func (s *GatewayOpsTestSuite) RunCommonErrorCases(
-	fn func(opts *commonErrorTestData) (interface{}, error),
+	fn func(ctx context.Context, opts *commonErrorTestData) (interface{}, error),
 ) {
 	if !s.SupportsFeature(TestFeatureKV) {
 		s.T().Skip()
 	}
 
+	ctx := context.Background()
+
 	s.Run("CollectionMissing", func() {
-		_, err := fn(&commonErrorTestData{
+		_, err := fn(ctx, &commonErrorTestData{
 			BucketName:     s.bucketName,
 			ScopeName:      s.scopeName,
 			CollectionName: "invalid-collection",
@@ -54,7 +58,7 @@ func (s *GatewayOpsTestSuite) RunCommonErrorCases(
 	})
 
 	s.Run("ScopeMissing", func() {
-		_, err := fn(&commonErrorTestData{
+		_, err := fn(ctx, &commonErrorTestData{
 			BucketName:     s.bucketName,
 			ScopeName:      "invalid-scope",
 			CollectionName: s.collectionName,
@@ -70,7 +74,7 @@ func (s *GatewayOpsTestSuite) RunCommonErrorCases(
 	})
 
 	s.Run("BucketMissing", func() {
-		_, err := fn(&commonErrorTestData{
+		_, err := fn(ctx, &commonErrorTestData{
 			BucketName:     "invalid-bucket",
 			ScopeName:      s.scopeName,
 			CollectionName: s.collectionName,
@@ -86,7 +90,7 @@ func (s *GatewayOpsTestSuite) RunCommonErrorCases(
 	})
 
 	s.Run("BadCredentials", func() {
-		_, err := fn(&commonErrorTestData{
+		_, err := fn(ctx, &commonErrorTestData{
 			BucketName:     s.bucketName,
 			ScopeName:      s.scopeName,
 			CollectionName: s.collectionName,
@@ -102,7 +106,7 @@ func (s *GatewayOpsTestSuite) RunCommonErrorCases(
 	})
 
 	s.Run("Unauthenticated", func() {
-		_, err := fn(&commonErrorTestData{
+		_, err := fn(ctx, &commonErrorTestData{
 			BucketName:     s.bucketName,
 			ScopeName:      s.scopeName,
 			CollectionName: s.collectionName,
@@ -113,7 +117,7 @@ func (s *GatewayOpsTestSuite) RunCommonErrorCases(
 	})
 
 	s.Run("DocKeyTooLong", func() {
-		_, err := fn(&commonErrorTestData{
+		_, err := fn(ctx, &commonErrorTestData{
 			BucketName:     s.bucketName,
 			ScopeName:      s.scopeName,
 			CollectionName: s.collectionName,
@@ -126,7 +130,7 @@ func (s *GatewayOpsTestSuite) RunCommonErrorCases(
 	})
 
 	s.Run("DocKeyTooShort", func() {
-		_, err := fn(&commonErrorTestData{
+		_, err := fn(ctx, &commonErrorTestData{
 			BucketName:     s.bucketName,
 			ScopeName:      s.scopeName,
 			CollectionName: s.collectionName,
@@ -136,6 +140,40 @@ func (s *GatewayOpsTestSuite) RunCommonErrorCases(
 			Key: s.docIdOfLen(0),
 		})
 		assertRpcStatus(s.T(), err, codes.InvalidArgument)
+	})
+
+	apiVerCtx := func(ctx context.Context, apiVersion string) context.Context {
+		if apiVersion != "" {
+			return metadata.AppendToOutgoingContext(ctx, "X-API-Version", apiVersion)
+		}
+		return ctx
+	}
+
+	s.Run("BadAPIVersion", func() {
+		_, err := fn(apiVerCtx(ctx, "invalid-date"), &commonErrorTestData{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			CallOptions: []grpc.CallOption{
+				grpc.PerRPCCredentials(s.basicRpcCreds),
+			},
+			Key:        s.randomDocId(),
+			APIVersion: "invalid-date",
+		})
+		assertRpcStatus(s.T(), err, codes.InvalidArgument)
+	})
+
+	s.Run("FutureAPIVersion", func() {
+		_, err := fn(apiVerCtx(ctx, "2100-01-01"), &commonErrorTestData{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			CallOptions: []grpc.CallOption{
+				grpc.PerRPCCredentials(s.basicRpcCreds),
+			},
+			Key: s.randomDocId(),
+		})
+		assertRpcStatus(s.T(), err, codes.Unimplemented)
 	})
 }
 
@@ -238,8 +276,8 @@ func (s *GatewayOpsTestSuite) TestGet() {
 		assertRpcStatus(s.T(), err, codes.NotFound)
 	})
 
-	s.RunCommonErrorCases(func(opts *commonErrorTestData) (interface{}, error) {
-		return kvClient.Get(context.Background(), &kv_v1.GetRequest{
+	s.RunCommonErrorCases(func(ctx context.Context, opts *commonErrorTestData) (interface{}, error) {
+		return kvClient.Get(ctx, &kv_v1.GetRequest{
 			BucketName:     opts.BucketName,
 			ScopeName:      opts.ScopeName,
 			CollectionName: opts.CollectionName,
@@ -452,8 +490,8 @@ func (s *GatewayOpsTestSuite) TestInsert() {
 		assertRpcStatus(s.T(), err, codes.InvalidArgument)
 	})
 
-	s.RunCommonErrorCases(func(opts *commonErrorTestData) (interface{}, error) {
-		return kvClient.Insert(context.Background(), &kv_v1.InsertRequest{
+	s.RunCommonErrorCases(func(ctx context.Context, opts *commonErrorTestData) (interface{}, error) {
+		return kvClient.Insert(ctx, &kv_v1.InsertRequest{
 			BucketName:     opts.BucketName,
 			ScopeName:      opts.ScopeName,
 			CollectionName: opts.CollectionName,
@@ -881,8 +919,8 @@ func (s *GatewayOpsTestSuite) TestUpsert() {
 		assertRpcStatus(s.T(), err, codes.InvalidArgument)
 	})
 
-	s.RunCommonErrorCases(func(opts *commonErrorTestData) (interface{}, error) {
-		return kvClient.Upsert(context.Background(), &kv_v1.UpsertRequest{
+	s.RunCommonErrorCases(func(ctx context.Context, opts *commonErrorTestData) (interface{}, error) {
+		return kvClient.Upsert(ctx, &kv_v1.UpsertRequest{
 			BucketName:     opts.BucketName,
 			ScopeName:      opts.ScopeName,
 			CollectionName: opts.CollectionName,
@@ -1159,8 +1197,8 @@ func (s *GatewayOpsTestSuite) TestReplace() {
 		assertRpcStatus(s.T(), err, codes.InvalidArgument)
 	})
 
-	s.RunCommonErrorCases(func(opts *commonErrorTestData) (interface{}, error) {
-		return kvClient.Replace(context.Background(), &kv_v1.ReplaceRequest{
+	s.RunCommonErrorCases(func(ctx context.Context, opts *commonErrorTestData) (interface{}, error) {
+		return kvClient.Replace(ctx, &kv_v1.ReplaceRequest{
 			BucketName:     opts.BucketName,
 			ScopeName:      opts.ScopeName,
 			CollectionName: opts.CollectionName,
@@ -1271,8 +1309,8 @@ func (s *GatewayOpsTestSuite) TestRemove() {
 		})
 	})
 
-	s.RunCommonErrorCases(func(opts *commonErrorTestData) (interface{}, error) {
-		return kvClient.Remove(context.Background(), &kv_v1.RemoveRequest{
+	s.RunCommonErrorCases(func(ctx context.Context, opts *commonErrorTestData) (interface{}, error) {
+		return kvClient.Remove(ctx, &kv_v1.RemoveRequest{
 			BucketName:      opts.BucketName,
 			ScopeName:       opts.ScopeName,
 			CollectionName:  opts.CollectionName,
@@ -1399,8 +1437,8 @@ func (s *GatewayOpsTestSuite) TestTouch() {
 		})
 	})
 
-	s.RunCommonErrorCases(func(opts *commonErrorTestData) (interface{}, error) {
-		return kvClient.Touch(context.Background(), &kv_v1.TouchRequest{
+	s.RunCommonErrorCases(func(ctx context.Context, opts *commonErrorTestData) (interface{}, error) {
+		return kvClient.Touch(ctx, &kv_v1.TouchRequest{
 			BucketName:     opts.BucketName,
 			ScopeName:      opts.ScopeName,
 			CollectionName: opts.CollectionName,
@@ -1546,8 +1584,8 @@ func (s *GatewayOpsTestSuite) TestGetAndTouch() {
 		})
 	})
 
-	s.RunCommonErrorCases(func(opts *commonErrorTestData) (interface{}, error) {
-		return kvClient.GetAndTouch(context.Background(), &kv_v1.GetAndTouchRequest{
+	s.RunCommonErrorCases(func(ctx context.Context, opts *commonErrorTestData) (interface{}, error) {
+		return kvClient.GetAndTouch(ctx, &kv_v1.GetAndTouchRequest{
 			BucketName:     opts.BucketName,
 			ScopeName:      opts.ScopeName,
 			CollectionName: opts.CollectionName,
@@ -1643,8 +1681,8 @@ func (s *GatewayOpsTestSuite) TestGetAndLock() {
 		})
 	})
 
-	s.RunCommonErrorCases(func(opts *commonErrorTestData) (interface{}, error) {
-		return kvClient.GetAndLock(context.Background(), &kv_v1.GetAndLockRequest{
+	s.RunCommonErrorCases(func(ctx context.Context, opts *commonErrorTestData) (interface{}, error) {
+		return kvClient.GetAndLock(ctx, &kv_v1.GetAndLockRequest{
 			BucketName:     opts.BucketName,
 			ScopeName:      opts.ScopeName,
 			CollectionName: opts.CollectionName,
@@ -1771,8 +1809,8 @@ func (s *GatewayOpsTestSuite) TestUnlock() {
 		}
 	})
 
-	s.RunCommonErrorCases(func(opts *commonErrorTestData) (interface{}, error) {
-		return kvClient.Unlock(context.Background(), &kv_v1.UnlockRequest{
+	s.RunCommonErrorCases(func(ctx context.Context, opts *commonErrorTestData) (interface{}, error) {
+		return kvClient.Unlock(ctx, &kv_v1.UnlockRequest{
 			BucketName:     opts.BucketName,
 			ScopeName:      opts.ScopeName,
 			CollectionName: opts.CollectionName,
@@ -1822,8 +1860,8 @@ func (s *GatewayOpsTestSuite) TestExists() {
 		requireRpcSuccess(s.T(), resp, err)
 	})
 
-	s.RunCommonErrorCases(func(opts *commonErrorTestData) (interface{}, error) {
-		return kvClient.Exists(context.Background(), &kv_v1.ExistsRequest{
+	s.RunCommonErrorCases(func(ctx context.Context, opts *commonErrorTestData) (interface{}, error) {
+		return kvClient.Exists(ctx, &kv_v1.ExistsRequest{
 			BucketName:     opts.BucketName,
 			ScopeName:      opts.ScopeName,
 			CollectionName: opts.CollectionName,
@@ -2029,8 +2067,8 @@ func (s *GatewayOpsTestSuite) TestIncrement() {
 		})
 	})
 
-	s.RunCommonErrorCases(func(opts *commonErrorTestData) (interface{}, error) {
-		return kvClient.Increment(context.Background(), &kv_v1.IncrementRequest{
+	s.RunCommonErrorCases(func(ctx context.Context, opts *commonErrorTestData) (interface{}, error) {
+		return kvClient.Increment(ctx, &kv_v1.IncrementRequest{
 			BucketName:     opts.BucketName,
 			ScopeName:      opts.ScopeName,
 			CollectionName: opts.CollectionName,
@@ -2237,8 +2275,8 @@ func (s *GatewayOpsTestSuite) TestDecrement() {
 		})
 	})
 
-	s.RunCommonErrorCases(func(opts *commonErrorTestData) (interface{}, error) {
-		return kvClient.Decrement(context.Background(), &kv_v1.DecrementRequest{
+	s.RunCommonErrorCases(func(ctx context.Context, opts *commonErrorTestData) (interface{}, error) {
+		return kvClient.Decrement(ctx, &kv_v1.DecrementRequest{
 			BucketName:     opts.BucketName,
 			ScopeName:      opts.ScopeName,
 			CollectionName: opts.CollectionName,
@@ -2368,8 +2406,8 @@ func (s *GatewayOpsTestSuite) TestAppend() {
 		})
 	})
 
-	s.RunCommonErrorCases(func(opts *commonErrorTestData) (interface{}, error) {
-		return kvClient.Append(context.Background(), &kv_v1.AppendRequest{
+	s.RunCommonErrorCases(func(ctx context.Context, opts *commonErrorTestData) (interface{}, error) {
+		return kvClient.Append(ctx, &kv_v1.AppendRequest{
 			BucketName:     opts.BucketName,
 			ScopeName:      opts.ScopeName,
 			CollectionName: opts.CollectionName,
@@ -2499,8 +2537,8 @@ func (s *GatewayOpsTestSuite) TestPrepend() {
 		})
 	})
 
-	s.RunCommonErrorCases(func(opts *commonErrorTestData) (interface{}, error) {
-		return kvClient.Prepend(context.Background(), &kv_v1.PrependRequest{
+	s.RunCommonErrorCases(func(ctx context.Context, opts *commonErrorTestData) (interface{}, error) {
+		return kvClient.Prepend(ctx, &kv_v1.PrependRequest{
 			BucketName:     opts.BucketName,
 			ScopeName:      opts.ScopeName,
 			CollectionName: opts.CollectionName,
@@ -2875,8 +2913,8 @@ func (s *GatewayOpsTestSuite) TestLookupIn() {
 		})
 	})
 
-	s.RunCommonErrorCases(func(opts *commonErrorTestData) (interface{}, error) {
-		return kvClient.LookupIn(context.Background(), &kv_v1.LookupInRequest{
+	s.RunCommonErrorCases(func(ctx context.Context, opts *commonErrorTestData) (interface{}, error) {
+		return kvClient.LookupIn(ctx, &kv_v1.LookupInRequest{
 			BucketName:     opts.BucketName,
 			ScopeName:      opts.ScopeName,
 			CollectionName: opts.CollectionName,
@@ -3820,8 +3858,8 @@ func (s *GatewayOpsTestSuite) TestMutateIn() {
 		assert.Equal(s.T(), []byte(`2`), lResp.Specs[0].Content)
 	})
 
-	s.RunCommonErrorCases(func(opts *commonErrorTestData) (interface{}, error) {
-		return kvClient.MutateIn(context.Background(), &kv_v1.MutateInRequest{
+	s.RunCommonErrorCases(func(ctx context.Context, opts *commonErrorTestData) (interface{}, error) {
+		return kvClient.MutateIn(ctx, &kv_v1.MutateInRequest{
 			BucketName:      opts.BucketName,
 			ScopeName:       opts.ScopeName,
 			CollectionName:  opts.CollectionName,
@@ -3895,8 +3933,8 @@ func (s *GatewayOpsTestSuite) TestGetAllReplicas() {
 		require.Zero(s.T(), numResults)
 	})
 
-	s.RunCommonErrorCases(func(opts *commonErrorTestData) (interface{}, error) {
-		resp, err := kvClient.GetAllReplicas(context.Background(), &kv_v1.GetAllReplicasRequest{
+	s.RunCommonErrorCases(func(ctx context.Context, opts *commonErrorTestData) (interface{}, error) {
+		resp, err := kvClient.GetAllReplicas(ctx, &kv_v1.GetAllReplicasRequest{
 			BucketName:     opts.BucketName,
 			ScopeName:      opts.ScopeName,
 			CollectionName: opts.CollectionName,
