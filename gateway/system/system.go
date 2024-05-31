@@ -24,6 +24,7 @@ import (
 	"github.com/couchbase/goprotostellar/genproto/routing_v1"
 	"github.com/couchbase/goprotostellar/genproto/search_v1"
 	"github.com/couchbase/goprotostellar/genproto/transactions_v1"
+	"github.com/couchbase/stellar-gateway/gateway/apiversion"
 	"github.com/couchbase/stellar-gateway/gateway/dataimpl"
 	"github.com/couchbase/stellar-gateway/gateway/hooks"
 	"github.com/couchbase/stellar-gateway/gateway/sdimpl"
@@ -74,6 +75,7 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 		unaryInterceptors = append(unaryInterceptors, debugInterceptor.UnaryInterceptor())
 	}
 	unaryInterceptors = append(unaryInterceptors, hooksManager.UnaryInterceptor())
+	unaryInterceptors = append(unaryInterceptors, apiversion.GrpcUnaryInterceptor(opts.Logger))
 	unaryInterceptors = append(unaryInterceptors, recovery.UnaryServerInterceptor(
 		recovery.WithRecoveryHandler(recoveryHandler),
 	))
@@ -84,6 +86,7 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 	if opts.Debug {
 		streamInterceptors = append(streamInterceptors, debugInterceptor.StreamInterceptor())
 	}
+	streamInterceptors = append(streamInterceptors, apiversion.GrpcStreamInterceptor(opts.Logger))
 	streamInterceptors = append(streamInterceptors, recovery.StreamServerInterceptor(
 		recovery.WithRecoveryHandler(recoveryHandler),
 	))
