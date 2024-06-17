@@ -1,75 +1,100 @@
 package main
 
 import (
-	"encoding/json"
+	"context"
+	"fmt"
 	"time"
 
-	"github.com/couchbase/gocb/v2"
+	"github.com/couchbase/gocbcorex"
+	"github.com/couchbaselabs/gocbconnstr/v2"
 )
 
 type directWrapper struct {
-	client *gocb.Cluster
-	coll   *gocb.Collection
+	client *gocbcorex.Agent
 }
 
 var _ clientWrapper = (*directWrapper)(nil)
 
 func (w *directWrapper) Connect(addr, username, password string) error {
-	client, err := gocb.Connect(addr, gocb.ClusterOptions{
-		Username: username,
-		Password: password,
-	})
+	baseSpec, err := gocbconnstr.Parse(addr)
 	if err != nil {
 		return err
 	}
 
-	b := client.Bucket("default")
+	spec, err := gocbconnstr.Resolve(baseSpec)
+	if err != nil {
+		return err
+	}
 
-	err = b.WaitUntilReady(10*time.Second, &gocb.WaitUntilReadyOptions{
-		ServiceTypes: []gocb.ServiceType{
-			gocb.ServiceTypeKeyValue,
+	var httpHosts []string
+	for _, specHost := range spec.HttpHosts {
+		httpHosts = append(httpHosts, fmt.Sprintf("%s:%d", specHost.Host, specHost.Port))
+	}
+
+	var memdHosts []string
+	for _, specHost := range spec.MemdHosts {
+		memdHosts = append(memdHosts, fmt.Sprintf("%s:%d", specHost.Host, specHost.Port))
+	}
+
+	agent, err := gocbcorex.CreateAgent(context.Background(), gocbcorex.AgentOptions{
+		Authenticator: &gocbcorex.PasswordAuthenticator{
+			Username: username,
+			Password: password,
+		},
+		SeedConfig: gocbcorex.SeedConfig{
+			HTTPAddrs: httpHosts,
+			MemdAddrs: memdHosts,
 		},
 	})
 	if err != nil {
 		return err
 	}
 
-	coll := b.DefaultCollection()
-
-	w.client = client
-	w.coll = coll
+	w.client = agent
 	return nil
 }
 
 func (w *directWrapper) Close() {
-	w.client.Close(&gocb.ClusterCloseOptions{})
+	w.client.Close()
 
 	w.client = nil
-	w.coll = nil
 }
 
 func (w *directWrapper) Get(id string) ([]byte, error) {
-	res, err := w.coll.Get(id, &gocb.GetOptions{})
+	ctx, cancel := w.kvDeadline()
+	defer cancel()
+	res, err := w.client.Get(
+		ctx,
+		&gocbcorex.GetOptions{
+			Key:            []byte(id),
+			ScopeName:      "_default",
+			CollectionName: "_default",
+		},
+	)
 	if err != nil {
 		return nil, err
 	}
 
-	var content json.RawMessage
-	err = res.Content(&content)
-	if err != nil {
-		return nil, err
-	}
-
-	return content, nil
+	return res.Value, nil
 }
 
 func (w *directWrapper) Upsert(id string, value []byte) error {
-	content := json.RawMessage(value)
+	ctx, cancel := w.kvDeadline()
+	defer cancel()
 
-	_, err := w.coll.Upsert(id, content, &gocb.UpsertOptions{})
+	_, err := w.client.Upsert(ctx, &gocbcorex.UpsertOptions{
+		Key:            []byte(id),
+		ScopeName:      "_default",
+		CollectionName: "_default",
+		Value:          value,
+	})
 	if err != nil {
 		return err
 	}
 
 	return nil
+}
+
+func (w *directWrapper) kvDeadline() (context.Context, context.CancelFunc) {
+	return context.WithDeadline(context.Background(), time.Now().Add(2500*time.Millisecond))
 }

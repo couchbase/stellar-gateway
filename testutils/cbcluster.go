@@ -1,9 +1,13 @@
 package testutils
 
 import (
+	"context"
 	"errors"
+	"fmt"
 
-	"github.com/couchbase/gocb/v2"
+	"github.com/couchbase/gocbcorex"
+	"github.com/couchbase/gocbcorex/cbmgmtx"
+	"github.com/couchbaselabs/gocbconnstr/v2"
 )
 
 /*
@@ -24,7 +28,7 @@ type CanonicalTestCluster struct {
 	SecondScopeName      string
 	CollectionName       string
 	SecondCollectionName string
-	AdminClient          *gocb.Cluster
+	AdminClient          *gocbcorex.Agent
 }
 
 type CanonicalTestClusterOptions struct {
@@ -35,15 +39,43 @@ type CanonicalTestClusterOptions struct {
 
 // SetupCanonicalTestCluster sets up a canonical test cluster for use throughout.
 func SetupCanonicalTestCluster(opts CanonicalTestClusterOptions) (*CanonicalTestCluster, error) {
-	cbClient, err := gocb.Connect(opts.ConnStr, gocb.ClusterOptions{
-		Username: opts.Username,
-		Password: opts.Password,
+	baseSpec, err := gocbconnstr.Parse(opts.ConnStr)
+	if err != nil {
+		return nil, err
+	}
+
+	spec, err := gocbconnstr.Resolve(baseSpec)
+	if err != nil {
+		return nil, err
+	}
+
+	var httpHosts []string
+	for _, specHost := range spec.HttpHosts {
+		httpHosts = append(httpHosts, fmt.Sprintf("%s:%d", specHost.Host, specHost.Port))
+	}
+
+	var memdHosts []string
+	for _, specHost := range spec.MemdHosts {
+		memdHosts = append(memdHosts, fmt.Sprintf("%s:%d", specHost.Host, specHost.Port))
+	}
+
+	agent, err := gocbcorex.CreateAgent(context.Background(), gocbcorex.AgentOptions{
+		Authenticator: &gocbcorex.PasswordAuthenticator{
+			Username: opts.Username,
+			Password: opts.Password,
+		},
+		SeedConfig: gocbcorex.SeedConfig{
+			HTTPAddrs: httpHosts,
+			MemdAddrs: memdHosts,
+		},
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	defaultBucket, err := cbClient.Buckets().GetBucket("default", nil)
+	defaultBucket, err := agent.GetBucket(context.Background(), &cbmgmtx.GetBucketOptions{
+		BucketName: "default",
+	})
 	if err != nil {
 		return nil, errors.New("test cluster must have a `default` bucket")
 	}
@@ -87,11 +119,14 @@ func SetupCanonicalTestCluster(opts CanonicalTestClusterOptions) (*CanonicalTest
 		SecondScopeName:      "test-scope",
 		CollectionName:       "_default",
 		SecondCollectionName: "test-collection",
-		AdminClient:          cbClient,
+		AdminClient:          agent,
 	}, nil
 }
 
 func (c *CanonicalTestCluster) Close() error {
-	c.AdminClient.Close(nil)
+	err := c.AdminClient.Close()
+	if err != nil {
+		return err
+	}
 	return nil
 }
