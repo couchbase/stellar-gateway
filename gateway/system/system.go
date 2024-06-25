@@ -34,7 +34,7 @@ import (
 
 // TODO(brett19): Implement the gateway system as its own component
 
-const maxMsgSize = 25000000 // 25MB
+const maxMsgSize = 25 * 1024 * 1024 // 25MiB
 
 type SystemOptions struct {
 	Logger *zap.Logger
