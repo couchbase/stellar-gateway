@@ -1294,8 +1294,17 @@ func (s *KvServer) GetAllReplicas(in *kv_v1.GetAllReplicasRequest, out kv_v1.KvS
 		}
 	}
 
-	res, err := replicaStream.Next()
-	for res != nil {
+	for {
+		res, err := replicaStream.Next()
+		if err != nil {
+			s.logger.Debug("error reading a replica", zap.Error(err))
+			return err
+		}
+
+		if res == nil {
+			break
+		}
+
 		err = out.Send(&kv_v1.GetAllReplicasResponse{
 			IsReplica:    res.IsReplica,
 			Content:      res.Value,
@@ -1304,12 +1313,6 @@ func (s *KvServer) GetAllReplicas(in *kv_v1.GetAllReplicasRequest, out kv_v1.KvS
 		if err != nil {
 			return err
 		}
-
-		res, err = replicaStream.Next()
-	}
-
-	if err != nil {
-		s.logger.Debug("error reading a replica", zap.Error(err))
 	}
 
 	return nil
