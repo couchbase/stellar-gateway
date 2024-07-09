@@ -4,7 +4,6 @@ go 1.19
 
 require (
 	github.com/cenkalti/backoff/v4 v4.2.1
-	github.com/couchbase/cbauth v0.1.2-0.20231214203958-0685e2541e67
 	github.com/couchbase/gocbcore/v10 v10.2.9
 	github.com/couchbase/gocbcorex v0.0.0-20240528083638-06e84b42f978
 	github.com/couchbase/goprotostellar v1.0.3-0.20240514104501-9958dd1cee8a
@@ -46,10 +45,6 @@ require (
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/coreos/go-semver v0.3.1 // indirect
 	github.com/coreos/go-systemd/v22 v22.5.0 // indirect
-	github.com/couchbase/clog v0.1.0 // indirect
-	github.com/couchbase/go-couchbase v0.1.1 // indirect
-	github.com/couchbase/gomemcached v0.2.1 // indirect
-	github.com/couchbase/goutils v0.1.2 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/go-logr/logr v1.4.1 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
@@ -78,7 +73,6 @@ require (
 	go.opentelemetry.io/proto/otlp v1.0.0 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/crypto v0.18.0 // indirect
 	golang.org/x/net v0.20.0 // indirect
 	golang.org/x/sys v0.17.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
