@@ -68,7 +68,6 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 	}
 
 	var unaryInterceptors []grpc.UnaryServerInterceptor
-	unaryInterceptors = append(unaryInterceptors, otelgrpc.UnaryServerInterceptor())
 	unaryInterceptors = append(unaryInterceptors, metricsInterceptor.UnaryInterceptor())
 	if opts.Debug {
 		unaryInterceptors = append(unaryInterceptors, debugInterceptor.UnaryInterceptor())
@@ -80,7 +79,6 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 	))
 
 	var streamInterceptors []grpc.StreamServerInterceptor
-	streamInterceptors = append(streamInterceptors, otelgrpc.StreamServerInterceptor())
 	streamInterceptors = append(streamInterceptors, metricsInterceptor.StreamInterceptor())
 	if opts.Debug {
 		streamInterceptors = append(streamInterceptors, debugInterceptor.StreamInterceptor())
@@ -92,6 +90,7 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 
 	// TODO(abose): Same serverOpts passed; need to break into two, if needed.
 	serverOpts := []grpc.ServerOption{
+		grpc.StatsHandler(otelgrpc.NewServerHandler()),
 		grpc.ChainUnaryInterceptor(unaryInterceptors...),
 		grpc.ChainStreamInterceptor(streamInterceptors...),
 		grpc.Creds(credentials.NewTLS(opts.TlsConfig)),

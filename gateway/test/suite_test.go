@@ -265,7 +265,7 @@ func (s *GatewayOpsTestSuite) SetupSuite() {
 	startInfo := <-gwStartInfoCh
 
 	connAddr := fmt.Sprintf("%s:%d", "127.0.0.1", startInfo.AdvertisePorts.PS)
-	conn, err := grpc.Dial(connAddr,
+	conn, err := grpc.NewClient(connAddr,
 		grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{
 			InsecureSkipVerify: true,
 		})))
