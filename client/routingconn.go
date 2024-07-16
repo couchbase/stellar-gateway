@@ -53,7 +53,7 @@ func dialRoutingConn(address string, opts *routingConnOptions) (*routingConn, er
 		dialOpts = append(dialOpts, perRpcDialOpt)
 	}
 
-	conn, err := grpc.Dial(address, dialOpts...)
+	conn, err := grpc.NewClient(address, dialOpts...)
 	if err != nil {
 		return nil, err
 	}

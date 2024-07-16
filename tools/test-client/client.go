@@ -69,7 +69,7 @@ func Connect(connStr string, opts *ConnectOptions) (*Client, error) {
 		dialOpts = append(dialOpts, perRpcDialOpt)
 	}
 
-	conn, err := grpc.Dial(connStr, dialOpts...)
+	conn, err := grpc.NewClient(connStr, dialOpts...)
 	if err != nil {
 		return nil, err
 	}

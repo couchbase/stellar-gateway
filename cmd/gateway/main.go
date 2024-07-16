@@ -33,7 +33,6 @@ import (
 	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-	"google.golang.org/grpc"
 )
 
 var buildVersion string = buildversion.GetVersion("github.com/couchbase/stellar-gateway")
@@ -155,8 +154,7 @@ func initTelemetry(
 
 	traceClient := otlptracegrpc.NewClient(
 		otlptracegrpc.WithInsecure(),
-		otlptracegrpc.WithEndpoint(otlpEndpoint),
-		otlptracegrpc.WithDialOption(grpc.WithBlock()))
+		otlptracegrpc.WithEndpoint(otlpEndpoint))
 	traceExp, err := otlptrace.New(ctx, traceClient)
 	if err != nil {
 		return nil, nil, err
