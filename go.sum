@@ -10,8 +10,8 @@ github.com/coreos/go-systemd/v22 v22.5.0 h1:RrqgGjYQKalulkV8NGVIfkXQf6YYmOyiJKk8
 github.com/coreos/go-systemd/v22 v22.5.0/go.mod h1:Y58oyj3AT4RCenI/lSvhwexgC+NSVTIJ3seZv2GcEnc=
 github.com/couchbase/gocbcore/v10 v10.5.0 h1:rgm8cPEDZVgegbBf4dIPZD4Ng52/qkn0XU3h6lP9yL0=
 github.com/couchbase/gocbcore/v10 v10.5.0/go.mod h1:rulbgUK70EuyRUiLQ0LhQAfSI/Rl+jWws8tTbHzvB6M=
-github.com/couchbase/gocbcorex v0.0.0-20240528083638-06e84b42f978 h1:Ok49t/QkU8pH9+UjHxmQToFlDspFonuaSVpA8KmvCE8=
-github.com/couchbase/gocbcorex v0.0.0-20240528083638-06e84b42f978/go.mod h1:xVITc0ZPW6odCmp6cEfiPjwC2DdsR44dbaAxSCQAEnc=
+github.com/couchbase/gocbcorex v0.0.0-20240717185313-4c69cffb9781 h1:rQCQDwZO1Y/2wDwm9zlTTXbJGg8/GU4tk5CwfzAtMP4=
+github.com/couchbase/gocbcorex v0.0.0-20240717185313-4c69cffb9781/go.mod h1:YPpfb1dcXqIv3TIkka8eSK6hXi5gpMuB0pmV1vaCXA8=
 github.com/couchbase/goprotostellar v1.0.3-0.20240514104501-9958dd1cee8a h1:rM0iLd4i8+pOSM/f+Denugpi7eY3C7k5Fo/AeAgX1H0=
 github.com/couchbase/goprotostellar v1.0.3-0.20240514104501-9958dd1cee8a/go.mod h1:5/yqVnZlW2/NSbAWu1hPJCFBEwjxgpe0PFFOlRixnp4=
 github.com/couchbaselabs/gocaves/client v0.0.0-20230404095311-05e3ba4f0259/go.mod h1:AVekAZwIY2stsJOMWLAS/0uA/+qdp7pjO8EHnl61QkY=

@@ -51,7 +51,7 @@ func (s *QueryServer) translateError(err error) *status.Status {
 			return s.errorHandler.NewWriteInReadOnlyQueryStatus(err)
 		}
 
-		var rErr cbqueryx.ResourceError
+		var rErr *cbqueryx.ResourceError
 		if errors.As(firstErr, &rErr) {
 			if errors.Is(err, cbqueryx.ErrIndexExists) {
 				return s.errorHandler.NewQueryIndexExistsStatus(err, rErr.IndexName, "", "", "")

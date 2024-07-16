@@ -304,8 +304,16 @@ func (g *Gateway) Run(ctx context.Context) error {
 					continue
 				}
 
+				mgmtEndpointsList := make([]string, 0, len(cfg.Nodes))
+				for _, node := range cfg.Nodes {
+					if node.Addresses.NonSSLPorts.Mgmt > 0 {
+						mgmtEndpointsList = append(mgmtEndpointsList,
+							fmt.Sprintf("%s:%d", node.Addresses.Hostname, node.Addresses.NonSSLPorts.Mgmt))
+					}
+				}
+
 				err := authenticator.Reconfigure(auth.CbAuthAuthenticatorReconfigureOptions{
-					Addresses:   cfg.Addresses.NonSSL.Mgmt,
+					Addresses:   mgmtEndpointsList,
 					Username:    config.Username,
 					Password:    config.Password,
 					ClusterUUID: clusterUUID,

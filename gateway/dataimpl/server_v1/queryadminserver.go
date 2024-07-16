@@ -353,7 +353,7 @@ func (s *QueryIndexAdminServer) CreatePrimaryIndex(
 	if errors.Is(err, cbqueryx.ErrBuildAlreadyInProgress) {
 		// this is considered a success
 	} else if err != nil {
-		var rErr cbqueryx.ResourceError
+		var rErr *cbqueryx.ResourceError
 		if errors.As(err, &rErr) {
 			if errors.Is(rErr.Cause, cbqueryx.ErrIndexExists) {
 				return nil, s.errorHandler.NewQueryIndexExistsStatus(
@@ -480,7 +480,7 @@ func (s *QueryIndexAdminServer) CreateIndex(
 	if errors.Is(err, cbqueryx.ErrBuildAlreadyInProgress) {
 		// this is considered a success
 	} else if err != nil {
-		var rErr cbqueryx.ResourceError
+		var rErr *cbqueryx.ResourceError
 		if errors.As(err, &rErr) {
 			if errors.Is(rErr.Cause, cbqueryx.ErrIndexExists) {
 				return nil, s.errorHandler.NewQueryIndexExistsStatus(
@@ -586,7 +586,7 @@ func (s *QueryIndexAdminServer) DropPrimaryIndex(
 
 	_, err := s.executeQuery(ctx, &in.BucketName, qs, agent, oboInfo)
 	if err != nil {
-		var rErr cbqueryx.ResourceError
+		var rErr *cbqueryx.ResourceError
 		if errors.As(err, &rErr) {
 			if errors.Is(rErr.Cause, cbqueryx.ErrIndexNotFound) {
 				return nil, s.errorHandler.NewQueryIndexMissingStatus(
@@ -672,7 +672,7 @@ func (s *QueryIndexAdminServer) DropIndex(
 	_, err := s.executeQuery(ctx, &in.BucketName, qs, agent, oboInfo)
 	if err != nil {
 
-		var rErr cbqueryx.ResourceError
+		var rErr *cbqueryx.ResourceError
 		if errors.As(err, &rErr) {
 			if errors.Is(rErr.Cause, cbqueryx.ErrIndexNotFound) {
 				return nil, s.errorHandler.NewQueryIndexMissingStatus(
