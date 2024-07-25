@@ -89,8 +89,6 @@ func TestCompare(t *testing.T) {
 		}
 	}
 
-	// TODO(brett19): Add more of the possibilities here.
-
 	checkOne(nil, nil, 0)
 	checkOne([]uint64{}, nil, 0)
 	checkOne([]uint64{}, []uint64{}, 0)

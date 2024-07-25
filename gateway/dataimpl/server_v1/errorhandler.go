@@ -694,7 +694,6 @@ func (e ErrorHandler) NewSdBadCombo(baseErr error) *status.Status {
 func (e ErrorHandler) NewSdPathInvalidStatus(baseErr error, sdPath string) *status.Status {
 	st := status.New(codes.InvalidArgument,
 		fmt.Sprintf("Invalid subdocument path syntax '%s'.", sdPath))
-	// TODO(brett19): Probably should include invalid-argument error details.
 	st = e.tryAttachExtraContext(st, baseErr)
 	return st
 }
