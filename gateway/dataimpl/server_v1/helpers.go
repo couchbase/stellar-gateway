@@ -23,13 +23,6 @@ import (
 )
 
 func timeFromGo(when time.Time) *timestamppb.Timestamp {
-	// This is a workaround for a bug in Go where its Zero return values are not
-	// actually matched with IsZero().
-	// TODO(brett19): Remove this workaround when gocbcore is fixed.
-	if when.Equal(time.Unix(0, 0)) {
-		return nil
-	}
-
 	if when.IsZero() {
 		return nil
 	}
@@ -92,8 +85,6 @@ func durabilityLevelToMemdx(dl kv_v1.DurabilityLevel) (memdx.DurabilityLevel, *s
 		return memdx.DurabilityLevelPersistToMajority, nil
 	}
 
-	// TODO(brett19): We should attach the field reference information here indicating
-	// what specific field the user incorrectly specified.
 	return memdx.DurabilityLevel(0), status.New(codes.InvalidArgument, "invalid durability level specified")
 }
 
@@ -127,8 +118,6 @@ func durabilityLevelToCbmgmtx(dl kv_v1.DurabilityLevel) (cbmgmtx.DurabilityLevel
 		return cbmgmtx.DurabilityLevelPersistToMajority, nil
 	}
 
-	// TODO(brett19): We should attach the field reference information here indicating
-	// what specific field the user incorrectly specified.
 	return cbmgmtx.DurabilityLevel(""), status.New(codes.InvalidArgument, "invalid durability level specified")
 }
 

@@ -128,7 +128,6 @@ func (m *inProcMembership) UpdateMetaData(ctx context.Context, metaData []byte) 
 }
 
 func (m *inProcMembership) Leave(ctx context.Context) error {
-	// TODO(brett19): Rename localLock to lock.
 	m.parent.lock.Lock()
 
 	if !m.parent.removeMemberLocked(m) {

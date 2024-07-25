@@ -50,7 +50,7 @@ func (s *grpcHooksServer) AddHooks(
 
 	// register all the hooks
 	for _, hook := range req.Hooks {
-		hooksContext.AddHook(hook)
+		hooksContext.SetHook(hook)
 	}
 
 	return &internal_hooks_v1.AddHooksResponse{}, nil

@@ -32,8 +32,6 @@ import (
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/recovery"
 )
 
-// TODO(brett19): Implement the gateway system as its own component
-
 const maxMsgSize = 25 * 1024 * 1024 // 25MiB
 
 type SystemOptions struct {
@@ -88,7 +86,6 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 		recovery.WithRecoveryHandler(recoveryHandler),
 	))
 
-	// TODO(abose): Same serverOpts passed; need to break into two, if needed.
 	serverOpts := []grpc.ServerOption{
 		grpc.StatsHandler(otelgrpc.NewServerHandler()),
 		grpc.ChainUnaryInterceptor(unaryInterceptors...),

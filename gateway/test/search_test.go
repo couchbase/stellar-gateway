@@ -250,7 +250,6 @@ func (s *testSearchServiceHelper) TestDocIDQuery() {
 	s.validateNumResults(queryResult, len(s.Dataset))
 }
 
-// TODO - add an analyzer that this uses
 func (s *testSearchServiceHelper) TestMatchQuery() {
 	client := search_v1.NewSearchServiceClient(s.gatewayConn)
 	query := &search_v1.Query_MatchQuery{

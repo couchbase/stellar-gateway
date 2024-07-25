@@ -71,8 +71,7 @@ func (i *HooksContext) WatchRequests(ctx context.Context) <-chan *RequestInfo {
 	return i.reqWatchers.Watch(ctx)
 }
 
-// TODO(brett19): This is called "AddHook" but technically is more like "SetHook"
-func (i *HooksContext) AddHook(hook *internal_hooks_v1.Hook) {
+func (i *HooksContext) SetHook(hook *internal_hooks_v1.Hook) {
 	i.lock.Lock()
 	defer i.lock.Unlock()
 
