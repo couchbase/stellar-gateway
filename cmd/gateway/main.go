@@ -82,6 +82,8 @@ func init() {
 	configFlags.String("key", "", "path to server private tls key")
 	configFlags.String("cacert", "", "path to root CA cert")
 	configFlags.String("otlp-endpoint", "", "opentelemetry endpoint to send telemetry to")
+	configFlags.Bool("disable-otlp-traces", false, "disable sending traces to otlp")
+	configFlags.Bool("disable-otlp-metrics", false, "disable sending metrics to otlp")
 	configFlags.Bool("debug", false, "enable debug mode")
 	configFlags.String("cpuprofile", "", "write cpu profile to a file")
 	rootCmd.Flags().AddFlagSet(configFlags)
@@ -97,6 +99,8 @@ func initTelemetry(
 	ctx context.Context,
 	logger *zap.Logger,
 	otlpEndpoint string,
+	enableTraces bool,
+	enableMetrics bool,
 ) (
 	trace.TracerProvider,
 	metric.MeterProvider,
@@ -125,48 +129,52 @@ func initTelemetry(
 		return nil, nil, err
 	}
 
-	if otlpEndpoint == "" {
-		meterProvider := sdkmetric.NewMeterProvider(
+	var meterProvider *sdkmetric.MeterProvider
+	if !enableMetrics || otlpEndpoint == "" {
+		meterProvider = sdkmetric.NewMeterProvider(
 			sdkmetric.WithResource(res),
 			sdkmetric.WithReader(promExp),
 		)
+	} else {
+		metricExp, err := otlpmetricgrpc.New(
+			ctx,
+			otlpmetricgrpc.WithInsecure(),
+			otlpmetricgrpc.WithEndpoint(otlpEndpoint))
+		if err != nil {
+			return nil, nil, err
+		}
 
-		return nil, meterProvider, nil
-	}
-
-	metricExp, err := otlpmetricgrpc.New(
-		ctx,
-		otlpmetricgrpc.WithInsecure(),
-		otlpmetricgrpc.WithEndpoint(otlpEndpoint))
-	if err != nil {
-		return nil, nil, err
-	}
-
-	meterProvider := sdkmetric.NewMeterProvider(
-		sdkmetric.WithResource(res),
-		sdkmetric.WithReader(
-			sdkmetric.NewPeriodicReader(
-				metricExp,
-				sdkmetric.WithInterval(2*time.Second),
+		meterProvider = sdkmetric.NewMeterProvider(
+			sdkmetric.WithResource(res),
+			sdkmetric.WithReader(promExp),
+			sdkmetric.WithReader(
+				sdkmetric.NewPeriodicReader(
+					metricExp,
+				),
 			),
-		),
-		sdkmetric.WithReader(promExp),
-	)
-
-	traceClient := otlptracegrpc.NewClient(
-		otlptracegrpc.WithInsecure(),
-		otlptracegrpc.WithEndpoint(otlpEndpoint))
-	traceExp, err := otlptrace.New(ctx, traceClient)
-	if err != nil {
-		return nil, nil, err
+			sdkmetric.WithReader(promExp),
+		)
 	}
 
-	bsp := sdktrace.NewBatchSpanProcessor(traceExp)
-	tracerProvider := sdktrace.NewTracerProvider(
-		sdktrace.WithSampler(sdktrace.ParentBased(sdktrace.NeverSample())),
-		sdktrace.WithResource(res),
-		sdktrace.WithSpanProcessor(bsp),
-	)
+	var tracerProvider *sdktrace.TracerProvider
+	if !enableTraces || otlpEndpoint == "" {
+		// we can just return nil here...
+	} else {
+		traceClient := otlptracegrpc.NewClient(
+			otlptracegrpc.WithInsecure(),
+			otlptracegrpc.WithEndpoint(otlpEndpoint))
+		traceExp, err := otlptrace.New(ctx, traceClient)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		bsp := sdktrace.NewBatchSpanProcessor(traceExp)
+		tracerProvider = sdktrace.NewTracerProvider(
+			sdktrace.WithSampler(sdktrace.ParentBased(sdktrace.NeverSample())),
+			sdktrace.WithResource(res),
+			sdktrace.WithSpanProcessor(bsp),
+		)
+	}
 
 	return tracerProvider, meterProvider, nil
 }
@@ -219,6 +227,8 @@ func startGateway() {
 	keyPath := viper.GetString("key")
 	caCertPath := viper.GetString("cacert")
 	otlpEndpoint := viper.GetString("otlp-endpoint")
+	disableOtlpTraces := viper.GetBool("disable-otlp-traces")
+	disableOtlpMetrics := viper.GetBool("disable-otlp-metrics")
 	debug := viper.GetBool("debug")
 	cpuprofile := viper.GetString("cpuprofile")
 
@@ -237,6 +247,8 @@ func startGateway() {
 		zap.String("keyPath", keyPath),
 		zap.String("cacertPath", caCertPath),
 		zap.String("otlpEndpoint", otlpEndpoint),
+		zap.Bool("disableOtlpTraces", disableOtlpTraces),
+		zap.Bool("disableOtlpMetrics", disableOtlpMetrics),
 		zap.Bool("debug", debug),
 		zap.String("cpuprofile", cpuprofile),
 	)
@@ -267,7 +279,7 @@ func startGateway() {
 
 	// setup tracing
 	otlpTracerProvider, otlpMeterProvider, err :=
-		initTelemetry(context.Background(), logger, otlpEndpoint)
+		initTelemetry(context.Background(), logger, otlpEndpoint, !disableOtlpTraces, !disableOtlpMetrics)
 	if err != nil {
 		logger.Error("failed to initialize opentelemetry tracing", zap.Error(err))
 		os.Exit(1)
