@@ -85,6 +85,7 @@ func init() {
 	configFlags.String("otlp-endpoint", "", "opentelemetry endpoint to send telemetry to")
 	configFlags.Bool("disable-otlp-traces", false, "disable sending traces to otlp")
 	configFlags.Bool("disable-otlp-metrics", false, "disable sending metrics to otlp")
+	configFlags.Bool("trace-everything", false, "enables tracing of all components")
 	configFlags.Bool("debug", false, "enable debug mode")
 	configFlags.String("cpuprofile", "", "write cpu profile to a file")
 	rootCmd.Flags().AddFlagSet(configFlags)
@@ -102,6 +103,7 @@ func initTelemetry(
 	otlpEndpoint string,
 	enableTraces bool,
 	enableMetrics bool,
+	traceEverything bool,
 ) (
 	trace.TracerProvider,
 	metric.MeterProvider,
@@ -169,9 +171,14 @@ func initTelemetry(
 			return nil, nil, err
 		}
 
+		baseTracing := sdktrace.NeverSample()
+		if traceEverything {
+			baseTracing = sdktrace.AlwaysSample()
+		}
+
 		bsp := sdktrace.NewBatchSpanProcessor(traceExp)
 		tracerProvider = sdktrace.NewTracerProvider(
-			sdktrace.WithSampler(sdktrace.ParentBased(sdktrace.NeverSample())),
+			sdktrace.WithSampler(sdktrace.ParentBased(baseTracing)),
 			sdktrace.WithResource(res),
 			sdktrace.WithSpanProcessor(bsp),
 		)
@@ -230,6 +237,7 @@ func startGateway() {
 	otlpEndpoint := viper.GetString("otlp-endpoint")
 	disableOtlpTraces := viper.GetBool("disable-otlp-traces")
 	disableOtlpMetrics := viper.GetBool("disable-otlp-metrics")
+	traceEverything := viper.GetBool("trace-everything")
 	debug := viper.GetBool("debug")
 	cpuprofile := viper.GetString("cpuprofile")
 
@@ -250,6 +258,7 @@ func startGateway() {
 		zap.String("otlpEndpoint", otlpEndpoint),
 		zap.Bool("disableOtlpTraces", disableOtlpTraces),
 		zap.Bool("disableOtlpMetrics", disableOtlpMetrics),
+		zap.Bool("traceEverything", traceEverything),
 		zap.Bool("debug", debug),
 		zap.String("cpuprofile", cpuprofile),
 	)
@@ -280,7 +289,12 @@ func startGateway() {
 
 	// setup tracing
 	otlpTracerProvider, otlpMeterProvider, err :=
-		initTelemetry(context.Background(), logger, otlpEndpoint, !disableOtlpTraces, !disableOtlpMetrics)
+		initTelemetry(context.Background(),
+			logger,
+			otlpEndpoint,
+			!disableOtlpTraces,
+			!disableOtlpMetrics,
+			traceEverything)
 	if err != nil {
 		logger.Error("failed to initialize opentelemetry tracing", zap.Error(err))
 		os.Exit(1)
