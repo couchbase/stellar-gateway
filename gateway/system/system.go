@@ -141,6 +141,7 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 
 	mux := http.NewServeMux()
 	mux.Handle("/v1/", dataapiv1.Handler(sh))
+	mux.Handle("/_p/", dapiImpl.DataApiProxy)
 
 	var httpHandler http.Handler = mux
 	if opts.RateLimiter != nil {
