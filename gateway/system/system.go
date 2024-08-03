@@ -142,6 +142,7 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 
 	mux := http.NewServeMux()
 	mux.Handle("/v1/", dataapiv1.Handler(sh))
+	mux.Handle("/_p/", dapiImpl.DataApiProxy)
 
 	c := cors.New(cors.Options{
 		AllowedOrigins:   []string{"*"},

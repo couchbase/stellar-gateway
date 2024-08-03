@@ -7,7 +7,7 @@ toolchain go1.22.3
 require (
 	github.com/cenkalti/backoff/v4 v4.3.0
 	github.com/couchbase/gocbcore/v10 v10.5.0
-	github.com/couchbase/gocbcorex v0.0.0-20240717185313-4c69cffb9781
+	github.com/couchbase/gocbcorex v0.0.0-20240807195331-d6a4a53f5e0b
 	github.com/couchbase/goprotostellar v1.0.3-0.20240514104501-9958dd1cee8a
 	github.com/couchbaselabs/gocbconnstr v1.0.5
 	github.com/couchbaselabs/gocbconnstr/v2 v2.0.0-20240607131231-fb385523de28
