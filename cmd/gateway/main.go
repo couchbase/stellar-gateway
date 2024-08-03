@@ -86,6 +86,7 @@ func init() {
 	configFlags.Bool("disable-otlp-traces", false, "disable sending traces to otlp")
 	configFlags.Bool("disable-otlp-metrics", false, "disable sending metrics to otlp")
 	configFlags.Bool("trace-everything", false, "enables tracing of all components")
+	configFlags.String("dapi-proxy-services", "", "specifies services exposed via _p endpoint proxies")
 	configFlags.Bool("debug", false, "enable debug mode")
 	configFlags.String("cpuprofile", "", "write cpu profile to a file")
 	rootCmd.Flags().AddFlagSet(configFlags)
@@ -219,6 +220,7 @@ type config struct {
 	disableOtlpTraces  bool
 	disableOtlpMetrics bool
 	traceEverything    bool
+	dapiProxyServices  string
 	debug              bool
 	cpuprofile         string
 }
@@ -243,6 +245,7 @@ func readConfig(logger *zap.Logger) *config {
 		disableOtlpTraces:  viper.GetBool("disable-otlp-traces"),
 		disableOtlpMetrics: viper.GetBool("disable-otlp-metrics"),
 		traceEverything:    viper.GetBool("trace-everything"),
+		dapiProxyServices:  viper.GetString("dapi-proxy-services"),
 		debug:              viper.GetBool("debug"),
 		cpuprofile:         viper.GetString("cpuprofile"),
 	}
@@ -266,6 +269,7 @@ func readConfig(logger *zap.Logger) *config {
 		zap.Bool("disableOtlpTraces", config.disableOtlpTraces),
 		zap.Bool("disableOtlpMetrics", config.disableOtlpMetrics),
 		zap.Bool("traceEverything", config.traceEverything),
+		zap.String("dapiProxyServices", config.dapiProxyServices),
 		zap.Bool("debug", config.debug),
 		zap.String("cpuprofile", config.cpuprofile))
 
@@ -384,6 +388,7 @@ func startGateway() {
 		Password:       config.cbPass,
 		Daemon:         daemon,
 		Debug:          config.debug,
+		ProxyServices:  strings.Split(config.dapiProxyServices, ","),
 		BindDataPort:   config.dataPort,
 		BindSdPort:     config.sdPort,
 		BindDapiPort:   config.dapiPort,
@@ -448,6 +453,10 @@ func startGateway() {
 
 		if newConfig.cpuprofile != config.cpuprofile {
 			logger.Warn("config changes for cpuprofile require a restart")
+		}
+
+		if newConfig.dapiProxyServices != config.dapiProxyServices {
+			logger.Warn("config changes for dapiProxyServices require a restart")
 		}
 
 		if newConfig.logLevelStr != config.logLevelStr {

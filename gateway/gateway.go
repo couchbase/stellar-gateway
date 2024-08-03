@@ -18,6 +18,7 @@ import (
 	"github.com/couchbase/stellar-gateway/gateway/auth"
 	"github.com/couchbase/stellar-gateway/gateway/clustering"
 	"github.com/couchbase/stellar-gateway/gateway/dapiimpl"
+	"github.com/couchbase/stellar-gateway/gateway/dapiimpl/proxy"
 	"github.com/couchbase/stellar-gateway/gateway/dataimpl"
 	"github.com/couchbase/stellar-gateway/gateway/ratelimiting"
 	"github.com/couchbase/stellar-gateway/gateway/sdimpl"
@@ -47,11 +48,12 @@ type StartupInfo struct {
 }
 
 type Config struct {
-	Logger      *zap.Logger
-	NodeID      string
-	ServerGroup string
-	Daemon      bool
-	Debug       bool
+	Logger        *zap.Logger
+	NodeID        string
+	ServerGroup   string
+	Daemon        bool
+	Debug         bool
+	ProxyServices []string
 
 	CbConnStr string
 	Username  string
@@ -303,6 +305,11 @@ func (g *Gateway) Run(ctx context.Context) error {
 		return err
 	}
 
+	var proxyServices []proxy.ServiceType
+	for _, serviceName := range config.ProxyServices {
+		proxyServices = append(proxyServices, proxy.ServiceType(serviceName))
+	}
+
 	go func() {
 		watchCh := agentMgr.WatchConfig(context.Background())
 	runLoop:
@@ -364,6 +371,7 @@ func (g *Gateway) Run(ctx context.Context) error {
 			Debug:         config.Debug,
 			CbClient:      agentMgr,
 			Authenticator: authenticator,
+			ProxyServices: proxyServices,
 		})
 
 		config.Logger.Info("initializing protostellar system")
