@@ -25,13 +25,11 @@ import (
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/exporters/prometheus"
-	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/propagation"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
-	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -105,8 +103,8 @@ func initTelemetry(
 	enableMetrics bool,
 	traceEverything bool,
 ) (
-	trace.TracerProvider,
-	metric.MeterProvider,
+	*sdktrace.TracerProvider,
+	*sdkmetric.MeterProvider,
 	error,
 ) {
 	res, err := resource.New(ctx,
