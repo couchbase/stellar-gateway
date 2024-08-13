@@ -18,6 +18,7 @@ import (
 	"github.com/couchbase/stellar-gateway/gateway/clustering"
 	"github.com/couchbase/stellar-gateway/gateway/dapiimpl"
 	"github.com/couchbase/stellar-gateway/gateway/dataimpl"
+	"github.com/couchbase/stellar-gateway/gateway/ratelimiting"
 	"github.com/couchbase/stellar-gateway/gateway/sdimpl"
 	"github.com/couchbase/stellar-gateway/gateway/system"
 	"github.com/couchbase/stellar-gateway/gateway/topology"
@@ -61,6 +62,8 @@ type Config struct {
 	BindDapiPort     int
 	AdvertiseAddress string
 	AdvertisePorts   ServicePorts
+
+	RateLimit int
 
 	TlsCertificate tls.Certificate
 
@@ -337,6 +340,11 @@ func (g *Gateway) Run(ctx context.Context) error {
 	}()
 
 	startInstance := func(ctx context.Context, instanceIdx int) error {
+		var rateLimiter ratelimiting.RateLimiter
+		if config.RateLimit > 0 {
+			rateLimiter = ratelimiting.NewGlobalRateLimiter(uint64(config.RateLimit), time.Second)
+		}
+
 		dataImpl := dataimpl.New(&dataimpl.NewOptions{
 			Logger:           config.Logger.Named("data-impl"),
 			Debug:            config.Debug,
@@ -359,11 +367,12 @@ func (g *Gateway) Run(ctx context.Context) error {
 
 		config.Logger.Info("initializing protostellar system")
 		gatewaySys, err := system.NewSystem(&system.SystemOptions{
-			Logger:   config.Logger.Named("gateway-system"),
-			DataImpl: dataImpl,
-			SdImpl:   sdImpl,
-			DapiImpl: dapiImpl,
-			Metrics:  metrics.GetSnMetrics(),
+			Logger:      config.Logger.Named("gateway-system"),
+			DataImpl:    dataImpl,
+			SdImpl:      sdImpl,
+			DapiImpl:    dapiImpl,
+			Metrics:     metrics.GetSnMetrics(),
+			RateLimiter: rateLimiter,
 			TlsConfig: &tls.Config{
 				GetCertificate: func(chi *tls.ClientHelloInfo) (*tls.Certificate, error) {
 					return g.atomicTlsCert.Load(), nil
