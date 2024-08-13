@@ -130,12 +130,17 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 	sh := dataapiv1.NewStrictHandlerWithOptions(dapiImpl.DataApiV1Server, nil, dataapiv1.StrictHTTPServerOptions{
 		ResponseErrorHandlerFunc: dapiimpl.StatusErrorHttpHandler,
 	})
-	h := dataapiv1.Handler(sh)
+
+	mux := http.NewServeMux()
+	mux.Handle("/v1/", dataapiv1.Handler(sh))
+
+	var httpHandler http.Handler = mux
+
 	dapiSrv := &http.Server{
 		WriteTimeout: time.Second * 15,
 		ReadTimeout:  time.Second * 15,
 		IdleTimeout:  time.Second * 60,
-		Handler:      h,
+		Handler:      httpHandler,
 	}
 
 	s := &System{
