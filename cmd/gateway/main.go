@@ -80,6 +80,7 @@ func init() {
 	configFlags.String("cert", "", "path to server tls cert")
 	configFlags.String("key", "", "path to server private tls key")
 	configFlags.String("cacert", "", "path to root CA cert")
+	configFlags.Int("rate-limit", 0, "specifies the maximum requests per second to allow")
 	configFlags.String("otlp-endpoint", "", "opentelemetry endpoint to send telemetry to")
 	configFlags.Bool("disable-otlp-traces", false, "disable sending traces to otlp")
 	configFlags.Bool("disable-otlp-metrics", false, "disable sending metrics to otlp")
@@ -232,6 +233,7 @@ func startGateway() {
 	certPath := viper.GetString("cert")
 	keyPath := viper.GetString("key")
 	caCertPath := viper.GetString("cacert")
+	rateLimit := viper.GetInt("rate-limit")
 	otlpEndpoint := viper.GetString("otlp-endpoint")
 	disableOtlpTraces := viper.GetBool("disable-otlp-traces")
 	disableOtlpMetrics := viper.GetBool("disable-otlp-metrics")
@@ -253,6 +255,7 @@ func startGateway() {
 		zap.String("certPath", certPath),
 		zap.String("keyPath", keyPath),
 		zap.String("cacertPath", caCertPath),
+		zap.Int("rateLimit", rateLimit),
 		zap.String("otlpEndpoint", otlpEndpoint),
 		zap.Bool("disableOtlpTraces", disableOtlpTraces),
 		zap.Bool("disableOtlpMetrics", disableOtlpMetrics),
@@ -354,6 +357,7 @@ func startGateway() {
 		BindSdPort:     sdPort,
 		BindDapiPort:   dapiPort,
 		BindAddress:    bindAddress,
+		RateLimit:      rateLimit,
 		TlsCertificate: tlsCertificate,
 		NumInstances:   1,
 		StartupCallback: func(m *gateway.StartupInfo) {

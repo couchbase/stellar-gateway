@@ -30,6 +30,7 @@ import (
 	"github.com/couchbase/stellar-gateway/gateway/dapiimpl"
 	"github.com/couchbase/stellar-gateway/gateway/dataimpl"
 	"github.com/couchbase/stellar-gateway/gateway/hooks"
+	"github.com/couchbase/stellar-gateway/gateway/ratelimiting"
 	"github.com/couchbase/stellar-gateway/gateway/sdimpl"
 	"github.com/couchbase/stellar-gateway/pkg/interceptors"
 	"github.com/couchbase/stellar-gateway/pkg/metrics"
@@ -46,8 +47,9 @@ type SystemOptions struct {
 	DapiImpl *dapiimpl.Servers
 	Metrics  *metrics.SnMetrics
 
-	TlsConfig *tls.Config
-	Debug     bool
+	RateLimiter ratelimiting.RateLimiter
+	TlsConfig   *tls.Config
+	Debug       bool
 }
 
 type System struct {
@@ -78,6 +80,9 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 		unaryInterceptors = append(unaryInterceptors, debugInterceptor.UnaryInterceptor())
 	}
 	unaryInterceptors = append(unaryInterceptors, hooksManager.UnaryInterceptor())
+	if opts.RateLimiter != nil {
+		unaryInterceptors = append(unaryInterceptors, opts.RateLimiter.GrpcUnaryInterceptor())
+	}
 	unaryInterceptors = append(unaryInterceptors, apiversion.GrpcUnaryInterceptor(opts.Logger))
 	unaryInterceptors = append(unaryInterceptors, recovery.UnaryServerInterceptor(
 		recovery.WithRecoveryHandler(recoveryHandler),
@@ -87,6 +92,9 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 	streamInterceptors = append(streamInterceptors, metricsInterceptor.StreamInterceptor())
 	if opts.Debug {
 		streamInterceptors = append(streamInterceptors, debugInterceptor.StreamInterceptor())
+	}
+	if opts.RateLimiter != nil {
+		streamInterceptors = append(streamInterceptors, opts.RateLimiter.GrpcStreamInterceptor())
 	}
 	streamInterceptors = append(streamInterceptors, apiversion.GrpcStreamInterceptor(opts.Logger))
 	streamInterceptors = append(streamInterceptors, recovery.StreamServerInterceptor(
@@ -135,6 +143,9 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 	mux.Handle("/v1/", dataapiv1.Handler(sh))
 
 	var httpHandler http.Handler = mux
+	if opts.RateLimiter != nil {
+		httpHandler = opts.RateLimiter.HttpMiddleware(httpHandler)
+	}
 
 	dapiSrv := &http.Server{
 		WriteTimeout: time.Second * 15,
