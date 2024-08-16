@@ -35,6 +35,7 @@ import (
 	"github.com/couchbase/stellar-gateway/pkg/interceptors"
 	"github.com/couchbase/stellar-gateway/pkg/metrics"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/recovery"
+	"github.com/rs/cors"
 )
 
 const maxMsgSize = 25 * 1024 * 1024 // 25MiB
@@ -142,10 +143,18 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 	mux := http.NewServeMux()
 	mux.Handle("/v1/", dataapiv1.Handler(sh))
 
+	c := cors.New(cors.Options{
+		AllowedOrigins:   []string{"*"},
+		AllowedMethods:   []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete},
+		AllowCredentials: true,
+		Debug:            true,
+	})
+
 	var httpHandler http.Handler = mux
 	if opts.RateLimiter != nil {
 		httpHandler = opts.RateLimiter.HttpMiddleware(httpHandler)
 	}
+	httpHandler = c.Handler(httpHandler)
 
 	dapiSrv := &http.Server{
 		WriteTimeout: time.Second * 15,

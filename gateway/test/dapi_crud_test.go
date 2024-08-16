@@ -49,6 +49,58 @@ func (s *GatewayOpsTestSuite) sendTestHttpRequest(req *testHttpRequest) *testHtt
 	}
 }
 
+func (s *GatewayOpsTestSuite) TestDapiCors() {
+	docId := s.randomDocId()
+
+	resp := s.sendTestHttpRequest(&testHttpRequest{
+		Method: http.MethodOptions,
+		Path: fmt.Sprintf(
+			"/v1/buckets/%s/scopes/%s/collections/%s/docs/%s",
+			s.bucketName, s.scopeName, s.collectionName, docId,
+		),
+		Headers: map[string]string{
+			"Authorization":                 s.basicRestCreds,
+			"Access-Control-Request-Method": http.MethodPut,
+			"Origin":                        "http://example.com",
+		},
+	})
+	require.NotNil(s.T(), resp)
+	require.Equal(s.T(), http.StatusNoContent, resp.StatusCode)
+	assert.Equal(s.T(), "*",
+		resp.Headers.Get("Access-Control-Allow-Origin"))
+
+	resp = s.sendTestHttpRequest(&testHttpRequest{
+		Method: http.MethodPut,
+		Path: fmt.Sprintf(
+			"/v1/buckets/%s/scopes/%s/collections/%s/docs/%s",
+			s.bucketName, s.scopeName, s.collectionName, docId,
+		),
+		Headers: map[string]string{
+			"Authorization": s.basicRestCreds,
+			"Origin":        "http://example.com",
+		},
+		Body: TEST_CONTENT,
+	})
+	requireRestSuccess(s.T(), resp)
+	assert.Equal(s.T(), "*",
+		resp.Headers.Get("Access-Control-Allow-Origin"))
+
+	resp = s.sendTestHttpRequest(&testHttpRequest{
+		Method: http.MethodGet,
+		Path: fmt.Sprintf(
+			"/v1/buckets/%s/scopes/%s/collections/%s/docs/%s",
+			s.bucketName, s.scopeName, s.collectionName, docId,
+		),
+		Headers: map[string]string{
+			"Authorization": s.basicRestCreds,
+			"Origin":        "http://example.com",
+		},
+	})
+	requireRestSuccess(s.T(), resp)
+	assert.Equal(s.T(), "*",
+		resp.Headers.Get("Access-Control-Allow-Origin"))
+}
+
 func (s *GatewayOpsTestSuite) TestDapiBasic() {
 	if !s.SupportsFeature(TestFeatureKV) {
 		s.T().Skip()
