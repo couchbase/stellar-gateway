@@ -16,6 +16,7 @@ import (
 	"github.com/couchbase/gocbcorex/contrib/buildversion"
 	"github.com/couchbase/stellar-gateway/gateway"
 	"github.com/couchbase/stellar-gateway/pkg/webapi"
+	"github.com/couchbase/stellar-gateway/utils/secretsmanager"
 	"github.com/couchbase/stellar-gateway/utils/selfsignedcert"
 	"github.com/fsnotify/fsnotify"
 	"github.com/spf13/cobra"
@@ -89,6 +90,12 @@ func init() {
 	configFlags.String("dapi-proxy-services", "", "specifies services exposed via _p endpoint proxies")
 	configFlags.Bool("debug", false, "enable debug mode")
 	configFlags.String("cpuprofile", "", "write cpu profile to a file")
+	configFlags.String("cb-creds-aws-id", "", "id of secret in aws sm storing couchbase server credentials")
+	configFlags.String("cb-creds-aws-region", "", "region of cb-creds-aws-id secret")
+	configFlags.String("cb-creds-azure-id", "", "id of secret in azure kv storing couchbase server credentials")
+	configFlags.String("cb-creds-azure-vault-name", "", "name of key vault storing cb-creds-azure-id")
+	configFlags.String("cb-creds-gcp-id", "", "id of secret in gcp sm storing couchbase server password")
+	configFlags.String("cb-creds-gcp-project-id", "", "id of project containing cb-creds-gcp-id")
 	rootCmd.Flags().AddFlagSet(configFlags)
 
 	viper.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
@@ -202,52 +209,64 @@ func getLogger() (zap.AtomicLevel, *zap.Logger) {
 }
 
 type config struct {
-	logLevelStr        string
-	cbHost             string
-	cbUser             string
-	cbPass             string
-	bindAddress        string
-	dataPort           int
-	sdPort             int
-	webPort            int
-	dapiPort           int
-	selfSign           bool
-	certPath           string
-	keyPath            string
-	caCertPath         string
-	rateLimit          int
-	otlpEndpoint       string
-	disableOtlpTraces  bool
-	disableOtlpMetrics bool
-	traceEverything    bool
-	dapiProxyServices  string
-	debug              bool
-	cpuprofile         string
+	logLevelStr           string
+	cbHost                string
+	cbUser                string
+	cbPass                string
+	bindAddress           string
+	dataPort              int
+	sdPort                int
+	webPort               int
+	dapiPort              int
+	selfSign              bool
+	certPath              string
+	keyPath               string
+	caCertPath            string
+	rateLimit             int
+	otlpEndpoint          string
+	disableOtlpTraces     bool
+	disableOtlpMetrics    bool
+	traceEverything       bool
+	dapiProxyServices     string
+	debug                 bool
+	cpuprofile            string
+	cbCredsAwsId          string
+	cbCredsAwsRegion      string
+	cbCredsAzureId        string
+	cbCredsAzureVaultName string
+	cbCredsGcpId          string
+	cbCredsGcpProjectId   string
 }
 
 func readConfig(logger *zap.Logger) *config {
 	config := &config{
-		logLevelStr:        viper.GetString("log-level"),
-		cbHost:             viper.GetString("cb-host"),
-		cbUser:             viper.GetString("cb-user"),
-		cbPass:             viper.GetString("cb-pass"),
-		bindAddress:        viper.GetString("bind-address"),
-		dataPort:           viper.GetInt("data-port"),
-		sdPort:             viper.GetInt("sd-port"),
-		webPort:            viper.GetInt("web-port"),
-		dapiPort:           viper.GetInt("dapi-port"),
-		selfSign:           viper.GetBool("self-sign"),
-		certPath:           viper.GetString("cert"),
-		keyPath:            viper.GetString("key"),
-		caCertPath:         viper.GetString("cacert"),
-		rateLimit:          viper.GetInt("rate-limit"),
-		otlpEndpoint:       viper.GetString("otlp-endpoint"),
-		disableOtlpTraces:  viper.GetBool("disable-otlp-traces"),
-		disableOtlpMetrics: viper.GetBool("disable-otlp-metrics"),
-		traceEverything:    viper.GetBool("trace-everything"),
-		dapiProxyServices:  viper.GetString("dapi-proxy-services"),
-		debug:              viper.GetBool("debug"),
-		cpuprofile:         viper.GetString("cpuprofile"),
+		logLevelStr:           viper.GetString("log-level"),
+		cbHost:                viper.GetString("cb-host"),
+		cbUser:                viper.GetString("cb-user"),
+		cbPass:                viper.GetString("cb-pass"),
+		bindAddress:           viper.GetString("bind-address"),
+		dataPort:              viper.GetInt("data-port"),
+		sdPort:                viper.GetInt("sd-port"),
+		webPort:               viper.GetInt("web-port"),
+		dapiPort:              viper.GetInt("dapi-port"),
+		selfSign:              viper.GetBool("self-sign"),
+		certPath:              viper.GetString("cert"),
+		keyPath:               viper.GetString("key"),
+		caCertPath:            viper.GetString("cacert"),
+		rateLimit:             viper.GetInt("rate-limit"),
+		otlpEndpoint:          viper.GetString("otlp-endpoint"),
+		disableOtlpTraces:     viper.GetBool("disable-otlp-traces"),
+		disableOtlpMetrics:    viper.GetBool("disable-otlp-metrics"),
+		traceEverything:       viper.GetBool("trace-everything"),
+		dapiProxyServices:     viper.GetString("dapi-proxy-services"),
+		debug:                 viper.GetBool("debug"),
+		cpuprofile:            viper.GetString("cpuprofile"),
+		cbCredsAwsId:          viper.GetString("cb-creds-aws-id"),
+		cbCredsAwsRegion:      viper.GetString("cb-creds-aws-region"),
+		cbCredsAzureId:        viper.GetString("cb-creds-azure-id"),
+		cbCredsAzureVaultName: viper.GetString("cb-creds-azure-vault-name"),
+		cbCredsGcpId:          viper.GetString("cb-creds-gcp-id"),
+		cbCredsGcpProjectId:   viper.GetString("cb-creds-gcp-project-id"),
 	}
 
 	logger.Info("parsed gateway configuration",
@@ -271,7 +290,13 @@ func readConfig(logger *zap.Logger) *config {
 		zap.Bool("traceEverything", config.traceEverything),
 		zap.String("dapiProxyServices", config.dapiProxyServices),
 		zap.Bool("debug", config.debug),
-		zap.String("cpuprofile", config.cpuprofile))
+		zap.String("cpuprofile", config.cpuprofile),
+		zap.String("cbCredsAwsId", config.cbCredsAwsId),
+		zap.String("cbCredsAwsRegion", config.cbCredsAwsRegion),
+		zap.String("cbCredsAzureId", config.cbCredsAzureId),
+		zap.String("cbCredsAzureVaultName", config.cbCredsAzureVaultName),
+		zap.String("cbCredsGcpId", config.cbCredsGcpId),
+		zap.String("cbCredsGcpId", config.cbCredsGcpProjectId))
 
 	return config
 }
@@ -379,6 +404,66 @@ func startGateway() {
 		}
 
 		tlsCertificate = loadedTlsCertificate
+	}
+
+	if config.cbCredsAwsId != "" {
+		if config.cbUser != "Administrator" || config.cbPass != "password" {
+			logger.Error("cannot use cb-pass or cb-user when fetching creds from cloud provider")
+			os.Exit(1)
+		}
+
+		if config.cbCredsAwsRegion == "" {
+			logger.Error("must specify region and id when fetching secrets from aws")
+			os.Exit(1)
+		}
+
+		logger.Info("fetching server credentials from aws secrets manager")
+		config.cbUser, config.cbPass, err = secretsmanager.FetchAWSSecret(config.cbCredsAwsId, config.cbCredsAwsRegion)
+
+		if err != nil {
+			logger.Error("failed to fetch couchbase server password from aws", zap.Error(err))
+			os.Exit(1)
+		}
+	}
+
+	if config.cbCredsAzureId != "" {
+		if config.cbUser != "Administrator" || config.cbPass != "password" {
+			logger.Error("cannot use cb-pass or cb-user when fetching creds from cloud provider")
+			os.Exit(1)
+		}
+
+		if config.cbCredsAzureVaultName == "" {
+			logger.Error("must specify key vault name and id when fetching secrets from azure")
+			os.Exit(1)
+		}
+
+		logger.Info("fetching server credentials from azure key vault")
+		config.cbUser, config.cbPass, err = secretsmanager.FetchAzureSecret(config.cbCredsAzureId, config.cbCredsAzureVaultName)
+
+		if err != nil {
+			logger.Error("failed to fetch couchbase server password from azure", zap.Error(err))
+			os.Exit(1)
+		}
+	}
+
+	if config.cbCredsGcpId != "" {
+		if config.cbUser != "Administrator" || config.cbPass != "password" {
+			logger.Error("cannot use cb-pass or cb-user when fetching creds from cloud provider")
+			os.Exit(1)
+		}
+
+		if config.cbCredsGcpProjectId == "" {
+			logger.Error("must specify project and secret ids when fetching secrets from gcp")
+			os.Exit(1)
+		}
+
+		logger.Info("fetching server credentials from gcp secrets manager")
+		config.cbUser, config.cbPass, err = secretsmanager.FetchGcpSecret(config.cbCredsGcpId, config.cbCredsGcpProjectId)
+
+		if err != nil {
+			logger.Error("failed to fetch couchbase server password from gcp", zap.Error(err))
+			os.Exit(1)
+		}
 	}
 
 	gatewayConfig := &gateway.Config{
