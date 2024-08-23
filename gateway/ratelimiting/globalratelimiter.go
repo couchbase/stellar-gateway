@@ -87,6 +87,10 @@ func (l *GlobalRateLimiter) checkAllowed() bool {
 	state := l.getState()
 	reqNum := state.Requests.Add(1)
 
+	if state.MaximumRequests == 0 {
+		return true
+	}
+
 	// we use <= rather than < here because reqNum is 1-based
 	return reqNum <= uint64(state.MaximumRequests)
 }
