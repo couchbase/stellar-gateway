@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"runtime/pprof"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -199,6 +200,78 @@ func getLogger() (zap.AtomicLevel, *zap.Logger) {
 	return logLevel, logger
 }
 
+type config struct {
+	logLevelStr        string
+	cbHost             string
+	cbUser             string
+	cbPass             string
+	bindAddress        string
+	dataPort           int
+	sdPort             int
+	webPort            int
+	dapiPort           int
+	selfSign           bool
+	certPath           string
+	keyPath            string
+	caCertPath         string
+	rateLimit          int
+	otlpEndpoint       string
+	disableOtlpTraces  bool
+	disableOtlpMetrics bool
+	traceEverything    bool
+	debug              bool
+	cpuprofile         string
+}
+
+func readConfig(logger *zap.Logger) *config {
+	config := &config{
+		logLevelStr:        viper.GetString("log-level"),
+		cbHost:             viper.GetString("cb-host"),
+		cbUser:             viper.GetString("cb-user"),
+		cbPass:             viper.GetString("cb-pass"),
+		bindAddress:        viper.GetString("bind-address"),
+		dataPort:           viper.GetInt("data-port"),
+		sdPort:             viper.GetInt("sd-port"),
+		webPort:            viper.GetInt("web-port"),
+		dapiPort:           viper.GetInt("dapi-port"),
+		selfSign:           viper.GetBool("self-sign"),
+		certPath:           viper.GetString("cert"),
+		keyPath:            viper.GetString("key"),
+		caCertPath:         viper.GetString("cacert"),
+		rateLimit:          viper.GetInt("rate-limit"),
+		otlpEndpoint:       viper.GetString("otlp-endpoint"),
+		disableOtlpTraces:  viper.GetBool("disable-otlp-traces"),
+		disableOtlpMetrics: viper.GetBool("disable-otlp-metrics"),
+		traceEverything:    viper.GetBool("trace-everything"),
+		debug:              viper.GetBool("debug"),
+		cpuprofile:         viper.GetString("cpuprofile"),
+	}
+
+	logger.Info("parsed gateway configuration",
+		zap.String("logLevelStr", config.logLevelStr),
+		zap.String("cbHost", config.cbHost),
+		zap.String("cbUser", config.cbUser),
+		// zap.String("cbPass", config.cbPass),
+		zap.String("bindAddress", config.bindAddress),
+		zap.Int("dataPort", config.dataPort),
+		zap.Int("sdPort", config.sdPort),
+		zap.Int("webPort", config.webPort),
+		zap.Int("dapiPort", config.dapiPort),
+		zap.Bool("selfSign", config.selfSign),
+		zap.String("certPath", config.certPath),
+		zap.String("keyPath", config.keyPath),
+		zap.String("cacertPath", config.caCertPath),
+		zap.Int("rateLimit", config.rateLimit),
+		zap.String("otlpEndpoint", config.otlpEndpoint),
+		zap.Bool("disableOtlpTraces", config.disableOtlpTraces),
+		zap.Bool("disableOtlpMetrics", config.disableOtlpMetrics),
+		zap.Bool("traceEverything", config.traceEverything),
+		zap.Bool("debug", config.debug),
+		zap.String("cpuprofile", config.cpuprofile))
+
+	return config
+}
+
 func startGateway() {
 	// initialize the logger
 	logLevel, logger := getLogger()
@@ -220,51 +293,9 @@ func startGateway() {
 		}
 	}
 
-	logLevelStr := viper.GetString("log-level")
-	cbHost := viper.GetString("cb-host")
-	cbUser := viper.GetString("cb-user")
-	cbPass := viper.GetString("cb-pass")
-	bindAddress := viper.GetString("bind-address")
-	dataPort := viper.GetInt("data-port")
-	sdPort := viper.GetInt("sd-port")
-	webPort := viper.GetInt("web-port")
-	dapiPort := viper.GetInt("dapi-port")
-	selfSign := viper.GetBool("self-sign")
-	certPath := viper.GetString("cert")
-	keyPath := viper.GetString("key")
-	caCertPath := viper.GetString("cacert")
-	rateLimit := viper.GetInt("rate-limit")
-	otlpEndpoint := viper.GetString("otlp-endpoint")
-	disableOtlpTraces := viper.GetBool("disable-otlp-traces")
-	disableOtlpMetrics := viper.GetBool("disable-otlp-metrics")
-	traceEverything := viper.GetBool("trace-everything")
-	debug := viper.GetBool("debug")
-	cpuprofile := viper.GetString("cpuprofile")
+	config := readConfig(logger)
 
-	logger.Info("parsed gateway configuration",
-		zap.String("logLevelStr", logLevelStr),
-		zap.String("cbHost", cbHost),
-		zap.String("cbUser", cbUser),
-		// zap.String("cbPass", cbPass),
-		zap.String("bindAddress", bindAddress),
-		zap.Int("dataPort", dataPort),
-		zap.Int("sdPort", sdPort),
-		zap.Int("webPort", webPort),
-		zap.Int("dapiPort", dapiPort),
-		zap.Bool("selfSign", selfSign),
-		zap.String("certPath", certPath),
-		zap.String("keyPath", keyPath),
-		zap.String("cacertPath", caCertPath),
-		zap.Int("rateLimit", rateLimit),
-		zap.String("otlpEndpoint", otlpEndpoint),
-		zap.Bool("disableOtlpTraces", disableOtlpTraces),
-		zap.Bool("disableOtlpMetrics", disableOtlpMetrics),
-		zap.Bool("traceEverything", traceEverything),
-		zap.Bool("debug", debug),
-		zap.String("cpuprofile", cpuprofile),
-	)
-
-	parsedLogLevel, err := zapcore.ParseLevel(logLevelStr)
+	parsedLogLevel, err := zapcore.ParseLevel(config.logLevelStr)
 	if err != nil {
 		logger.Warn("invalid log level specified, using INFO instead")
 		parsedLogLevel = zapcore.InfoLevel
@@ -272,8 +303,8 @@ func startGateway() {
 	logLevel.SetLevel(parsedLogLevel)
 
 	// setup profiling
-	if cpuprofile != "" {
-		f, err := os.Create(cpuprofile)
+	if config.cpuprofile != "" {
+		f, err := os.Create(config.cpuprofile)
 		if err != nil {
 			logger.Error("failed to create cpu profile file", zap.Error(err))
 			os.Exit(1)
@@ -292,10 +323,10 @@ func startGateway() {
 	otlpTracerProvider, otlpMeterProvider, err :=
 		initTelemetry(context.Background(),
 			logger,
-			otlpEndpoint,
-			!disableOtlpTraces,
-			!disableOtlpMetrics,
-			traceEverything)
+			config.otlpEndpoint,
+			!config.disableOtlpTraces,
+			!config.disableOtlpMetrics,
+			config.traceEverything)
 	if err != nil {
 		logger.Error("failed to initialize opentelemetry tracing", zap.Error(err))
 		os.Exit(1)
@@ -310,7 +341,7 @@ func startGateway() {
 	}
 
 	// setup the web service
-	webListenAddress := fmt.Sprintf("%s:%v", bindAddress, webPort)
+	webListenAddress := fmt.Sprintf("%s:%v", config.bindAddress, config.webPort)
 	webapi.InitializeWebServer(webapi.WebServerOptions{
 		Logger:        logger,
 		LogLevel:      &logLevel,
@@ -318,8 +349,8 @@ func startGateway() {
 	})
 
 	var tlsCertificate tls.Certificate
-	if selfSign {
-		if certPath != "" || keyPath != "" {
+	if config.selfSign {
+		if config.certPath != "" || config.keyPath != "" {
 			logger.Error("cannot specify both self-sign along with a cert or key")
 			os.Exit(1)
 		}
@@ -332,12 +363,12 @@ func startGateway() {
 
 		tlsCertificate = *selfSignedCert
 	} else {
-		if certPath == "" || keyPath == "" {
+		if config.certPath == "" || config.keyPath == "" {
 			logger.Error("must specify both cert and key unless self-sign is specified")
 			os.Exit(1)
 		}
 
-		loadedTlsCertificate, err := tls.LoadX509KeyPair(certPath, keyPath)
+		loadedTlsCertificate, err := tls.LoadX509KeyPair(config.certPath, config.keyPath)
 		if err != nil {
 			logger.Error("failed to load tls certificate", zap.Error(err))
 			os.Exit(1)
@@ -348,16 +379,16 @@ func startGateway() {
 
 	gatewayConfig := &gateway.Config{
 		Logger:         logger.Named("gateway"),
-		CbConnStr:      cbHost,
-		Username:       cbUser,
-		Password:       cbPass,
+		CbConnStr:      config.cbHost,
+		Username:       config.cbUser,
+		Password:       config.cbPass,
 		Daemon:         daemon,
-		Debug:          debug,
-		BindDataPort:   dataPort,
-		BindSdPort:     sdPort,
-		BindDapiPort:   dapiPort,
-		BindAddress:    bindAddress,
-		RateLimit:      rateLimit,
+		Debug:          config.debug,
+		BindDataPort:   config.dataPort,
+		BindSdPort:     config.sdPort,
+		BindDapiPort:   config.dapiPort,
+		BindAddress:    config.bindAddress,
+		RateLimit:      config.rateLimit,
 		TlsCertificate: tlsCertificate,
 		NumInstances:   1,
 		StartupCallback: func(m *gateway.StartupInfo) {
@@ -371,32 +402,80 @@ func startGateway() {
 		os.Exit(1)
 	}
 
-	if watchCfgFile {
-		viper.OnConfigChange(func(in fsnotify.Event) {
-			err := viper.ReadInConfig()
-			if err != nil {
-				logger.Warn("a config file change was detected, but the config could not be parsed",
-					zap.Error(err))
-			}
+	var configLock sync.Mutex
+	reloadConfiguration := func() {
+		configLock.Lock()
+		defer configLock.Unlock()
 
-			newLogLevelStr := viper.GetString("log-level")
+		err := viper.ReadInConfig()
+		if err != nil {
+			logger.Warn("failed to parse configuration file",
+				zap.Error(err))
+		}
 
-			logger.Info("configuration file change detected",
-				zap.String("logLevelStr", newLogLevelStr))
+		newConfig := readConfig(logger)
 
-			newParsedLogLevel, err := zapcore.ParseLevel(newLogLevelStr)
+		if newConfig.cbHost != config.cbHost ||
+			newConfig.cbUser != config.cbUser ||
+			newConfig.cbPass != config.cbPass {
+			logger.Warn("config changes for cbHost, cbUser, or cbPass require a restart")
+		}
+
+		if newConfig.bindAddress != config.bindAddress ||
+			newConfig.dataPort != config.dataPort ||
+			newConfig.sdPort != config.sdPort ||
+			newConfig.dapiPort != config.dapiPort {
+			logger.Warn("config changes for bindAddress, dataPort, sdPort, or dapiPort require a restart")
+		}
+
+		if newConfig.selfSign != config.selfSign ||
+			newConfig.certPath != config.certPath ||
+			newConfig.keyPath != config.keyPath ||
+			newConfig.caCertPath != config.caCertPath {
+			logger.Warn("config changes for selfSign, certPath, keyPath, or caCertPath require a restart")
+		}
+
+		if newConfig.otlpEndpoint != config.otlpEndpoint ||
+			newConfig.disableOtlpTraces != config.disableOtlpTraces ||
+			newConfig.disableOtlpMetrics != config.disableOtlpMetrics ||
+			newConfig.traceEverything != config.traceEverything {
+			logger.Warn("config changes for otlpEndpoint, disableOtlpTraces, disableOtlpMetrics, or traceEverything require a restart")
+		}
+
+		if newConfig.debug != config.debug {
+			logger.Warn("config changes for debug require a restart")
+		}
+
+		if newConfig.cpuprofile != config.cpuprofile {
+			logger.Warn("config changes for cpuprofile require a restart")
+		}
+
+		if newConfig.logLevelStr != config.logLevelStr {
+			newParsedLogLevel, err := zapcore.ParseLevel(newConfig.logLevelStr)
 			if err != nil {
 				logger.Warn("invalid log level specified, using INFO instead")
 				newParsedLogLevel = zapcore.InfoLevel
 			}
 
-			if newParsedLogLevel != parsedLogLevel {
-				parsedLogLevel = newParsedLogLevel
-				logLevel.SetLevel(parsedLogLevel)
+			logLevel.SetLevel(newParsedLogLevel)
 
-				logger.Info("updated log level",
-					zap.String("newLevel", newParsedLogLevel.String()))
-			}
+			logger.Info("updated log level",
+				zap.String("newLevel", newParsedLogLevel.String()))
+		}
+
+		if newConfig.rateLimit != config.rateLimit {
+			gw.Reconfigure(&gateway.ReconfigureOptions{
+				RateLimit: newConfig.rateLimit,
+			})
+		}
+
+		config = newConfig
+	}
+
+	if watchCfgFile {
+		viper.OnConfigChange(func(in fsnotify.Event) {
+			logger.Info("configuration file change detected")
+			reloadConfiguration()
 		})
 
 		go viper.WatchConfig()
@@ -404,7 +483,7 @@ func startGateway() {
 
 	go func() {
 		sigCh := make(chan os.Signal, 10)
-		signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+		signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
 
 		beginGracefulShutdown := func() {
 			gw.Shutdown()
@@ -424,6 +503,9 @@ func startGateway() {
 			} else if sig == syscall.SIGTERM {
 				logger.Info("Received SIGTERM, attempting graceful shutdown...")
 				beginGracefulShutdown()
+			} else if sig == syscall.SIGHUP {
+				logger.Info("Received SIGHUP, reloading configuration...")
+				reloadConfiguration()
 			}
 		}
 	}()
