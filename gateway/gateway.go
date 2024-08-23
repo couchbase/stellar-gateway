@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -77,6 +78,9 @@ type Gateway struct {
 	isShutdown    atomic.Bool
 	shutdownSig   chan struct{}
 	atomicTlsCert atomic.Pointer[tls.Certificate]
+
+	reconfigureLock sync.Mutex
+	rateLimiters    []*ratelimiting.GlobalRateLimiter
 }
 
 func NewGateway(config *Config) (*Gateway, error) {
@@ -340,10 +344,7 @@ func (g *Gateway) Run(ctx context.Context) error {
 	}()
 
 	startInstance := func(ctx context.Context, instanceIdx int) error {
-		var rateLimiter ratelimiting.RateLimiter
-		if config.RateLimit > 0 {
-			rateLimiter = ratelimiting.NewGlobalRateLimiter(uint64(config.RateLimit), time.Second)
-		}
+		rateLimiter := ratelimiting.NewGlobalRateLimiter(uint64(config.RateLimit), time.Second)
 
 		dataImpl := dataimpl.New(&dataimpl.NewOptions{
 			Logger:           config.Logger.Named("data-impl"),
@@ -446,6 +447,10 @@ func (g *Gateway) Run(ctx context.Context) error {
 			gatewaySys.Shutdown()
 		}()
 
+		g.reconfigureLock.Lock()
+		g.rateLimiters = append(g.rateLimiters, rateLimiter)
+		g.reconfigureLock.Unlock()
+
 		config.Logger.Info("starting to run protostellar system",
 			zap.Int("advertisedPortPS", advertisePorts.PS),
 			zap.Int("advertisedPortSD", advertisePorts.SD),
@@ -518,6 +523,21 @@ func (g *Gateway) Run(ctx context.Context) error {
 
 			return err
 		}
+	}
+
+	return nil
+}
+
+type ReconfigureOptions struct {
+	RateLimit int
+}
+
+func (g *Gateway) Reconfigure(opts *ReconfigureOptions) error {
+	g.reconfigureLock.Lock()
+	defer g.reconfigureLock.Unlock()
+
+	for _, rateLimiter := range g.rateLimiters {
+		rateLimiter.ResetAndUpdateRateLimit(uint64(opts.RateLimit), time.Second)
 	}
 
 	return nil
