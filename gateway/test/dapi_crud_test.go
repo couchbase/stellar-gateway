@@ -55,7 +55,7 @@ func (s *GatewayOpsTestSuite) TestDapiCors() {
 	resp := s.sendTestHttpRequest(&testHttpRequest{
 		Method: http.MethodOptions,
 		Path: fmt.Sprintf(
-			"/v1/buckets/%s/scopes/%s/collections/%s/docs/%s",
+			"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
 			s.bucketName, s.scopeName, s.collectionName, docId,
 		),
 		Headers: map[string]string{
@@ -72,7 +72,7 @@ func (s *GatewayOpsTestSuite) TestDapiCors() {
 	resp = s.sendTestHttpRequest(&testHttpRequest{
 		Method: http.MethodPut,
 		Path: fmt.Sprintf(
-			"/v1/buckets/%s/scopes/%s/collections/%s/docs/%s",
+			"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
 			s.bucketName, s.scopeName, s.collectionName, docId,
 		),
 		Headers: map[string]string{
@@ -88,7 +88,7 @@ func (s *GatewayOpsTestSuite) TestDapiCors() {
 	resp = s.sendTestHttpRequest(&testHttpRequest{
 		Method: http.MethodGet,
 		Path: fmt.Sprintf(
-			"/v1/buckets/%s/scopes/%s/collections/%s/docs/%s",
+			"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
 			s.bucketName, s.scopeName, s.collectionName, docId,
 		),
 		Headers: map[string]string{
@@ -112,7 +112,7 @@ func (s *GatewayOpsTestSuite) TestDapiBasic() {
 		resp := s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
 			Path: fmt.Sprintf(
-				"/v1/buckets/%s/scopes/%s/collections/%s/docs/%s",
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
 				s.bucketName, s.scopeName, s.collectionName, docId,
 			),
 			Headers: map[string]string{
@@ -139,7 +139,7 @@ func (s *GatewayOpsTestSuite) TestDapiBasic() {
 		resp := s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodGet,
 			Path: fmt.Sprintf(
-				"/v1/buckets/%s/scopes/%s/collections/%s/docs/%s",
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
 				s.bucketName, s.scopeName, s.collectionName, docId,
 			),
 			Headers: map[string]string{
@@ -160,7 +160,7 @@ func (s *GatewayOpsTestSuite) TestDapiBasic() {
 		resp := s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPut,
 			Path: fmt.Sprintf(
-				"/v1/buckets/%s/scopes/%s/collections/%s/docs/%s",
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
 				s.bucketName, s.scopeName, s.collectionName, docId,
 			),
 			Headers: map[string]string{
@@ -187,7 +187,7 @@ func (s *GatewayOpsTestSuite) TestDapiBasic() {
 		resp := s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodDelete,
 			Path: fmt.Sprintf(
-				"/v1/buckets/%s/scopes/%s/collections/%s/docs/%s",
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
 				s.bucketName, s.scopeName, s.collectionName, docId,
 			),
 			Headers: map[string]string{

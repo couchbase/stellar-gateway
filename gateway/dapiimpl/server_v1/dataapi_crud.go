@@ -25,7 +25,7 @@ func (s *DataApiServer) GetDocument(
 		return nil, errSt.Err()
 	}
 
-	key, errSt := s.parseKey(in.DocKey)
+	key, errSt := s.parseKey(in.DocumentKey)
 	if errSt != nil {
 		return nil, errSt.Err()
 	}
@@ -81,9 +81,9 @@ func (s *DataApiServer) GetDocument(
 		result, err := bucketAgent.LookupIn(ctx, &opts)
 		if err != nil {
 			if errors.Is(err, memdx.ErrDocLocked) {
-				return nil, s.errorHandler.NewDocLockedStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.DocKey).Err()
+				return nil, s.errorHandler.NewDocLockedStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.DocumentKey).Err()
 			} else if errors.Is(err, memdx.ErrDocNotFound) {
-				return nil, s.errorHandler.NewDocMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.DocKey).Err()
+				return nil, s.errorHandler.NewDocMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.DocumentKey).Err()
 			} else if errors.Is(err, memdx.ErrUnknownCollectionName) {
 				return nil, s.errorHandler.NewCollectionMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
 			} else if errors.Is(err, memdx.ErrUnknownScopeName) {
@@ -148,7 +148,7 @@ func (s *DataApiServer) GetDocument(
 							s.logger.Debug("falling back to fulldoc projection due to ErrSubDocDocTooDeep")
 							return executeGet(true)
 						} else if errors.Is(op.Err, memdx.ErrSubDocNotJSON) {
-							return nil, s.errorHandler.NewSdDocNotJsonStatus(op.Err, in.BucketName, in.ScopeName, in.CollectionName, in.DocKey).Err()
+							return nil, s.errorHandler.NewSdDocNotJsonStatus(op.Err, in.BucketName, in.ScopeName, in.CollectionName, in.DocumentKey).Err()
 						} else if errors.Is(op.Err, memdx.ErrSubDocPathNotFound) {
 							// path not founds are skipped and not included in the
 							// output document rather than triggering errors.
@@ -156,7 +156,7 @@ func (s *DataApiServer) GetDocument(
 						} else if errors.Is(op.Err, memdx.ErrSubDocPathInvalid) {
 							return nil, s.errorHandler.NewSdPathInvalidStatus(op.Err, projectKeys[pathIdx]).Err()
 						} else if errors.Is(op.Err, memdx.ErrSubDocPathMismatch) {
-							return nil, s.errorHandler.NewSdPathMismatchStatus(op.Err, in.BucketName, in.ScopeName, in.CollectionName, in.DocKey, projectKeys[pathIdx]).Err()
+							return nil, s.errorHandler.NewSdPathMismatchStatus(op.Err, in.BucketName, in.ScopeName, in.CollectionName, in.DocumentKey, projectKeys[pathIdx]).Err()
 						} else if errors.Is(op.Err, memdx.ErrSubDocPathTooBig) {
 							s.logger.Debug("falling back to fulldoc projection due to ErrSubDocPathTooBig")
 							return executeGet(true)
@@ -232,7 +232,7 @@ func (s *DataApiServer) CreateDocument(
 		return nil, errSt.Err()
 	}
 
-	key, errSt := s.parseKey(in.DocKey)
+	key, errSt := s.parseKey(in.DocumentKey)
 	if errSt != nil {
 		return nil, errSt.Err()
 	}
@@ -297,7 +297,7 @@ func (s *DataApiServer) CreateDocument(
 	result, err := bucketAgent.Add(ctx, &opts)
 	if err != nil {
 		if errors.Is(err, memdx.ErrDocExists) {
-			return nil, s.errorHandler.NewDocExistsStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.DocKey).Err()
+			return nil, s.errorHandler.NewDocExistsStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.DocumentKey).Err()
 		} else if errors.Is(err, memdx.ErrUnknownCollectionName) {
 			return nil, s.errorHandler.NewCollectionMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
 		} else if errors.Is(err, memdx.ErrUnknownScopeName) {
@@ -305,7 +305,7 @@ func (s *DataApiServer) CreateDocument(
 		} else if errors.Is(err, memdx.ErrAccessError) {
 			return nil, s.errorHandler.NewCollectionNoWriteAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
 		} else if errors.Is(err, memdx.ErrValueTooLarge) {
-			return nil, s.errorHandler.NewValueTooLargeStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.DocKey, false).Err()
+			return nil, s.errorHandler.NewValueTooLargeStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.DocumentKey, false).Err()
 		}
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
@@ -326,7 +326,7 @@ func (s *DataApiServer) UpdateDocument(
 		return nil, errSt.Err()
 	}
 
-	key, errSt := s.parseKey(in.DocKey)
+	key, errSt := s.parseKey(in.DocumentKey)
 	if errSt != nil {
 		return nil, errSt.Err()
 	}
@@ -401,7 +401,7 @@ func (s *DataApiServer) UpdateDocument(
 	result, err := bucketAgent.Upsert(ctx, &opts)
 	if err != nil {
 		if errors.Is(err, memdx.ErrDocLocked) {
-			return nil, s.errorHandler.NewDocLockedStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.DocKey).Err()
+			return nil, s.errorHandler.NewDocLockedStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.DocumentKey).Err()
 		} else if errors.Is(err, memdx.ErrUnknownCollectionName) {
 			return nil, s.errorHandler.NewCollectionMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
 		} else if errors.Is(err, memdx.ErrUnknownScopeName) {
@@ -409,7 +409,7 @@ func (s *DataApiServer) UpdateDocument(
 		} else if errors.Is(err, memdx.ErrAccessError) {
 			return nil, s.errorHandler.NewCollectionNoWriteAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
 		} else if errors.Is(err, memdx.ErrValueTooLarge) {
-			return nil, s.errorHandler.NewValueTooLargeStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.DocKey, false).Err()
+			return nil, s.errorHandler.NewValueTooLargeStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.DocumentKey, false).Err()
 		}
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
@@ -430,7 +430,7 @@ func (s *DataApiServer) DeleteDocument(
 		return nil, errSt.Err()
 	}
 
-	key, errSt := s.parseKey(in.DocKey)
+	key, errSt := s.parseKey(in.DocumentKey)
 	if errSt != nil {
 		return nil, errSt.Err()
 	}
@@ -458,11 +458,11 @@ func (s *DataApiServer) DeleteDocument(
 	result, err := bucketAgent.Delete(ctx, &opts)
 	if err != nil {
 		if errors.Is(err, memdx.ErrCasMismatch) {
-			return nil, s.errorHandler.NewDocCasMismatchStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.DocKey).Err()
+			return nil, s.errorHandler.NewDocCasMismatchStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.DocumentKey).Err()
 		} else if errors.Is(err, memdx.ErrDocLocked) {
-			return nil, s.errorHandler.NewDocLockedStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.DocKey).Err()
+			return nil, s.errorHandler.NewDocLockedStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.DocumentKey).Err()
 		} else if errors.Is(err, memdx.ErrDocNotFound) {
-			return nil, s.errorHandler.NewDocMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.DocKey).Err()
+			return nil, s.errorHandler.NewDocMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.DocumentKey).Err()
 		} else if errors.Is(err, memdx.ErrUnknownCollectionName) {
 			return nil, s.errorHandler.NewCollectionMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
 		} else if errors.Is(err, memdx.ErrUnknownScopeName) {
