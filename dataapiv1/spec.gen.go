@@ -36,8 +36,11 @@ type DurabilityLevel string
 
 // DeleteDocumentParams defines parameters for DeleteDocument.
 type DeleteDocumentParams struct {
-	XCBDurabilityLevel *DurabilityLevel `form:"X-CB-DurabilityLevel,omitempty" json:"X-CB-DurabilityLevel,omitempty"`
-	IfMatch            *string          `json:"If-Match,omitempty"`
+	// IfMatch The CAS of the document to check before updating.
+	IfMatch *string `json:"If-Match,omitempty"`
+
+	// XCBDurabilityLevel The level of durability required for this write operation.
+	XCBDurabilityLevel *DurabilityLevel `json:"X-CB-DurabilityLevel,omitempty"`
 
 	// Authorization Header for authentication
 	Authorization string `json:"Authorization"`
@@ -45,7 +48,7 @@ type DeleteDocumentParams struct {
 
 // GetDocumentParams defines parameters for GetDocument.
 type GetDocumentParams struct {
-	// Project fields to project from the document
+	// Project Specific fields to project from the document.
 	Project *[]string `form:"project,omitempty" json:"project,omitempty"`
 
 	// AcceptEncoding The encoding of the document
@@ -57,11 +60,17 @@ type GetDocumentParams struct {
 
 // CreateDocumentParams defines parameters for CreateDocument.
 type CreateDocumentParams struct {
-	XCBDurabilityLevel *DurabilityLevel  `form:"X-CB-DurabilityLevel,omitempty" json:"X-CB-DurabilityLevel,omitempty"`
-	ContentEncoding    *DocumentEncoding `json:"Content-Encoding,omitempty"`
-	IfMatch            *string           `json:"If-Match,omitempty"`
-	Expires            *string           `json:"Expires,omitempty"`
-	XCBFlags           *uint32           `json:"X-CB-Flags,omitempty"`
+	// XCBDurabilityLevel The level of durability required for this write operation.
+	XCBDurabilityLevel *DurabilityLevel `form:"X-CB-DurabilityLevel,omitempty" json:"X-CB-DurabilityLevel,omitempty"`
+
+	// ContentEncoding The encoding of the document
+	ContentEncoding *DocumentEncoding `json:"Content-Encoding,omitempty"`
+
+	// Expires The expiry time of the document.
+	Expires *string `json:"Expires,omitempty"`
+
+	// XCBFlags The Flags of the document.
+	XCBFlags *uint32 `json:"X-CB-Flags,omitempty"`
 
 	// Authorization Header for authentication
 	Authorization string `json:"Authorization"`
@@ -69,11 +78,20 @@ type CreateDocumentParams struct {
 
 // UpdateDocumentParams defines parameters for UpdateDocument.
 type UpdateDocumentParams struct {
-	XCBDurabilityLevel *DurabilityLevel  `form:"X-CB-DurabilityLevel,omitempty" json:"X-CB-DurabilityLevel,omitempty"`
-	ContentEncoding    *DocumentEncoding `json:"Content-Encoding,omitempty"`
-	IfMatch            *string           `json:"If-Match,omitempty"`
-	Expires            *string           `json:"Expires,omitempty"`
-	XCBFlags           *uint32           `json:"X-CB-Flags,omitempty"`
+	// ContentEncoding The encoding of the document
+	ContentEncoding *DocumentEncoding `json:"Content-Encoding,omitempty"`
+
+	// IfMatch The CAS of the document to check before updating.
+	IfMatch *string `json:"If-Match,omitempty"`
+
+	// Expires The expiry time of the document.
+	Expires *string `json:"Expires,omitempty"`
+
+	// XCBFlags The Flags of the document.
+	XCBFlags *uint32 `json:"X-CB-Flags,omitempty"`
+
+	// XCBDurabilityLevel The level of durability required for this write operation.
+	XCBDurabilityLevel *DurabilityLevel `json:"X-CB-DurabilityLevel,omitempty"`
 
 	// Authorization Header for authentication
 	Authorization string `json:"Authorization"`
@@ -82,17 +100,17 @@ type UpdateDocumentParams struct {
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
 
-	// (DELETE /v1/buckets/{bucket_name}/scopes/{scope_name}/collections/{collection_name}/docs/{doc_key})
-	DeleteDocument(w http.ResponseWriter, r *http.Request, bucketName string, scopeName string, collectionName string, docKey string, params DeleteDocumentParams)
+	// (DELETE /v1/buckets/{bucketName}/scopes/{scopeName}/collections/{collectionName}/documents/{DocumentKey})
+	DeleteDocument(w http.ResponseWriter, r *http.Request, bucketName string, scopeName string, collectionName string, documentKey string, params DeleteDocumentParams)
 
-	// (GET /v1/buckets/{bucket_name}/scopes/{scope_name}/collections/{collection_name}/docs/{doc_key})
-	GetDocument(w http.ResponseWriter, r *http.Request, bucketName string, scopeName string, collectionName string, docKey string, params GetDocumentParams)
+	// (GET /v1/buckets/{bucketName}/scopes/{scopeName}/collections/{collectionName}/documents/{DocumentKey})
+	GetDocument(w http.ResponseWriter, r *http.Request, bucketName string, scopeName string, collectionName string, documentKey string, params GetDocumentParams)
 
-	// (POST /v1/buckets/{bucket_name}/scopes/{scope_name}/collections/{collection_name}/docs/{doc_key})
-	CreateDocument(w http.ResponseWriter, r *http.Request, bucketName string, scopeName string, collectionName string, docKey string, params CreateDocumentParams)
+	// (POST /v1/buckets/{bucketName}/scopes/{scopeName}/collections/{collectionName}/documents/{DocumentKey})
+	CreateDocument(w http.ResponseWriter, r *http.Request, bucketName string, scopeName string, collectionName string, documentKey string, params CreateDocumentParams)
 
-	// (PUT /v1/buckets/{bucket_name}/scopes/{scope_name}/collections/{collection_name}/docs/{doc_key})
-	UpdateDocument(w http.ResponseWriter, r *http.Request, bucketName string, scopeName string, collectionName string, docKey string, params UpdateDocumentParams)
+	// (PUT /v1/buckets/{bucketName}/scopes/{scopeName}/collections/{collectionName}/documents/{DocumentKey})
+	UpdateDocument(w http.ResponseWriter, r *http.Request, bucketName string, scopeName string, collectionName string, documentKey string, params UpdateDocumentParams)
 }
 
 // ServerInterfaceWrapper converts contexts to parameters.
@@ -110,52 +128,44 @@ func (siw *ServerInterfaceWrapper) DeleteDocument(w http.ResponseWriter, r *http
 
 	var err error
 
-	// ------------- Path parameter "bucket_name" -------------
+	// ------------- Path parameter "bucketName" -------------
 	var bucketName string
 
-	err = runtime.BindStyledParameterWithOptions("simple", "bucket_name", mux.Vars(r)["bucket_name"], &bucketName, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	err = runtime.BindStyledParameterWithOptions("simple", "bucketName", mux.Vars(r)["bucketName"], &bucketName, runtime.BindStyledParameterOptions{Explode: false, Required: true})
 	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "bucket_name", Err: err})
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "bucketName", Err: err})
 		return
 	}
 
-	// ------------- Path parameter "scope_name" -------------
+	// ------------- Path parameter "scopeName" -------------
 	var scopeName string
 
-	err = runtime.BindStyledParameterWithOptions("simple", "scope_name", mux.Vars(r)["scope_name"], &scopeName, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	err = runtime.BindStyledParameterWithOptions("simple", "scopeName", mux.Vars(r)["scopeName"], &scopeName, runtime.BindStyledParameterOptions{Explode: false, Required: true})
 	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "scope_name", Err: err})
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "scopeName", Err: err})
 		return
 	}
 
-	// ------------- Path parameter "collection_name" -------------
+	// ------------- Path parameter "collectionName" -------------
 	var collectionName string
 
-	err = runtime.BindStyledParameterWithOptions("simple", "collection_name", mux.Vars(r)["collection_name"], &collectionName, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	err = runtime.BindStyledParameterWithOptions("simple", "collectionName", mux.Vars(r)["collectionName"], &collectionName, runtime.BindStyledParameterOptions{Explode: false, Required: true})
 	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "collection_name", Err: err})
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "collectionName", Err: err})
 		return
 	}
 
-	// ------------- Path parameter "doc_key" -------------
-	var docKey string
+	// ------------- Path parameter "DocumentKey" -------------
+	var documentKey string
 
-	err = runtime.BindStyledParameterWithOptions("simple", "doc_key", mux.Vars(r)["doc_key"], &docKey, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	err = runtime.BindStyledParameterWithOptions("simple", "DocumentKey", mux.Vars(r)["DocumentKey"], &documentKey, runtime.BindStyledParameterOptions{Explode: false, Required: true})
 	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "doc_key", Err: err})
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "DocumentKey", Err: err})
 		return
 	}
 
 	// Parameter object where we will unmarshal all parameters from the context
 	var params DeleteDocumentParams
-
-	// ------------- Optional query parameter "X-CB-DurabilityLevel" -------------
-
-	err = runtime.BindQueryParameter("form", true, false, "X-CB-DurabilityLevel", r.URL.Query(), &params.XCBDurabilityLevel)
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-CB-DurabilityLevel", Err: err})
-		return
-	}
 
 	headers := r.Header
 
@@ -175,6 +185,25 @@ func (siw *ServerInterfaceWrapper) DeleteDocument(w http.ResponseWriter, r *http
 		}
 
 		params.IfMatch = &IfMatch
+
+	}
+
+	// ------------- Optional header parameter "X-CB-DurabilityLevel" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-CB-DurabilityLevel")]; found {
+		var XCBDurabilityLevel DurabilityLevel
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-CB-DurabilityLevel", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-CB-DurabilityLevel", valueList[0], &XCBDurabilityLevel, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-CB-DurabilityLevel", Err: err})
+			return
+		}
+
+		params.XCBDurabilityLevel = &XCBDurabilityLevel
 
 	}
 
@@ -202,7 +231,7 @@ func (siw *ServerInterfaceWrapper) DeleteDocument(w http.ResponseWriter, r *http
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.DeleteDocument(w, r, bucketName, scopeName, collectionName, docKey, params)
+		siw.Handler.DeleteDocument(w, r, bucketName, scopeName, collectionName, documentKey, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -218,39 +247,39 @@ func (siw *ServerInterfaceWrapper) GetDocument(w http.ResponseWriter, r *http.Re
 
 	var err error
 
-	// ------------- Path parameter "bucket_name" -------------
+	// ------------- Path parameter "bucketName" -------------
 	var bucketName string
 
-	err = runtime.BindStyledParameterWithOptions("simple", "bucket_name", mux.Vars(r)["bucket_name"], &bucketName, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	err = runtime.BindStyledParameterWithOptions("simple", "bucketName", mux.Vars(r)["bucketName"], &bucketName, runtime.BindStyledParameterOptions{Explode: false, Required: true})
 	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "bucket_name", Err: err})
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "bucketName", Err: err})
 		return
 	}
 
-	// ------------- Path parameter "scope_name" -------------
+	// ------------- Path parameter "scopeName" -------------
 	var scopeName string
 
-	err = runtime.BindStyledParameterWithOptions("simple", "scope_name", mux.Vars(r)["scope_name"], &scopeName, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	err = runtime.BindStyledParameterWithOptions("simple", "scopeName", mux.Vars(r)["scopeName"], &scopeName, runtime.BindStyledParameterOptions{Explode: false, Required: true})
 	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "scope_name", Err: err})
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "scopeName", Err: err})
 		return
 	}
 
-	// ------------- Path parameter "collection_name" -------------
+	// ------------- Path parameter "collectionName" -------------
 	var collectionName string
 
-	err = runtime.BindStyledParameterWithOptions("simple", "collection_name", mux.Vars(r)["collection_name"], &collectionName, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	err = runtime.BindStyledParameterWithOptions("simple", "collectionName", mux.Vars(r)["collectionName"], &collectionName, runtime.BindStyledParameterOptions{Explode: false, Required: true})
 	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "collection_name", Err: err})
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "collectionName", Err: err})
 		return
 	}
 
-	// ------------- Path parameter "doc_key" -------------
-	var docKey string
+	// ------------- Path parameter "DocumentKey" -------------
+	var documentKey string
 
-	err = runtime.BindStyledParameterWithOptions("simple", "doc_key", mux.Vars(r)["doc_key"], &docKey, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	err = runtime.BindStyledParameterWithOptions("simple", "DocumentKey", mux.Vars(r)["DocumentKey"], &documentKey, runtime.BindStyledParameterOptions{Explode: false, Required: true})
 	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "doc_key", Err: err})
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "DocumentKey", Err: err})
 		return
 	}
 
@@ -310,7 +339,7 @@ func (siw *ServerInterfaceWrapper) GetDocument(w http.ResponseWriter, r *http.Re
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetDocument(w, r, bucketName, scopeName, collectionName, docKey, params)
+		siw.Handler.GetDocument(w, r, bucketName, scopeName, collectionName, documentKey, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -326,39 +355,39 @@ func (siw *ServerInterfaceWrapper) CreateDocument(w http.ResponseWriter, r *http
 
 	var err error
 
-	// ------------- Path parameter "bucket_name" -------------
+	// ------------- Path parameter "bucketName" -------------
 	var bucketName string
 
-	err = runtime.BindStyledParameterWithOptions("simple", "bucket_name", mux.Vars(r)["bucket_name"], &bucketName, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	err = runtime.BindStyledParameterWithOptions("simple", "bucketName", mux.Vars(r)["bucketName"], &bucketName, runtime.BindStyledParameterOptions{Explode: false, Required: true})
 	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "bucket_name", Err: err})
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "bucketName", Err: err})
 		return
 	}
 
-	// ------------- Path parameter "scope_name" -------------
+	// ------------- Path parameter "scopeName" -------------
 	var scopeName string
 
-	err = runtime.BindStyledParameterWithOptions("simple", "scope_name", mux.Vars(r)["scope_name"], &scopeName, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	err = runtime.BindStyledParameterWithOptions("simple", "scopeName", mux.Vars(r)["scopeName"], &scopeName, runtime.BindStyledParameterOptions{Explode: false, Required: true})
 	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "scope_name", Err: err})
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "scopeName", Err: err})
 		return
 	}
 
-	// ------------- Path parameter "collection_name" -------------
+	// ------------- Path parameter "collectionName" -------------
 	var collectionName string
 
-	err = runtime.BindStyledParameterWithOptions("simple", "collection_name", mux.Vars(r)["collection_name"], &collectionName, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	err = runtime.BindStyledParameterWithOptions("simple", "collectionName", mux.Vars(r)["collectionName"], &collectionName, runtime.BindStyledParameterOptions{Explode: false, Required: true})
 	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "collection_name", Err: err})
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "collectionName", Err: err})
 		return
 	}
 
-	// ------------- Path parameter "doc_key" -------------
-	var docKey string
+	// ------------- Path parameter "DocumentKey" -------------
+	var documentKey string
 
-	err = runtime.BindStyledParameterWithOptions("simple", "doc_key", mux.Vars(r)["doc_key"], &docKey, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	err = runtime.BindStyledParameterWithOptions("simple", "DocumentKey", mux.Vars(r)["DocumentKey"], &documentKey, runtime.BindStyledParameterOptions{Explode: false, Required: true})
 	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "doc_key", Err: err})
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "DocumentKey", Err: err})
 		return
 	}
 
@@ -394,25 +423,6 @@ func (siw *ServerInterfaceWrapper) CreateDocument(w http.ResponseWriter, r *http
 
 	}
 
-	// ------------- Optional header parameter "If-Match" -------------
-	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
-		var IfMatch string
-		n := len(valueList)
-		if n != 1 {
-			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
-			return
-		}
-
-		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false})
-		if err != nil {
-			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
-			return
-		}
-
-		params.IfMatch = &IfMatch
-
-	}
-
 	// ------------- Optional header parameter "Expires" -------------
 	if valueList, found := headers[http.CanonicalHeaderKey("Expires")]; found {
 		var Expires string
@@ -475,7 +485,7 @@ func (siw *ServerInterfaceWrapper) CreateDocument(w http.ResponseWriter, r *http
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.CreateDocument(w, r, bucketName, scopeName, collectionName, docKey, params)
+		siw.Handler.CreateDocument(w, r, bucketName, scopeName, collectionName, documentKey, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -491,52 +501,44 @@ func (siw *ServerInterfaceWrapper) UpdateDocument(w http.ResponseWriter, r *http
 
 	var err error
 
-	// ------------- Path parameter "bucket_name" -------------
+	// ------------- Path parameter "bucketName" -------------
 	var bucketName string
 
-	err = runtime.BindStyledParameterWithOptions("simple", "bucket_name", mux.Vars(r)["bucket_name"], &bucketName, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	err = runtime.BindStyledParameterWithOptions("simple", "bucketName", mux.Vars(r)["bucketName"], &bucketName, runtime.BindStyledParameterOptions{Explode: false, Required: true})
 	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "bucket_name", Err: err})
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "bucketName", Err: err})
 		return
 	}
 
-	// ------------- Path parameter "scope_name" -------------
+	// ------------- Path parameter "scopeName" -------------
 	var scopeName string
 
-	err = runtime.BindStyledParameterWithOptions("simple", "scope_name", mux.Vars(r)["scope_name"], &scopeName, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	err = runtime.BindStyledParameterWithOptions("simple", "scopeName", mux.Vars(r)["scopeName"], &scopeName, runtime.BindStyledParameterOptions{Explode: false, Required: true})
 	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "scope_name", Err: err})
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "scopeName", Err: err})
 		return
 	}
 
-	// ------------- Path parameter "collection_name" -------------
+	// ------------- Path parameter "collectionName" -------------
 	var collectionName string
 
-	err = runtime.BindStyledParameterWithOptions("simple", "collection_name", mux.Vars(r)["collection_name"], &collectionName, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	err = runtime.BindStyledParameterWithOptions("simple", "collectionName", mux.Vars(r)["collectionName"], &collectionName, runtime.BindStyledParameterOptions{Explode: false, Required: true})
 	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "collection_name", Err: err})
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "collectionName", Err: err})
 		return
 	}
 
-	// ------------- Path parameter "doc_key" -------------
-	var docKey string
+	// ------------- Path parameter "DocumentKey" -------------
+	var documentKey string
 
-	err = runtime.BindStyledParameterWithOptions("simple", "doc_key", mux.Vars(r)["doc_key"], &docKey, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	err = runtime.BindStyledParameterWithOptions("simple", "DocumentKey", mux.Vars(r)["DocumentKey"], &documentKey, runtime.BindStyledParameterOptions{Explode: false, Required: true})
 	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "doc_key", Err: err})
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "DocumentKey", Err: err})
 		return
 	}
 
 	// Parameter object where we will unmarshal all parameters from the context
 	var params UpdateDocumentParams
-
-	// ------------- Optional query parameter "X-CB-DurabilityLevel" -------------
-
-	err = runtime.BindQueryParameter("form", true, false, "X-CB-DurabilityLevel", r.URL.Query(), &params.XCBDurabilityLevel)
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-CB-DurabilityLevel", Err: err})
-		return
-	}
 
 	headers := r.Header
 
@@ -616,6 +618,25 @@ func (siw *ServerInterfaceWrapper) UpdateDocument(w http.ResponseWriter, r *http
 
 	}
 
+	// ------------- Optional header parameter "X-CB-DurabilityLevel" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-CB-DurabilityLevel")]; found {
+		var XCBDurabilityLevel DurabilityLevel
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-CB-DurabilityLevel", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-CB-DurabilityLevel", valueList[0], &XCBDurabilityLevel, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-CB-DurabilityLevel", Err: err})
+			return
+		}
+
+		params.XCBDurabilityLevel = &XCBDurabilityLevel
+
+	}
+
 	// ------------- Required header parameter "Authorization" -------------
 	if valueList, found := headers[http.CanonicalHeaderKey("Authorization")]; found {
 		var Authorization string
@@ -640,7 +661,7 @@ func (siw *ServerInterfaceWrapper) UpdateDocument(w http.ResponseWriter, r *http
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.UpdateDocument(w, r, bucketName, scopeName, collectionName, docKey, params)
+		siw.Handler.UpdateDocument(w, r, bucketName, scopeName, collectionName, documentKey, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -763,22 +784,22 @@ func HandlerWithOptions(si ServerInterface, options GorillaServerOptions) http.H
 		ErrorHandlerFunc:   options.ErrorHandlerFunc,
 	}
 
-	r.HandleFunc(options.BaseURL+"/v1/buckets/{bucket_name}/scopes/{scope_name}/collections/{collection_name}/docs/{doc_key}", wrapper.DeleteDocument).Methods("DELETE")
+	r.HandleFunc(options.BaseURL+"/v1/buckets/{bucketName}/scopes/{scopeName}/collections/{collectionName}/documents/{DocumentKey}", wrapper.DeleteDocument).Methods("DELETE")
 
-	r.HandleFunc(options.BaseURL+"/v1/buckets/{bucket_name}/scopes/{scope_name}/collections/{collection_name}/docs/{doc_key}", wrapper.GetDocument).Methods("GET")
+	r.HandleFunc(options.BaseURL+"/v1/buckets/{bucketName}/scopes/{scopeName}/collections/{collectionName}/documents/{DocumentKey}", wrapper.GetDocument).Methods("GET")
 
-	r.HandleFunc(options.BaseURL+"/v1/buckets/{bucket_name}/scopes/{scope_name}/collections/{collection_name}/docs/{doc_key}", wrapper.CreateDocument).Methods("POST")
+	r.HandleFunc(options.BaseURL+"/v1/buckets/{bucketName}/scopes/{scopeName}/collections/{collectionName}/documents/{DocumentKey}", wrapper.CreateDocument).Methods("POST")
 
-	r.HandleFunc(options.BaseURL+"/v1/buckets/{bucket_name}/scopes/{scope_name}/collections/{collection_name}/docs/{doc_key}", wrapper.UpdateDocument).Methods("PUT")
+	r.HandleFunc(options.BaseURL+"/v1/buckets/{bucketName}/scopes/{scopeName}/collections/{collectionName}/documents/{DocumentKey}", wrapper.UpdateDocument).Methods("PUT")
 
 	return r
 }
 
 type DeleteDocumentRequestObject struct {
-	BucketName     string `json:"bucket_name"`
-	ScopeName      string `json:"scope_name"`
-	CollectionName string `json:"collection_name"`
-	DocKey         string `json:"doc_key"`
+	BucketName     string `json:"bucketName"`
+	ScopeName      string `json:"scopeName"`
+	CollectionName string `json:"collectionName"`
+	DocumentKey    string `json:"DocumentKey"`
 	Params         DeleteDocumentParams
 }
 
@@ -803,10 +824,10 @@ func (response DeleteDocument200Response) VisitDeleteDocumentResponse(w http.Res
 }
 
 type GetDocumentRequestObject struct {
-	BucketName     string `json:"bucket_name"`
-	ScopeName      string `json:"scope_name"`
-	CollectionName string `json:"collection_name"`
-	DocKey         string `json:"doc_key"`
+	BucketName     string `json:"bucketName"`
+	ScopeName      string `json:"scopeName"`
+	CollectionName string `json:"collectionName"`
+	DocumentKey    string `json:"DocumentKey"`
 	Params         GetDocumentParams
 }
 
@@ -847,10 +868,10 @@ func (response GetDocument200AsteriskResponse) VisitGetDocumentResponse(w http.R
 }
 
 type CreateDocumentRequestObject struct {
-	BucketName     string `json:"bucket_name"`
-	ScopeName      string `json:"scope_name"`
-	CollectionName string `json:"collection_name"`
-	DocKey         string `json:"doc_key"`
+	BucketName     string `json:"bucketName"`
+	ScopeName      string `json:"scopeName"`
+	CollectionName string `json:"collectionName"`
+	DocumentKey    string `json:"DocumentKey"`
 	Params         CreateDocumentParams
 	ContentType    string
 	Body           io.Reader
@@ -877,10 +898,10 @@ func (response CreateDocument200Response) VisitCreateDocumentResponse(w http.Res
 }
 
 type UpdateDocumentRequestObject struct {
-	BucketName     string `json:"bucket_name"`
-	ScopeName      string `json:"scope_name"`
-	CollectionName string `json:"collection_name"`
-	DocKey         string `json:"doc_key"`
+	BucketName     string `json:"bucketName"`
+	ScopeName      string `json:"scopeName"`
+	CollectionName string `json:"collectionName"`
+	DocumentKey    string `json:"DocumentKey"`
 	Params         UpdateDocumentParams
 	ContentType    string
 	Body           io.Reader
@@ -909,16 +930,16 @@ func (response UpdateDocument200Response) VisitUpdateDocumentResponse(w http.Res
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
 
-	// (DELETE /v1/buckets/{bucket_name}/scopes/{scope_name}/collections/{collection_name}/docs/{doc_key})
+	// (DELETE /v1/buckets/{bucketName}/scopes/{scopeName}/collections/{collectionName}/documents/{DocumentKey})
 	DeleteDocument(ctx context.Context, request DeleteDocumentRequestObject) (DeleteDocumentResponseObject, error)
 
-	// (GET /v1/buckets/{bucket_name}/scopes/{scope_name}/collections/{collection_name}/docs/{doc_key})
+	// (GET /v1/buckets/{bucketName}/scopes/{scopeName}/collections/{collectionName}/documents/{DocumentKey})
 	GetDocument(ctx context.Context, request GetDocumentRequestObject) (GetDocumentResponseObject, error)
 
-	// (POST /v1/buckets/{bucket_name}/scopes/{scope_name}/collections/{collection_name}/docs/{doc_key})
+	// (POST /v1/buckets/{bucketName}/scopes/{scopeName}/collections/{collectionName}/documents/{DocumentKey})
 	CreateDocument(ctx context.Context, request CreateDocumentRequestObject) (CreateDocumentResponseObject, error)
 
-	// (PUT /v1/buckets/{bucket_name}/scopes/{scope_name}/collections/{collection_name}/docs/{doc_key})
+	// (PUT /v1/buckets/{bucketName}/scopes/{scopeName}/collections/{collectionName}/documents/{DocumentKey})
 	UpdateDocument(ctx context.Context, request UpdateDocumentRequestObject) (UpdateDocumentResponseObject, error)
 }
 
@@ -952,13 +973,13 @@ type strictHandler struct {
 }
 
 // DeleteDocument operation middleware
-func (sh *strictHandler) DeleteDocument(w http.ResponseWriter, r *http.Request, bucketName string, scopeName string, collectionName string, docKey string, params DeleteDocumentParams) {
+func (sh *strictHandler) DeleteDocument(w http.ResponseWriter, r *http.Request, bucketName string, scopeName string, collectionName string, documentKey string, params DeleteDocumentParams) {
 	var request DeleteDocumentRequestObject
 
 	request.BucketName = bucketName
 	request.ScopeName = scopeName
 	request.CollectionName = collectionName
-	request.DocKey = docKey
+	request.DocumentKey = documentKey
 	request.Params = params
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
@@ -982,13 +1003,13 @@ func (sh *strictHandler) DeleteDocument(w http.ResponseWriter, r *http.Request, 
 }
 
 // GetDocument operation middleware
-func (sh *strictHandler) GetDocument(w http.ResponseWriter, r *http.Request, bucketName string, scopeName string, collectionName string, docKey string, params GetDocumentParams) {
+func (sh *strictHandler) GetDocument(w http.ResponseWriter, r *http.Request, bucketName string, scopeName string, collectionName string, documentKey string, params GetDocumentParams) {
 	var request GetDocumentRequestObject
 
 	request.BucketName = bucketName
 	request.ScopeName = scopeName
 	request.CollectionName = collectionName
-	request.DocKey = docKey
+	request.DocumentKey = documentKey
 	request.Params = params
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
@@ -1012,13 +1033,13 @@ func (sh *strictHandler) GetDocument(w http.ResponseWriter, r *http.Request, buc
 }
 
 // CreateDocument operation middleware
-func (sh *strictHandler) CreateDocument(w http.ResponseWriter, r *http.Request, bucketName string, scopeName string, collectionName string, docKey string, params CreateDocumentParams) {
+func (sh *strictHandler) CreateDocument(w http.ResponseWriter, r *http.Request, bucketName string, scopeName string, collectionName string, documentKey string, params CreateDocumentParams) {
 	var request CreateDocumentRequestObject
 
 	request.BucketName = bucketName
 	request.ScopeName = scopeName
 	request.CollectionName = collectionName
-	request.DocKey = docKey
+	request.DocumentKey = documentKey
 	request.Params = params
 	request.ContentType = r.Header.Get("Content-Type")
 
@@ -1045,13 +1066,13 @@ func (sh *strictHandler) CreateDocument(w http.ResponseWriter, r *http.Request, 
 }
 
 // UpdateDocument operation middleware
-func (sh *strictHandler) UpdateDocument(w http.ResponseWriter, r *http.Request, bucketName string, scopeName string, collectionName string, docKey string, params UpdateDocumentParams) {
+func (sh *strictHandler) UpdateDocument(w http.ResponseWriter, r *http.Request, bucketName string, scopeName string, collectionName string, documentKey string, params UpdateDocumentParams) {
 	var request UpdateDocumentRequestObject
 
 	request.BucketName = bucketName
 	request.ScopeName = scopeName
 	request.CollectionName = collectionName
-	request.DocKey = docKey
+	request.DocumentKey = documentKey
 	request.Params = params
 	request.ContentType = r.Header.Get("Content-Type")
 

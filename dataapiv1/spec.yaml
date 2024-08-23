@@ -1,55 +1,55 @@
 openapi: "3.0.0"
 info:
   version: 1.0.0
-  title: Minimal Couchbase Data API
+  title: Couchbase Data API
 paths:
-  '/v1/buckets/{bucket_name}/scopes/{scope_name}/collections/{collection_name}/docs/{doc_key}':
+  '/v1/buckets/{bucketName}/scopes/{scopeName}/collections/{collectionName}/documents/{DocumentKey}':
     parameters:
-      - name: Authorization
-        in: header
-        schema:
-          type: string
-        required: true
+      - in: header
+        name: Authorization
         description: Header for authentication
-      - name: bucket_name
-        in: path
         schema:
           type: string
         required: true
+      - in: path
+        name: bucketName
         description: name of the bucket containing the document
-      - name: scope_name
-        in: path
         schema:
           type: string
         required: true
+      - in: path
+        name: scopeName
         description: name of the scope containing the document
-      - name: collection_name
-        in: path
         schema:
           type: string
         required: true
+      - in: path
+        name: collectionName
         description: name of the collection containing the document
-      - name: doc_key
-        in: path
         schema:
           type: string
         required: true
+      - in: path
+        name: DocumentKey
         description: name of the document
+        schema:
+          type: string
+        required: true
     get:
       operationId: getDocument
       tags:
         - Single Document Operations
       parameters:
-        - name: Accept-Encoding
-          in: header
+        - in: header
+          name: Accept-Encoding
           description: The encoding of the document
           schema:
             type: array
             items:
               $ref: '#/components/schemas/DocumentEncoding'
-        - name: project
-          in: query
-          description: fields to project from the document
+        - in: query
+          name: project
+          description: Specific fields to project from the document.
           required: false
           style: form
           explode: false
@@ -62,22 +62,22 @@ paths:
           description: Successful fetch of the document
           headers:
             Content-Encoding:
+              description: The encoding of the document
               schema:
                 $ref: '#/components/schemas/DocumentEncoding'
-              description: The encoding of the document
             ETag:
-              schema:
-                type: string
               description: The CAS of the document.
-            Expires:
               schema:
                 type: string
-              description: The expiry time of the document.
+            Expires:
+              description: The expiry time of the document represented as an ISO8601 string.
+              schema:
+                type: string
             X-CB-Flags:
+              description: The Flags of the document.
               schema:
                 type: integer
                 format: uint32
-              description: The Flags of the document.
           content:
             '*':
               schema:
@@ -88,25 +88,25 @@ paths:
       tags:
         - Single Document Operations
       parameters:
-        - name: Content-Encoding
-          in: header
+        - in: header
+          name: Content-Encoding
+          description: The encoding of the document
           schema:
             $ref: '#/components/schemas/DocumentEncoding'
-        - name: If-Match
-          in: header
+        - in: header
+          name: Expires
+          description: The expiry time of the document.
           schema:
             type: string
-        - name: Expires
-          in: header
-          schema:
-            type: string
-        - name: X-CB-Flags
-          in: header
+        - in: header
+          name: X-CB-Flags
+          description: The Flags of the document.
           schema:
             type: integer
             format: uint32
-        - name: X-CB-DurabilityLevel
-          in: query
+        - in: query
+          name: X-CB-DurabilityLevel
+          description: The level of durability required for this write operation.
           schema:
             $ref: '#/components/schemas/DurabilityLevel'
       requestBody:
@@ -123,33 +123,40 @@ paths:
             ETag:
               schema:
                 type: string
+              description: The CAS of the document.
             X-CB-MutationToken:
               schema:
                 type: string
+              description: A token representing the mutation of the document.
     put:
       operationId: updateDocument
       tags:
         - Single Document Operations
       parameters:
-        - name: Content-Encoding
-          in: header
+        - in: header
+          name: Content-Encoding
+          description: The encoding of the document
           schema:
             $ref: '#/components/schemas/DocumentEncoding'
-        - name: If-Match
-          in: header
+        - in: header
+          name: If-Match
+          description: The CAS of the document to check before updating.
           schema:
             type: string
-        - name: Expires
-          in: header
+        - in: header
+          name: Expires
+          description: The expiry time of the document.
           schema:
             type: string
-        - name: X-CB-Flags
-          in: header
+        - in: header
+          name: X-CB-Flags
+          description: The Flags of the document.
           schema:
             type: integer
             format: uint32
-        - name: X-CB-DurabilityLevel
-          in: query
+        - in: header
+          name: X-CB-DurabilityLevel
+          description: The level of durability required for this write operation.
           schema:
             $ref: '#/components/schemas/DurabilityLevel'
       requestBody:
@@ -172,12 +179,14 @@ paths:
       tags:
         - Single Document Operations
       parameters:
-        - name: If-Match
-          in: header
+        - in: header
+          name: If-Match
+          description: The CAS of the document to check before updating.
           schema:
             type: string
-        - name: X-CB-DurabilityLevel
-          in: query
+        - in: header
+          name: X-CB-DurabilityLevel
+          description: The level of durability required for this write operation.
           schema:
             $ref: '#/components/schemas/DurabilityLevel'
       responses:
