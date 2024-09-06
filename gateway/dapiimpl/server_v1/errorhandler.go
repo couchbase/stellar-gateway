@@ -41,8 +41,8 @@ type Status struct {
 	DebugMessage   string `json:"debug,omitempty"`
 }
 
-func (e *Status) Err() error {
-	return &StatusError{S: *e}
+func (e Status) Err() error {
+	return &StatusError{S: e}
 }
 
 type ErrorHandler struct {
@@ -404,5 +404,29 @@ func (e ErrorHandler) NewDocCasMismatchStatus(baseErr error, bucketName, scopeNa
 		FailureSubject: fmt.Sprintf("%s/%s/%s/%s", bucketName, scopeName, collectionName, docId),
 	}
 	st = e.tryAttachExtraContext(st, baseErr)
+	return st
+}
+
+func (e ErrorHandler) NewTooFewOperationsError() *Status {
+	st := &Status{
+		StatusCode: http.StatusBadRequest,
+		Message:    "Must specify at least one operation.",
+	}
+	return st
+}
+
+func (e ErrorHandler) NewInvalidOperationTypeError(opIndex int) *Status {
+	st := &Status{
+		StatusCode: http.StatusBadRequest,
+		Message:    fmt.Sprintf("Operation type not specified for operation at index %d.", opIndex),
+	}
+	return st
+}
+
+func (e ErrorHandler) NewInvalidStoreSemanticError() *Status {
+	st := &Status{
+		StatusCode: http.StatusBadRequest,
+		Message:    "Invalid store semantic specified.",
+	}
 	return st
 }

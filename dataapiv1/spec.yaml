@@ -109,12 +109,113 @@ paths:
               $ref: "#/components/headers/ETag"
             X-CB-MutationToken:
               $ref: "#/components/headers/MutationToken"
+  '/v1/buckets/{bucketName}/scopes/{scopeName}/collections/{collectionName}/documents/{documentKey}/lookup':
+    parameters:
+      - $ref: '#/components/parameters/AuthorizationHeader'
+      - $ref: '#/components/parameters/BucketName'
+      - $ref: '#/components/parameters/ScopeName'
+      - $ref: '#/components/parameters/CollectionName'
+      - $ref: '#/components/parameters/DocumentKey'
+    post:
+      operationId: lookupInDocument
+      tags:
+        - Sub-Document Operations
+      requestBody:
+        required: true
+        content:
+         'application/json':
+            schema:
+              type: object
+              properties:
+                operations:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/LookupInOperation'
+      responses:
+        '200':
+          description: Successful performed the operation.
+          headers:
+            ETag:
+              $ref: "#/components/headers/ETag"
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LookupInOperationResult'
+  '/v1/buckets/{bucketName}/scopes/{scopeName}/collections/{collectionName}/documents/{documentKey}/mutate':
+    parameters:
+      - $ref: '#/components/parameters/AuthorizationHeader'
+      - $ref: '#/components/parameters/BucketName'
+      - $ref: '#/components/parameters/ScopeName'
+      - $ref: '#/components/parameters/CollectionName'
+      - $ref: '#/components/parameters/DocumentKey'
+    post:
+      operationId: mutateInDocument
+      tags:
+        - Sub-Document Operations
+      parameters:
+        - $ref: '#/components/parameters/IfMatchHeader'
+        - $ref: '#/components/parameters/ExpiresHeader'
+        - $ref: '#/components/parameters/DurabilityLevelHeader'
+      requestBody:
+        required: true
+        content:
+         'application/json':
+            schema:
+              type: object
+              properties:
+                operations:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/MutateInOperation"
+                storeSemantic:
+                  $ref: '#/components/schemas/StoreSemantic'
+      responses:
+        '200':
+          description: Successful updated the document.
+          headers:
+            ETag:
+              $ref: "#/components/headers/ETag"
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MutateInOperationResult"
 components:
   securitySchemes:
     BasicAuth:
       type: http
       scheme: basic
   schemas:
+    LookupInOperation:
+      type: object
+      properties:
+        operation:
+          $ref: '#/components/schemas/LookupInOperationType'
+        path:
+          description: That path within the document to perform the operation on.
+          type: string
+    LookupInOperationResult:
+      type: object
+      properties:
+        value: {}
+        error:
+          type: string # TODO(brett19): Need to add better error info here
+    MutateInOperation:
+      type: object
+      properties:
+        operation:
+          $ref: '#/components/schemas/MutateInOperationType'
+        path:
+          description: That path within the document to perform the operation on.
+          type: string
+        value: {}
+    MutateInOperationResult:
+      type: object
+      properties:
+        value: {}
     DocumentEncoding:
       title: DocumentEncoding
       description: DocumentEncoding specifies the compression used for the the document.
@@ -139,6 +240,54 @@ components:
         - DurabilityLevelMajority
         - DurabilityLevelMajorityAndPersistOnMaster
         - DurabilityLevelPersitToMajority
+    StoreSemantic:
+      title: StoreSemantic
+      description: StoreSemantic specifies whether the document mutation should be performed as an insert, upsert or replace.
+      type: string
+      enum:
+        - Upsert
+        - Insert
+        - Replace
+      x-enum-varnames:
+        - StoreSemanticUpsert
+        - StoreSemanticInsert
+        - StoreSemanticReplace
+    LookupInOperationType:
+      title: LookupInOperationType
+      description: LookupInOperationType specifies the lookup operation to perform on the document.
+      type: string
+      enum:
+        - Get
+        - Exists
+        - GetCount
+      x-enum-varnames:
+        - LookupInOperationTypeGet
+        - LookupInOperationTypeExists
+        - LookupInOperationTypeGetCount
+    MutateInOperationType:
+      title: MutateInOperationType
+      description: MutateInOperationType specifies the mutation operation to perform on the document.
+      type: string
+      enum:
+        - DictAdd
+        - DictSet
+        - Delete
+        - Replace
+        - ArrayPushLast
+        - ArrayPushFirst
+        - ArrayInsert
+        - ArrayAddUnique
+        - Counter
+      x-enum-varnames:
+        - MutateInOperationTypeDictAdd
+        - MutateInOperationTypeDictSet
+        - MutateInOperationTypeDelete
+        - MutateInOperationTypeReplace
+        - MutateInOperationTypeArrayPushLast
+        - MutateInOperationTypeArrayPushFirst
+        - MutateInOperationTypeArrayInsert
+        - MutateInOperationTypeArrayAddUnique
+        - MutateInOperationTypeCounter
   parameters:
     AuthorizationHeader:
       in: header
