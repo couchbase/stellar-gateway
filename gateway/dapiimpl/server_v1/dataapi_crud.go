@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"io"
 	"strconv"
 	"time"
 
@@ -251,9 +250,13 @@ func (s *DataApiServer) CreateDocument(
 		flags = *in.Params.XCBFlags
 	}
 
-	docValue, err := io.ReadAll(io.LimitReader(in.Body, 20*1024*1024))
+	docValue, err := readDocFromHttpBody(in.Body)
 	if err != nil {
-		return nil, s.errorHandler.NewGenericStatus(err).Err()
+		if errors.Is(err, ErrSizeLimitExceeded) {
+			return dataapiv1.CreateDocument413Response{}, nil
+		} else {
+			return nil, s.errorHandler.NewGenericStatus(err).Err()
+		}
 	}
 
 	var opts gocbcorex.AddOptions
@@ -350,9 +353,13 @@ func (s *DataApiServer) UpdateDocument(
 		flags = *in.Params.XCBFlags
 	}
 
-	docValue, err := io.ReadAll(io.LimitReader(in.Body, 20*1024*1024))
+	docValue, err := readDocFromHttpBody(in.Body)
 	if err != nil {
-		return nil, s.errorHandler.NewGenericStatus(err).Err()
+		if errors.Is(err, ErrSizeLimitExceeded) {
+			return dataapiv1.UpdateDocument413Response{}, nil
+		} else {
+			return nil, s.errorHandler.NewGenericStatus(err).Err()
+		}
 	}
 
 	var opts gocbcorex.UpsertOptions

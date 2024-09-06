@@ -67,6 +67,8 @@ paths:
               $ref: "#/components/headers/ETag"
             X-CB-MutationToken:
               $ref: "#/components/headers/MutationToken"
+        '413':
+          description: The document is too large to be stored.
     put:
       operationId: updateDocument
       tags:
@@ -90,6 +92,8 @@ paths:
               $ref: "#/components/headers/ETag"
             X-CB-MutationToken:
               $ref: "#/components/headers/MutationToken"
+        '413':
+          description: The document is too large to be stored.
     delete:
       operationId: deleteDocument
       tags:
