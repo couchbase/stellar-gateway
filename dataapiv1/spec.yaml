@@ -3,50 +3,19 @@ info:
   version: 1.0.0
   title: Couchbase Data API
 paths:
-  '/v1/buckets/{bucketName}/scopes/{scopeName}/collections/{collectionName}/documents/{DocumentKey}':
+  '/v1/buckets/{bucketName}/scopes/{scopeName}/collections/{collectionName}/documents/{documentKey}':
     parameters:
-      - in: header
-        name: Authorization
-        description: Header for authentication
-        schema:
-          type: string
-        required: true
-      - in: path
-        name: bucketName
-        description: name of the bucket containing the document
-        schema:
-          type: string
-        required: true
-      - in: path
-        name: scopeName
-        description: name of the scope containing the document
-        schema:
-          type: string
-        required: true
-      - in: path
-        name: collectionName
-        description: name of the collection containing the document
-        schema:
-          type: string
-        required: true
-      - in: path
-        name: DocumentKey
-        description: name of the document
-        schema:
-          type: string
-        required: true
+      - $ref: '#/components/parameters/AuthorizationHeader'
+      - $ref: '#/components/parameters/BucketName'
+      - $ref: '#/components/parameters/ScopeName'
+      - $ref: '#/components/parameters/CollectionName'
+      - $ref: '#/components/parameters/DocumentKey'
     get:
       operationId: getDocument
       tags:
         - Single Document Operations
       parameters:
-        - in: header
-          name: Accept-Encoding
-          description: The encoding of the document
-          schema:
-            type: array
-            items:
-              $ref: '#/components/schemas/DocumentEncoding'
+        - $ref: '#/components/parameters/AcceptEncodingHeader'
         - in: query
           name: project
           description: Specific fields to project from the document.
@@ -62,22 +31,13 @@ paths:
           description: Successful fetch of the document
           headers:
             Content-Encoding:
-              description: The encoding of the document
-              schema:
-                $ref: '#/components/schemas/DocumentEncoding'
+              $ref: "#/components/headers/ContentEncoding"
             ETag:
-              description: The CAS of the document.
-              schema:
-                type: string
+              $ref: "#/components/headers/ETag"
             Expires:
-              description: The expiry time of the document represented as an ISO8601 string.
-              schema:
-                type: string
+              $ref: "#/components/headers/Expires"
             X-CB-Flags:
-              description: The Flags of the document.
-              schema:
-                type: integer
-                format: uint32
+              $ref: "#/components/headers/DocumentFlags"
           content:
             '*':
               schema:
@@ -88,27 +48,10 @@ paths:
       tags:
         - Single Document Operations
       parameters:
-        - in: header
-          name: Content-Encoding
-          description: The encoding of the document
-          schema:
-            $ref: '#/components/schemas/DocumentEncoding'
-        - in: header
-          name: Expires
-          description: The expiry time of the document.
-          schema:
-            type: string
-        - in: header
-          name: X-CB-Flags
-          description: The Flags of the document.
-          schema:
-            type: integer
-            format: uint32
-        - in: query
-          name: X-CB-DurabilityLevel
-          description: The level of durability required for this write operation.
-          schema:
-            $ref: '#/components/schemas/DurabilityLevel'
+        - $ref: '#/components/parameters/ContentEncodingHeader'
+        - $ref: '#/components/parameters/ExpiresHeader'
+        - $ref: '#/components/parameters/DocumentFlagsHeader'
+        - $ref: '#/components/parameters/DurabilityLevelHeader'
       requestBody:
         required: true
         content:
@@ -121,44 +64,19 @@ paths:
           description: Successful creation of the document
           headers:
             ETag:
-              schema:
-                type: string
-              description: The CAS of the document.
+              $ref: "#/components/headers/ETag"
             X-CB-MutationToken:
-              schema:
-                type: string
-              description: A token representing the mutation of the document.
+              $ref: "#/components/headers/MutationToken"
     put:
       operationId: updateDocument
       tags:
         - Single Document Operations
       parameters:
-        - in: header
-          name: Content-Encoding
-          description: The encoding of the document
-          schema:
-            $ref: '#/components/schemas/DocumentEncoding'
-        - in: header
-          name: If-Match
-          description: The CAS of the document to check before updating.
-          schema:
-            type: string
-        - in: header
-          name: Expires
-          description: The expiry time of the document.
-          schema:
-            type: string
-        - in: header
-          name: X-CB-Flags
-          description: The Flags of the document.
-          schema:
-            type: integer
-            format: uint32
-        - in: header
-          name: X-CB-DurabilityLevel
-          description: The level of durability required for this write operation.
-          schema:
-            $ref: '#/components/schemas/DurabilityLevel'
+        - $ref: '#/components/parameters/ContentEncodingHeader'
+        - $ref: '#/components/parameters/IfMatchHeader'
+        - $ref: '#/components/parameters/ExpiresHeader'
+        - $ref: '#/components/parameters/DocumentFlagsHeader'
+        - $ref: '#/components/parameters/DurabilityLevelHeader'
       requestBody:
         required: true
         content:
@@ -169,36 +87,24 @@ paths:
           description: Successful creation of the document
           headers:
             ETag:
-              schema:
-                type: string
+              $ref: "#/components/headers/ETag"
             X-CB-MutationToken:
-              schema:
-                type: string
+              $ref: "#/components/headers/MutationToken"
     delete:
       operationId: deleteDocument
       tags:
         - Single Document Operations
       parameters:
-        - in: header
-          name: If-Match
-          description: The CAS of the document to check before updating.
-          schema:
-            type: string
-        - in: header
-          name: X-CB-DurabilityLevel
-          description: The level of durability required for this write operation.
-          schema:
-            $ref: '#/components/schemas/DurabilityLevel'
+        - $ref: '#/components/parameters/IfMatchHeader'
+        - $ref: '#/components/parameters/DurabilityLevelHeader'
       responses:
         '200':
           description: Successful deletion of the document
           headers:
             ETag:
-              schema:
-                type: string
+              $ref: "#/components/headers/ETag"
             X-CB-MutationToken:
-              schema:
-                type: string
+              $ref: "#/components/headers/MutationToken"
 components:
   securitySchemes:
     BasicAuth:
@@ -229,3 +135,100 @@ components:
         - DurabilityLevelMajority
         - DurabilityLevelMajorityAndPersistOnMaster
         - DurabilityLevelPersitToMajority
+  parameters:
+    AuthorizationHeader:
+      in: header
+      name: Authorization
+      description: Header for authentication
+      schema:
+        type: string
+      required: true
+    AcceptEncodingHeader:
+      in: header
+      name: Accept-Encoding
+      description: The encoding of the document
+      schema:
+        type: array
+        items:
+          $ref: '#/components/schemas/DocumentEncoding'
+    ContentEncodingHeader:
+      in: header
+      name: Content-Encoding
+      description: The encoding of the document
+      schema:
+        $ref: '#/components/schemas/DocumentEncoding'
+    IfMatchHeader:
+      in: header
+      name: If-Match
+      description: The CAS of the document to check before updating.
+      schema:
+        type: string
+    ExpiresHeader:
+      in: header
+      name: Expires
+      description: The expiry time of the document.
+      schema:
+        type: string
+    DocumentFlagsHeader:
+      in: header
+      name: X-CB-Flags
+      description: The Flags of the document.
+      schema:
+        type: integer
+        format: uint32
+    DurabilityLevelHeader:
+      in: header
+      name: X-CB-DurabilityLevel
+      description: The level of durability required for this write operation.
+      schema:
+        $ref: '#/components/schemas/DurabilityLevel'
+    BucketName:
+      in: path
+      name: bucketName
+      description: name of the bucket containing the document
+      schema:
+        type: string
+      required: true
+    ScopeName:
+      in: path
+      name: scopeName
+      description: name of the scope containing the document
+      schema:
+        type: string
+      required: true
+    CollectionName:
+      in: path
+      name: collectionName
+      description: name of the collection containing the document
+      schema:
+        type: string
+      required: true
+    DocumentKey:
+      in: path
+      name: documentKey
+      description: name of the document
+      schema:
+        type: string
+      required: true
+  headers:
+    ContentEncoding:
+      description: The encoding of the document
+      schema:
+        $ref: '#/components/schemas/DocumentEncoding'
+    ETag:
+      description: The CAS of the document.
+      schema:
+        type: string
+    Expires:
+      description: The expiry time of the document represented as an ISO8601 string.
+      schema:
+        type: string
+    DocumentFlags:
+      description: The Flags of the document.
+      schema:
+        type: integer
+        format: uint32
+    MutationToken:
+      schema:
+        type: string
+      description: A token representing the mutation of the document.
