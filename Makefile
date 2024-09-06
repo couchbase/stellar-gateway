@@ -33,9 +33,12 @@ lint:
 	go install github.com/golangci/golangci-lint/cmd/golangci-lint@$(GOLINT_VERSION)
 	$(GOBIN)/golangci-lint run
 
-check: fmt lint test
+check: generate fmt lint test
 
-build:
+generate:
+	go generate ./...
+
+build: generate
 	for platform in linux darwin ; do \
 	 for arch in amd64 arm64 ; do \
 	   echo "Building $$platform $$arch binary " ; \
@@ -56,4 +59,4 @@ dist: image-artifacts
 container: build
 	docker build -f Dockerfile -t ${DOCKER_USER}/cloud-native-gateway:${DOCKER_TAG} .
 
-.PHONY: all test fmt lint check build
+.PHONY: all test fmt lint check generate build

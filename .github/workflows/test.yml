@@ -41,6 +41,9 @@ jobs:
           go install github.com/matryer/moq@latest
       - name: Install Dependencies
         run: go get ./...
+      - name: Generate Files
+        run: |
+          go generate ./...
       - name: Initialize Test Cluster
         run: ./.github/bin/init-cluster
       - name: Check Test Cluster
