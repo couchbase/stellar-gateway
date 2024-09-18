@@ -334,9 +334,24 @@ func (s *DataApiServer) UpdateDocument(
 		return nil, errSt.Err()
 	}
 
-	cas, errSt := s.parseCAS(in.Params.IfMatch)
-	if errSt != nil {
-		return nil, errSt.Err()
+	var isReplace bool
+	var cas uint64
+	if in.Params.IfMatch != nil {
+		if *in.Params.IfMatch == "*" {
+			isReplace = true
+			cas = 0
+		} else {
+			parsedCas, errSt := s.parseCAS(in.Params.IfMatch)
+			if errSt != nil {
+				return nil, errSt.Err()
+			}
+
+			isReplace = false
+			cas = parsedCas
+		}
+	} else {
+		isReplace = false
+		cas = 0
 	}
 
 	var flags uint32
@@ -362,71 +377,119 @@ func (s *DataApiServer) UpdateDocument(
 		}
 	}
 
-	var opts gocbcorex.UpsertOptions
-	opts.OnBehalfOf = oboUser
-	opts.ScopeName = in.ScopeName
-	opts.CollectionName = in.CollectionName
-	opts.Key = key
-	opts.Flags = flags
-	opts.Cas = cas
-
+	var datatype memdx.DatatypeFlag
 	if in.Params.ContentEncoding != nil {
 		switch *in.Params.ContentEncoding {
 		case dataapiv1.DocumentEncodingSnappy:
-			opts.Value = docValue
-			opts.Datatype = opts.Datatype | memdx.DatatypeFlagCompressed
+			datatype = datatype | memdx.DatatypeFlagCompressed
 		case dataapiv1.DocumentEncodingIdentity:
-			opts.Value = docValue
+			// no compression
 		default:
 			return nil, s.errorHandler.NewInvalidContentEncodingStatus(*in.Params.ContentEncoding).Err()
 		}
-	} else {
-		opts.Value = docValue
 	}
 
+	var preserveExpiry bool
+	var expiry uint32
 	if in.Params.Expires != nil {
-		expiry, errSt := httpTimeToGocbcorexExpiry(*in.Params.Expires)
+		parsedExpiry, errSt := httpTimeToGocbcorexExpiry(*in.Params.Expires)
 		if errSt != nil {
 			return nil, errSt.Err()
 		}
 
-		opts.PreserveExpiry = false
-		opts.Expiry = expiry
+		preserveExpiry = false
+		expiry = parsedExpiry
 	} else {
-		opts.PreserveExpiry = true
-		opts.Expiry = 0
+		preserveExpiry = true
+		expiry = 0
 	}
 
+	var durabilityLevel memdx.DurabilityLevel
 	if in.Params.XCBDurabilityLevel != nil {
 		dl, errSt := durabilityLevelToMemdx(*in.Params.XCBDurabilityLevel)
 		if errSt != nil {
 			return nil, errSt.Err()
 		}
-		opts.DurabilityLevel = dl
+		durabilityLevel = dl
 	}
 
-	result, err := bucketAgent.Upsert(ctx, &opts)
-	if err != nil {
-		if errors.Is(err, memdx.ErrDocLocked) {
-			return nil, s.errorHandler.NewDocLockedStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.DocumentKey).Err()
-		} else if errors.Is(err, memdx.ErrUnknownCollectionName) {
-			return nil, s.errorHandler.NewCollectionMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
-		} else if errors.Is(err, memdx.ErrUnknownScopeName) {
-			return nil, s.errorHandler.NewScopeMissingStatus(err, in.BucketName, in.ScopeName).Err()
-		} else if errors.Is(err, memdx.ErrAccessError) {
-			return nil, s.errorHandler.NewCollectionNoWriteAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
-		} else if errors.Is(err, memdx.ErrValueTooLarge) {
-			return nil, s.errorHandler.NewValueTooLargeStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.DocumentKey, false).Err()
+	if !isReplace {
+		var opts gocbcorex.UpsertOptions
+		opts.OnBehalfOf = oboUser
+		opts.ScopeName = in.ScopeName
+		opts.CollectionName = in.CollectionName
+		opts.Key = key
+		opts.Flags = flags
+		opts.Cas = cas
+		opts.Value = docValue
+		opts.Datatype = datatype
+		opts.Expiry = expiry
+		opts.PreserveExpiry = preserveExpiry
+		opts.DurabilityLevel = durabilityLevel
+
+		result, err := bucketAgent.Upsert(ctx, &opts)
+		if err != nil {
+			if errors.Is(err, memdx.ErrDocLocked) {
+				return nil, s.errorHandler.NewDocLockedStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.DocumentKey).Err()
+			} else if errors.Is(err, memdx.ErrUnknownCollectionName) {
+				return nil, s.errorHandler.NewCollectionMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+			} else if errors.Is(err, memdx.ErrUnknownScopeName) {
+				return nil, s.errorHandler.NewScopeMissingStatus(err, in.BucketName, in.ScopeName).Err()
+			} else if errors.Is(err, memdx.ErrAccessError) {
+				return nil, s.errorHandler.NewCollectionNoWriteAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+			} else if errors.Is(err, memdx.ErrValueTooLarge) {
+				return nil, s.errorHandler.NewValueTooLargeStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.DocumentKey, false).Err()
+			}
+			return nil, s.errorHandler.NewGenericStatus(err).Err()
 		}
-		return nil, s.errorHandler.NewGenericStatus(err).Err()
-	}
 
-	return dataapiv1.UpdateDocument200Response{
-		Headers: dataapiv1.UpdateDocument200ResponseHeaders{
-			ETag:             casToHttpEtag(result.Cas),
-			XCBMutationToken: tokenFromGocbcorex(in.BucketName, result.MutationToken),
-		},
-	}, nil
+		return dataapiv1.UpdateDocument200Response{
+			Headers: dataapiv1.UpdateDocument200ResponseHeaders{
+				ETag:             casToHttpEtag(result.Cas),
+				XCBMutationToken: tokenFromGocbcorex(in.BucketName, result.MutationToken),
+			},
+		}, nil
+	} else {
+		var opts gocbcorex.ReplaceOptions
+		opts.OnBehalfOf = oboUser
+		opts.ScopeName = in.ScopeName
+		opts.CollectionName = in.CollectionName
+		opts.Key = key
+		opts.Flags = flags
+		opts.Cas = cas
+		opts.Value = docValue
+		opts.Datatype = datatype
+		opts.Expiry = expiry
+		opts.PreserveExpiry = preserveExpiry
+		opts.DurabilityLevel = durabilityLevel
+
+		result, err := bucketAgent.Replace(ctx, &opts)
+		if err != nil {
+			if errors.Is(err, memdx.ErrCasMismatch) {
+				return nil, s.errorHandler.NewDocCasMismatchStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.DocumentKey).Err()
+			} else if errors.Is(err, memdx.ErrDocLocked) {
+				return nil, s.errorHandler.NewDocLockedStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.DocumentKey).Err()
+			} else if errors.Is(err, memdx.ErrDocNotFound) {
+				return nil, s.errorHandler.NewDocMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.DocumentKey).Err()
+			} else if errors.Is(err, memdx.ErrUnknownCollectionName) {
+				return nil, s.errorHandler.NewCollectionMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+			} else if errors.Is(err, memdx.ErrUnknownScopeName) {
+				return nil, s.errorHandler.NewScopeMissingStatus(err, in.BucketName, in.ScopeName).Err()
+			} else if errors.Is(err, memdx.ErrAccessError) {
+				return nil, s.errorHandler.NewCollectionNoWriteAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+			} else if errors.Is(err, memdx.ErrValueTooLarge) {
+				return nil, s.errorHandler.NewValueTooLargeStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.DocumentKey, false).Err()
+			}
+			return nil, s.errorHandler.NewGenericStatus(err).Err()
+		}
+
+		return dataapiv1.UpdateDocument200Response{
+			Headers: dataapiv1.UpdateDocument200ResponseHeaders{
+				ETag:             casToHttpEtag(result.Cas),
+				XCBMutationToken: tokenFromGocbcorex(in.BucketName, result.MutationToken),
+			},
+		}, nil
+	}
 }
 
 func (s *DataApiServer) DeleteDocument(
