@@ -101,14 +101,31 @@ func (s *GatewayOpsTestSuite) TestDapiCors() {
 		resp.Headers.Get("Access-Control-Allow-Origin"))
 }
 
-func (s *GatewayOpsTestSuite) TestDapiBasic() {
-	if !s.SupportsFeature(TestFeatureKV) {
-		s.T().Skip()
-	}
+func (s *GatewayOpsTestSuite) TestDapiGet() {
+	docId := s.testDocId()
 
-	docId := s.randomDocId()
+	resp := s.sendTestHttpRequest(&testHttpRequest{
+		Method: http.MethodGet,
+		Path: fmt.Sprintf(
+			"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
+			s.bucketName, s.scopeName, s.collectionName, docId,
+		),
+		Headers: map[string]string{
+			"Authorization": s.basicRestCreds,
+		},
+		Body: TEST_CONTENT,
+	})
+	requireRestSuccess(s.T(), resp)
+	assertRestValidEtag(s.T(), resp)
+	assert.Equal(s.T(), fmt.Sprintf("%d", TEST_CONTENT_FLAGS), resp.Headers.Get("X-CB-Flags"))
+	assert.Equal(s.T(), TEST_CONTENT, resp.Body)
+	assert.Equal(s.T(), "", resp.Headers.Get("X-CB-Expiry"))
+}
 
-	s.Run("Post", func() {
+func (s *GatewayOpsTestSuite) TestDapiPost() {
+	s.Run("Basic", func() {
+		docId := s.randomDocId()
+
 		resp := s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
 			Path: fmt.Sprintf(
@@ -135,26 +152,57 @@ func (s *GatewayOpsTestSuite) TestDapiBasic() {
 		})
 	})
 
-	s.Run("Get", func() {
+	s.Run("AlreadyExists", func() {
+		docId := s.testDocId()
+
 		resp := s.sendTestHttpRequest(&testHttpRequest{
-			Method: http.MethodGet,
+			Method: http.MethodPost,
 			Path: fmt.Sprintf(
 				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
 				s.bucketName, s.scopeName, s.collectionName, docId,
 			),
 			Headers: map[string]string{
 				"Authorization": s.basicRestCreds,
+				"X-CB-Flags":    fmt.Sprintf("%d", TEST_CONTENT_FLAGS),
+			},
+			Body: TEST_CONTENT,
+		})
+		require.Equal(s.T(), http.StatusConflict, resp.StatusCode)
+	})
+}
+
+func (s *GatewayOpsTestSuite) TestDapiPut() {
+	s.Run("Upsert", func() {
+		docId := s.randomDocId()
+
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPut,
+			Path: fmt.Sprintf(
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+				"X-CB-Flags":    fmt.Sprintf("%d", TEST_CONTENT_FLAGS),
 			},
 			Body: TEST_CONTENT,
 		})
 		requireRestSuccess(s.T(), resp)
 		assertRestValidEtag(s.T(), resp)
-		assert.Equal(s.T(), fmt.Sprintf("%d", TEST_CONTENT_FLAGS), resp.Headers.Get("X-CB-Flags"))
-		assert.Equal(s.T(), TEST_CONTENT, resp.Body)
-		assert.Equal(s.T(), "", resp.Headers.Get("X-CB-Expiry"))
+		assertRestValidMutationToken(s.T(), resp, s.bucketName)
+
+		s.checkDocument(s.T(), checkDocumentOptions{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			DocId:          docId,
+			Content:        TEST_CONTENT,
+			ContentFlags:   TEST_CONTENT_FLAGS,
+		})
 	})
 
-	s.Run("Put", func() {
+	s.Run("Replace", func() {
+		docId := s.testDocId()
 		newContent := []byte(`{"boo": "baz"}`)
 
 		resp := s.sendTestHttpRequest(&testHttpRequest{
@@ -166,6 +214,7 @@ func (s *GatewayOpsTestSuite) TestDapiBasic() {
 			Headers: map[string]string{
 				"Authorization": s.basicRestCreds,
 				"X-CB-Flags":    fmt.Sprintf("%d", TEST_CONTENT_FLAGS),
+				"If-Match":      "*",
 			},
 			Body: newContent,
 		})
@@ -183,28 +232,50 @@ func (s *GatewayOpsTestSuite) TestDapiBasic() {
 		})
 	})
 
-	s.Run("Delete", func() {
+	s.Run("ReplaceMissing", func() {
+		docId := s.randomDocId()
+
 		resp := s.sendTestHttpRequest(&testHttpRequest{
-			Method: http.MethodDelete,
+			Method: http.MethodPut,
 			Path: fmt.Sprintf(
 				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
 				s.bucketName, s.scopeName, s.collectionName, docId,
 			),
 			Headers: map[string]string{
 				"Authorization": s.basicRestCreds,
+				"X-CB-Flags":    fmt.Sprintf("%d", TEST_CONTENT_FLAGS),
+				"If-Match":      "*",
 			},
-			Body: nil,
+			Body: TEST_CONTENT,
 		})
-		requireRestSuccess(s.T(), resp)
-		assertRestValidEtag(s.T(), resp)
-		assertRestValidMutationToken(s.T(), resp, s.bucketName)
+		require.Equal(s.T(), http.StatusNotFound, resp.StatusCode)
+	})
 
-		s.checkDocument(s.T(), checkDocumentOptions{
-			BucketName:     s.bucketName,
-			ScopeName:      s.scopeName,
-			CollectionName: s.collectionName,
-			DocId:          docId,
-			Content:        nil,
-		})
+}
+
+func (s *GatewayOpsTestSuite) TestDapiDelete() {
+	docId := s.testDocId()
+
+	resp := s.sendTestHttpRequest(&testHttpRequest{
+		Method: http.MethodDelete,
+		Path: fmt.Sprintf(
+			"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
+			s.bucketName, s.scopeName, s.collectionName, docId,
+		),
+		Headers: map[string]string{
+			"Authorization": s.basicRestCreds,
+		},
+		Body: nil,
+	})
+	requireRestSuccess(s.T(), resp)
+	assertRestValidEtag(s.T(), resp)
+	assertRestValidMutationToken(s.T(), resp, s.bucketName)
+
+	s.checkDocument(s.T(), checkDocumentOptions{
+		BucketName:     s.bucketName,
+		ScopeName:      s.scopeName,
+		CollectionName: s.collectionName,
+		DocId:          docId,
+		Content:        nil,
 	})
 }
