@@ -23,7 +23,7 @@ func (a AuthHandler) getUserPassFromRequest(authHdr string) (string, string, err
 	// we reuse the Basic auth parsing built into the go net library
 	r := http.Request{
 		Header: map[string][]string{
-			"Authorization": []string{authHdr},
+			"Authorization": {authHdr},
 		},
 	}
 	username, password, ok := r.BasicAuth()

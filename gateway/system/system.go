@@ -148,7 +148,7 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 		AllowedOrigins:   []string{"*"},
 		AllowedMethods:   []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete},
 		AllowCredentials: true,
-		Debug:            true,
+		Debug:            opts.Debug,
 	})
 
 	var httpHandler http.Handler = mux
