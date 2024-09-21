@@ -150,11 +150,9 @@ components:
     AcceptEncodingHeader:
       in: header
       name: Accept-Encoding
-      description: The encoding of the document
+      description: Specifies the compression used for the response in HTTP content-negotiation format.
       schema:
-        type: array
-        items:
-          $ref: '#/components/schemas/DocumentEncoding'
+        type: string
     ContentEncodingHeader:
       in: header
       name: Content-Encoding

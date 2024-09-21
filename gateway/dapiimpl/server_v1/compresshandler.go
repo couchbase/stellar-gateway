@@ -1,7 +1,10 @@
 package server_v1
 
 import (
+	"fmt"
 	"net/http"
+	"strconv"
+	"strings"
 
 	"github.com/couchbase/gocbcorex/memdx"
 	"github.com/couchbase/stellar-gateway/dataapiv1"
@@ -42,22 +45,77 @@ func (h CompressHandler) UncompressContent(in []byte, datatype memdx.DatatypeFla
 func (h CompressHandler) MaybeCompressContent(
 	in []byte,
 	datatype memdx.DatatypeFlag,
-	acceptedEncoding *[]dataapiv1.DocumentEncoding,
+	acceptedEncoding *string,
 ) (dataapiv1.DocumentEncoding, []byte, *Status) {
-	canAcceptSnappy := true
+	identityQ := 0.001
+	snappyQ := 0.0
+
 	if acceptedEncoding != nil {
-		for _, encoding := range *acceptedEncoding {
-			if encoding == dataapiv1.DocumentEncodingSnappy {
-				canAcceptSnappy = true
+		encodings := strings.Split(*acceptedEncoding, ",")
+
+		for encodingIdx, encoding := range encodings {
+			encodingParts := strings.Split(encoding, ";")
+			if len(encodingParts) >= 3 {
+				return dataapiv1.DocumentEncoding(""), nil, &Status{
+					StatusCode: http.StatusBadRequest,
+					Code:       dataapiv1.ErrorCodeInvalidArgument,
+					Message: fmt.Sprintf("Invalid Accept-Encoding format at index %d",
+						encodingIdx),
+				}
+			}
+
+			encodingName := strings.TrimSpace(encodingParts[0])
+			encodingQ := 1.0
+
+			if len(encodingParts) >= 2 {
+				qValue := strings.TrimSpace(encodingParts[1])
+				if !strings.HasPrefix(qValue, "q=") {
+					return dataapiv1.DocumentEncoding(""), nil, &Status{
+						StatusCode: http.StatusBadRequest,
+						Code:       dataapiv1.ErrorCodeInvalidArgument,
+						Message: fmt.Sprintf("Invalid Accept-Encoding format at index %d, expected q=",
+							encodingIdx),
+					}
+				}
+
+				parsedQ, err := strconv.ParseFloat(qValue[2:], 64)
+				if err != nil {
+					return dataapiv1.DocumentEncoding(""), nil, &Status{
+						StatusCode: http.StatusBadRequest,
+						Code:       dataapiv1.ErrorCodeInvalidArgument,
+						Message: fmt.Sprintf("Invalid Accept-Encoding format at index %d, expected floating-point q",
+							encodingIdx),
+					}
+				}
+
+				encodingQ = parsedQ
+			}
+
+			if encodingName == "identity" {
+				identityQ = encodingQ
+			} else if encodingName == "snappy" {
+				snappyQ = encodingQ
+			} else {
+				// we intentionally ignore unknown encodings
+				continue
 			}
 		}
 	}
 
-	if canAcceptSnappy {
+	if snappyQ > identityQ {
 		if datatype&memdx.DatatypeFlagCompressed != 0 {
 			return dataapiv1.DocumentEncodingSnappy, in, nil
 		} else {
-			return dataapiv1.DocumentEncoding(""), in, nil
+			if identityQ > 0 {
+				return dataapiv1.DocumentEncoding(""), in, nil
+			} else {
+				compressedValue, errSt := h.CompressContent(in, datatype)
+				if errSt != nil {
+					return dataapiv1.DocumentEncoding(""), nil, errSt
+				}
+
+				return dataapiv1.DocumentEncodingSnappy, compressedValue, nil
+			}
 		}
 	} else {
 		uncompressedValue, errSt := h.UncompressContent(in, datatype)
