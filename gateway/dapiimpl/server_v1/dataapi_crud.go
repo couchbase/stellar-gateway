@@ -4,16 +4,12 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"strconv"
 	"time"
 
 	"github.com/couchbase/gocbcorex"
 	"github.com/couchbase/gocbcorex/commonflags"
-	"github.com/couchbase/gocbcorex/helpers/subdocpath"
-	"github.com/couchbase/gocbcorex/helpers/subdocprojection"
 	"github.com/couchbase/gocbcorex/memdx"
 	"github.com/couchbase/stellar-gateway/dataapiv1"
-	"go.uber.org/zap"
 )
 
 func (s *DataApiServer) GetDocument(
@@ -29,198 +25,73 @@ func (s *DataApiServer) GetDocument(
 		return nil, errSt.Err()
 	}
 
-	var executeGet func(forceFullDoc bool) (dataapiv1.GetDocumentResponseObject, error)
-	executeGet = func(forceFullDoc bool) (dataapiv1.GetDocumentResponseObject, error) {
-		var opts gocbcorex.LookupInOptions
-		opts.OnBehalfOf = oboUser
-		opts.ScopeName = in.ScopeName
-		opts.CollectionName = in.CollectionName
-		opts.Key = key
-
-		opts.Ops = append(opts.Ops, memdx.LookupInOp{
-			Op:    memdx.LookupInOpTypeGet,
-			Flags: memdx.SubdocOpFlagXattrPath,
-			Path:  []byte("$document.exptime"),
-		})
-		opts.Ops = append(opts.Ops, memdx.LookupInOp{
-			Op:    memdx.LookupInOpTypeGet,
-			Flags: memdx.SubdocOpFlagXattrPath,
-			Path:  []byte("$document.flags"),
-		})
-
-		var projectKeys []string
-		if in.Params.Project != nil {
-			projectKeys = *in.Params.Project
-		}
-
-		userProjectOffset := len(opts.Ops)
-		maxUserProjections := 16 - userProjectOffset
-
-		isFullDocFetch := false
-		if len(projectKeys) > 0 && len(projectKeys) < maxUserProjections && !forceFullDoc {
-			for _, projectPath := range projectKeys {
-				opts.Ops = append(opts.Ops, memdx.LookupInOp{
-					Op:    memdx.LookupInOpTypeGet,
-					Flags: memdx.SubdocOpFlagNone,
-					Path:  []byte(projectPath),
-				})
-			}
-
-			isFullDocFetch = false
-		} else {
-			opts.Ops = append(opts.Ops, memdx.LookupInOp{
-				Op:    memdx.LookupInOpTypeGetDoc,
-				Flags: memdx.SubdocOpFlagNone,
-				Path:  nil,
-			})
-
-			isFullDocFetch = true
-		}
-
-		result, err := bucketAgent.LookupIn(ctx, &opts)
-		if err != nil {
-			if errors.Is(err, memdx.ErrDocLocked) {
-				return nil, s.errorHandler.NewDocLockedStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.DocumentKey).Err()
-			} else if errors.Is(err, memdx.ErrDocNotFound) {
-				return nil, s.errorHandler.NewDocMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.DocumentKey).Err()
-			} else if errors.Is(err, memdx.ErrUnknownCollectionName) {
-				return nil, s.errorHandler.NewCollectionMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
-			} else if errors.Is(err, memdx.ErrUnknownScopeName) {
-				return nil, s.errorHandler.NewScopeMissingStatus(err, in.BucketName, in.ScopeName).Err()
-			} else if errors.Is(err, memdx.ErrAccessError) {
-				return nil, s.errorHandler.NewCollectionNoReadAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
-			}
-			return nil, s.errorHandler.NewGenericStatus(err).Err()
-		}
-
-		expiryTimeSecs, err := strconv.ParseInt(string(result.Ops[0].Value), 10, 64)
-		if err != nil {
-			return nil, s.errorHandler.NewGenericStatus(err).Err()
-		}
-
-		var expiryTime time.Time
-		if expiryTimeSecs > 0 {
-			expiryTime = time.Unix(expiryTimeSecs, 0)
-		}
-
-		flags64, err := strconv.ParseUint(string(result.Ops[1].Value), 10, 64)
-		if err != nil {
-			return nil, s.errorHandler.NewGenericStatus(err).Err()
-		}
-		flags := uint32(flags64)
-
-		if len(projectKeys) > 0 {
-			var writer subdocprojection.Projector
-
-			if isFullDocFetch {
-				docValue := result.Ops[2].Value
-
-				var reader subdocprojection.Projector
-
-				err := reader.Init(docValue)
-				if err != nil {
-					return nil, s.errorHandler.NewGenericStatus(err).Err()
-				}
-
-				for _, path := range projectKeys {
-					parsedPath, err := subdocpath.Parse(path)
-					if err != nil {
-						return nil, s.errorHandler.NewGenericStatus(err).Err()
-					}
-
-					pathValue, err := reader.Get(parsedPath)
-					if err != nil {
-						return nil, s.errorHandler.NewGenericStatus(err).Err()
-					}
-
-					err = writer.Set(parsedPath, pathValue)
-					if err != nil {
-						return nil, s.errorHandler.NewGenericStatus(err).Err()
-					}
-				}
-			} else {
-				for pathIdx, path := range projectKeys {
-					op := result.Ops[userProjectOffset+pathIdx]
-
-					if op.Err != nil {
-						if errors.Is(op.Err, memdx.ErrSubDocDocTooDeep) {
-							s.logger.Debug("falling back to fulldoc projection due to ErrSubDocDocTooDeep")
-							return executeGet(true)
-						} else if errors.Is(op.Err, memdx.ErrSubDocNotJSON) {
-							return nil, s.errorHandler.NewSdDocNotJsonStatus(op.Err, in.BucketName, in.ScopeName, in.CollectionName, in.DocumentKey).Err()
-						} else if errors.Is(op.Err, memdx.ErrSubDocPathNotFound) {
-							// path not founds are skipped and not included in the
-							// output document rather than triggering errors.
-							continue
-						} else if errors.Is(op.Err, memdx.ErrSubDocPathInvalid) {
-							return nil, s.errorHandler.NewSdPathInvalidStatus(op.Err, projectKeys[pathIdx]).Err()
-						} else if errors.Is(op.Err, memdx.ErrSubDocPathMismatch) {
-							return nil, s.errorHandler.NewSdPathMismatchStatus(op.Err, in.BucketName, in.ScopeName, in.CollectionName, in.DocumentKey, projectKeys[pathIdx]).Err()
-						} else if errors.Is(op.Err, memdx.ErrSubDocPathTooBig) {
-							s.logger.Debug("falling back to fulldoc projection due to ErrSubDocPathTooBig")
-							return executeGet(true)
-						}
-
-						s.logger.Debug("falling back to fulldoc projection due to unexpected op error", zap.Error(op.Err))
-						return executeGet(true)
-					}
-
-					parsedPath, err := subdocpath.Parse(path)
-					if err != nil {
-						return nil, s.errorHandler.NewGenericStatus(err).Err()
-					}
-
-					err = writer.Set(parsedPath, op.Value)
-					if err != nil {
-						return nil, s.errorHandler.NewGenericStatus(err).Err()
-					}
-				}
-			}
-
-			projectedDocValue, err := writer.Build()
-			if errSt != nil {
-				return nil, s.errorHandler.NewGenericStatus(err).Err()
-			}
-
-			return dataapiv1.GetDocument200AsteriskResponse{
-				Body:          bytes.NewReader(projectedDocValue),
-				ContentLength: int64(len(projectedDocValue)),
-				ContentType:   "application/json",
-				Headers: dataapiv1.GetDocument200ResponseHeaders{
-					ETag:     casToHttpEtag(result.Cas),
-					Expires:  timeToHttpTime(expiryTime),
-					XCBFlags: uint32(0),
-				},
-			}, nil
-		}
-
-		docValue := result.Ops[2].Value
-
-		resp := dataapiv1.GetDocument200AsteriskResponse{
-			Headers: dataapiv1.GetDocument200ResponseHeaders{
-				ETag:     casToHttpEtag(result.Cas),
-				Expires:  timeToHttpTime(expiryTime),
-				XCBFlags: uint32(flags),
-			},
-		}
-
-		contentType := flagsToHttpContentType(flags)
-
-		contentEncoding, respValue, errSt :=
-			CompressHandler{}.MaybeCompressContent(docValue, 0, in.Params.AcceptEncoding)
-		if errSt != nil {
-			return nil, errSt.Err()
-		}
-
-		resp.ContentType = contentType
-		resp.Headers.ContentEncoding = contentEncoding
-		resp.Body = bytes.NewReader(respValue)
-		resp.ContentLength = int64(len(respValue))
-
-		return resp, nil
+	var opts gocbcorex.GetExOptions
+	opts.OnBehalfOf = oboUser
+	opts.ScopeName = in.ScopeName
+	opts.CollectionName = in.CollectionName
+	opts.Key = key
+	opts.WithExpiry = true
+	opts.WithFlags = true
+	if in.Params.Project != nil {
+		opts.Project = *in.Params.Project
 	}
 
-	return executeGet(false)
+	result, err := bucketAgent.GetEx(ctx, &opts)
+	if err != nil {
+		var pathErr *gocbcorex.PathProjectionError
+		var path string
+		if errors.As(err, &pathErr) {
+			path = pathErr.Path
+		}
+
+		if errors.Is(err, memdx.ErrDocLocked) {
+			return nil, s.errorHandler.NewDocLockedStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.DocumentKey).Err()
+		} else if errors.Is(err, memdx.ErrDocNotFound) {
+			return nil, s.errorHandler.NewDocMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.DocumentKey).Err()
+		} else if errors.Is(err, memdx.ErrUnknownCollectionName) {
+			return nil, s.errorHandler.NewCollectionMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+		} else if errors.Is(err, memdx.ErrUnknownScopeName) {
+			return nil, s.errorHandler.NewScopeMissingStatus(err, in.BucketName, in.ScopeName).Err()
+		} else if errors.Is(err, memdx.ErrAccessError) {
+			return nil, s.errorHandler.NewCollectionNoReadAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+		} else if errors.Is(err, memdx.ErrSubDocNotJSON) {
+			return nil, s.errorHandler.NewSdDocNotJsonStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.DocumentKey).Err()
+		} else if errors.Is(err, memdx.ErrSubDocPathInvalid) {
+			return nil, s.errorHandler.NewSdPathInvalidStatus(err, path).Err()
+		} else if errors.Is(err, memdx.ErrSubDocPathMismatch) {
+			return nil, s.errorHandler.NewSdPathMismatchStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.DocumentKey, path).Err()
+		}
+
+		return nil, s.errorHandler.NewGenericStatus(err).Err()
+	}
+
+	var expiryTime time.Time
+	if result.Expiry > 0 {
+		expiryTime = time.Unix(int64(result.Expiry), 0)
+	}
+
+	resp := dataapiv1.GetDocument200AsteriskResponse{
+		Headers: dataapiv1.GetDocument200ResponseHeaders{
+			ETag:     casToHttpEtag(result.Cas),
+			Expires:  timeToHttpTime(expiryTime),
+			XCBFlags: uint32(result.Flags),
+		},
+	}
+
+	contentType := flagsToHttpContentType(result.Flags)
+
+	contentEncoding, respValue, errSt :=
+		CompressHandler{}.MaybeCompressContent(result.Value, 0, in.Params.AcceptEncoding)
+	if errSt != nil {
+		return nil, errSt.Err()
+	}
+
+	resp.ContentType = contentType
+	resp.Headers.ContentEncoding = contentEncoding
+	resp.Body = bytes.NewReader(respValue)
+	resp.ContentLength = int64(len(respValue))
+
+	return resp, nil
 }
 
 func (s *DataApiServer) CreateDocument(
