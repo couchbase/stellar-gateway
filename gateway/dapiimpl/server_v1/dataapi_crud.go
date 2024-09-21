@@ -346,7 +346,7 @@ func (s *DataApiServer) UpdateDocument(
 				return nil, errSt.Err()
 			}
 
-			isReplace = false
+			isReplace = true
 			cas = parsedCas
 		}
 	} else {
