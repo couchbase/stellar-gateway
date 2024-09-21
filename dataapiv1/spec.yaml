@@ -43,6 +43,18 @@ paths:
               schema:
                 type: string
                 format: binary
+        '400':
+          $ref: '#/components/responses/BadRequest' 
+        '403':
+          $ref: '#/components/responses/Forbidden' 
+        '404':
+          $ref: '#/components/responses/NotFound' 
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable' 
+        '504':
+          $ref: '#/components/responses/GatewayTimeout' 
     post:
       operationId: createDocument
       tags:
@@ -67,8 +79,22 @@ paths:
               $ref: "#/components/headers/ETag"
             X-CB-MutationToken:
               $ref: "#/components/headers/MutationToken"
+        '400':
+          $ref: '#/components/responses/BadRequest' 
+        '403':
+          $ref: '#/components/responses/Forbidden' 
+        '404':
+          $ref: '#/components/responses/NotFound' 
+        '409':
+          $ref: '#/components/responses/Conflict' 
         '413':
-          description: The document is too large to be stored.
+          $ref: '#/components/responses/ContentTooLarge' 
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable' 
+        '504':
+          $ref: '#/components/responses/GatewayTimeout' 
     put:
       operationId: updateDocument
       tags:
@@ -92,8 +118,22 @@ paths:
               $ref: "#/components/headers/ETag"
             X-CB-MutationToken:
               $ref: "#/components/headers/MutationToken"
+        '400':
+          $ref: '#/components/responses/BadRequest' 
+        '403':
+          $ref: '#/components/responses/Forbidden' 
+        '404':
+          $ref: '#/components/responses/NotFound' 
+        '409':
+          $ref: '#/components/responses/Conflict' 
         '413':
-          description: The document is too large to be stored.
+          $ref: '#/components/responses/ContentTooLarge' 
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable' 
+        '504':
+          $ref: '#/components/responses/GatewayTimeout' 
     delete:
       operationId: deleteDocument
       tags:
@@ -109,11 +149,74 @@ paths:
               $ref: "#/components/headers/ETag"
             X-CB-MutationToken:
               $ref: "#/components/headers/MutationToken"
+        '400':
+          $ref: '#/components/responses/BadRequest' 
+        '403':
+          $ref: '#/components/responses/Forbidden' 
+        '404':
+          $ref: '#/components/responses/NotFound' 
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable' 
+        '504':
+          $ref: '#/components/responses/GatewayTimeout' 
 components:
   securitySchemes:
     BasicAuth:
       type: http
       scheme: basic
+  responses:
+    BadRequest: # 400
+      description: The request was malformed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden: # 403
+      description: The user does not have permission to access the resource
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound: # 404
+      description: The specified resource was not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Conflict: # 409
+      description: A conflict occurred while processing the request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    ContentTooLarge: # 413
+      description: The document is too large to be stored
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    InternalServerError: # 500
+      description: An internal server error occurred
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    ServiceUnavailable: # 503
+      description: One of the underlying services was not available
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    GatewayTimeout: # 504
+      description: The request timed out
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
   schemas:
     DocumentEncoding:
       title: DocumentEncoding
@@ -139,6 +242,66 @@ components:
         - DurabilityLevelMajority
         - DurabilityLevelMajorityAndPersistOnMaster
         - DurabilityLevelPersitToMajority
+    ErrorCode:
+      title: ErrorCode
+      description: ErrorCode specifies the more specified error that occurred.
+      type: string
+      enum:
+        - InvalidArgument
+        - Unauthorized
+        - NoReadAccess
+        - NoWriteAccess
+        - InvalidAuth
+        - Internal
+        - UnderlyingServiceUnavailable
+        - RequestCanceled
+        - DeadlineExceeded
+        - BucketNotFound
+        - ScopeNotFound
+        - CollectionNotFound
+        - DocumentNotFound
+        - DocumentExists
+        - CasMismatch
+        - DocumentLocked
+        - ValueTooLarge
+        - DocumentNotJson
+        - PathMismatch
+      x-enum-varnames:
+        - ErrorCodeInvalidArgument
+        - ErrorCodeUnauthorized
+        - ErrorCodeNoReadAccess
+        - ErrorCodeNoWriteAccess
+        - ErrorCodeInvalidAuth
+        - ErrorCodeInternal
+        - ErrorCodeUnderlyingServiceUnavailable
+        - ErrorCodeRequestCanceled
+        - ErrorCodeDeadlineExceeded
+        - ErrorCodeBucketNotFound
+        - ErrorCodeScopeNotFound
+        - ErrorCodeCollectionNotFound
+        - ErrorCodeDocumentNotFound
+        - ErrorCodeDocumentExists
+        - ErrorCodeCasMismatch
+        - ErrorCodeDocumentLocked
+        - ErrorCodeValueTooLarge
+        - ErrorCodeDocumentNotJson
+        - ErrorCodePathMismatch
+    Error:
+      title: Error
+      description: Error represents an error response from the server.
+      type: object
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorCode'
+        message:
+          type: string
+          description: A human-readable description of the error.
+        resource:
+          type: string
+          description: The resource that caused the error.
+      required:
+        - code
+        - message
   parameters:
     AuthorizationHeader:
       in: header

@@ -124,7 +124,7 @@ func (s *DataApiServer) CreateDocument(
 	docValue, err := readDocFromHttpBody(in.Body)
 	if err != nil {
 		if errors.Is(err, ErrSizeLimitExceeded) {
-			return dataapiv1.CreateDocument413Response{}, nil
+			return nil, s.errorHandler.NewContentTooLargeStatus().Err()
 		} else {
 			return nil, s.errorHandler.NewGenericStatus(err).Err()
 		}
@@ -242,7 +242,7 @@ func (s *DataApiServer) UpdateDocument(
 	docValue, err := readDocFromHttpBody(in.Body)
 	if err != nil {
 		if errors.Is(err, ErrSizeLimitExceeded) {
-			return dataapiv1.UpdateDocument413Response{}, nil
+			return nil, s.errorHandler.NewContentTooLargeStatus().Err()
 		} else {
 			return nil, s.errorHandler.NewGenericStatus(err).Err()
 		}

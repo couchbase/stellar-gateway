@@ -21,24 +21,22 @@ type StatusError struct {
 }
 
 func (e *StatusError) Error() string {
-	return fmt.Sprintf("%s (code: %d, requestId: %s, resourceType: %s, resourceName: %s, debug: %s)",
+	return fmt.Sprintf("%s (status: %d, code: %s, resource: %s, requestId: %s, debug: %s)",
 		e.S.Message,
 		e.S.StatusCode,
+		e.S.Code,
+		e.S.Resource,
 		e.S.RequestID,
-		e.S.ResourceType,
-		e.S.ResourceName,
-		e.S.DebugMessage)
+		e.S.Debug)
 }
 
 type Status struct {
-	StatusCode     int    `json:"-"`
-	Message        string `json:"message,omitempty"`
-	RequestID      string `json:"requestId,omitempty"`
-	ResourceType   string `json:"resourceType,omitempty"`
-	ResourceName   string `json:"resourceName,omitempty"`
-	FailureType    string `json:"failureType,omitempty"`
-	FailureSubject string `json:"failureSubject,omitempty"`
-	DebugMessage   string `json:"debug,omitempty"`
+	StatusCode int                 `json:"-"`
+	Code       dataapiv1.ErrorCode `json:"code,omitempty"`
+	Message    string              `json:"message,omitempty"`
+	Resource   string              `json:"resource,omitempty"`
+	RequestID  string              `json:"requestId,omitempty"`
+	Debug      string              `json:"debug,omitempty"`
 }
 
 func (e *Status) Err() error {
@@ -64,7 +62,7 @@ func (e ErrorHandler) tryAttachExtraContext(st *Status, baseErr error) *Status {
 	}
 
 	if e.Debug {
-		st.DebugMessage = baseErr.Error()
+		st.Debug = baseErr.Error()
 	}
 
 	return st
@@ -73,6 +71,7 @@ func (e ErrorHandler) tryAttachExtraContext(st *Status, baseErr error) *Status {
 func (e ErrorHandler) NewInvalidAuthHeaderStatus(baseErr error) *Status {
 	st := &Status{
 		StatusCode: http.StatusBadRequest,
+		Code:       dataapiv1.ErrorCodeInvalidArgument,
 		Message:    "Invalid authorization header format.",
 	}
 	st = e.tryAttachExtraContext(st, baseErr)
@@ -82,6 +81,7 @@ func (e ErrorHandler) NewInvalidAuthHeaderStatus(baseErr error) *Status {
 func (e ErrorHandler) NewNoAuthStatus() *Status {
 	st := &Status{
 		StatusCode: http.StatusUnauthorized,
+		Code:       dataapiv1.ErrorCodeUnauthorized,
 		Message:    "You must send authentication to use this endpoint.",
 	}
 	return st
@@ -89,10 +89,9 @@ func (e ErrorHandler) NewNoAuthStatus() *Status {
 
 func (e ErrorHandler) NewInvalidCredentialsStatus() *Status {
 	st := &Status{
-		StatusCode:   http.StatusForbidden,
-		Message:      "Your username or password is invalid.",
-		ResourceType: "user",
-		ResourceName: "",
+		StatusCode: http.StatusForbidden,
+		Code:       dataapiv1.ErrorCodeInvalidAuth,
+		Message:    "Your username or password is invalid.",
 	}
 	return st
 }
@@ -100,6 +99,7 @@ func (e ErrorHandler) NewInvalidCredentialsStatus() *Status {
 func (e ErrorHandler) NewInternalStatus() *Status {
 	st := &Status{
 		StatusCode: http.StatusInternalServerError,
+		Code:       dataapiv1.ErrorCodeInternal,
 		Message:    "An internal error occurred.",
 	}
 	return st
@@ -108,6 +108,7 @@ func (e ErrorHandler) NewInternalStatus() *Status {
 func (e ErrorHandler) NewUnavailableStatus(err error) *Status {
 	st := &Status{
 		StatusCode: http.StatusServiceUnavailable,
+		Code:       dataapiv1.ErrorCodeUnderlyingServiceUnavailable,
 		Message:    "One of the underlying services were not available.",
 	}
 	st = e.tryAttachExtraContext(st, err)
@@ -119,6 +120,7 @@ func (e ErrorHandler) NewUnknownStatus(baseErr error) *Status {
 	if errors.As(baseErr, &memdErr) {
 		st := &Status{
 			StatusCode: http.StatusInternalServerError,
+			Code:       dataapiv1.ErrorCodeInternal,
 			Message:    fmt.Sprintf("An unknown memcached error occurred (status: %d).", memdErr.Status),
 		}
 		st = e.tryAttachExtraContext(st, baseErr)
@@ -134,6 +136,7 @@ func (e ErrorHandler) NewUnknownStatus(baseErr error) *Status {
 
 		st := &Status{
 			StatusCode: http.StatusInternalServerError,
+			Code:       dataapiv1.ErrorCodeInternal,
 			Message:    fmt.Sprintf("An unknown query error occurred (descs: %s).", strings.Join(queryErrDescs, "; ")),
 		}
 		st = e.tryAttachExtraContext(st, baseErr)
@@ -144,6 +147,7 @@ func (e ErrorHandler) NewUnknownStatus(baseErr error) *Status {
 	if errors.As(baseErr, &searchErr) {
 		st := &Status{
 			StatusCode: http.StatusInternalServerError,
+			Code:       dataapiv1.ErrorCodeInternal,
 			Message:    fmt.Sprintf("An unknown search error occurred (status: %d).", searchErr.StatusCode),
 		}
 		st = e.tryAttachExtraContext(st, baseErr)
@@ -154,6 +158,7 @@ func (e ErrorHandler) NewUnknownStatus(baseErr error) *Status {
 	if errors.As(baseErr, &serverErr) {
 		st := &Status{
 			StatusCode: http.StatusInternalServerError,
+			Code:       dataapiv1.ErrorCodeInternal,
 			Message:    fmt.Sprintf("An unknown server error occurred (status: %d).", serverErr.StatusCode),
 		}
 		st = e.tryAttachExtraContext(st, baseErr)
@@ -162,6 +167,7 @@ func (e ErrorHandler) NewUnknownStatus(baseErr error) *Status {
 
 	st := &Status{
 		StatusCode: http.StatusInternalServerError,
+		Code:       dataapiv1.ErrorCodeInternal,
 		Message:    "An unknown error occurred.",
 	}
 	st = e.tryAttachExtraContext(st, baseErr)
@@ -176,6 +182,7 @@ func (e ErrorHandler) NewGenericStatus(err error) *Status {
 
 		return &Status{
 			StatusCode: 499,
+			Code:       dataapiv1.ErrorCodeRequestCanceled,
 			Message:    "The request was cancelled.",
 		}
 	} else if errors.Is(err, context.DeadlineExceeded) {
@@ -183,6 +190,7 @@ func (e ErrorHandler) NewGenericStatus(err error) *Status {
 
 		return &Status{
 			StatusCode: http.StatusGatewayTimeout,
+			Code:       dataapiv1.ErrorCodeRequestCanceled,
 			Message:    "The request deadline was exceeded.",
 		}
 	}
@@ -203,30 +211,28 @@ func (e ErrorHandler) NewGenericStatus(err error) *Status {
 func (e ErrorHandler) NewBucketMissingStatus(baseErr error, bucketName string) *Status {
 	st := &Status{
 		StatusCode: http.StatusNotFound,
+		Code:       dataapiv1.ErrorCodeBucketNotFound,
 		Message: fmt.Sprintf("Bucket '%s' was not found.",
 			bucketName),
-		ResourceType: "bucket",
-		ResourceName: bucketName,
+		Resource: fmt.Sprintf("/buckets/%s", bucketName),
 	}
 	st = e.tryAttachExtraContext(st, baseErr)
 	return st
 }
 
-func (e ErrorHandler) NewBucketExistsStatus(baseErr error, bucketName string) *Status {
+func (e ErrorHandler) NewContentTooLargeStatus() *Status {
 	st := &Status{
-		StatusCode: http.StatusConflict,
-		Message: fmt.Sprintf("Bucket '%s' already existed.",
-			bucketName),
-		ResourceType: "bucket",
-		ResourceName: bucketName,
+		StatusCode: http.StatusRequestEntityTooLarge,
+		Code:       dataapiv1.ErrorCodeInvalidArgument,
+		Message:    "The content of the request was too large.",
 	}
-	st = e.tryAttachExtraContext(st, baseErr)
 	return st
 }
 
 func (e ErrorHandler) NewInvalidKeyLengthStatus(key string) *Status {
 	st := &Status{
 		StatusCode: http.StatusBadRequest,
+		Code:       dataapiv1.ErrorCodeInvalidArgument,
 		Message:    fmt.Sprintf("Length of document key '%s' must be between 1 and 251 characters.", key),
 	}
 	return st
@@ -234,11 +240,12 @@ func (e ErrorHandler) NewInvalidKeyLengthStatus(key string) *Status {
 
 func (e ErrorHandler) NewDocLockedStatus(baseErr error, bucketName, scopeName, collectionName, docId string) *Status {
 	st := &Status{
-		StatusCode: http.StatusBadRequest,
+		StatusCode: http.StatusConflict,
+		Code:       dataapiv1.ErrorCodeDocumentLocked,
 		Message: fmt.Sprintf("Cannot perform a write operation against locked document '%s' in '%s/%s/%s'.",
 			docId, bucketName, scopeName, collectionName),
-		FailureType:    "LOCKED",
-		FailureSubject: fmt.Sprintf("%s/%s/%s/%s", bucketName, scopeName, collectionName, docId),
+		Resource: fmt.Sprintf("/buckets/%s/scopes/%s/collections/%s/documents/%s",
+			bucketName, scopeName, collectionName, docId),
 	}
 	st = e.tryAttachExtraContext(st, baseErr)
 	return st
@@ -247,10 +254,11 @@ func (e ErrorHandler) NewDocLockedStatus(baseErr error, bucketName, scopeName, c
 func (e ErrorHandler) NewDocExistsStatus(baseErr error, bucketName, scopeName, collectionName, docId string) *Status {
 	st := &Status{
 		StatusCode: http.StatusConflict,
+		Code:       dataapiv1.ErrorCodeDocumentExists,
 		Message: fmt.Sprintf("Document '%s' already existed in '%s/%s/%s'.",
 			docId, bucketName, scopeName, collectionName),
-		ResourceType: "document",
-		ResourceName: fmt.Sprintf("%s/%s/%s/%s", bucketName, scopeName, collectionName, docId),
+		Resource: fmt.Sprintf("/buckets/%s/scopes/%s/collections/%s/documents/%s",
+			bucketName, scopeName, collectionName, docId),
 	}
 	st = e.tryAttachExtraContext(st, baseErr)
 	return st
@@ -259,10 +267,11 @@ func (e ErrorHandler) NewDocExistsStatus(baseErr error, bucketName, scopeName, c
 func (e ErrorHandler) NewDocMissingStatus(baseErr error, bucketName, scopeName, collectionName, docId string) *Status {
 	st := &Status{
 		StatusCode: http.StatusNotFound,
+		Code:       dataapiv1.ErrorCodeDocumentNotFound,
 		Message: fmt.Sprintf("Document '%s' not found in '%s/%s/%s'.",
 			docId, bucketName, scopeName, collectionName),
-		ResourceType: "document",
-		ResourceName: fmt.Sprintf("%s/%s/%s/%s", bucketName, scopeName, collectionName, docId),
+		Resource: fmt.Sprintf("/buckets/%s/scopes/%s/collections/%s/documents/%s",
+			bucketName, scopeName, collectionName, docId),
 	}
 	st = e.tryAttachExtraContext(st, baseErr)
 	return st
@@ -271,10 +280,11 @@ func (e ErrorHandler) NewDocMissingStatus(baseErr error, bucketName, scopeName, 
 func (e ErrorHandler) NewCollectionMissingStatus(baseErr error, bucketName, scopeName, collectionName string) *Status {
 	st := &Status{
 		StatusCode: http.StatusNotFound,
+		Code:       dataapiv1.ErrorCodeCollectionNotFound,
 		Message: fmt.Sprintf("Collection '%s' not found in '%s/%s'.",
 			collectionName, bucketName, scopeName),
-		ResourceType: "collection",
-		ResourceName: fmt.Sprintf("%s/%s/%s", bucketName, scopeName, collectionName),
+		Resource: fmt.Sprintf("/buckets/%s/scopes/%s/collections/%s",
+			bucketName, scopeName, collectionName),
 	}
 	st = e.tryAttachExtraContext(st, baseErr)
 	return st
@@ -283,10 +293,11 @@ func (e ErrorHandler) NewCollectionMissingStatus(baseErr error, bucketName, scop
 func (e ErrorHandler) NewScopeMissingStatus(baseErr error, bucketName, scopeName string) *Status {
 	st := &Status{
 		StatusCode: http.StatusNotFound,
+		Code:       dataapiv1.ErrorCodeScopeNotFound,
 		Message: fmt.Sprintf("Scope '%s' not found in '%s'.",
 			scopeName, bucketName),
-		ResourceType: "scope",
-		ResourceName: fmt.Sprintf("%s/%s", bucketName, scopeName),
+		Resource: fmt.Sprintf("/buckets/%s/scopes/%s",
+			bucketName, scopeName),
 	}
 	st = e.tryAttachExtraContext(st, baseErr)
 	return st
@@ -295,10 +306,11 @@ func (e ErrorHandler) NewScopeMissingStatus(baseErr error, bucketName, scopeName
 func (e ErrorHandler) NewCollectionNoReadAccessStatus(baseErr error, bucketName, scopeName, collectionName string) *Status {
 	st := &Status{
 		StatusCode: http.StatusForbidden,
+		Code:       dataapiv1.ErrorCodeNoReadAccess,
 		Message: fmt.Sprintf("No permissions to read documents from '%s/%s/%s'.",
 			bucketName, scopeName, collectionName),
-		ResourceType: "collection",
-		ResourceName: fmt.Sprintf("%s/%s/%s", bucketName, scopeName, collectionName),
+		Resource: fmt.Sprintf("/buckets/%s/scopes/%s/collections/%s",
+			bucketName, scopeName, collectionName),
 	}
 	st = e.tryAttachExtraContext(st, baseErr)
 	return st
@@ -307,10 +319,11 @@ func (e ErrorHandler) NewCollectionNoReadAccessStatus(baseErr error, bucketName,
 func (e ErrorHandler) NewCollectionNoWriteAccessStatus(baseErr error, bucketName, scopeName, collectionName string) *Status {
 	st := &Status{
 		StatusCode: http.StatusForbidden,
+		Code:       dataapiv1.ErrorCodeNoWriteAccess,
 		Message: fmt.Sprintf("No permissions to write documents into '%s/%s/%s'.",
 			bucketName, scopeName, collectionName),
-		ResourceType: "collection",
-		ResourceName: fmt.Sprintf("%s/%s/%s", bucketName, scopeName, collectionName),
+		Resource: fmt.Sprintf("/buckets/%s/scopes/%s/collections/%s",
+			bucketName, scopeName, collectionName),
 	}
 	st = e.tryAttachExtraContext(st, baseErr)
 	return st
@@ -322,16 +335,18 @@ func (e ErrorHandler) NewValueTooLargeStatus(baseErr error, bucketName, scopeNam
 	if isExpandingValue {
 		st = &Status{
 			StatusCode: http.StatusBadRequest,
+			Code:       dataapiv1.ErrorCodeValueTooLarge,
 			Message: fmt.Sprintf("Updated value '%s' made value too large in '%s/%s/%s'.",
 				docId, bucketName, scopeName, collectionName),
-			FailureType:    "VALUE_TOO_LARGE",
-			FailureSubject: fmt.Sprintf("%s/%s/%s/%s", bucketName, scopeName, collectionName, docId),
+			Resource: fmt.Sprintf("/buckets/%s/scopes/%s/collections/%s/documents/%s",
+				bucketName, scopeName, collectionName, docId),
 		}
 	} else {
 		st = &Status{
 			StatusCode: http.StatusBadRequest,
+			Code:       dataapiv1.ErrorCodeInvalidArgument,
 			Message: fmt.Sprintf("Value '%s' for new document was too large in '%s/%s/%s'.",
-				docId, bucketName, scopeName, collectionName),
+				bucketName, scopeName, collectionName, docId),
 		}
 	}
 	st = e.tryAttachExtraContext(st, baseErr)
@@ -341,10 +356,11 @@ func (e ErrorHandler) NewValueTooLargeStatus(baseErr error, bucketName, scopeNam
 func (e ErrorHandler) NewSdDocNotJsonStatus(baseErr error, bucketName, scopeName, collectionName, docId string) *Status {
 	st := &Status{
 		StatusCode: http.StatusBadRequest,
+		Code:       dataapiv1.ErrorCodeDocumentNotJson,
 		Message: fmt.Sprintf("Document '%s' was not JSON in '%s/%s/%s'.",
 			docId, bucketName, scopeName, collectionName),
-		FailureType:    "DOC_NOT_JSON",
-		FailureSubject: fmt.Sprintf("%s/%s/%s/%s", bucketName, scopeName, collectionName, docId),
+		Resource: fmt.Sprintf("/buckets/%s/scopes/%s/collections/%s/documents/%s",
+			bucketName, scopeName, collectionName, docId),
 	}
 	st = e.tryAttachExtraContext(st, baseErr)
 	return st
@@ -353,6 +369,7 @@ func (e ErrorHandler) NewSdDocNotJsonStatus(baseErr error, bucketName, scopeName
 func (e ErrorHandler) NewSdPathInvalidStatus(baseErr error, sdPath string) *Status {
 	st := &Status{
 		StatusCode: http.StatusBadRequest,
+		Code:       dataapiv1.ErrorCodeInvalidArgument,
 		Message:    fmt.Sprintf("Invalid subdocument path syntax '%s'.", sdPath),
 	}
 	st = e.tryAttachExtraContext(st, baseErr)
@@ -362,10 +379,11 @@ func (e ErrorHandler) NewSdPathInvalidStatus(baseErr error, sdPath string) *Stat
 func (e ErrorHandler) NewSdPathMismatchStatus(baseErr error, bucketName, scopeName, collectionName, docId, sdPath string) *Status {
 	st := &Status{
 		StatusCode: http.StatusBadRequest,
+		Code:       dataapiv1.ErrorCodePathMismatch,
 		Message: fmt.Sprintf("Document structure implied by path '%s' did not match document '%s' in '%s/%s/%s'.",
 			sdPath, docId, bucketName, scopeName, collectionName),
-		FailureType:    "PATH_MISMATCH",
-		FailureSubject: sdPath,
+		Resource: fmt.Sprintf("/buckets/%s/scopes/%s/collections/%s/documents/%s/content/{%s}",
+			bucketName, scopeName, collectionName, docId, sdPath),
 	}
 	st = e.tryAttachExtraContext(st, baseErr)
 	return st
@@ -374,6 +392,7 @@ func (e ErrorHandler) NewSdPathMismatchStatus(baseErr error, bucketName, scopeNa
 func (e ErrorHandler) NewInvalidContentEncodingStatus(encoding dataapiv1.DocumentEncoding) *Status {
 	st := &Status{
 		StatusCode: http.StatusBadRequest,
+		Code:       dataapiv1.ErrorCodeInvalidArgument,
 		Message:    fmt.Sprintf("Invalid content encoding '%s'.", encoding),
 	}
 	return st
@@ -382,6 +401,7 @@ func (e ErrorHandler) NewInvalidContentEncodingStatus(encoding dataapiv1.Documen
 func (e ErrorHandler) NewInvalidEtagFormatStatus(etag string) *Status {
 	st := &Status{
 		StatusCode: http.StatusBadRequest,
+		Code:       dataapiv1.ErrorCodeInvalidArgument,
 		Message:    fmt.Sprintf("Invalid etag format '%s'.", etag),
 	}
 	return st
@@ -390,6 +410,7 @@ func (e ErrorHandler) NewInvalidEtagFormatStatus(etag string) *Status {
 func (e ErrorHandler) NewZeroCasStatus() *Status {
 	st := &Status{
 		StatusCode: http.StatusBadRequest,
+		Code:       dataapiv1.ErrorCodeInvalidArgument,
 		Message:    "CAS value cannot be zero.",
 	}
 	return st
@@ -398,10 +419,11 @@ func (e ErrorHandler) NewZeroCasStatus() *Status {
 func (e ErrorHandler) NewDocCasMismatchStatus(baseErr error, bucketName, scopeName, collectionName, docId string) *Status {
 	st := &Status{
 		StatusCode: http.StatusConflict,
+		Code:       dataapiv1.ErrorCodeCasMismatch,
 		Message: fmt.Sprintf("The specified CAS for '%s' in '%s/%s/%s' did not match.",
 			docId, bucketName, scopeName, collectionName),
-		FailureType:    "CAS_MISMATCH",
-		FailureSubject: fmt.Sprintf("%s/%s/%s/%s", bucketName, scopeName, collectionName, docId),
+		Resource: fmt.Sprintf("/buckets/%s/scopes/%s/collections/%s/documents/%s",
+			bucketName, scopeName, collectionName, docId),
 	}
 	st = e.tryAttachExtraContext(st, baseErr)
 	return st
