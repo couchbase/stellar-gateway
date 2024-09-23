@@ -78,10 +78,13 @@ func init() {
 	configFlags.Int("sd-port", 18099, "the sd port")
 	configFlags.Int("dapi-port", -1, "the data api port")
 	configFlags.Int("web-port", 9091, "the web metrics/health port")
-	configFlags.Bool("self-sign", false, "specifies to use a self-signed certificate rather than specifying them")
-	configFlags.String("cert", "", "path to server tls cert")
-	configFlags.String("key", "", "path to server private tls key")
-	configFlags.String("cacert", "", "path to root CA cert")
+	configFlags.Bool("self-sign", false, "specifies to allow a self-signed certificate")
+	configFlags.String("cert", "", "path to default tls cert")
+	configFlags.String("key", "", "path to default private tls key")
+	configFlags.String("grpc-cert", "", "path to grpc tls cert for GRPC")
+	configFlags.String("grpc-key", "", "path to grpc private tls key for GRPC")
+	configFlags.String("dapi-cert", "", "path to data api tls cert for Data API")
+	configFlags.String("dapi-key", "", "path to data api private tls key for Data API")
 	configFlags.Int("rate-limit", 0, "specifies the maximum requests per second to allow")
 	configFlags.String("otlp-endpoint", "", "opentelemetry endpoint to send telemetry to")
 	configFlags.Bool("disable-otlp-traces", false, "disable sending traces to otlp")
@@ -221,7 +224,10 @@ type config struct {
 	selfSign              bool
 	certPath              string
 	keyPath               string
-	caCertPath            string
+	grpcCertPath          string
+	grpcKeyPath           string
+	dapiCertPath          string
+	dapiKeyPath           string
 	rateLimit             int
 	otlpEndpoint          string
 	disableOtlpTraces     bool
@@ -252,7 +258,10 @@ func readConfig(logger *zap.Logger) *config {
 		selfSign:              viper.GetBool("self-sign"),
 		certPath:              viper.GetString("cert"),
 		keyPath:               viper.GetString("key"),
-		caCertPath:            viper.GetString("cacert"),
+		grpcCertPath:          viper.GetString("grpc-cert"),
+		grpcKeyPath:           viper.GetString("grpc-key"),
+		dapiCertPath:          viper.GetString("dapi-cert"),
+		dapiKeyPath:           viper.GetString("dapi-key"),
 		rateLimit:             viper.GetInt("rate-limit"),
 		otlpEndpoint:          viper.GetString("otlp-endpoint"),
 		disableOtlpTraces:     viper.GetBool("disable-otlp-traces"),
@@ -282,7 +291,10 @@ func readConfig(logger *zap.Logger) *config {
 		zap.Bool("selfSign", config.selfSign),
 		zap.String("certPath", config.certPath),
 		zap.String("keyPath", config.keyPath),
-		zap.String("cacertPath", config.caCertPath),
+		zap.String("grpcCertPath", config.grpcCertPath),
+		zap.String("grpcKeyPath", config.grpcKeyPath),
+		zap.String("dapiCertPath", config.dapiCertPath),
+		zap.String("dapiKeyPath", config.dapiKeyPath),
 		zap.Int("rateLimit", config.rateLimit),
 		zap.String("otlpEndpoint", config.otlpEndpoint),
 		zap.Bool("disableOtlpTraces", config.disableOtlpTraces),
@@ -377,33 +389,77 @@ func startGateway() {
 		ListenAddress: webListenAddress,
 	})
 
-	var tlsCertificate tls.Certificate
+	var selfSignedCert *tls.Certificate
 	if config.selfSign {
-		if config.certPath != "" || config.keyPath != "" {
-			logger.Error("cannot specify both self-sign along with a cert or key")
-			os.Exit(1)
-		}
-
-		selfSignedCert, err := selfsignedcert.GenerateCertificate()
+		generatedCert, err := selfsignedcert.GenerateCertificate()
 		if err != nil {
 			logger.Error("failed to generate a self-signed certificate")
 			os.Exit(1)
 		}
 
-		tlsCertificate = *selfSignedCert
-	} else {
-		if config.certPath == "" || config.keyPath == "" {
-			logger.Error("must specify both cert and key unless self-sign is specified")
-			os.Exit(1)
+		selfSignedCert = generatedCert
+	}
+
+	var grpcCertificate tls.Certificate
+	if config.dataPort != -1 || config.sdPort != -1 {
+		// GRPC services are enabled
+		grpcCertPath := config.grpcCertPath
+		if grpcCertPath == "" {
+			grpcCertPath = config.certPath
 		}
 
-		loadedTlsCertificate, err := tls.LoadX509KeyPair(config.certPath, config.keyPath)
-		if err != nil {
-			logger.Error("failed to load tls certificate", zap.Error(err))
-			os.Exit(1)
+		grpcKeyPath := config.grpcKeyPath
+		if grpcKeyPath == "" {
+			grpcKeyPath = config.keyPath
 		}
 
-		tlsCertificate = loadedTlsCertificate
+		if grpcCertPath == "" || grpcKeyPath == "" {
+			if selfSignedCert == nil {
+				logger.Error("must specify both grpc-cert/grpc-key or cert/key unless self-sign is specified")
+				os.Exit(1)
+			}
+
+			grpcCertificate = *selfSignedCert
+		} else {
+			loadedTlsCertificate, err := tls.LoadX509KeyPair(grpcCertPath, grpcKeyPath)
+			if err != nil {
+				logger.Error("failed to load tls certificate", zap.Error(err))
+				os.Exit(1)
+			}
+
+			grpcCertificate = loadedTlsCertificate
+		}
+	}
+
+	var dapiCertificate tls.Certificate
+	if config.dapiPort != -1 {
+		// Data API service is enabled
+		dapiCertPath := config.dapiCertPath
+		if dapiCertPath == "" {
+			dapiCertPath = config.certPath
+		}
+
+		dapiKeyPath := config.dapiKeyPath
+		if dapiKeyPath == "" {
+			dapiKeyPath = config.keyPath
+		}
+
+		if dapiCertPath == "" || dapiKeyPath == "" {
+			if selfSignedCert == nil {
+				logger.Error("must specify both dapi-cert/dapi-key or cert/key unless self-sign is specified")
+				os.Exit(1)
+			}
+
+			dapiCertificate = *selfSignedCert
+		} else {
+			loadedTlsCertificate, err := tls.LoadX509KeyPair(dapiCertPath, dapiKeyPath)
+			if err != nil {
+				logger.Error("failed to load tls certificate", zap.Error(err))
+				os.Exit(1)
+			}
+
+			dapiCertificate = loadedTlsCertificate
+		}
 	}
 
 	if config.cbCredsAwsId != "" {
@@ -467,20 +523,21 @@ func startGateway() {
 	}
 
 	gatewayConfig := &gateway.Config{
-		Logger:         logger.Named("gateway"),
-		CbConnStr:      config.cbHost,
-		Username:       config.cbUser,
-		Password:       config.cbPass,
-		Daemon:         daemon,
-		Debug:          config.debug,
-		ProxyServices:  strings.Split(config.dapiProxyServices, ","),
-		BindDataPort:   config.dataPort,
-		BindSdPort:     config.sdPort,
-		BindDapiPort:   config.dapiPort,
-		BindAddress:    config.bindAddress,
-		RateLimit:      config.rateLimit,
-		TlsCertificate: tlsCertificate,
-		NumInstances:   1,
+		Logger:          logger.Named("gateway"),
+		CbConnStr:       config.cbHost,
+		Username:        config.cbUser,
+		Password:        config.cbPass,
+		Daemon:          daemon,
+		Debug:           config.debug,
+		ProxyServices:   strings.Split(config.dapiProxyServices, ","),
+		BindDataPort:    config.dataPort,
+		BindSdPort:      config.sdPort,
+		BindDapiPort:    config.dapiPort,
+		BindAddress:     config.bindAddress,
+		RateLimit:       config.rateLimit,
+		GrpcCertificate: grpcCertificate,
+		DapiCertificate: dapiCertificate,
+		NumInstances:    1,
 		StartupCallback: func(m *gateway.StartupInfo) {
 			webapi.MarkSystemHealthy()
 		},
@@ -518,11 +575,17 @@ func startGateway() {
 			logger.Warn("config changes for bindAddress, dataPort, sdPort, or dapiPort require a restart")
 		}
 
-		if newConfig.selfSign != config.selfSign ||
-			newConfig.certPath != config.certPath ||
+		if newConfig.selfSign != config.selfSign {
+			logger.Warn("config changes for selfSign require a restart")
+		}
+
+		if newConfig.certPath != config.certPath ||
 			newConfig.keyPath != config.keyPath ||
-			newConfig.caCertPath != config.caCertPath {
-			logger.Warn("config changes for selfSign, certPath, keyPath, or caCertPath require a restart")
+			newConfig.grpcCertPath != config.grpcCertPath ||
+			newConfig.grpcKeyPath != config.grpcKeyPath ||
+			newConfig.dapiCertPath != config.dapiCertPath ||
+			newConfig.dapiKeyPath != config.dapiKeyPath {
+			logger.Warn("config changes for certPath, keyPath, grpcCertPath, grpcKeyPath, dapiCertPath, or dapiKeyPath require a restart")
 		}
 
 		if newConfig.otlpEndpoint != config.otlpEndpoint ||

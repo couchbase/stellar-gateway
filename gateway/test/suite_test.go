@@ -39,6 +39,7 @@ type GatewayOpsTestSuite struct {
 	gatewayCloseFunc func()
 	gatewayConn      *grpc.ClientConn
 	gatewayClosedCh  chan struct{}
+	dapiCli          *http.Client
 	dapiAddr         string
 
 	bucketName     string
@@ -249,15 +250,16 @@ func (s *GatewayOpsTestSuite) SetupSuite() {
 	gwStartInfoCh := make(chan *gateway.StartupInfo, 1)
 	gwCtx, gwCtxCancel := context.WithCancel(context.Background())
 	gw, err := gateway.NewGateway(&gateway.Config{
-		Logger:         logger.Named("gateway"),
-		CbConnStr:      testConfig.CbConnStr,
-		Username:       testConfig.CbUser,
-		Password:       testConfig.CbPass,
-		BindDataPort:   0,
-		BindSdPort:     0,
-		BindDapiPort:   0,
-		TlsCertificate: *gwCert,
-		NumInstances:   1,
+		Logger:          logger.Named("gateway"),
+		CbConnStr:       testConfig.CbConnStr,
+		Username:        testConfig.CbUser,
+		Password:        testConfig.CbPass,
+		BindDataPort:    0,
+		BindSdPort:      0,
+		BindDapiPort:    0,
+		GrpcCertificate: *gwCert,
+		DapiCertificate: *gwCert,
+		NumInstances:    1,
 
 		StartupCallback: func(m *gateway.StartupInfo) {
 			gwStartInfoCh <- m
@@ -290,10 +292,16 @@ func (s *GatewayOpsTestSuite) SetupSuite() {
 	}
 
 	dapiAddr := fmt.Sprintf("%s:%d", "127.0.0.1", startInfo.AdvertisePorts.DAPI)
+	dapiCli := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		},
+	}
 
 	s.gatewayConn = conn
 	s.gatewayCloseFunc = gwCtxCancel
 	s.gatewayClosedCh = gwClosedCh
+	s.dapiCli = dapiCli
 	s.dapiAddr = dapiAddr
 }
 
@@ -303,6 +311,9 @@ func (s *GatewayOpsTestSuite) TearDownSuite() {
 	s.gatewayCloseFunc()
 	<-s.gatewayClosedCh
 	s.gatewayConn = nil
+
+	s.dapiCli.CloseIdleConnections()
+	s.dapiCli = nil
 }
 
 func (s *GatewayOpsTestSuite) ParseSupportedFeatures(featsStr string) {

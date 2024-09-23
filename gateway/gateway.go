@@ -68,7 +68,8 @@ type Config struct {
 
 	RateLimit int
 
-	TlsCertificate tls.Certificate
+	GrpcCertificate tls.Certificate
+	DapiCertificate tls.Certificate
 
 	NumInstances    uint
 	StartupCallback func(*StartupInfo)
@@ -77,9 +78,10 @@ type Config struct {
 type Gateway struct {
 	config Config
 
-	isShutdown    atomic.Bool
-	shutdownSig   chan struct{}
-	atomicTlsCert atomic.Pointer[tls.Certificate]
+	isShutdown     atomic.Bool
+	shutdownSig    chan struct{}
+	atomicGrpcCert atomic.Pointer[tls.Certificate]
+	atomicDapiCert atomic.Pointer[tls.Certificate]
 
 	reconfigureLock sync.Mutex
 	rateLimiters    []*ratelimiting.GlobalRateLimiter
@@ -91,8 +93,11 @@ func NewGateway(config *Config) (*Gateway, error) {
 		shutdownSig: make(chan struct{}),
 	}
 
-	tlsCert := config.TlsCertificate
-	gw.atomicTlsCert.Store(&tlsCert)
+	grpcCert := config.GrpcCertificate
+	gw.atomicGrpcCert.Store(&grpcCert)
+
+	dapiCert := config.DapiCertificate
+	gw.atomicDapiCert.Store(&dapiCert)
 
 	return gw, nil
 }
@@ -382,9 +387,14 @@ func (g *Gateway) Run(ctx context.Context) error {
 			DapiImpl:    dapiImpl,
 			Metrics:     metrics.GetSnMetrics(),
 			RateLimiter: rateLimiter,
-			TlsConfig: &tls.Config{
+			GrpcTlsConfig: &tls.Config{
 				GetCertificate: func(chi *tls.ClientHelloInfo) (*tls.Certificate, error) {
-					return g.atomicTlsCert.Load(), nil
+					return g.atomicGrpcCert.Load(), nil
+				},
+			},
+			DapiTlsConfig: &tls.Config{
+				GetCertificate: func(chi *tls.ClientHelloInfo) (*tls.Certificate, error) {
+					return g.atomicDapiCert.Load(), nil
 				},
 			},
 			Debug: config.Debug,
