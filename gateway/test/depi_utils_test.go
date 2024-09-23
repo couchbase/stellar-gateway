@@ -25,7 +25,7 @@ type testHttpResponse struct {
 func (s *GatewayOpsTestSuite) sendTestHttpRequest(req *testHttpRequest) *testHttpResponse {
 	hreq, err := http.NewRequest(
 		req.Method,
-		fmt.Sprintf("http://%s%s", s.dapiAddr, req.Path),
+		fmt.Sprintf("https://%s%s", s.dapiAddr, req.Path),
 		bytes.NewReader(req.Body))
 	require.NoError(s.T(), err)
 
@@ -33,7 +33,7 @@ func (s *GatewayOpsTestSuite) sendTestHttpRequest(req *testHttpRequest) *testHtt
 		hreq.Header.Set(k, v)
 	}
 
-	hresp, err := http.DefaultClient.Do(hreq)
+	hresp, err := s.dapiCli.Do(hreq)
 	require.NoError(s.T(), err)
 
 	fullBody, err := io.ReadAll(hresp.Body)

@@ -48,9 +48,10 @@ type SystemOptions struct {
 	DapiImpl *dapiimpl.Servers
 	Metrics  *metrics.SnMetrics
 
-	RateLimiter ratelimiting.RateLimiter
-	TlsConfig   *tls.Config
-	Debug       bool
+	RateLimiter   ratelimiting.RateLimiter
+	GrpcTlsConfig *tls.Config
+	DapiTlsConfig *tls.Config
+	Debug         bool
 }
 
 type System struct {
@@ -106,7 +107,7 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 		grpc.StatsHandler(otelgrpc.NewServerHandler()),
 		grpc.ChainUnaryInterceptor(unaryInterceptors...),
 		grpc.ChainStreamInterceptor(streamInterceptors...),
-		grpc.Creds(credentials.NewTLS(opts.TlsConfig)),
+		grpc.Creds(credentials.NewTLS(opts.GrpcTlsConfig)),
 		grpc.MaxRecvMsgSize(maxMsgSize),
 	}
 
@@ -162,6 +163,7 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 		ReadTimeout:  time.Second * 15,
 		IdleTimeout:  time.Second * 60,
 		Handler:      httpHandler,
+		TLSConfig:    opts.DapiTlsConfig,
 	}
 
 	s := &System{
@@ -209,7 +211,7 @@ func (s *System) Serve(ctx context.Context, l *Listeners) error {
 	if l.dapiListener != nil {
 		wg.Add(1)
 		go func() {
-			err := s.dapiServer.Serve(l.dapiListener)
+			err := s.dapiServer.ServeTLS(l.dapiListener, "", "")
 			if err != nil {
 				s.logger.Warn("data api server serve failed", zap.Error(err))
 			}
