@@ -171,6 +171,88 @@ paths:
           description: The alpha API is enabled
         '404':
           description: The alpha API is not enabled
+  '/v1.alpha/buckets/{bucketName}/scopes/{scopeName}/collections/{collectionName}/documents/{documentKey}/append':
+    parameters:
+      - $ref: '#/components/parameters/AuthorizationHeader'
+      - $ref: '#/components/parameters/BucketName'
+      - $ref: '#/components/parameters/ScopeName'
+      - $ref: '#/components/parameters/CollectionName'
+      - $ref: '#/components/parameters/DocumentKey'
+    post:
+      operationId: appendToDocument
+      tags:
+        - Binary Operations
+      parameters:
+        - $ref: '#/components/parameters/IfMatchHeader'
+        - $ref: '#/components/parameters/DurabilityLevelHeader'
+      requestBody:
+        required: true
+        content:
+         '*':
+            schema: {}
+      responses:
+        '200':
+          description: Successful appended contents to the document.
+          headers:
+            ETag:
+              $ref: "#/components/headers/ETag"
+            X-CB-MutationToken:
+              $ref: "#/components/headers/MutationToken"
+        '400':
+          $ref: '#/components/responses/BadRequest' 
+        '403':
+          $ref: '#/components/responses/Forbidden' 
+        '404':
+          $ref: '#/components/responses/NotFound' 
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable' 
+        '504':
+          $ref: '#/components/responses/GatewayTimeout'
+  '/v1.alpha/buckets/{bucketName}/scopes/{scopeName}/collections/{collectionName}/documents/{documentKey}/prepend':
+    parameters:
+      - $ref: '#/components/parameters/AuthorizationHeader'
+      - $ref: '#/components/parameters/BucketName'
+      - $ref: '#/components/parameters/ScopeName'
+      - $ref: '#/components/parameters/CollectionName'
+      - $ref: '#/components/parameters/DocumentKey'
+    post:
+      operationId: prependToDocument
+      tags:
+        - Binary Operations
+      parameters:
+        - $ref: '#/components/parameters/IfMatchHeader'
+        - $ref: '#/components/parameters/DurabilityLevelHeader'
+      requestBody:
+        required: true
+        content:
+         '*':
+            schema: {}
+      responses:
+        '200':
+          description: Successful prepended contents to the document.
+          headers:
+            ETag:
+              $ref: "#/components/headers/ETag"
+            X-CB-MutationToken:
+              $ref: "#/components/headers/MutationToken"
+        '400':
+          $ref: '#/components/responses/BadRequest' 
+        '403':
+          $ref: '#/components/responses/Forbidden' 
+        '404':
+          $ref: '#/components/responses/NotFound' 
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable' 
+        '504':
+          $ref: '#/components/responses/GatewayTimeout'
 components:
   securitySchemes:
     BasicAuth:
