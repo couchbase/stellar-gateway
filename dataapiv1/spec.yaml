@@ -253,6 +253,114 @@ paths:
           $ref: '#/components/responses/ServiceUnavailable' 
         '504':
           $ref: '#/components/responses/GatewayTimeout'
+  '/v1.alpha/buckets/{bucketName}/scopes/{scopeName}/collections/{collectionName}/documents/{documentKey}/increment':
+    parameters:
+      - $ref: '#/components/parameters/AuthorizationHeader'
+      - $ref: '#/components/parameters/BucketName'
+      - $ref: '#/components/parameters/ScopeName'
+      - $ref: '#/components/parameters/CollectionName'
+      - $ref: '#/components/parameters/DocumentKey'
+    post:
+      operationId: incrementDocument
+      tags:
+        - Binary Operations
+      parameters:
+        - $ref: '#/components/parameters/ExpiresHeader'
+        - $ref: '#/components/parameters/DurabilityLevelHeader'
+      requestBody:
+        required: true
+        content:
+         'application/json':
+            schema:
+              type: object
+              properties:
+                initial:
+                  description: The value to set the document to if the document does not exist.
+                  type: integer
+                  format: uint64
+                delta:
+                  description: The value to increment the document by if it exists.
+                  type: integer
+                  format: uint64
+      responses:
+        '200':
+          description: Successful incremented the document.
+          headers:
+            ETag:
+              $ref: "#/components/headers/ETag"
+            X-CB-MutationToken:
+              $ref: "#/components/headers/MutationToken"
+          content:
+            application/json:
+              schema:
+                type: integer
+                format: uint64
+        '400':
+          $ref: '#/components/responses/BadRequest' 
+        '403':
+          $ref: '#/components/responses/Forbidden' 
+        '404':
+          $ref: '#/components/responses/NotFound' 
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable' 
+        '504':
+          $ref: '#/components/responses/GatewayTimeout'
+  '/v1.alpha/buckets/{bucketName}/scopes/{scopeName}/collections/{collectionName}/documents/{documentKey}/decrement':
+    parameters:
+      - $ref: '#/components/parameters/AuthorizationHeader'
+      - $ref: '#/components/parameters/BucketName'
+      - $ref: '#/components/parameters/ScopeName'
+      - $ref: '#/components/parameters/CollectionName'
+      - $ref: '#/components/parameters/DocumentKey'
+    post:
+      operationId: decrementDocument
+      tags:
+        - Binary Operations
+      parameters:
+        - $ref: '#/components/parameters/ExpiresHeader'
+        - $ref: '#/components/parameters/DurabilityLevelHeader'
+      requestBody:
+        required: true
+        content:
+         'application/json':
+            schema:
+              type: object
+              properties:
+                initial:
+                  type: integer
+                  format: uint64
+                  description: The value to set the document to if the document does not exist.
+                delta:
+                  type: integer
+                  format: uint64
+                  description: The value to increment the document by if it exists.
+      responses:
+        '200':
+          description: Successful incremented the document.
+          headers:
+            ETag:
+              $ref: "#/components/headers/ETag"
+            X-CB-MutationToken:
+              $ref: "#/components/headers/MutationToken"
+          content:
+            application/json:
+              schema:
+                type: integer
+                format: uint64
+        '400':
+          $ref: '#/components/responses/BadRequest' 
+        '403':
+          $ref: '#/components/responses/Forbidden' 
+        '404':
+          $ref: '#/components/responses/NotFound' 
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable' 
+        '504':
+          $ref: '#/components/responses/GatewayTimeout'
 components:
   securitySchemes:
     BasicAuth:
