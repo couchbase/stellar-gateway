@@ -162,7 +162,15 @@ paths:
         '503':
           $ref: '#/components/responses/ServiceUnavailable' 
         '504':
-          $ref: '#/components/responses/GatewayTimeout' 
+          $ref: '#/components/responses/GatewayTimeout'
+  '/v1.alpha/enabled':
+    get:
+      operationId: alphaEnabled
+      responses:
+        '200':
+          description: The alpha API is enabled
+        '404':
+          description: The alpha API is not enabled
 components:
   securitySchemes:
     BasicAuth:

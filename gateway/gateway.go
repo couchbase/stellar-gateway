@@ -48,12 +48,13 @@ type StartupInfo struct {
 }
 
 type Config struct {
-	Logger        *zap.Logger
-	NodeID        string
-	ServerGroup   string
-	Daemon        bool
-	Debug         bool
-	ProxyServices []string
+	Logger         *zap.Logger
+	NodeID         string
+	ServerGroup    string
+	Daemon         bool
+	Debug          bool
+	ProxyServices  []string
+	AlphaEndpoints bool
 
 	CbConnStr string
 	Username  string
@@ -397,7 +398,8 @@ func (g *Gateway) Run(ctx context.Context) error {
 					return g.atomicDapiCert.Load(), nil
 				},
 			},
-			Debug: config.Debug,
+			AlphaEndpoints: config.AlphaEndpoints,
+			Debug:          config.Debug,
 		})
 		if err != nil {
 			config.Logger.Error("error creating legacy proxy")

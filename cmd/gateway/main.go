@@ -91,6 +91,7 @@ func init() {
 	configFlags.Bool("disable-otlp-metrics", false, "disable sending metrics to otlp")
 	configFlags.Bool("trace-everything", false, "enables tracing of all components")
 	configFlags.String("dapi-proxy-services", "", "specifies services exposed via _p endpoint proxies")
+	configFlags.Bool("alpha-endpoints", false, "enables alpha endpoints")
 	configFlags.Bool("debug", false, "enable debug mode")
 	configFlags.String("cpuprofile", "", "write cpu profile to a file")
 	configFlags.String("cb-creds-aws-id", "", "id of secret in aws sm storing couchbase server credentials")
@@ -234,6 +235,7 @@ type config struct {
 	disableOtlpMetrics    bool
 	traceEverything       bool
 	dapiProxyServices     string
+	alphaEndpoints        bool
 	debug                 bool
 	cpuprofile            string
 	cbCredsAwsId          string
@@ -268,6 +270,7 @@ func readConfig(logger *zap.Logger) *config {
 		disableOtlpMetrics:    viper.GetBool("disable-otlp-metrics"),
 		traceEverything:       viper.GetBool("trace-everything"),
 		dapiProxyServices:     viper.GetString("dapi-proxy-services"),
+		alphaEndpoints:        viper.GetBool("alpha-endpoints"),
 		debug:                 viper.GetBool("debug"),
 		cpuprofile:            viper.GetString("cpuprofile"),
 		cbCredsAwsId:          viper.GetString("cb-creds-aws-id"),
@@ -301,6 +304,7 @@ func readConfig(logger *zap.Logger) *config {
 		zap.Bool("disableOtlpMetrics", config.disableOtlpMetrics),
 		zap.Bool("traceEverything", config.traceEverything),
 		zap.String("dapiProxyServices", config.dapiProxyServices),
+		zap.Bool("alphaEndpoints", config.alphaEndpoints),
 		zap.Bool("debug", config.debug),
 		zap.String("cpuprofile", config.cpuprofile),
 		zap.String("cbCredsAwsId", config.cbCredsAwsId),
@@ -530,6 +534,7 @@ func startGateway() {
 		Daemon:          daemon,
 		Debug:           config.debug,
 		ProxyServices:   strings.Split(config.dapiProxyServices, ","),
+		AlphaEndpoints:  config.alphaEndpoints,
 		BindDataPort:    config.dataPort,
 		BindSdPort:      config.sdPort,
 		BindDapiPort:    config.dapiPort,
@@ -605,6 +610,10 @@ func startGateway() {
 
 		if newConfig.dapiProxyServices != config.dapiProxyServices {
 			logger.Warn("config changes for dapiProxyServices require a restart")
+		}
+
+		if newConfig.alphaEndpoints != config.alphaEndpoints {
+			logger.Warn("config changes for alphaEndpoints require a restart")
 		}
 
 		if newConfig.logLevelStr != config.logLevelStr {
