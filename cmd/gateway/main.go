@@ -638,6 +638,15 @@ func startGateway() {
 			}
 		}
 
+		if newConfig.cbCredsAwsId != config.cbCredsAwsId ||
+			newConfig.cbCredsAwsRegion != config.cbCredsAwsRegion ||
+			newConfig.cbCredsAzureId != config.cbCredsAzureId ||
+			newConfig.cbCredsAzureVaultName != config.cbCredsAzureVaultName ||
+			newConfig.cbCredsGcpId != config.cbCredsGcpId ||
+			newConfig.cbCredsGcpProjectId != config.cbCredsGcpProjectId {
+			logger.Warn("config changes for cbCredsAwsId, cbCredsAwsRegion, cbCredsAzureId, cbCredsAzureVaultName, cbCredsGcpId or cbCredsGcpProjectId require a restart")
+		}
+
 		config = newConfig
 	}
 
