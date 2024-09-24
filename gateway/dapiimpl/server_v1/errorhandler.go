@@ -251,6 +251,19 @@ func (e ErrorHandler) NewDocLockedStatus(baseErr error, bucketName, scopeName, c
 	return st
 }
 
+func (e ErrorHandler) NewDocNotLockedStatus(baseErr error, bucketName, scopeName, collectionName, docId string) *Status {
+	st := &Status{
+		StatusCode: http.StatusBadRequest,
+		Code:       dataapiv1.ErrorCodeDocumentNotLocked,
+		Message: fmt.Sprintf("Cannot unlock an unlocked document '%s' in '%s/%s/%s'.",
+			docId, bucketName, scopeName, collectionName),
+		Resource: fmt.Sprintf("/buckets/%s/scopes/%s/collections/%s/documents/%s",
+			bucketName, scopeName, collectionName, docId),
+	}
+	st = e.tryAttachExtraContext(st, baseErr)
+	return st
+}
+
 func (e ErrorHandler) NewDocExistsStatus(baseErr error, bucketName, scopeName, collectionName, docId string) *Status {
 	st := &Status{
 		StatusCode: http.StatusConflict,
