@@ -447,6 +447,64 @@ paths:
           $ref: '#/components/responses/ServiceUnavailable' 
         '504':
           $ref: '#/components/responses/GatewayTimeout'
+  '/v1.alpha/buckets/{bucketName}/scopes/{scopeName}/collections/{collectionName}/documents/{documentKey}/touch':
+    parameters:
+      - $ref: '#/components/parameters/AuthorizationHeader'
+      - $ref: '#/components/parameters/BucketName'
+      - $ref: '#/components/parameters/ScopeName'
+      - $ref: '#/components/parameters/CollectionName'
+      - $ref: '#/components/parameters/DocumentKey'
+    post:
+      operationId: touchDocument
+      tags:
+        - Expiry Operations
+      parameters:
+        - $ref: '#/components/parameters/AcceptEncodingHeader'
+      requestBody:
+        required: true
+        content:
+         'application/json':
+            schema:
+              type: object
+              properties:
+                expiry:
+                  description: The new expiry to set for the document, specified as an ISO8601 string.
+                  type: string
+                returnContent:
+                  description: Specifies whether the documents contents should be returned in the response.
+                  type: boolean
+      responses:
+        '200':
+          description: Successful updated the expiry of the document and is returning the content of the document.
+          headers:
+            Content-Encoding:
+              $ref: "#/components/headers/ContentEncoding"
+            ETag:
+              $ref: "#/components/headers/ETag"
+            X-CB-Flags:
+              $ref: "#/components/headers/DocumentFlags"
+          content:
+            '*':
+              schema:
+                type: string
+                format: binary
+        '202':
+          description: Successful updated the expiry of the document but is not returning the content of the document.
+          headers:
+            ETag:
+              $ref: "#/components/headers/ETag"
+        '400':
+          $ref: '#/components/responses/BadRequest' 
+        '403':
+          $ref: '#/components/responses/Forbidden' 
+        '404':
+          $ref: '#/components/responses/NotFound' 
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable' 
+        '504':
+          $ref: '#/components/responses/GatewayTimeout'
 components:
   securitySchemes:
     BasicAuth:
