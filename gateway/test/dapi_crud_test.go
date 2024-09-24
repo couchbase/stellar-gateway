@@ -97,7 +97,8 @@ func (s *GatewayOpsTestSuite) RunCommonDapiErrorCases(
 		})
 		require.NotNil(s.T(), resp)
 		require.Equal(s.T(), http.StatusBadRequest, resp.StatusCode)
-		// BUG(ING-923): We don't check the response body here.
+		// Authorization header missing is considered a missing parameter rather
+		// than an authentication specific error.
 	})
 
 	s.Run("DocKeyTooLong", func() {
