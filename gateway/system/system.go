@@ -48,10 +48,11 @@ type SystemOptions struct {
 	DapiImpl *dapiimpl.Servers
 	Metrics  *metrics.SnMetrics
 
-	RateLimiter   ratelimiting.RateLimiter
-	GrpcTlsConfig *tls.Config
-	DapiTlsConfig *tls.Config
-	Debug         bool
+	RateLimiter    ratelimiting.RateLimiter
+	GrpcTlsConfig  *tls.Config
+	DapiTlsConfig  *tls.Config
+	AlphaEndpoints bool
+	Debug          bool
 }
 
 type System struct {
@@ -144,6 +145,9 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 	mux := http.NewServeMux()
 	mux.Handle("/v1/", dataapiv1.Handler(sh))
 	mux.Handle("/_p/", dapiImpl.DataApiProxy)
+	if opts.AlphaEndpoints {
+		mux.Handle("/v1.alpha/", dataapiv1.Handler(sh))
+	}
 
 	c := cors.New(cors.Options{
 		AllowedOrigins:   []string{"*"},

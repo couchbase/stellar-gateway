@@ -259,6 +259,7 @@ func (s *GatewayOpsTestSuite) SetupSuite() {
 		BindDapiPort:    0,
 		GrpcCertificate: *gwCert,
 		DapiCertificate: *gwCert,
+		AlphaEndpoints:  true,
 		NumInstances:    1,
 
 		StartupCallback: func(m *gateway.StartupInfo) {
