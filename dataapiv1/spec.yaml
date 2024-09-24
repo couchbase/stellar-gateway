@@ -361,6 +361,92 @@ paths:
           $ref: '#/components/responses/ServiceUnavailable' 
         '504':
           $ref: '#/components/responses/GatewayTimeout'
+  '/v1.alpha/buckets/{bucketName}/scopes/{scopeName}/collections/{collectionName}/documents/{documentKey}/lock':
+    parameters:
+      - $ref: '#/components/parameters/AuthorizationHeader'
+      - $ref: '#/components/parameters/BucketName'
+      - $ref: '#/components/parameters/ScopeName'
+      - $ref: '#/components/parameters/CollectionName'
+      - $ref: '#/components/parameters/DocumentKey'
+    post:
+      operationId: lockDocument
+      tags:
+        - Locking Operations
+      parameters:
+        - $ref: '#/components/parameters/AcceptEncodingHeader'
+      requestBody:
+        required: true
+        content:
+         'application/json':
+            schema:
+              type: object
+              properties:
+                lockTime:
+                  description: The maximum period of time the document should remain locked.
+                  type: integer
+                  format: uint32
+      responses:
+        '200':
+          description: Successful locked the document
+          headers:
+            Content-Encoding:
+              $ref: "#/components/headers/ContentEncoding"
+            ETag:
+              $ref: "#/components/headers/ETag"
+            X-CB-Flags:
+              $ref: "#/components/headers/DocumentFlags"
+          content:
+            '*':
+              schema:
+                type: string
+                format: binary
+        '400':
+          $ref: '#/components/responses/BadRequest' 
+        '403':
+          $ref: '#/components/responses/Forbidden' 
+        '404':
+          $ref: '#/components/responses/NotFound' 
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable' 
+        '504':
+          $ref: '#/components/responses/GatewayTimeout'
+  '/v1.alpha/buckets/{bucketName}/scopes/{scopeName}/collections/{collectionName}/documents/{documentKey}/unlock':
+    parameters:
+      - $ref: '#/components/parameters/AuthorizationHeader'
+      - $ref: '#/components/parameters/BucketName'
+      - $ref: '#/components/parameters/ScopeName'
+      - $ref: '#/components/parameters/CollectionName'
+      - $ref: '#/components/parameters/DocumentKey'
+    post:
+      operationId: unlockDocument
+      tags:
+        - Binary Operations
+      parameters:
+        - $ref: '#/components/parameters/IfMatchHeader'
+      responses:
+        '200':
+          description: Successful unlocked the document.
+          headers:
+            X-CB-MutationToken:
+              $ref: "#/components/headers/MutationToken"
+        '400':
+          $ref: '#/components/responses/BadRequest' 
+        '403':
+          $ref: '#/components/responses/Forbidden' 
+        '404':
+          $ref: '#/components/responses/NotFound' 
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable' 
+        '504':
+          $ref: '#/components/responses/GatewayTimeout'
 components:
   securitySchemes:
     BasicAuth:
@@ -461,6 +547,7 @@ components:
         - DocumentExists
         - CasMismatch
         - DocumentLocked
+        - DocumentNotLocked
         - ValueTooLarge
         - DocumentNotJson
         - PathMismatch
@@ -481,6 +568,7 @@ components:
         - ErrorCodeDocumentExists
         - ErrorCodeCasMismatch
         - ErrorCodeDocumentLocked
+        - ErrorCodeDocumentNotLocked
         - ErrorCodeValueTooLarge
         - ErrorCodeDocumentNotJson
         - ErrorCodePathMismatch
