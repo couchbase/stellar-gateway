@@ -25,6 +25,7 @@ import (
 	"github.com/couchbase/goprotostellar/genproto/query_v1"
 	"github.com/couchbase/goprotostellar/genproto/routing_v1"
 	"github.com/couchbase/goprotostellar/genproto/search_v1"
+	"github.com/couchbase/stellar-gateway/contrib/oapimetrics"
 	"github.com/couchbase/stellar-gateway/dataapiv1"
 	"github.com/couchbase/stellar-gateway/gateway/apiversion"
 	"github.com/couchbase/stellar-gateway/gateway/dapiimpl"
@@ -35,6 +36,7 @@ import (
 	"github.com/couchbase/stellar-gateway/pkg/interceptors"
 	"github.com/couchbase/stellar-gateway/pkg/metrics"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/recovery"
+	"github.com/oapi-codegen/runtime/strictmiddleware/nethttp"
 	"github.com/rs/cors"
 )
 
@@ -138,9 +140,10 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 	routing_v1.RegisterRoutingServiceServer(sdSrv, sdImpl.RoutingV1Server)
 
 	// data api
-	sh := dataapiv1.NewStrictHandlerWithOptions(dapiImpl.DataApiV1Server, nil, dataapiv1.StrictHTTPServerOptions{
-		ResponseErrorHandlerFunc: dapiimpl.StatusErrorHttpHandler,
-	})
+	sh := dataapiv1.NewStrictHandlerWithOptions(dapiImpl.DataApiV1Server, []nethttp.StrictHTTPMiddlewareFunc{
+		dapiimpl.NewErrorHandler(opts.Logger),
+		oapimetrics.NewStatsHandler(opts.Logger),
+	}, dataapiv1.StrictHTTPServerOptions{})
 
 	mux := http.NewServeMux()
 	mux.Handle("/v1/", dataapiv1.Handler(sh))
