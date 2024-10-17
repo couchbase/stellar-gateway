@@ -6,9 +6,17 @@ import (
 	"net/http"
 	"net/url"
 	"slices"
+	"time"
 
 	"github.com/couchbase/gocbcorex"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 	"go.uber.org/zap"
+)
+
+var (
+	meter = otel.Meter("github.com/couchbase/stellar-gateway/gateway/dapiimpl/proxy")
 )
 
 type ServiceType string
@@ -26,6 +34,11 @@ type DataApiProxy struct {
 	cbClient  *gocbcorex.BucketsTrackingAgentManager
 	debugMode bool
 	mux       *http.ServeMux
+
+	numFailures    metric.Int64Counter
+	numRequests    metric.Int64Counter
+	ttfbMillis     metric.Int64Histogram
+	durationMillis metric.Int64Histogram
 }
 
 func NewDataApiProxy(
@@ -36,11 +49,35 @@ func NewDataApiProxy(
 ) *DataApiProxy {
 	mux := http.NewServeMux()
 
+	numFailures, err := meter.Int64Counter("dapi_proxy_failures")
+	if err != nil {
+		logger.Warn("failed to initialize failures counter", zap.Error(err))
+	}
+
+	numRequests, err := meter.Int64Counter("dapi_proxy_requests")
+	if err != nil {
+		logger.Warn("failed to initialize request counter", zap.Error(err))
+	}
+
+	ttfbMillis, err := meter.Int64Histogram("dapi_proxy_ttfb_milliseconds")
+	if err != nil {
+		logger.Warn("failed to initialize ttfb histogram", zap.Error(err))
+	}
+
+	durationMillis, err := meter.Int64Histogram("dapi_proxy_duration_milliseconds")
+	if err != nil {
+		logger.Warn("failed to initialize duration histogram", zap.Error(err))
+	}
+
 	proxy := &DataApiProxy{
-		logger:    logger,
-		cbClient:  cbClient,
-		debugMode: debugMode,
-		mux:       mux,
+		logger:         logger,
+		cbClient:       cbClient,
+		debugMode:      debugMode,
+		mux:            mux,
+		numFailures:    numFailures,
+		numRequests:    numRequests,
+		ttfbMillis:     ttfbMillis,
+		durationMillis: durationMillis,
 	}
 
 	for _, serviceName := range services {
@@ -93,6 +130,8 @@ func (p *DataApiProxy) proxyService(
 	serviceName ServiceType,
 ) {
 	ctx := r.Context()
+
+	stime := time.Now()
 
 	agent, err := p.cbClient.GetClusterAgent(ctx)
 	if err != nil {
@@ -163,9 +202,22 @@ func (p *DataApiProxy) proxyService(
 
 	proxyResp, err := roundTripper.RoundTrip(proxyReq)
 	if err != nil {
+		p.numFailures.Add(ctx, 1, metric.WithAttributes(
+			attribute.String("service_name", string(serviceName)),
+		))
 		p.writeError(w, err, "failed to receive response")
 		return
 	}
+
+	ttfbEtime := time.Now()
+	ttfbDtime := ttfbEtime.Sub(stime)
+	ttfbMillis := ttfbDtime.Milliseconds()
+
+	p.ttfbMillis.Record(ctx, ttfbMillis, metric.WithAttributes(
+		attribute.String("service_name", string(serviceName)),
+		attribute.String("http_status_code",
+			fmt.Sprintf("%dxx", proxyResp.StatusCode/100)),
+	))
 
 	for k, vs := range proxyResp.Header {
 		for _, v := range vs {
@@ -180,6 +232,22 @@ func (p *DataApiProxy) proxyService(
 		p.logger.Debug("failed to write response body", zap.Error(err))
 		return
 	}
+
+	etime := time.Now()
+	dtime := etime.Sub(stime)
+	dtimeMillis := dtime.Milliseconds()
+
+	p.durationMillis.Record(ctx, dtimeMillis, metric.WithAttributes(
+		attribute.String("service_name", string(serviceName)),
+		attribute.String("http_status_code",
+			fmt.Sprintf("%dxx", proxyResp.StatusCode/100)),
+	))
+
+	p.numRequests.Add(ctx, 1, metric.WithAttributes(
+		attribute.String("service_name", string(serviceName)),
+		attribute.String("http_status_code",
+			fmt.Sprintf("%dxx", proxyResp.StatusCode/100)),
+	))
 }
 
 func (p *DataApiProxy) ProxyMgmt(w http.ResponseWriter, r *http.Request) {
