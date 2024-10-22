@@ -127,10 +127,10 @@ func (s *BucketAdminServer) validateHistorySettings(
 	}
 
 	if historyRetentionBytes != nil {
-		if *historyRetentionBytes < 2147483648 || *historyRetentionBytes > 18446744073709551615 {
+		if *historyRetentionBytes < 2048*1024*1024 {
 			return s.errorHandler.NewBucketInvalidArgStatus(
 				nil,
-				"HistoryRetentionBytes must be an integer between 2147483648 and 18446744073709551615, inclusive.",
+				"HistoryRetentionBytes must be at least 2048MB.",
 				name,
 			)
 		}
