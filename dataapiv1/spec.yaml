@@ -3,6 +3,28 @@ info:
   version: 1.0.0
   title: Couchbase Data API
 paths:
+  '/v1/callerIdentity':
+    parameters:
+      - $ref: '#/components/parameters/AuthorizationHeader'
+    get:
+      operationId: getCallerIdentity
+      tags:
+        - Tools
+      responses:
+        '200':
+          description: Successfully fetched the current callers identity.
+          content:
+            'application/json':
+              schema:
+                type: object
+                properties:
+                  user:
+                    type: string
+                    description: The user that is making the request.
+        '403':
+          $ref: '#/components/responses/Forbidden' 
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   '/v1/buckets/{bucketName}/scopes/{scopeName}/collections/{collectionName}/documents/{documentKey}':
     parameters:
       - $ref: '#/components/parameters/AuthorizationHeader'
