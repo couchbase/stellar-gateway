@@ -527,6 +527,95 @@ paths:
           $ref: '#/components/responses/ServiceUnavailable' 
         '504':
           $ref: '#/components/responses/GatewayTimeout'
+  '/v1.alpha/buckets/{bucketName}/scopes':
+    parameters:
+      - $ref: '#/components/parameters/AuthorizationHeader'
+      - $ref: '#/components/parameters/BucketName'
+    get:
+      operationId: listScopes
+      tags:
+        - Schema Operations
+      responses:
+        '200':
+          description: Successful fetched a list of scopes for the bucket.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ScopeInfo'
+        '400':
+          $ref: '#/components/responses/BadRequest' 
+        '403':
+          $ref: '#/components/responses/Forbidden' 
+        '404':
+          $ref: '#/components/responses/NotFound' 
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable' 
+        '504':
+          $ref: '#/components/responses/GatewayTimeout'
+  '/v1.alpha/buckets/{bucketName}/scopes/{scopeName}/collections':
+    parameters:
+      - $ref: '#/components/parameters/AuthorizationHeader'
+      - $ref: '#/components/parameters/BucketName'
+      - $ref: '#/components/parameters/ScopeName'
+    get:
+      operationId: listCollections
+      tags:
+        - Schema Operations
+      responses:
+        '200':
+          description: Successful fetched a list of collections for the scope.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CollectionInfo'
+        '400':
+          $ref: '#/components/responses/BadRequest' 
+        '403':
+          $ref: '#/components/responses/Forbidden' 
+        '404':
+          $ref: '#/components/responses/NotFound' 
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable' 
+        '504':
+          $ref: '#/components/responses/GatewayTimeout'
+  '/v1.alpha/buckets/{bucketName}/scopes/{scopeName}/collections/{collectionName}/schemas':
+    parameters:
+      - $ref: '#/components/parameters/AuthorizationHeader'
+      - $ref: '#/components/parameters/BucketName'
+      - $ref: '#/components/parameters/ScopeName'
+      - $ref: '#/components/parameters/CollectionName'
+    get:
+      operationId: inferSchemas
+      tags:
+        - Schema Operations
+      responses:
+        '200':
+          description: Successful fetched the schema for the collection.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {}
+        '400':
+          $ref: '#/components/responses/BadRequest' 
+        '403':
+          $ref: '#/components/responses/Forbidden' 
+        '404':
+          $ref: '#/components/responses/NotFound' 
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable' 
+        '504':
+          $ref: '#/components/responses/GatewayTimeout'
 components:
   securitySchemes:
     BasicAuth:
@@ -668,6 +757,31 @@ components:
       required:
         - code
         - message
+    ScopeInfo:
+      title: ScopeInfo
+      description: ScopeInfo describes a scope in a bucket.
+      type: object
+      properties:
+        name:
+          type: string
+          description: The name of the scope.
+        collections:
+          type: array
+          items:
+            $ref: '#/components/schemas/CollectionInfo'
+      required:
+        - name
+        - collections
+    CollectionInfo:
+      title: CollectionInfo
+      description: CollectionInfo describes a collection in a bucket.
+      type: object
+      properties:
+        name:
+          type: string
+          description: The name of the scope.
+      required:
+        - name
   parameters:
     AuthorizationHeader:
       in: header
