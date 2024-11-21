@@ -2,7 +2,6 @@ package oapimetrics
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"time"
 
@@ -74,14 +73,12 @@ func NewStatsHandler(logger *zap.Logger) func(f nethttp.StrictHTTPHandlerFunc, o
 
 			durationMillis.Record(ctx, dtimeMillis, metric.WithAttributes(
 				attribute.String("operation_id", operationID),
-				attribute.String("http_status_code",
-					fmt.Sprintf("%dxx", statusCode/100)),
+				attribute.Int("http_status_code", statusCode),
 			))
 
 			numRequests.Add(ctx, 1, metric.WithAttributes(
 				attribute.String("operation_id", operationID),
-				attribute.String("http_status_code",
-					fmt.Sprintf("%dxx", statusCode/100)),
+				attribute.Int("http_status_code", statusCode),
 			))
 
 			return resp, err
