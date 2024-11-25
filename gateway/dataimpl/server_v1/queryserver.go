@@ -149,12 +149,12 @@ func (s *QueryServer) Query(in *query_v1.QueryRequest, out query_v1.QueryService
 		}
 		opts.ScanConsistency = scanConsistency
 	} else if len(in.ConsistentWith) > 0 {
-		vectors := make(map[string]cbqueryx.SparseScanVectors)
+		sparseVectors := make(map[string]cbqueryx.SparseScanVectors)
 		for _, vector := range in.ConsistentWith {
-			bucketVectors := vectors[vector.BucketName]
+			bucketVectors := sparseVectors[vector.BucketName]
 			if bucketVectors == nil {
 				bucketVectors = make(cbqueryx.SparseScanVectors)
-				vectors[vector.BucketName] = bucketVectors
+				sparseVectors[vector.BucketName] = bucketVectors
 			}
 
 			bucketVectors[vector.VbucketId] = cbqueryx.ScanVectorEntry{
@@ -163,18 +163,13 @@ func (s *QueryServer) Query(in *query_v1.QueryRequest, out query_v1.QueryService
 			}
 		}
 
-		jsonVectors := make(map[string]json.RawMessage)
-		for bucketName, bucketVectors := range vectors {
-			bucketJson, err := json.Marshal(bucketVectors)
-			if err != nil {
-				return s.errorHandler.NewGenericStatus(err).Err()
-			}
-
-			jsonVectors[bucketName] = bucketJson
+		vectors := make(map[string]cbqueryx.ScanVectors, len(sparseVectors))
+		for bucketName, bucketVectors := range sparseVectors {
+			vectors[bucketName] = bucketVectors
 		}
 
 		opts.ScanConsistency = cbqueryx.ScanConsistencyAtPlus
-		opts.ScanVectors = jsonVectors
+		opts.ScanVectors = vectors
 	}
 
 	named := in.GetNamedParameters()
