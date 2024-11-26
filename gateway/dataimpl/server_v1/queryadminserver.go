@@ -861,11 +861,20 @@ func (s *QueryIndexAdminServer) WaitForIndexOnline(
 	ctx context.Context,
 	in *admin_query_v1.WaitForIndexOnlineRequest,
 ) (*admin_query_v1.WaitForIndexOnlineResponse, error) {
+	scopeName := "_default"
+	collectionName := "_default"
+	if in.ScopeName != "" {
+		scopeName = in.ScopeName
+	}
+	if in.CollectionName != "" {
+		collectionName = in.CollectionName
+	}
+
 	for {
 		watchIndexesResp, err := s.GetAllIndexes(ctx, &admin_query_v1.GetAllIndexesRequest{
 			BucketName:     &in.BucketName,
-			ScopeName:      &in.ScopeName,
-			CollectionName: &in.CollectionName,
+			ScopeName:      &scopeName,
+			CollectionName: &collectionName,
 		})
 		if err != nil {
 			return nil, err
@@ -874,8 +883,8 @@ func (s *QueryIndexAdminServer) WaitForIndexOnline(
 		var foundIndex *admin_query_v1.GetAllIndexesResponse_Index
 		for _, index := range watchIndexesResp.Indexes {
 			if index.Name == in.Name &&
-				index.CollectionName == in.CollectionName &&
-				index.ScopeName == in.ScopeName &&
+				index.CollectionName == collectionName &&
+				index.ScopeName == scopeName &&
 				index.BucketName == in.BucketName {
 				foundIndex = index
 			}
@@ -886,13 +895,13 @@ func (s *QueryIndexAdminServer) WaitForIndexOnline(
 				nil,
 				in.Name,
 				in.BucketName,
-				in.ScopeName,
-				in.CollectionName).Err()
+				scopeName,
+				collectionName).Err()
 		}
 
 		if foundIndex.State == admin_query_v1.IndexState_INDEX_STATE_DEFERRED {
 			return nil, s.errorHandler.NewQueryIndexNotBuildingStatus(
-				nil, in.BucketName, in.ScopeName, in.CollectionName, in.Name).Err()
+				nil, in.BucketName, scopeName, collectionName, in.Name).Err()
 		}
 
 		if foundIndex.State == admin_query_v1.IndexState_INDEX_STATE_ONLINE {
