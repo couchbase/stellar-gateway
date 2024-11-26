@@ -2,14 +2,12 @@ package server_v1
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
 	"time"
 
 	"github.com/couchbase/gocbcorex"
-	"github.com/couchbase/gocbcorex/cbhttpx"
 	"github.com/couchbase/gocbcorex/cbqueryx"
 	"github.com/couchbase/goprotostellar/genproto/admin_query_v1"
 	"go.uber.org/zap"
@@ -42,57 +40,6 @@ func (s *QueryIndexAdminServer) normalizeDefaultName(name *string) string {
 	}
 
 	return resourceName
-}
-
-func (s *QueryIndexAdminServer) buildKeyspace(
-	bucket string,
-	scope, collection *string,
-) string {
-	if scope != nil && collection != nil {
-		return fmt.Sprintf("%s.%s.%s",
-			cbqueryx.EncodeIdentifier(bucket),
-			cbqueryx.EncodeIdentifier(*scope),
-			cbqueryx.EncodeIdentifier(*collection))
-	} else if collection == nil && scope != nil {
-		return fmt.Sprintf("%s.%s.%s",
-			cbqueryx.EncodeIdentifier(bucket),
-			cbqueryx.EncodeIdentifier(*scope),
-			cbqueryx.EncodeIdentifier("_default"))
-	} else if collection != nil && scope == nil {
-		return fmt.Sprintf("%s.%s.%s",
-			cbqueryx.EncodeIdentifier(bucket),
-			cbqueryx.EncodeIdentifier("_default"),
-			cbqueryx.EncodeIdentifier(*collection))
-	}
-
-	return cbqueryx.EncodeIdentifier(bucket)
-}
-
-func (s *QueryIndexAdminServer) executeQuery(
-	ctx context.Context,
-	statement string,
-	agent *gocbcorex.Agent,
-	oboInfo *cbhttpx.OnBehalfOfInfo,
-) ([]json.RawMessage, error) {
-	var opts gocbcorex.QueryOptions
-	opts.OnBehalfOf = oboInfo
-	opts.Statement = statement
-	result, err := agent.Query(ctx, &opts)
-	if err != nil {
-		return nil, err
-	}
-
-	var rows []json.RawMessage
-	for result.HasMoreRows() {
-		rowBytes, err := result.ReadRow()
-		if err != nil {
-			return nil, err
-		}
-
-		rows = append(rows, rowBytes)
-	}
-
-	return rows, nil
 }
 
 func (s *QueryIndexAdminServer) validateNames(index, bucket, scope, col *string) error {
@@ -177,112 +124,64 @@ func (s *QueryIndexAdminServer) validateNames(index, bucket, scope, col *string)
 	return nil
 }
 
-type queryIndexRowJson struct {
-	Name        string   `json:"name"`
-	IsPrimary   bool     `json:"is_primary"`
-	Using       string   `json:"using"`
-	State       string   `json:"state"`
-	KeyspaceId  string   `json:"keyspace_id"`
-	NamespaceId string   `json:"namespace_id"`
-	IndexKey    []string `json:"index_key"`
-	Condition   string   `json:"condition"`
-	Partition   string   `json:"partition"`
-	ScopeId     string   `json:"scope_id"`
-	BucketId    string   `json:"bucket_id"`
-}
-
 func (s *QueryIndexAdminServer) GetAllIndexes(
 	ctx context.Context,
 	in *admin_query_v1.GetAllIndexesRequest,
 ) (*admin_query_v1.GetAllIndexesResponse, error) {
-	var where string
-	if in.CollectionName == nil && in.ScopeName == nil {
-		if in.BucketName != nil {
-			encodedBucket, _ := cbqueryx.EncodeValue(in.BucketName)
-			where = fmt.Sprintf("(keyspace_id=%s AND bucket_id IS MISSING) OR bucket_id=%s", encodedBucket, encodedBucket)
-		} else {
-			where = "1=1"
-		}
-	} else {
-		scopeName := s.normalizeDefaultName(in.ScopeName)
-		collectionName := s.normalizeDefaultName(in.CollectionName)
-
-		encodedBucket, _ := cbqueryx.EncodeValue(in.BucketName)
-		encodedScope, _ := cbqueryx.EncodeValue(scopeName)
-		encodedCollection, _ := cbqueryx.EncodeValue(collectionName)
-
-		where = fmt.Sprintf("bucket_id=%s AND scope_id=%s AND keyspace_id=%s",
-			encodedBucket, encodedScope, encodedCollection)
-
-		if scopeName == "_default" && collectionName == "_default" {
-			// When the user is querying for the default collection, we need to capture the index
-			// case where there is only a keyspace_id, which implies the index is on the buckets default
-			where = fmt.Sprintf("(%s) OR (keyspace_id=%s AND bucket_id IS MISSING)", where, encodedBucket)
-		}
-	}
-
-	where = fmt.Sprintf("(%s) AND `using`=\"gsi\"", where)
-
-	qs := fmt.Sprintf("SELECT `idx`.* FROM system:indexes AS idx WHERE %s ORDER BY is_primary DESC, name ASC",
-		where)
-
 	agent, oboInfo, errSt := s.authHandler.GetHttpOboAgent(ctx, in.BucketName)
 	if errSt != nil {
 		return nil, errSt.Err()
 	}
 
-	rows, err := s.executeQuery(ctx, qs, agent, oboInfo)
+	indexes, err := agent.GetAllIndexes(ctx, &cbqueryx.GetAllIndexesOptions{
+		BucketName:     in.GetBucketName(),
+		ScopeName:      in.GetScopeName(),
+		CollectionName: in.GetCollectionName(),
+		OnBehalfOf:     oboInfo,
+	})
 	if err != nil {
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
 
-	var indexes []*admin_query_v1.GetAllIndexesResponse_Index
-
-	for _, rowBytes := range rows {
-		var row queryIndexRowJson
-		err := json.Unmarshal(rowBytes, &row)
-		if err != nil {
-			return nil, s.errorHandler.NewGenericStatus(err).Err()
-		}
-
-		state, errSt := indexStateFromQueryTableString(row.State)
+	var protoIndexes []*admin_query_v1.GetAllIndexesResponse_Index
+	for _, index := range indexes {
+		state, errSt := indexStateFromQueryTableIndexState(index.State)
 		if errSt != nil {
 			return nil, errSt.Err()
 		}
 
-		index := &admin_query_v1.GetAllIndexesResponse_Index{
-			Name:      row.Name,
-			IsPrimary: row.IsPrimary,
+		protoIndex := &admin_query_v1.GetAllIndexesResponse_Index{
+			Name:      index.Name,
+			IsPrimary: index.IsPrimary,
 			Type:      admin_query_v1.IndexType_INDEX_TYPE_GSI,
 			State:     state,
-			Fields:    row.IndexKey,
+			Fields:    index.IndexKey,
 		}
 
-		if row.BucketId == "" {
+		if index.BucketId == "" {
 			defaultScopeColl := "_default"
-
-			index.BucketName = row.KeyspaceId
-			index.ScopeName = defaultScopeColl
-			index.CollectionName = defaultScopeColl
+			protoIndex.BucketName = index.KeyspaceId
+			protoIndex.ScopeName = defaultScopeColl
+			protoIndex.CollectionName = defaultScopeColl
 		} else {
-			index.BucketName = row.BucketId
-			index.ScopeName = row.ScopeId
-			index.CollectionName = row.KeyspaceId
+			protoIndex.BucketName = index.BucketId
+			protoIndex.ScopeName = index.ScopeId
+			protoIndex.CollectionName = index.KeyspaceId
 		}
 
-		if row.Condition != "" {
-			index.Condition = &row.Condition
+		if index.Condition != "" {
+			protoIndex.Condition = &index.Condition
 		}
 
-		if row.Partition != "" {
-			index.Partition = &row.Partition
+		if index.Partition != "" {
+			protoIndex.Partition = &index.Partition
 		}
 
-		indexes = append(indexes, index)
+		protoIndexes = append(protoIndexes, protoIndex)
 	}
 
 	return &admin_query_v1.GetAllIndexesResponse{
-		Indexes: indexes,
+		Indexes: protoIndexes,
 	}, nil
 }
 
@@ -290,8 +189,6 @@ func (s *QueryIndexAdminServer) CreatePrimaryIndex(
 	ctx context.Context,
 	in *admin_query_v1.CreatePrimaryIndexRequest,
 ) (*admin_query_v1.CreatePrimaryIndexResponse, error) {
-	var qs string
-
 	if err := s.validateNames(in.Name, &in.BucketName, in.ScopeName, in.CollectionName); err != nil {
 		return nil, err
 	}
@@ -308,47 +205,28 @@ func (s *QueryIndexAdminServer) CreatePrimaryIndex(
 			msg).Err()
 	}
 
-	qs += "CREATE PRIMARY INDEX"
+	agent, oboInfo, errSt := s.authHandler.GetHttpOboAgent(ctx, &in.BucketName)
+	if errSt != nil {
+		return nil, errSt.Err()
+	}
 
 	var indexName string
 	if in.Name == nil {
 		indexName = "#primary"
 	} else {
 		indexName = *in.Name
-		qs += " " + cbqueryx.EncodeIdentifier(*in.Name)
 	}
 
-	if in.GetIgnoreIfExists() {
-		qs += " IF NOT EXISTS "
-	}
-
-	qs += " ON " + s.buildKeyspace(in.BucketName, in.ScopeName, in.CollectionName)
-
-	with := make(map[string]interface{})
-
-	if in.Deferred != nil {
-		with["defer_build"] = *in.Deferred
-	}
-
-	if in.NumReplicas != nil {
-		with["num_replica"] = *in.NumReplicas
-	}
-
-	if len(with) > 0 {
-		withBytes, err := json.Marshal(with)
-		if err != nil {
-			return nil, s.errorHandler.NewGenericStatus(err).Err()
-		}
-
-		qs += " WITH " + string(withBytes)
-	}
-
-	agent, oboInfo, errSt := s.authHandler.GetHttpOboAgent(ctx, &in.BucketName)
-	if errSt != nil {
-		return nil, errSt.Err()
-	}
-
-	_, err := s.executeQuery(ctx, qs, agent, oboInfo)
+	err := agent.CreatePrimaryIndex(ctx, &cbqueryx.CreatePrimaryIndexOptions{
+		BucketName:     in.BucketName,
+		ScopeName:      in.GetScopeName(),
+		CollectionName: in.GetCollectionName(),
+		IndexName:      indexName,
+		NumReplicas:    in.NumReplicas,
+		Deferred:       in.Deferred,
+		IgnoreIfExists: in.GetIgnoreIfExists(),
+		OnBehalfOf:     oboInfo,
+	})
 	if err != nil {
 		var rErr *cbqueryx.ResourceError
 		if errors.As(err, &rErr) {
@@ -357,8 +235,8 @@ func (s *QueryIndexAdminServer) CreatePrimaryIndex(
 					err,
 					rErr.IndexName,
 					in.BucketName,
-					s.normalizeDefaultName(in.ScopeName),
-					s.normalizeDefaultName(in.CollectionName)).Err()
+					rErr.ScopeName,
+					rErr.CollectionName).Err()
 			}
 
 			if errors.Is(rErr.Cause, cbqueryx.ErrAuthenticationFailure) {
@@ -401,7 +279,7 @@ func (s *QueryIndexAdminServer) CreatePrimaryIndex(
 		BucketName:     in.BucketName,
 		ScopeName:      scopeName,
 		CollectionName: collectionName,
-		IndexName:      indexName,
+		IndexName:      in.GetName(),
 		OnBehalfOf:     oboInfo,
 	})
 	if err != nil {
@@ -415,8 +293,6 @@ func (s *QueryIndexAdminServer) CreateIndex(
 	ctx context.Context,
 	in *admin_query_v1.CreateIndexRequest,
 ) (*admin_query_v1.CreateIndexResponse, error) {
-	var qs string
-
 	if err := s.validateNames(&in.Name, &in.BucketName, in.ScopeName, in.CollectionName); err != nil {
 		return nil, err
 	}
@@ -429,51 +305,22 @@ func (s *QueryIndexAdminServer) CreateIndex(
 			msg).Err()
 	}
 
-	qs += "CREATE INDEX"
-
-	qs += " " + cbqueryx.EncodeIdentifier(in.Name)
-
-	if in.GetIgnoreIfExists() {
-		qs += " IF NOT EXISTS "
-	}
-
-	qs += " ON " + s.buildKeyspace(in.BucketName, in.ScopeName, in.CollectionName)
-
-	if len(in.Fields) == 0 {
-		return nil, s.errorHandler.NewNeedIndexFieldsStatus().Err()
-	}
-
-	encodedFields := make([]string, len(in.Fields))
-	for fieldIdx, field := range in.Fields {
-		encodedFields[fieldIdx] = cbqueryx.EncodeIdentifier(field)
-	}
-	qs += " (" + strings.Join(encodedFields, ",") + ")"
-
-	with := make(map[string]interface{})
-
-	if in.Deferred != nil {
-		with["defer_build"] = *in.Deferred
-	}
-
-	if in.NumReplicas != nil {
-		with["num_replica"] = *in.NumReplicas
-	}
-
-	if len(with) > 0 {
-		withBytes, err := json.Marshal(with)
-		if err != nil {
-			return nil, s.errorHandler.NewGenericStatus(err).Err()
-		}
-
-		qs += " WITH " + string(withBytes)
-	}
-
 	agent, oboInfo, errSt := s.authHandler.GetHttpOboAgent(ctx, &in.BucketName)
 	if errSt != nil {
 		return nil, errSt.Err()
 	}
 
-	_, err := s.executeQuery(ctx, qs, agent, oboInfo)
+	err := agent.CreateIndex(ctx, &cbqueryx.CreateIndexOptions{
+		BucketName:     in.BucketName,
+		ScopeName:      in.GetScopeName(),
+		CollectionName: in.GetCollectionName(),
+		IndexName:      in.Name,
+		NumReplicas:    in.NumReplicas,
+		Fields:         in.Fields,
+		Deferred:       in.Deferred,
+		IgnoreIfExists: in.GetIgnoreIfExists(),
+		OnBehalfOf:     oboInfo,
+	})
 	if err != nil {
 		var rErr *cbqueryx.ResourceError
 		if errors.As(err, &rErr) {
@@ -482,8 +329,8 @@ func (s *QueryIndexAdminServer) CreateIndex(
 					err,
 					rErr.IndexName,
 					in.BucketName,
-					s.normalizeDefaultName(in.ScopeName),
-					s.normalizeDefaultName(in.CollectionName)).Err()
+					rErr.ScopeName,
+					rErr.CollectionName).Err()
 			}
 
 			if errors.Is(rErr.Cause, cbqueryx.ErrAuthenticationFailure) {
@@ -540,38 +387,8 @@ func (s *QueryIndexAdminServer) DropPrimaryIndex(
 	ctx context.Context,
 	in *admin_query_v1.DropPrimaryIndexRequest,
 ) (*admin_query_v1.DropPrimaryIndexResponse, error) {
-	var qs string
-
 	if err := s.validateNames(in.Name, &in.BucketName, in.ScopeName, in.CollectionName); err != nil {
 		return nil, err
-	}
-
-	keyspace := s.buildKeyspace(in.BucketName, in.ScopeName, in.CollectionName)
-
-	var indexName string
-	if in.Name == nil {
-		indexName = "#primary"
-		qs += "DROP PRIMARY INDEX"
-		if in.GetIgnoreIfMissing() {
-			qs += " IF EXISTS "
-		}
-		qs += fmt.Sprintf(" ON %s", keyspace)
-	} else {
-		indexName = *in.Name
-		encodedName := cbqueryx.EncodeIdentifier(*in.Name)
-
-		if in.ScopeName != nil || in.CollectionName != nil {
-			qs += fmt.Sprintf("DROP INDEX %s", encodedName)
-			if in.GetIgnoreIfMissing() {
-				qs += " IF EXISTS "
-			}
-			qs += fmt.Sprintf(" ON %s", keyspace)
-		} else {
-			qs += fmt.Sprintf("DROP INDEX %s.%s", keyspace, encodedName)
-			if in.GetIgnoreIfMissing() {
-				qs += " IF EXISTS"
-			}
-		}
 	}
 
 	agent, oboInfo, errSt := s.authHandler.GetHttpOboAgent(ctx, &in.BucketName)
@@ -579,7 +396,14 @@ func (s *QueryIndexAdminServer) DropPrimaryIndex(
 		return nil, errSt.Err()
 	}
 
-	_, err := s.executeQuery(ctx, qs, agent, oboInfo)
+	err := agent.DropPrimaryIndex(ctx, &cbqueryx.DropPrimaryIndexOptions{
+		BucketName:        in.BucketName,
+		ScopeName:         in.GetScopeName(),
+		CollectionName:    in.GetCollectionName(),
+		IndexName:         in.GetName(),
+		IgnoreIfNotExists: in.GetIgnoreIfMissing(),
+		OnBehalfOf:        oboInfo,
+	})
 	if err != nil {
 		var rErr *cbqueryx.ResourceError
 		if errors.As(err, &rErr) {
@@ -588,8 +412,8 @@ func (s *QueryIndexAdminServer) DropPrimaryIndex(
 					err,
 					rErr.IndexName,
 					in.BucketName,
-					s.normalizeDefaultName(in.ScopeName),
-					s.normalizeDefaultName(in.CollectionName)).Err()
+					rErr.ScopeName,
+					rErr.CollectionName).Err()
 			}
 
 			if errors.Is(rErr.Cause, cbqueryx.ErrAuthenticationFailure) {
@@ -612,7 +436,6 @@ func (s *QueryIndexAdminServer) DropPrimaryIndex(
 					rErr.CollectionName).Err()
 			}
 		}
-
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
 
@@ -623,7 +446,7 @@ func (s *QueryIndexAdminServer) DropPrimaryIndex(
 		BucketName:     in.BucketName,
 		ScopeName:      scopeName,
 		CollectionName: collectionName,
-		IndexName:      indexName,
+		IndexName:      in.GetName(),
 		OnBehalfOf:     oboInfo,
 	})
 	if err != nil {
@@ -637,26 +460,8 @@ func (s *QueryIndexAdminServer) DropIndex(
 	ctx context.Context,
 	in *admin_query_v1.DropIndexRequest,
 ) (*admin_query_v1.DropIndexResponse, error) {
-	var qs string
-
 	if err := s.validateNames(&in.Name, &in.BucketName, in.ScopeName, in.CollectionName); err != nil {
 		return nil, err
-	}
-
-	encodedName := cbqueryx.EncodeIdentifier(in.Name)
-	keyspace := s.buildKeyspace(in.BucketName, in.ScopeName, in.CollectionName)
-
-	if in.ScopeName != nil || in.CollectionName != nil {
-		qs += fmt.Sprintf("DROP INDEX %s", encodedName)
-		if in.GetIgnoreIfMissing() {
-			qs += " IF EXISTS "
-		}
-		qs += fmt.Sprintf(" ON %s", keyspace)
-	} else {
-		qs += fmt.Sprintf("DROP INDEX %s.%s", keyspace, encodedName)
-		if in.GetIgnoreIfMissing() {
-			qs += " IF EXISTS"
-		}
 	}
 
 	agent, oboInfo, errSt := s.authHandler.GetHttpOboAgent(ctx, &in.BucketName)
@@ -664,9 +469,15 @@ func (s *QueryIndexAdminServer) DropIndex(
 		return nil, errSt.Err()
 	}
 
-	_, err := s.executeQuery(ctx, qs, agent, oboInfo)
+	err := agent.DropIndex(ctx, &cbqueryx.DropIndexOptions{
+		BucketName:        in.BucketName,
+		ScopeName:         in.GetScopeName(),
+		CollectionName:    in.GetCollectionName(),
+		IndexName:         in.Name,
+		IgnoreIfNotExists: in.GetIgnoreIfMissing(),
+		OnBehalfOf:        oboInfo,
+	})
 	if err != nil {
-
 		var rErr *cbqueryx.ResourceError
 		if errors.As(err, &rErr) {
 			if errors.Is(rErr.Cause, cbqueryx.ErrIndexNotFound) {
@@ -674,8 +485,8 @@ func (s *QueryIndexAdminServer) DropIndex(
 					err,
 					rErr.IndexName,
 					in.BucketName,
-					s.normalizeDefaultName(in.ScopeName),
-					s.normalizeDefaultName(in.CollectionName)).Err()
+					rErr.ScopeName,
+					rErr.CollectionName).Err()
 			}
 
 			if errors.Is(rErr.Cause, cbqueryx.ErrAuthenticationFailure) {
@@ -698,7 +509,6 @@ func (s *QueryIndexAdminServer) DropIndex(
 					rErr.CollectionName).Err()
 			}
 		}
-
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
 
@@ -728,127 +538,42 @@ func (s *QueryIndexAdminServer) BuildDeferredIndexes(
 		return nil, err
 	}
 
-	getIndexesResp, err := s.GetAllIndexes(ctx, &admin_query_v1.GetAllIndexesRequest{
-		BucketName:     &in.BucketName,
-		ScopeName:      in.ScopeName,
-		CollectionName: in.CollectionName,
+	agent, oboInfo, errSt := s.authHandler.GetHttpOboAgent(ctx, &in.BucketName)
+	if errSt != nil {
+		return nil, errSt.Err()
+	}
+
+	deferredIndexes, err := agent.BuildDeferredIndexes(ctx, &cbqueryx.BuildDeferredIndexesOptions{
+		BucketName:     in.BucketName,
+		ScopeName:      in.GetScopeName(),
+		CollectionName: in.GetCollectionName(),
+		OnBehalfOf:     oboInfo,
 	})
 	if err != nil {
-		return nil, err
+		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
 
-	deferredIndexes := make(map[string][]*admin_query_v1.BuildDeferredIndexesResponse_Index)
-	for _, index := range getIndexesResp.Indexes {
-		if index.State == admin_query_v1.IndexState_INDEX_STATE_DEFERRED {
-			deferredIndex := &admin_query_v1.BuildDeferredIndexesResponse_Index{
-				BucketName: index.BucketName,
-				Name:       index.Name,
-			}
-
-			if index.ScopeName != "" {
-				deferredIndex.ScopeName = &index.ScopeName
-			}
-			if index.CollectionName != "" {
-				deferredIndex.CollectionName = &index.CollectionName
-			}
-
-			keyspace := s.buildKeyspace(deferredIndex.BucketName, deferredIndex.ScopeName, deferredIndex.CollectionName)
-			if _, ok := deferredIndexes[keyspace]; !ok {
-				deferredIndexes[keyspace] = []*admin_query_v1.BuildDeferredIndexesResponse_Index{}
-			}
-
-			deferredIndexes[keyspace] = append(deferredIndexes[keyspace], deferredIndex)
+	var protoIndexes []*admin_query_v1.BuildDeferredIndexesResponse_Index
+	for _, index := range deferredIndexes {
+		var scopeName *string
+		if index.ScopeName != "" {
+			scopeName = &index.ScopeName
 		}
-	}
-
-	if len(deferredIndexes) == 0 {
-		// If there are no indexes left to build, we can just return success
-		return &admin_query_v1.BuildDeferredIndexesResponse{}, nil
-	}
-
-	for keyspace, indexes := range deferredIndexes {
-		escapedIndexNames := make([]string, len(indexes))
-		for indexIdx, indexName := range indexes {
-			escapedIndexNames[indexIdx] = cbqueryx.EncodeIdentifier(indexName.Name)
+		var collectionName *string
+		if index.CollectionName != "" {
+			collectionName = &index.CollectionName
 		}
-
-		var qs string
-		qs += fmt.Sprintf("BUILD INDEX ON %s(%s)",
-			keyspace, strings.Join(escapedIndexNames, ","))
-
-		agent, oboInfo, errSt := s.authHandler.GetHttpOboAgent(ctx, &in.BucketName)
-		if errSt != nil {
-			return nil, errSt.Err()
+		protoIndex := &admin_query_v1.BuildDeferredIndexesResponse_Index{
+			BucketName:     index.BucketName,
+			ScopeName:      scopeName,
+			CollectionName: collectionName,
+			Name:           index.IndexName,
 		}
-
-		_, err := s.executeQuery(ctx, qs, agent, oboInfo)
-		if errors.Is(err, cbqueryx.ErrBuildAlreadyInProgress) {
-			// this is considered a success
-		} else if err != nil {
-			return nil, s.errorHandler.NewGenericStatus(err).Err()
-		}
-	}
-
-	for {
-		watchIndexesResp, err := s.GetAllIndexes(ctx, &admin_query_v1.GetAllIndexesRequest{
-			BucketName:     &in.BucketName,
-			ScopeName:      in.ScopeName,
-			CollectionName: in.CollectionName,
-		})
-		if err != nil {
-			return nil, err
-		}
-
-		getIndex := func(indexCtx *admin_query_v1.BuildDeferredIndexesResponse_Index) *admin_query_v1.GetAllIndexesResponse_Index {
-			for _, index := range watchIndexesResp.Indexes {
-				if index.Name == indexCtx.Name &&
-					index.ScopeName == indexCtx.GetScopeName() &&
-					index.CollectionName == indexCtx.GetCollectionName() {
-					return index
-				}
-			}
-			return nil
-		}
-
-		allIndexesBuilding := true
-		for _, indexes := range deferredIndexes {
-			for _, index := range indexes {
-				indexRes := getIndex(index)
-				if indexRes == nil {
-					// if the index is not found at all, just consider it building
-					s.logger.Warn("an index that was scheduled for building is no longer found", zap.String("indexName", index.Name))
-					continue
-				}
-
-				if indexRes.State == admin_query_v1.IndexState_INDEX_STATE_DEFERRED {
-					allIndexesBuilding = false
-					break
-				}
-			}
-		}
-
-		// if some of the indexes still haven't transitioned out of the deferred state,
-		// we wait 100ms and then scan to see if the index has transitioned.
-		if !allIndexesBuilding {
-			select {
-			case <-time.After(100 * time.Millisecond):
-			case <-ctx.Done():
-				return nil, ctx.Err()
-			}
-
-			continue
-		}
-
-		break
-	}
-
-	var indexContexts []*admin_query_v1.BuildDeferredIndexesResponse_Index
-	for _, indexes := range deferredIndexes {
-		indexContexts = append(indexContexts, indexes...)
+		protoIndexes = append(protoIndexes, protoIndex)
 	}
 
 	return &admin_query_v1.BuildDeferredIndexesResponse{
-		Indexes: indexContexts,
+		Indexes: protoIndexes,
 	}, nil
 }
 
@@ -856,11 +581,20 @@ func (s *QueryIndexAdminServer) WaitForIndexOnline(
 	ctx context.Context,
 	in *admin_query_v1.WaitForIndexOnlineRequest,
 ) (*admin_query_v1.WaitForIndexOnlineResponse, error) {
+	scopeName := "_default"
+	collectionName := "_default"
+	if in.ScopeName != "" {
+		scopeName = in.ScopeName
+	}
+	if in.CollectionName != "" {
+		collectionName = in.CollectionName
+	}
+
 	for {
 		watchIndexesResp, err := s.GetAllIndexes(ctx, &admin_query_v1.GetAllIndexesRequest{
 			BucketName:     &in.BucketName,
-			ScopeName:      &in.ScopeName,
-			CollectionName: &in.CollectionName,
+			ScopeName:      &scopeName,
+			CollectionName: &collectionName,
 		})
 		if err != nil {
 			return nil, err
@@ -869,8 +603,8 @@ func (s *QueryIndexAdminServer) WaitForIndexOnline(
 		var foundIndex *admin_query_v1.GetAllIndexesResponse_Index
 		for _, index := range watchIndexesResp.Indexes {
 			if index.Name == in.Name &&
-				index.CollectionName == in.CollectionName &&
-				index.ScopeName == in.ScopeName &&
+				index.CollectionName == collectionName &&
+				index.ScopeName == scopeName &&
 				index.BucketName == in.BucketName {
 				foundIndex = index
 			}
@@ -881,13 +615,13 @@ func (s *QueryIndexAdminServer) WaitForIndexOnline(
 				nil,
 				in.Name,
 				in.BucketName,
-				in.ScopeName,
-				in.CollectionName).Err()
+				scopeName,
+				collectionName).Err()
 		}
 
 		if foundIndex.State == admin_query_v1.IndexState_INDEX_STATE_DEFERRED {
 			return nil, s.errorHandler.NewQueryIndexNotBuildingStatus(
-				nil, in.BucketName, in.ScopeName, in.CollectionName, in.Name).Err()
+				nil, in.BucketName, scopeName, collectionName, in.Name).Err()
 		}
 
 		if foundIndex.State == admin_query_v1.IndexState_INDEX_STATE_ONLINE {
