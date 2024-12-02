@@ -342,6 +342,10 @@ func (s *GatewayOpsTestSuite) ParseSupportedFeatures(featsStr string) {
 }
 
 var TEST_CONTENT = []byte(`{"foo": "bar","obj":{"num":14,"arr":[2,5,8],"str":"zz"},"num":11,"arr":[3,6,9,12]}`)
+var TEST_BINARY_CONTENT = []byte(`{"initial":100}`)
+var TEST_APPEND_CONTENT = []byte(`{"100"}`)
+var TEST_LOCK_CONTENT = []byte(`{"lockTime": 10}`)
+var TEST_EXPIRY_CONTENT = []byte(`{"expiryTime": "2024-12-31T23:59:59Z", "returnContent": true}`)
 var TEST_CONTENT_FLAGS = uint32(0x01000000)
 
 func (s *GatewayOpsTestSuite) compressContent(in []byte) []byte {
