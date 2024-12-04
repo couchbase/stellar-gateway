@@ -814,14 +814,14 @@ func (s *QueryIndexAdminServer) BuildDeferredIndexes(
 		allIndexesBuilding := true
 		for _, indexes := range deferredIndexes {
 			for _, index := range indexes {
-				index := getIndex(index)
-				if index == nil {
+				indexRes := getIndex(index)
+				if indexRes == nil {
 					// if the index is not found at all, just consider it building
 					s.logger.Warn("an index that was scheduled for building is no longer found", zap.String("indexName", index.Name))
 					continue
 				}
 
-				if index.State == admin_query_v1.IndexState_INDEX_STATE_DEFERRED {
+				if indexRes.State == admin_query_v1.IndexState_INDEX_STATE_DEFERRED {
 					allIndexesBuilding = false
 					break
 				}
