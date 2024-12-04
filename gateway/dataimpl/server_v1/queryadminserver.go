@@ -350,9 +350,7 @@ func (s *QueryIndexAdminServer) CreatePrimaryIndex(
 	}
 
 	_, err := s.executeQuery(ctx, &in.BucketName, qs, agent, oboInfo)
-	if errors.Is(err, cbqueryx.ErrBuildAlreadyInProgress) {
-		// this is considered a success
-	} else if err != nil {
+	if err != nil {
 		var rErr *cbqueryx.ResourceError
 		if errors.As(err, &rErr) {
 			if errors.Is(rErr.Cause, cbqueryx.ErrIndexExists) {
@@ -477,9 +475,7 @@ func (s *QueryIndexAdminServer) CreateIndex(
 	}
 
 	_, err := s.executeQuery(ctx, &in.BucketName, qs, agent, oboInfo)
-	if errors.Is(err, cbqueryx.ErrBuildAlreadyInProgress) {
-		// this is considered a success
-	} else if err != nil {
+	if err != nil {
 		var rErr *cbqueryx.ResourceError
 		if errors.As(err, &rErr) {
 			if errors.Is(rErr.Cause, cbqueryx.ErrIndexExists) {
