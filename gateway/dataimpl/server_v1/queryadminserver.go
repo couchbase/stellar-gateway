@@ -70,7 +70,6 @@ func (s *QueryIndexAdminServer) buildKeyspace(
 
 func (s *QueryIndexAdminServer) executeQuery(
 	ctx context.Context,
-	bucketName *string,
 	statement string,
 	agent *gocbcorex.Agent,
 	oboInfo *cbhttpx.OnBehalfOfInfo,
@@ -232,7 +231,7 @@ func (s *QueryIndexAdminServer) GetAllIndexes(
 		return nil, errSt.Err()
 	}
 
-	rows, err := s.executeQuery(ctx, in.BucketName, qs, agent, oboInfo)
+	rows, err := s.executeQuery(ctx, qs, agent, oboInfo)
 	if err != nil {
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
@@ -349,7 +348,7 @@ func (s *QueryIndexAdminServer) CreatePrimaryIndex(
 		return nil, errSt.Err()
 	}
 
-	_, err := s.executeQuery(ctx, &in.BucketName, qs, agent, oboInfo)
+	_, err := s.executeQuery(ctx, qs, agent, oboInfo)
 	if err != nil {
 		var rErr *cbqueryx.ResourceError
 		if errors.As(err, &rErr) {
@@ -474,7 +473,7 @@ func (s *QueryIndexAdminServer) CreateIndex(
 		return nil, errSt.Err()
 	}
 
-	_, err := s.executeQuery(ctx, &in.BucketName, qs, agent, oboInfo)
+	_, err := s.executeQuery(ctx, qs, agent, oboInfo)
 	if err != nil {
 		var rErr *cbqueryx.ResourceError
 		if errors.As(err, &rErr) {
@@ -580,7 +579,7 @@ func (s *QueryIndexAdminServer) DropPrimaryIndex(
 		return nil, errSt.Err()
 	}
 
-	_, err := s.executeQuery(ctx, &in.BucketName, qs, agent, oboInfo)
+	_, err := s.executeQuery(ctx, qs, agent, oboInfo)
 	if err != nil {
 		var rErr *cbqueryx.ResourceError
 		if errors.As(err, &rErr) {
@@ -665,7 +664,7 @@ func (s *QueryIndexAdminServer) DropIndex(
 		return nil, errSt.Err()
 	}
 
-	_, err := s.executeQuery(ctx, &in.BucketName, qs, agent, oboInfo)
+	_, err := s.executeQuery(ctx, qs, agent, oboInfo)
 	if err != nil {
 
 		var rErr *cbqueryx.ResourceError
@@ -782,7 +781,7 @@ func (s *QueryIndexAdminServer) BuildDeferredIndexes(
 			return nil, errSt.Err()
 		}
 
-		_, err := s.executeQuery(ctx, &in.BucketName, qs, agent, oboInfo)
+		_, err := s.executeQuery(ctx, qs, agent, oboInfo)
 		if errors.Is(err, cbqueryx.ErrBuildAlreadyInProgress) {
 			// this is considered a success
 		} else if err != nil {
