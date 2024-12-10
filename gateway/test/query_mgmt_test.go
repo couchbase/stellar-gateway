@@ -2,6 +2,7 @@ package test
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/couchbase/goprotostellar/genproto/admin_query_v1"
 	"github.com/google/uuid"
@@ -1058,4 +1059,63 @@ func (s *GatewayOpsTestSuite) TestQueryManagementBuildDeferredBuildsSpecificColl
 		CollectionName: &spaceName,
 	}, grpc.PerRPCCredentials(s.basicRpcCreds))
 	assertRpcStatus(s.T(), err, codes.InvalidArgument)
+}
+
+// This test ensures that an empty collection and scope are treated as _default.
+func (s *GatewayOpsTestSuite) TestQueryManagementWaitForIndexOnlineEmptyCollectionAndScope() {
+	if !s.SupportsFeature(TestFeatureQueryManagement) {
+		s.T().Skip()
+	}
+
+	queryAdminClient := admin_query_v1.NewQueryAdminServiceClient(s.gatewayConn)
+
+	scope1 := uuid.NewString()[:6]
+	collection := uuid.NewString()[:6]
+	scope2 := uuid.NewString()[:6]
+	defaultScope := "_default"
+	defaultCollection := "_default"
+
+	deleteScope1 := s.CreateScope(s.bucketName, scope1)
+	s.T().Cleanup(deleteScope1)
+
+	deleteScope2 := s.CreateScope(s.bucketName, scope2)
+	s.T().Cleanup(deleteScope2)
+
+	s.CreateCollection(s.bucketName, scope1, collection)
+	s.CreateCollection(s.bucketName, scope2, collection)
+
+	indexName := uuid.NewString()
+	trueBool := true
+
+	createIndex := func(scopeName, collectionName string) {
+		iResp, err := queryAdminClient.CreateIndex(context.Background(), &admin_query_v1.CreateIndexRequest{
+			Name:           indexName,
+			BucketName:     s.bucketName,
+			ScopeName:      &scopeName,
+			CollectionName: &collectionName,
+			Fields:         []string{"test"},
+			Deferred:       &trueBool,
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		fmt.Printf("%#v\n", err)
+		requireRpcSuccess(s.T(), iResp, err)
+	}
+
+	createIndex(scope1, collection)
+	createIndex(scope2, collection)
+	createIndex(defaultScope, defaultCollection)
+
+	buildResp, err := queryAdminClient.BuildDeferredIndexes(context.Background(), &admin_query_v1.BuildDeferredIndexesRequest{
+		BucketName:     s.bucketName,
+		ScopeName:      &defaultScope,
+		CollectionName: &defaultCollection,
+	}, grpc.PerRPCCredentials(s.basicRpcCreds))
+	requireRpcSuccess(s.T(), buildResp, err)
+
+	waitResp, err := queryAdminClient.WaitForIndexOnline(context.Background(), &admin_query_v1.WaitForIndexOnlineRequest{
+		BucketName:     s.bucketName,
+		ScopeName:      "",
+		CollectionName: "",
+		Name:           indexName,
+	}, grpc.PerRPCCredentials(s.basicRpcCreds))
+	requireRpcSuccess(s.T(), waitResp, err)
 }
