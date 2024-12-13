@@ -64,8 +64,8 @@ func (s *DataApiServer) IncrementDocument(
 
 	result, err := bucketAgent.Increment(ctx, &opts)
 	if err != nil {
-		if errors.Is(err, memdx.ErrCasMismatch) {
-			return nil, s.errorHandler.NewDocCasMismatchStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.DocumentKey).Err()
+		if errors.Is(err, memdx.ErrDeltaBadval) {
+			return nil, s.errorHandler.NewDocNotNumericStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.DocumentKey).Err()
 		} else if errors.Is(err, memdx.ErrDocLocked) {
 			return nil, s.errorHandler.NewDocLockedStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.DocumentKey).Err()
 		} else if errors.Is(err, memdx.ErrDocNotFound) {
@@ -144,8 +144,8 @@ func (s *DataApiServer) DecrementDocument(
 
 	result, err := bucketAgent.Decrement(ctx, &opts)
 	if err != nil {
-		if errors.Is(err, memdx.ErrCasMismatch) {
-			return nil, s.errorHandler.NewDocCasMismatchStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.DocumentKey).Err()
+		if errors.Is(err, memdx.ErrDeltaBadval) {
+			return nil, s.errorHandler.NewDocNotNumericStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.DocumentKey).Err()
 		} else if errors.Is(err, memdx.ErrDocLocked) {
 			return nil, s.errorHandler.NewDocLockedStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.DocumentKey).Err()
 		} else if errors.Is(err, memdx.ErrDocNotFound) {

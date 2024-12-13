@@ -497,6 +497,23 @@ func (e ErrorHandler) NewDocNotLockedStatus(baseErr error, bucketName, scopeName
 	return st
 }
 
+func (e ErrorHandler) NewDocNotNumericStatus(baseErr error, bucketName, scopeName, collectionName, docId string) *status.Status {
+	var st *status.Status
+	st = status.New(codes.FailedPrecondition,
+		fmt.Sprintf("Cannot perform counter operation on non-numeric document '%s' in '%s/%s/%s'.",
+			docId, bucketName, scopeName, collectionName))
+	st = e.tryAttachStatusDetails(st, &epb.PreconditionFailure{
+		Violations: []*epb.PreconditionFailure_Violation{{
+			Type:        "DOC_NOT_NUMERIC",
+			Subject:     fmt.Sprintf("%s/%s/%s/%s", bucketName, scopeName, collectionName, docId),
+			Description: "",
+		}},
+	})
+
+	st = e.tryAttachExtraContext(st, baseErr)
+	return st
+}
+
 func (e ErrorHandler) NewValueTooLargeStatus(baseErr error, bucketName, scopeName, collectionName, docId string,
 	isExpandingValue bool) *status.Status {
 	var st *status.Status
