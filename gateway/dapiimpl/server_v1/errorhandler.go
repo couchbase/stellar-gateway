@@ -342,6 +342,19 @@ func (e ErrorHandler) NewCollectionNoWriteAccessStatus(baseErr error, bucketName
 	return st
 }
 
+func (e ErrorHandler) NewDocNotNumericStatus(baseErr error, bucketName, scopeName, collectionName, docId string) *Status {
+	st := &Status{
+		StatusCode: http.StatusBadRequest,
+		Code:       dataapiv1.ErrorCodeDocumentNotNumeric,
+		Message: fmt.Sprintf("Cannot perform counter operation on non-numeric document '%s' in '%s/%s/%s'.",
+			docId, bucketName, scopeName, collectionName),
+		Resource: fmt.Sprintf("/buckets/%s/scopes/%s/collections/%s/documents/%s",
+			bucketName, scopeName, collectionName, docId),
+	}
+	st = e.tryAttachExtraContext(st, baseErr)
+	return st
+}
+
 func (e ErrorHandler) NewValueTooLargeStatus(baseErr error, bucketName, scopeName, collectionName, docId string,
 	isExpandingValue bool) *Status {
 	var st *Status

@@ -633,6 +633,7 @@ components:
         - ValueTooLarge
         - DocumentNotJson
         - PathMismatch
+        - DocumentNotNumeric
       x-enum-varnames:
         - ErrorCodeInvalidArgument
         - ErrorCodeUnauthorized
@@ -654,6 +655,7 @@ components:
         - ErrorCodeValueTooLarge
         - ErrorCodeDocumentNotJson
         - ErrorCodePathMismatch
+        - ErrorCodeDocumentNotNumeric
     Error:
       title: Error
       description: Error represents an error response from the server.

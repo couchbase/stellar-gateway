@@ -1105,6 +1105,28 @@ func (s *GatewayOpsTestSuite) TestDapiIncrement() {
 		})
 	})
 
+	s.Run("NonNumericDoc", func() {
+		docId := s.binaryDocId([]byte(`{"foo":"bar"}`))
+
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/increment",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+			},
+		})
+		requireRestError(s.T(), resp, http.StatusBadRequest, &testRestError{
+			Code: "DocumentNotNumeric",
+			Resource: fmt.Sprintf(
+				"/buckets/%s/scopes/%s/collections/%s/documents/%s",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+		})
+	})
+
 	s.RunCommonDapiErrorCases(func(opts *commonDapiErrorTestData) *testHttpResponse {
 		return s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
@@ -1231,6 +1253,28 @@ func (s *GatewayOpsTestSuite) TestDapiDecrement() {
 		})
 		requireRestError(s.T(), resp, http.StatusConflict, &testRestError{
 			Code: "DocumentLocked",
+			Resource: fmt.Sprintf(
+				"/buckets/%s/scopes/%s/collections/%s/documents/%s",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+		})
+	})
+
+	s.Run("NonNumericDoc", func() {
+		docId := s.binaryDocId([]byte(`{"foo":"bar"}`))
+
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/decrement",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+			},
+		})
+		requireRestError(s.T(), resp, http.StatusBadRequest, &testRestError{
+			Code: "DocumentNotNumeric",
 			Resource: fmt.Sprintf(
 				"/buckets/%s/scopes/%s/collections/%s/documents/%s",
 				s.bucketName, s.scopeName, s.collectionName, docId,

@@ -707,8 +707,8 @@ func (s *KvServer) Increment(ctx context.Context, in *kv_v1.IncrementRequest) (*
 
 	result, err := bucketAgent.Increment(ctx, &opts)
 	if err != nil {
-		if errors.Is(err, memdx.ErrCasMismatch) {
-			return nil, s.errorHandler.NewDocCasMismatchStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+		if errors.Is(err, memdx.ErrDeltaBadval) {
+			return nil, s.errorHandler.NewDocNotNumericStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
 		} else if errors.Is(err, memdx.ErrDocLocked) {
 			return nil, s.errorHandler.NewDocLockedStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
 		} else if errors.Is(err, memdx.ErrDocNotFound) {
@@ -774,7 +774,9 @@ func (s *KvServer) Decrement(ctx context.Context, in *kv_v1.DecrementRequest) (*
 
 	result, err := bucketAgent.Decrement(ctx, &opts)
 	if err != nil {
-		if errors.Is(err, memdx.ErrDocLocked) {
+		if errors.Is(err, memdx.ErrDeltaBadval) {
+			return nil, s.errorHandler.NewDocNotNumericStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+		} else if errors.Is(err, memdx.ErrDocLocked) {
 			return nil, s.errorHandler.NewDocLockedStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
 		} else if errors.Is(err, memdx.ErrDocNotFound) {
 			return nil, s.errorHandler.NewDocMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()

@@ -1974,6 +1974,23 @@ func (s *GatewayOpsTestSuite) TestIncrement() {
 		})
 	})
 
+	s.Run("NonNumericDoc", func() {
+		docId := s.binaryDocId([]byte(`{"foo":"bar"}`))
+
+		_, err := kvClient.Increment(context.Background(), &kv_v1.IncrementRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            docId,
+			Delta:          1,
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		assertRpcStatus(s.T(), err, codes.FailedPrecondition)
+		assertRpcErrorDetails(s.T(), err, func(d *epb.PreconditionFailure) {
+			assert.Len(s.T(), d.Violations, 1)
+			assert.Equal(s.T(), d.Violations[0].Type, "DOC_NOT_NUMERIC")
+		})
+	})
+
 	s.Run("ExpirySecs", func() {
 		var initialValue int64 = 5
 		s.Run("ConversionUnder30Days", func() {
@@ -2179,6 +2196,23 @@ func (s *GatewayOpsTestSuite) TestDecrement() {
 		assertRpcErrorDetails(s.T(), err, func(d *epb.PreconditionFailure) {
 			assert.Len(s.T(), d.Violations, 1)
 			assert.Equal(s.T(), d.Violations[0].Type, "LOCKED")
+		})
+	})
+
+	s.Run("NonNumericDoc", func() {
+		docId := s.binaryDocId([]byte(`{"foo":"bar"}`))
+
+		_, err := kvClient.Decrement(context.Background(), &kv_v1.DecrementRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            docId,
+			Delta:          1,
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		assertRpcStatus(s.T(), err, codes.FailedPrecondition)
+		assertRpcErrorDetails(s.T(), err, func(d *epb.PreconditionFailure) {
+			assert.Len(s.T(), d.Violations, 1)
+			assert.Equal(s.T(), d.Violations[0].Type, "DOC_NOT_NUMERIC")
 		})
 	})
 
