@@ -32,6 +32,8 @@ func (s *DataApiServer) IncrementDocument(
 	}
 	if in.Body.Initial != nil {
 		opts.Initial = uint64(*in.Body.Initial)
+	} else {
+		opts.Initial = 0xffffffffffffffff
 	}
 
 	if in.Params.Expires != nil {
@@ -101,6 +103,8 @@ func (s *DataApiServer) DecrementDocument(
 	}
 	if in.Body.Initial != nil {
 		opts.Initial = uint64(*in.Body.Initial)
+	} else {
+		opts.Initial = 0xffffffffffffffff
 	}
 
 	if in.Params.Expires != nil {
