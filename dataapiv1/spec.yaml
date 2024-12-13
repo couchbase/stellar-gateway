@@ -290,9 +290,10 @@ paths:
         - $ref: '#/components/parameters/ExpiresHeader'
         - $ref: '#/components/parameters/DurabilityLevelHeader'
       requestBody:
-        required: true
         content:
-         'application/json':
+          '*':
+            schema: {}
+          'application/json':
             schema:
               type: object
               properties:
@@ -344,9 +345,10 @@ paths:
         - $ref: '#/components/parameters/ExpiresHeader'
         - $ref: '#/components/parameters/DurabilityLevelHeader'
       requestBody:
-        required: true
         content:
-         'application/json':
+          '':
+            schema: {}
+          'application/json':
             schema:
               type: object
               properties:

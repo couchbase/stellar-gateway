@@ -27,12 +27,21 @@ func (s *DataApiServer) IncrementDocument(
 	opts.ScopeName = in.ScopeName
 	opts.CollectionName = in.CollectionName
 	opts.Key = key
-	if in.Body.Delta != nil {
-		opts.Delta = uint64(*in.Body.Delta)
-	}
-	if in.Body.Initial != nil {
-		opts.Initial = uint64(*in.Body.Initial)
+
+	if in.JSONBody != nil {
+		if in.JSONBody.Delta != nil {
+			opts.Delta = uint64(*in.JSONBody.Delta)
+		} else {
+			opts.Delta = 1
+		}
+
+		if in.JSONBody.Initial != nil {
+			opts.Initial = uint64(*in.JSONBody.Initial)
+		} else {
+			opts.Initial = 0xffffffffffffffff
+		}
 	} else {
+		opts.Delta = 1
 		opts.Initial = 0xffffffffffffffff
 	}
 
@@ -98,12 +107,21 @@ func (s *DataApiServer) DecrementDocument(
 	opts.ScopeName = in.ScopeName
 	opts.CollectionName = in.CollectionName
 	opts.Key = key
-	if in.Body.Delta != nil {
-		opts.Delta = uint64(*in.Body.Delta)
-	}
-	if in.Body.Initial != nil {
-		opts.Initial = uint64(*in.Body.Initial)
+
+	if in.JSONBody != nil {
+		if in.JSONBody.Delta != nil {
+			opts.Delta = uint64(*in.JSONBody.Delta)
+		} else {
+			opts.Delta = 1
+		}
+
+		if in.JSONBody.Initial != nil {
+			opts.Initial = uint64(*in.JSONBody.Initial)
+		} else {
+			opts.Initial = 0xffffffffffffffff
+		}
 	} else {
+		opts.Delta = 1
 		opts.Initial = 0xffffffffffffffff
 	}
 
