@@ -215,11 +215,13 @@ func (s *GatewayOpsTestSuite) TestDapiGet() {
 	})
 
 	s.Run("DocMissing", func() {
+		docId := s.missingDocId()
+
 		resp := s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodGet,
 			Path: fmt.Sprintf(
 				`/v1/buckets/%s/scopes/%s/collections/%s/documents/%s`,
-				s.bucketName, s.scopeName, s.collectionName, "missing-document",
+				s.bucketName, s.scopeName, s.collectionName, docId,
 			),
 			Headers: map[string]string{
 				"Authorization": s.basicRestCreds,
@@ -228,7 +230,7 @@ func (s *GatewayOpsTestSuite) TestDapiGet() {
 		requireRestError(s.T(), resp, http.StatusNotFound, &testRestError{
 			Code: "DocumentNotFound",
 			Resource: fmt.Sprintf("/buckets/%s/scopes/%s/collections/%s/documents/%s",
-				s.bucketName, s.scopeName, s.collectionName, "missing-document"),
+				s.bucketName, s.scopeName, s.collectionName, docId),
 		})
 	})
 
@@ -762,7 +764,7 @@ func (s *GatewayOpsTestSuite) TestDapiPut() {
 		})
 
 		s.Run("DocMissing", func() {
-			docId := s.randomDocId()
+			docId := s.missingDocId()
 
 			resp := s.sendTestHttpRequest(&testHttpRequest{
 				Method: http.MethodPut,
@@ -927,7 +929,7 @@ func (s *GatewayOpsTestSuite) TestDapiDelete() {
 	})
 
 	s.Run("DocMissing", func() {
-		docId := s.randomDocId()
+		docId := s.missingDocId()
 
 		resp := s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodDelete,
@@ -975,6 +977,272 @@ func (s *GatewayOpsTestSuite) TestDapiDelete() {
 			Method: http.MethodDelete,
 			Path: fmt.Sprintf(
 				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
+				opts.BucketName, opts.ScopeName, opts.CollectionName, opts.DocumentKey,
+			),
+			Headers: opts.Headers,
+		})
+	})
+}
+
+func (s *GatewayOpsTestSuite) TestDapiIncrement() {
+	checkDocument := func(docId string, content []byte) {
+		s.checkDocument(s.T(), checkDocumentOptions{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			DocId:          docId,
+			Content:        content,
+			ContentFlags:   0,
+		})
+	}
+
+	s.Run("Basic", func() {
+		docId := s.binaryDocId([]byte("5"))
+
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/increment",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+			},
+		})
+		requireRestSuccess(s.T(), resp)
+		assertRestValidEtag(s.T(), resp)
+		assertRestValidMutationToken(s.T(), resp, s.bucketName)
+
+		checkDocument(docId, []byte("6"))
+	})
+
+	s.Run("WithInitialExists", func() {
+		docId := s.binaryDocId([]byte("5"))
+
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/increment",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+				"Content-Type":  "application/json",
+			},
+			Body: []byte(`{"initial": 5}`),
+		})
+		requireRestSuccess(s.T(), resp)
+		assertRestValidEtag(s.T(), resp)
+		assertRestValidMutationToken(s.T(), resp, s.bucketName)
+
+		checkDocument(docId, []byte("6"))
+	})
+
+	s.Run("WithInitialMissing", func() {
+		docId := s.randomDocId()
+
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/increment",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+				"Content-Type":  "application/json",
+			},
+			Body: []byte(`{"initial": 5}`),
+		})
+		requireRestSuccess(s.T(), resp)
+		assertRestValidEtag(s.T(), resp)
+		assertRestValidMutationToken(s.T(), resp, s.bucketName)
+
+		checkDocument(docId, []byte("5"))
+	})
+
+	s.Run("DocMissing", func() {
+		docId := s.missingDocId()
+
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/increment",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+			},
+		})
+		requireRestError(s.T(), resp, http.StatusNotFound, &testRestError{
+			Code: "DocumentNotFound",
+			Resource: fmt.Sprintf(
+				"/buckets/%s/scopes/%s/collections/%s/documents/%s",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+		})
+	})
+
+	s.Run("DocLocked", func() {
+		docId := s.binaryDocId([]byte("5"))
+		s.lockDoc(docId)
+
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/increment",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+			},
+		})
+		requireRestError(s.T(), resp, http.StatusConflict, &testRestError{
+			Code: "DocumentLocked",
+			Resource: fmt.Sprintf(
+				"/buckets/%s/scopes/%s/collections/%s/documents/%s",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+		})
+	})
+
+	s.RunCommonDapiErrorCases(func(opts *commonDapiErrorTestData) *testHttpResponse {
+		return s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/increment",
+				opts.BucketName, opts.ScopeName, opts.CollectionName, opts.DocumentKey,
+			),
+			Headers: opts.Headers,
+		})
+	})
+}
+
+func (s *GatewayOpsTestSuite) TestDapiDecrement() {
+	checkDocument := func(docId string, content []byte) {
+		s.checkDocument(s.T(), checkDocumentOptions{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			DocId:          docId,
+			Content:        content,
+			ContentFlags:   0,
+		})
+	}
+
+	s.Run("Basic", func() {
+		docId := s.binaryDocId([]byte("5"))
+
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/decrement",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+			},
+		})
+		requireRestSuccess(s.T(), resp)
+		assertRestValidEtag(s.T(), resp)
+		assertRestValidMutationToken(s.T(), resp, s.bucketName)
+
+		checkDocument(docId, []byte("4"))
+	})
+
+	s.Run("WithInitialExists", func() {
+		docId := s.binaryDocId([]byte("5"))
+
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/decrement",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+				"Content-Type":  "application/json",
+			},
+			Body: []byte(`{"initial": 5}`),
+		})
+		requireRestSuccess(s.T(), resp)
+		assertRestValidEtag(s.T(), resp)
+		assertRestValidMutationToken(s.T(), resp, s.bucketName)
+
+		checkDocument(docId, []byte("4"))
+	})
+
+	s.Run("WithInitialMissing", func() {
+		docId := s.randomDocId()
+
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/decrement",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+				"Content-Type":  "application/json",
+			},
+			Body: []byte(`{"initial": 5}`),
+		})
+		requireRestSuccess(s.T(), resp)
+		assertRestValidEtag(s.T(), resp)
+		assertRestValidMutationToken(s.T(), resp, s.bucketName)
+
+		checkDocument(docId, []byte("5"))
+	})
+
+	s.Run("DocMissing", func() {
+		docId := s.missingDocId()
+
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/decrement",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+			},
+		})
+		requireRestError(s.T(), resp, http.StatusNotFound, &testRestError{
+			Code: "DocumentNotFound",
+			Resource: fmt.Sprintf(
+				"/buckets/%s/scopes/%s/collections/%s/documents/%s",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+		})
+	})
+
+	s.Run("DocLocked", func() {
+		docId := s.binaryDocId([]byte("5"))
+		s.lockDoc(docId)
+
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/decrement",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+			},
+		})
+		requireRestError(s.T(), resp, http.StatusConflict, &testRestError{
+			Code: "DocumentLocked",
+			Resource: fmt.Sprintf(
+				"/buckets/%s/scopes/%s/collections/%s/documents/%s",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+		})
+	})
+
+	s.RunCommonDapiErrorCases(func(opts *commonDapiErrorTestData) *testHttpResponse {
+		return s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/decrement",
 				opts.BucketName, opts.ScopeName, opts.CollectionName, opts.DocumentKey,
 			),
 			Headers: opts.Headers,
