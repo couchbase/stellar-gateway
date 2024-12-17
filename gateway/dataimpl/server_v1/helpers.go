@@ -255,25 +255,24 @@ func conflictResolutionTypeToCbmgmtx(t admin_bucket_v1.ConflictResolutionType) (
 	return cbmgmtx.ConflictResolutionType(""), status.New(codes.InvalidArgument, "invalid conflict resolution type specified")
 }
 
-func indexStateFromQueryTableString(s string) (admin_query_v1.IndexState, *status.Status) {
+func indexStateFromQueryTableIndexState(s cbqueryx.IndexState) (admin_query_v1.IndexState, *status.Status) {
 	switch s {
-	case "deferred":
+	case cbqueryx.IndexStateDeferred:
 		return admin_query_v1.IndexState_INDEX_STATE_DEFERRED, nil
-	case "building":
+	case cbqueryx.IndexStateBuilding:
 		return admin_query_v1.IndexState_INDEX_STATE_BUILDING, nil
-	case "pending":
+	case cbqueryx.IndexStatePending:
 		return admin_query_v1.IndexState_INDEX_STATE_PENDING, nil
-	case "online":
+	case cbqueryx.IndexStateOnline:
 		return admin_query_v1.IndexState_INDEX_STATE_ONLINE, nil
-	case "offline":
+	case cbqueryx.IndexStateOffline:
 		return admin_query_v1.IndexState_INDEX_STATE_OFFLINE, nil
-	case "abridged":
+	case cbqueryx.IndexStateAbridged:
 		return admin_query_v1.IndexState_INDEX_STATE_ABRIDGED, nil
-	case "scheduled":
+	case cbqueryx.IndexStateScheduled:
 		return admin_query_v1.IndexState_INDEX_STATE_SCHEDULED, nil
 	}
-
-	return admin_query_v1.IndexState(0), status.New(codes.Internal, "invalid index state specified")
+	return admin_query_v1.IndexState(0), status.New(codes.Internal, "invalid index state received")
 }
 
 func scanConsistencyToCbqueryx(t query_v1.QueryRequest_ScanConsistency) (cbqueryx.ScanConsistency, *status.Status) {
