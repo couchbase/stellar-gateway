@@ -142,6 +142,7 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 	// data api
 	sh := dataapiv1.NewStrictHandlerWithOptions(dapiImpl.DataApiV1Server, []nethttp.StrictHTTPMiddlewareFunc{
 		dapiimpl.NewErrorHandler(opts.Logger),
+		dapiimpl.NewUserAgentMetricsHandler(),
 		oapimetrics.NewStatsHandler(opts.Logger),
 	}, dataapiv1.StrictHTTPServerOptions{})
 

@@ -69,6 +69,8 @@ func Connect(connStr string, opts *ConnectOptions) (*Client, error) {
 		dialOpts = append(dialOpts, perRpcDialOpt)
 	}
 
+	dialOpts = append(dialOpts, grpc.WithUserAgent("gocbps/v1.0.0 (grpc/vX.Y.Z)"))
+
 	conn, err := grpc.NewClient(connStr, dialOpts...)
 	if err != nil {
 		return nil, err

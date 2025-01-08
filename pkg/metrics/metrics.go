@@ -11,6 +11,7 @@ import (
 type SnMetrics struct {
 	NewConnections    metric.Float64Counter
 	ActiveConnections metric.Float64UpDownCounter
+	ClientNames       metric.Int64Counter
 }
 
 var (
@@ -41,9 +42,11 @@ func newSnMetrics() *SnMetrics {
 
 	newConnections, _ := meter.Float64Counter("grpc_connections_total")
 	activeConnections, _ := meter.Float64UpDownCounter("grpc_connections")
+	clientNames, _ := meter.Int64Counter("grpc_client_names")
 
 	return &SnMetrics{
 		NewConnections:    newConnections,
 		ActiveConnections: activeConnections,
+		ClientNames:       clientNames,
 	}
 }
