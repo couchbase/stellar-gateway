@@ -287,7 +287,7 @@ func (s *GatewayOpsTestSuite) SetupSuite() {
 	conn, err := grpc.NewClient(connAddr,
 		grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{
 			InsecureSkipVerify: true,
-		})))
+		})), grpc.WithUserAgent("test-client"))
 	if err != nil {
 		s.T().Fatalf("failed to connect to test gateway: %s", err)
 	}

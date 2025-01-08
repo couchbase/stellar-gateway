@@ -33,6 +33,10 @@ func (s *GatewayOpsTestSuite) sendTestHttpRequest(req *testHttpRequest) *testHtt
 		hreq.Header.Set(k, v)
 	}
 
+	if hreq.Header.Get("User-Agent") == "" {
+		hreq.Header.Set("User-Agent", "dapi-test")
+	}
+
 	hresp, err := s.dapiCli.Do(hreq)
 	require.NoError(s.T(), err)
 
