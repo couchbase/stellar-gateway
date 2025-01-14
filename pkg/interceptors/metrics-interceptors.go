@@ -22,16 +22,14 @@ func NewMetricsInterceptor(metrics *metrics.SnMetrics) *MetricsInterceptor {
 }
 
 func (mi *MetricsInterceptor) recordClient(ctx context.Context) {
-	if md, ok := metadata.FromIncomingContext(ctx); ok {
-		userAgents := md.Get("user-agent")
-		if len(userAgents) > 0 {
-			userAgent := userAgents[len(userAgents)-1]
-			clientName := cbclientnames.FromUserAgent(userAgent)
+	userAgents := metadata.ValueFromIncomingContext(ctx, "User-Agent")
+	if len(userAgents) > 0 {
+		userAgent := userAgents[len(userAgents)-1]
+		clientName := cbclientnames.FromUserAgent(userAgent)
 
-			if clientName != "" {
-				mi.metrics.ClientNames.Add(ctx, 1,
-					metric.WithAttributes(attribute.String("client_name", clientName)))
-			}
+		if clientName != "" {
+			mi.metrics.ClientNames.Add(ctx, 1,
+				metric.WithAttributes(attribute.String("client_name", clientName)))
 		}
 	}
 }

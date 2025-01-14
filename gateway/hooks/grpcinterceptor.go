@@ -10,13 +10,7 @@ import (
 
 func makeGrpcUnaryInterceptor(manager *HooksManager, log *zap.Logger) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
-		md, _ := metadata.FromIncomingContext(ctx)
-		if md == nil {
-			// forward the underlying call
-			return handler(ctx, req)
-		}
-
-		hooksIDs := md.Get("X-Hooks-ID")
+		hooksIDs := metadata.ValueFromIncomingContext(ctx, "X-Hooks-ID")
 		if hooksIDs == nil {
 			// forward the underlying call
 			return handler(ctx, req)
