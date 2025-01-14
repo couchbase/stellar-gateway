@@ -21,11 +21,12 @@ type AuthHandler struct {
 	CbClient      *gocbcorex.BucketsTrackingAgentManager
 }
 
-func (a AuthHandler) getUserPassFromMetaData(md metadata.MD) (string, string, error) {
-	authValues := md.Get("authorization")
+func (a AuthHandler) MaybeGetUserPassFromContext(ctx context.Context) (string, string, *status.Status) {
+	authValues := metadata.ValueFromIncomingContext(ctx, "Authorization")
 	if len(authValues) > 1 {
 		a.Logger.Debug("more than a single authorization header was found")
-		return "", "", errors.New("more than a single authorization header was found")
+		return "", "", a.ErrorHandler.NewInvalidAuthHeaderStatus(
+			errors.New("more than a single authorization header was found"))
 	}
 
 	if len(authValues) == 0 {
@@ -41,22 +42,8 @@ func (a AuthHandler) getUserPassFromMetaData(md metadata.MD) (string, string, er
 	username, password, ok := r.BasicAuth()
 	if !ok {
 		a.Logger.Debug("failed to parse authorization header")
-		return "", "", errors.New("failed to parse authorization header")
-	}
-
-	return username, password, nil
-}
-
-func (a AuthHandler) MaybeGetUserPassFromContext(ctx context.Context) (string, string, *status.Status) {
-	md, hasMd := metadata.FromIncomingContext(ctx)
-	if !hasMd {
-		a.Logger.Error("failed to fetch grpc metadata from context")
-		return "", "", a.ErrorHandler.NewInternalStatus()
-	}
-
-	username, password, err := a.getUserPassFromMetaData(md)
-	if err != nil {
-		return "", "", a.ErrorHandler.NewInvalidAuthHeaderStatus(err)
+		return "", "", a.ErrorHandler.NewInvalidAuthHeaderStatus(
+			errors.New("failed to parse authorization header"))
 	}
 
 	return username, password, nil
