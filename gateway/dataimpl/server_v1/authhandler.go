@@ -3,12 +3,12 @@ package server_v1
 import (
 	"context"
 	"errors"
-	"net/http"
 
 	"github.com/couchbase/gocbcorex"
 	"github.com/couchbase/gocbcorex/cbhttpx"
 	"github.com/couchbase/gocbcorex/cbmgmtx"
 	"github.com/couchbase/stellar-gateway/gateway/auth"
+	"github.com/couchbase/stellar-gateway/utils/authhdr"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
@@ -33,13 +33,9 @@ func (a AuthHandler) MaybeGetUserPassFromContext(ctx context.Context) (string, s
 		return "", "", nil
 	}
 
-	// we reuse the Basic auth parsing built into the go net library
-	r := http.Request{
-		Header: map[string][]string{
-			"Authorization": authValues,
-		},
-	}
-	username, password, ok := r.BasicAuth()
+	authValue := authValues[len(authValues)-1]
+
+	username, password, ok := authhdr.DecodeBasicAuth(authValue)
 	if !ok {
 		a.Logger.Debug("failed to parse authorization header")
 		return "", "", a.ErrorHandler.NewInvalidAuthHeaderStatus(
