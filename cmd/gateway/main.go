@@ -87,8 +87,8 @@ func init() {
 	configFlags.String("dapi-key", "", "path to data api private tls key for Data API")
 	configFlags.Int("rate-limit", 0, "specifies the maximum requests per second to allow")
 	configFlags.String("otlp-endpoint", "", "opentelemetry endpoint to send telemetry to")
-	configFlags.Bool("disable-otlp-traces", false, "disable sending traces to otlp")
-	configFlags.Bool("disable-otlp-metrics", false, "disable sending metrics to otlp")
+	configFlags.Bool("disable-traces", false, "disable tracing")
+	configFlags.Bool("disable-metrics", false, "disable metrics")
 	configFlags.Bool("trace-everything", false, "enables tracing of all components")
 	configFlags.String("dapi-proxy-services", "", "specifies services exposed via _p endpoint proxies")
 	configFlags.Bool("alpha-endpoints", false, "enables alpha endpoints")
@@ -145,7 +145,9 @@ func initTelemetry(
 	}
 
 	var meterProvider *sdkmetric.MeterProvider
-	if !enableMetrics || otlpEndpoint == "" {
+	if !enableMetrics {
+		// we can just return nil here...
+	} else if otlpEndpoint == "" {
 		meterProvider = sdkmetric.NewMeterProvider(
 			sdkmetric.WithResource(res),
 			sdkmetric.WithReader(promExp),
@@ -231,8 +233,8 @@ type config struct {
 	dapiKeyPath           string
 	rateLimit             int
 	otlpEndpoint          string
-	disableOtlpTraces     bool
-	disableOtlpMetrics    bool
+	disableTraces         bool
+	disableMetrics        bool
 	traceEverything       bool
 	dapiProxyServices     string
 	alphaEndpoints        bool
@@ -266,8 +268,8 @@ func readConfig(logger *zap.Logger) *config {
 		dapiKeyPath:           viper.GetString("dapi-key"),
 		rateLimit:             viper.GetInt("rate-limit"),
 		otlpEndpoint:          viper.GetString("otlp-endpoint"),
-		disableOtlpTraces:     viper.GetBool("disable-otlp-traces"),
-		disableOtlpMetrics:    viper.GetBool("disable-otlp-metrics"),
+		disableTraces:         viper.GetBool("disable-traces"),
+		disableMetrics:        viper.GetBool("disable-metrics"),
 		traceEverything:       viper.GetBool("trace-everything"),
 		dapiProxyServices:     viper.GetString("dapi-proxy-services"),
 		alphaEndpoints:        viper.GetBool("alpha-endpoints"),
@@ -300,8 +302,8 @@ func readConfig(logger *zap.Logger) *config {
 		zap.String("dapiKeyPath", config.dapiKeyPath),
 		zap.Int("rateLimit", config.rateLimit),
 		zap.String("otlpEndpoint", config.otlpEndpoint),
-		zap.Bool("disableOtlpTraces", config.disableOtlpTraces),
-		zap.Bool("disableOtlpMetrics", config.disableOtlpMetrics),
+		zap.Bool("disableTraces", config.disableTraces),
+		zap.Bool("disableMetrics", config.disableMetrics),
 		zap.Bool("traceEverything", config.traceEverything),
 		zap.String("dapiProxyServices", config.dapiProxyServices),
 		zap.Bool("alphaEndpoints", config.alphaEndpoints),
@@ -369,8 +371,8 @@ func startGateway() {
 		initTelemetry(context.Background(),
 			logger,
 			config.otlpEndpoint,
-			!config.disableOtlpTraces,
-			!config.disableOtlpMetrics,
+			!config.disableTraces,
+			!config.disableMetrics,
 			config.traceEverything)
 	if err != nil {
 		logger.Error("failed to initialize opentelemetry tracing", zap.Error(err))
@@ -594,10 +596,10 @@ func startGateway() {
 		}
 
 		if newConfig.otlpEndpoint != config.otlpEndpoint ||
-			newConfig.disableOtlpTraces != config.disableOtlpTraces ||
-			newConfig.disableOtlpMetrics != config.disableOtlpMetrics ||
+			newConfig.disableTraces != config.disableTraces ||
+			newConfig.disableMetrics != config.disableMetrics ||
 			newConfig.traceEverything != config.traceEverything {
-			logger.Warn("config changes for otlpEndpoint, disableOtlpTraces, disableOtlpMetrics, or traceEverything require a restart")
+			logger.Warn("config changes for otlpEndpoint, disableTraces, disableMetrics, or traceEverything require a restart")
 		}
 
 		if newConfig.debug != config.debug {
