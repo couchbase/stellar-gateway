@@ -19,6 +19,10 @@ func NewUserAgentMetricsHandler() func(f nethttp.StrictHTTPHandlerFunc, operatio
 	clientNames, _ := meter.Int64Counter("dataapi_client_request_count")
 
 	return func(f nethttp.StrictHTTPHandlerFunc, operationID string) nethttp.StrictHTTPHandlerFunc {
+		if otel.GetMeterProvider() == nil {
+			return f
+		}
+
 		return func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (response interface{}, err error) {
 			userAgent := r.Header.Get("user-agent")
 			clientName := cbclientnames.FromUserAgent(userAgent)

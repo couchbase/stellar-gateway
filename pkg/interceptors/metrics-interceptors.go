@@ -5,6 +5,7 @@ import (
 
 	"github.com/couchbase/stellar-gateway/pkg/metrics"
 	"github.com/couchbase/stellar-gateway/utils/cbclientnames"
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 	"google.golang.org/grpc"
@@ -36,6 +37,10 @@ func (mi *MetricsInterceptor) recordClient(ctx context.Context) {
 
 func (mi *MetricsInterceptor) UnaryInterceptor() grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (response interface{}, err error) {
+		if otel.GetMeterProvider() == nil {
+			return handler(ctx, req)
+		}
+
 		mi.recordClient(ctx)
 
 		mi.metrics.NewConnections.Add(ctx, 1)
@@ -51,6 +56,10 @@ func (mi *MetricsInterceptor) UnaryInterceptor() grpc.UnaryServerInterceptor {
 
 func (mi *MetricsInterceptor) StreamInterceptor() grpc.StreamServerInterceptor {
 	return func(srv any, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+		if otel.GetMeterProvider() == nil {
+			return handler(srv, ss)
+		}
+
 		mi.recordClient(ss.Context())
 
 		mi.metrics.NewConnections.Add(ss.Context(), 1)
