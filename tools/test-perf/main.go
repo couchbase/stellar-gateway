@@ -60,7 +60,7 @@ func main() {
 	log.Printf("testing time for operations...")
 
 	TEST_VALUE := []byte(`{"str": "hello world, I am a string that is some unknown number of bytes long!"}`)
-	NUM_OPS_TEST := 100000
+	NUM_OPS_TEST := 1000000
 	NUM_THREADS := 64
 
 	var numOpsLeft int64 = int64(NUM_OPS_TEST)
