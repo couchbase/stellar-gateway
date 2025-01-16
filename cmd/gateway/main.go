@@ -27,11 +27,15 @@ import (
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/exporters/prometheus"
+	"go.opentelemetry.io/otel/metric"
+	metricnoop "go.opentelemetry.io/otel/metric/noop"
 	"go.opentelemetry.io/otel/propagation"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
+	"go.opentelemetry.io/otel/trace"
+	tracenoop "go.opentelemetry.io/otel/trace/noop"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -117,8 +121,8 @@ func initTelemetry(
 	enableMetrics bool,
 	traceEverything bool,
 ) (
-	*sdktrace.TracerProvider,
-	*sdkmetric.MeterProvider,
+	trace.TracerProvider,
+	metric.MeterProvider,
 	error,
 ) {
 	res, err := resource.New(ctx,
@@ -144,9 +148,9 @@ func initTelemetry(
 		return nil, nil, err
 	}
 
-	var meterProvider *sdkmetric.MeterProvider
+	var meterProvider metric.MeterProvider
 	if !enableMetrics {
-		// we can just return nil here...
+		meterProvider = metricnoop.NewMeterProvider()
 	} else if otlpEndpoint == "" {
 		meterProvider = sdkmetric.NewMeterProvider(
 			sdkmetric.WithResource(res),
@@ -173,9 +177,10 @@ func initTelemetry(
 		)
 	}
 
-	var tracerProvider *sdktrace.TracerProvider
+	var tracerProvider trace.TracerProvider
 	if !enableTraces || otlpEndpoint == "" {
 		// we can just return nil here...
+		tracerProvider = tracenoop.NewTracerProvider()
 	} else {
 		traceClient := otlptracegrpc.NewClient(
 			otlptracegrpc.WithInsecure(),

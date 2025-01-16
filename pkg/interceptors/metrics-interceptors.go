@@ -8,6 +8,7 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
+	"go.opentelemetry.io/otel/metric/noop"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 )
@@ -37,7 +38,8 @@ func (mi *MetricsInterceptor) recordClient(ctx context.Context) {
 
 func (mi *MetricsInterceptor) UnaryInterceptor() grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (response interface{}, err error) {
-		if otel.GetMeterProvider() == nil {
+		switch otel.GetMeterProvider().(type) {
+		case noop.MeterProvider:
 			return handler(ctx, req)
 		}
 
@@ -56,7 +58,8 @@ func (mi *MetricsInterceptor) UnaryInterceptor() grpc.UnaryServerInterceptor {
 
 func (mi *MetricsInterceptor) StreamInterceptor() grpc.StreamServerInterceptor {
 	return func(srv any, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
-		if otel.GetMeterProvider() == nil {
+		switch otel.GetMeterProvider().(type) {
+		case noop.MeterProvider:
 			return handler(srv, ss)
 		}
 
