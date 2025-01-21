@@ -27,11 +27,15 @@ import (
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/exporters/prometheus"
+	"go.opentelemetry.io/otel/metric"
+	metricnoop "go.opentelemetry.io/otel/metric/noop"
 	"go.opentelemetry.io/otel/propagation"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
+	"go.opentelemetry.io/otel/trace"
+	tracenoop "go.opentelemetry.io/otel/trace/noop"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -87,6 +91,8 @@ func init() {
 	configFlags.String("dapi-key", "", "path to data api private tls key for Data API")
 	configFlags.Int("rate-limit", 0, "specifies the maximum requests per second to allow")
 	configFlags.String("otlp-endpoint", "", "opentelemetry endpoint to send telemetry to")
+	configFlags.Bool("disable-traces", false, "disable tracing")
+	configFlags.Bool("disable-metrics", false, "disable metrics")
 	configFlags.Bool("disable-otlp-traces", false, "disable sending traces to otlp")
 	configFlags.Bool("disable-otlp-metrics", false, "disable sending metrics to otlp")
 	configFlags.Bool("trace-everything", false, "enables tracing of all components")
@@ -115,10 +121,12 @@ func initTelemetry(
 	otlpEndpoint string,
 	enableTraces bool,
 	enableMetrics bool,
+	enableOtlpTraces bool,
+	enableOtlpMetrics bool,
 	traceEverything bool,
 ) (
-	*sdktrace.TracerProvider,
-	*sdkmetric.MeterProvider,
+	trace.TracerProvider,
+	metric.MeterProvider,
 	error,
 ) {
 	res, err := resource.New(ctx,
@@ -144,8 +152,10 @@ func initTelemetry(
 		return nil, nil, err
 	}
 
-	var meterProvider *sdkmetric.MeterProvider
-	if !enableMetrics || otlpEndpoint == "" {
+	var meterProvider metric.MeterProvider
+	if !enableMetrics {
+		meterProvider = metricnoop.NewMeterProvider()
+	} else if otlpEndpoint == "" || !enableOtlpMetrics {
 		meterProvider = sdkmetric.NewMeterProvider(
 			sdkmetric.WithResource(res),
 			sdkmetric.WithReader(promExp),
@@ -171,9 +181,10 @@ func initTelemetry(
 		)
 	}
 
-	var tracerProvider *sdktrace.TracerProvider
-	if !enableTraces || otlpEndpoint == "" {
+	var tracerProvider trace.TracerProvider
+	if !enableTraces || otlpEndpoint == "" || !enableOtlpTraces {
 		// we can just return nil here...
+		tracerProvider = tracenoop.NewTracerProvider()
 	} else {
 		traceClient := otlptracegrpc.NewClient(
 			otlptracegrpc.WithInsecure(),
@@ -231,6 +242,8 @@ type config struct {
 	dapiKeyPath           string
 	rateLimit             int
 	otlpEndpoint          string
+	disableTraces         bool
+	disableMetrics        bool
 	disableOtlpTraces     bool
 	disableOtlpMetrics    bool
 	traceEverything       bool
@@ -266,6 +279,8 @@ func readConfig(logger *zap.Logger) *config {
 		dapiKeyPath:           viper.GetString("dapi-key"),
 		rateLimit:             viper.GetInt("rate-limit"),
 		otlpEndpoint:          viper.GetString("otlp-endpoint"),
+		disableTraces:         viper.GetBool("disable-traces"),
+		disableMetrics:        viper.GetBool("disable-metrics"),
 		disableOtlpTraces:     viper.GetBool("disable-otlp-traces"),
 		disableOtlpMetrics:    viper.GetBool("disable-otlp-metrics"),
 		traceEverything:       viper.GetBool("trace-everything"),
@@ -300,6 +315,8 @@ func readConfig(logger *zap.Logger) *config {
 		zap.String("dapiKeyPath", config.dapiKeyPath),
 		zap.Int("rateLimit", config.rateLimit),
 		zap.String("otlpEndpoint", config.otlpEndpoint),
+		zap.Bool("disableTraces", config.disableTraces),
+		zap.Bool("disableMetrics", config.disableMetrics),
 		zap.Bool("disableOtlpTraces", config.disableOtlpTraces),
 		zap.Bool("disableOtlpMetrics", config.disableOtlpMetrics),
 		zap.Bool("traceEverything", config.traceEverything),
@@ -369,6 +386,8 @@ func startGateway() {
 		initTelemetry(context.Background(),
 			logger,
 			config.otlpEndpoint,
+			!config.disableTraces,
+			!config.disableMetrics,
 			!config.disableOtlpTraces,
 			!config.disableOtlpMetrics,
 			config.traceEverything)
@@ -594,10 +613,12 @@ func startGateway() {
 		}
 
 		if newConfig.otlpEndpoint != config.otlpEndpoint ||
+			newConfig.disableTraces != config.disableTraces ||
+			newConfig.disableMetrics != config.disableMetrics ||
 			newConfig.disableOtlpTraces != config.disableOtlpTraces ||
 			newConfig.disableOtlpMetrics != config.disableOtlpMetrics ||
 			newConfig.traceEverything != config.traceEverything {
-			logger.Warn("config changes for otlpEndpoint, disableOtlpTraces, disableOtlpMetrics, or traceEverything require a restart")
+			logger.Warn("config changes for otlpEndpoint, disableTraces, disableMetrics, disableOtlpTraces, disableOtlpMetrics or traceEverything require a restart")
 		}
 
 		if newConfig.debug != config.debug {
