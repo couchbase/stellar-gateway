@@ -1,12 +1,18 @@
 package proxy
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/httptrace"
 	"net/url"
 	"slices"
 	"time"
+
+	"go.opentelemetry.io/contrib/instrumentation/net/http/httptrace/otelhttptrace"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.opentelemetry.io/otel/propagation"
 
 	"github.com/couchbase/gocbcorex"
 	"go.opentelemetry.io/otel"
@@ -16,7 +22,8 @@ import (
 )
 
 var (
-	meter = otel.Meter("github.com/couchbase/stellar-gateway/gateway/dapiimpl/proxy")
+	meter  = otel.Meter("github.com/couchbase/stellar-gateway/gateway/dapiimpl/proxy")
+	tracer = otel.GetTracerProvider().Tracer("github.com/couchbase/stellar-gateway/gateway/dapiimpl/proxy")
 )
 
 type ServiceType string
@@ -191,7 +198,13 @@ func (p *DataApiProxy) proxyService(
 	newUrl, _ := url.Parse(svcEndpoint + relPath)
 	newUrl.RawQuery = r.URL.RawQuery
 
-	proxyReq, err := http.NewRequest(r.Method, newUrl.String(), r.Body)
+	tp := otel.GetTextMapPropagator()
+	ctx = tp.Extract(ctx, propagation.HeaderCarrier(r.Header))
+
+	ctx, span := tracer.Start(ctx, string(serviceName))
+	defer span.End()
+
+	proxyReq, err := http.NewRequestWithContext(ctx, r.Method, newUrl.String(), r.Body)
 	if err != nil {
 		p.writeError(w, err, "failed to create proxy request")
 		return
@@ -200,7 +213,17 @@ func (p *DataApiProxy) proxyService(
 	// copy some other details
 	proxyReq.Header = r.Header
 
-	proxyResp, err := roundTripper.RoundTrip(proxyReq)
+	tr := otelhttp.NewTransport(
+		roundTripper,
+		// By setting the otelhttptrace client in this transport, it can be
+		// injected into the context after the span is started, which makes the
+		// httptrace spans children of the transport one.
+		otelhttp.WithClientTrace(func(ctx context.Context) *httptrace.ClientTrace {
+			return otelhttptrace.NewClientTrace(ctx)
+		}),
+	)
+
+	proxyResp, err := tr.RoundTrip(proxyReq)
 	if err != nil {
 		p.numFailures.Add(ctx, 1, metric.WithAttributes(
 			attribute.String("service_name", string(serviceName)),
