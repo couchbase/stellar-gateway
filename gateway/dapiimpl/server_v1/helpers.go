@@ -83,3 +83,49 @@ func flagsToHttpContentType(flags uint32) string {
 
 	return "application/octet-stream"
 }
+
+func lookupInOperationToMemdx(dl *dataapiv1.LookupInOperationType) (memdx.LookupInOpType, bool) {
+	if dl == nil {
+		return memdx.LookupInOpType(0), false
+	}
+
+	switch *dl {
+	case dataapiv1.LookupInOperationTypeGet:
+		return memdx.LookupInOpTypeGet, true
+	case dataapiv1.LookupInOperationTypeExists:
+		return memdx.LookupInOpTypeExists, true
+	case dataapiv1.LookupInOperationTypeGetCount:
+		return memdx.LookupInOpTypeGetCount, true
+	}
+
+	return memdx.LookupInOpType(0), false
+}
+
+func mutateInOperationToMemdx(dl *dataapiv1.MutateInOperationType) (memdx.MutateInOpType, bool) {
+	if dl == nil {
+		return memdx.MutateInOpType(0), false
+	}
+
+	switch *dl {
+	case dataapiv1.MutateInOperationTypeDictAdd:
+		return memdx.MutateInOpTypeDictAdd, true
+	case dataapiv1.MutateInOperationTypeDictSet:
+		return memdx.MutateInOpTypeDictSet, true
+	case dataapiv1.MutateInOperationTypeDelete:
+		return memdx.MutateInOpTypeDelete, true
+	case dataapiv1.MutateInOperationTypeReplace:
+		return memdx.MutateInOpTypeReplace, true
+	case dataapiv1.MutateInOperationTypeArrayPushLast:
+		return memdx.MutateInOpTypeArrayPushLast, true
+	case dataapiv1.MutateInOperationTypeArrayPushFirst:
+		return memdx.MutateInOpTypeArrayPushFirst, true
+	case dataapiv1.MutateInOperationTypeArrayInsert:
+		return memdx.MutateInOpTypeArrayInsert, true
+	case dataapiv1.MutateInOperationTypeArrayAddUnique:
+		return memdx.MutateInOpTypeArrayAddUnique, true
+	case dataapiv1.MutateInOperationTypeCounter:
+		return memdx.MutateInOpTypeCounter, true
+	}
+
+	return memdx.MutateInOpType(0), false
+}

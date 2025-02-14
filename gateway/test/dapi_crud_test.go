@@ -3,6 +3,7 @@ package test
 import (
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/stretchr/testify/assert"
@@ -1290,6 +1291,473 @@ func (s *GatewayOpsTestSuite) TestDapiDecrement() {
 				opts.BucketName, opts.ScopeName, opts.CollectionName, opts.DocumentKey,
 			),
 			Headers: opts.Headers,
+		})
+	})
+}
+
+func (s *GatewayOpsTestSuite) TestDapiLookupIn() {
+	s.Run("Basic", func() {
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/lookup",
+				s.bucketName, s.scopeName, s.collectionName, s.testDocId(),
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+			},
+			Body: []byte(`{"operations":[
+				{"operation":"Get","path":"obj.num"},
+				{"operation":"Get","path":"arr"},
+				{"operation":"Exists","path":"arr"},
+				{"operation":"Exists","path":"missing"},
+				{"operation":"GetCount","path":"arr"}
+			]}`),
+		})
+		requireRestSuccess(s.T(), resp)
+		assertRestValidEtag(s.T(), resp)
+		assert.Equal(s.T(), "application/json", resp.Headers.Get("Content-Type"))
+		assert.JSONEq(s.T(), `[
+			{"value":14},
+			{"value":[3,6,9,12]},
+			{"value":true},
+			{"value":false},
+			{"value":4}
+		]`, string(resp.Body))
+	})
+
+	s.Run("PathNotFound", func() {
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/lookup",
+				s.bucketName, s.scopeName, s.collectionName, s.testDocId(),
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+			},
+			Body: []byte(`{"operations":[
+				{"operation":"Get","path":"obj.num"},
+				{"operation":"Get","path":"missing"}
+			]}`),
+		})
+		requireRestSuccess(s.T(), resp)
+		assertRestValidEtag(s.T(), resp)
+		assert.JSONEq(s.T(), `[
+			{"value":14},
+			{"error":{"error":"PathNotFound", 
+				"message":"The requested path was not found in the document."}}
+		]`, string(resp.Body))
+	})
+
+	s.Run("PathInvalid", func() {
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/lookup",
+				s.bucketName, s.scopeName, s.collectionName, s.testDocId(),
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+			},
+			Body: []byte(`{"operations":[
+				{"operation":"Get","path":"obj.num"},
+				{"operation":"Get","path":"bad..path"}
+			]}`),
+		})
+		requireRestSuccess(s.T(), resp)
+		assertRestValidEtag(s.T(), resp)
+		assert.JSONEq(s.T(), `[
+			{"value":14},
+			{"error":{"error":"InvalidArgument", 
+				"message":"Invalid path specified."}}
+		]`, string(resp.Body))
+	})
+
+	s.Run("PathMismatch", func() {
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/lookup",
+				s.bucketName, s.scopeName, s.collectionName, s.testDocId(),
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+			},
+			Body: []byte(`{"operations":[
+				{"operation":"Get","path":"obj.num"},
+				{"operation":"Get","path":"obj.num.x"}
+			]}`),
+		})
+		requireRestSuccess(s.T(), resp)
+		assertRestValidEtag(s.T(), resp)
+		assert.JSONEq(s.T(), `[
+			{"value":14},
+			{"error":{"error":"PathMismatch", 
+				"message":"The structure implied by the provided path does not match the document."}}
+		]`, string(resp.Body))
+	})
+
+	s.Run("PathTooBig", func() {
+		path := strings.Repeat(".a", 64)[1:]
+
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/lookup",
+				s.bucketName, s.scopeName, s.collectionName, s.testDocId(),
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+			},
+			Body: []byte(`{"operations":[
+				{"operation":"Get","path":"obj.num"},
+				{"operation":"Get","path":"` + path + `"}
+			]}`),
+		})
+		requireRestSuccess(s.T(), resp)
+		assertRestValidEtag(s.T(), resp)
+		assert.JSONEq(s.T(), `[
+			{"value":14},
+			{"error":{"error":"InvalidArgument", 
+				"message":"The specified path was too big."}}
+		]`, string(resp.Body))
+	})
+
+	s.Run("DocLocked", func() {
+		docId := s.lockedDocId()
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				`/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/lookup`,
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+			},
+			Body: []byte(`{"operations":[{"operation":"Get","path":"arr"}]}`),
+		})
+		requireRestError(s.T(), resp, http.StatusConflict, &testRestError{
+			Code: "DocumentLocked",
+			Resource: fmt.Sprintf("/buckets/%s/scopes/%s/collections/%s/documents/%s",
+				s.bucketName, s.scopeName, s.collectionName, docId),
+		})
+	})
+
+	s.Run("DocMissing", func() {
+		docId := s.missingDocId()
+
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				`/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/lookup`,
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+			},
+			Body: []byte(`{"operations":[{"operation":"Get","path":"arr"}]}`),
+		})
+		requireRestError(s.T(), resp, http.StatusNotFound, &testRestError{
+			Code: "DocumentNotFound",
+			Resource: fmt.Sprintf("/buckets/%s/scopes/%s/collections/%s/documents/%s",
+				s.bucketName, s.scopeName, s.collectionName, docId),
+		})
+	})
+
+	s.Run("NonJsonDoc", func() {
+		docId := s.binaryDocId([]byte(`hello-world`))
+
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/lookup",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+			},
+			Body: []byte(`{"operations":[
+				{"operation":"Get","path":"obj.num"}
+			]}`),
+		})
+		requireRestError(s.T(), resp, http.StatusBadRequest, &testRestError{
+			Code: "DocumentNotJson",
+			Resource: fmt.Sprintf(
+				"/buckets/%s/scopes/%s/collections/%s/documents/%s",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+		})
+	})
+
+	s.RunCommonDapiErrorCases(func(opts *commonDapiErrorTestData) *testHttpResponse {
+		return s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/lookup",
+				opts.BucketName, opts.ScopeName, opts.CollectionName, opts.DocumentKey,
+			),
+			Headers: opts.Headers,
+			Body:    []byte(`{"operations":[{"operation":"Get","path":"arr"}]}`),
+		})
+	})
+}
+
+func (s *GatewayOpsTestSuite) TestDapiMutateIn() {
+	checkDocument := func(docId string, content []byte) {
+		s.checkDocument(s.T(), checkDocumentOptions{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			DocId:          docId,
+			Content:        content,
+			ContentFlags:   0,
+			CheckAsJson:    true,
+		})
+	}
+
+	s.Run("Basic", func() {
+		docId := s.binaryDocId([]byte(`{
+			"num":14,
+			"rep":16,
+			"arr":[3,6,9,12],
+			"ctr":3,
+			"rem":true
+		}`))
+
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/mutate",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+			},
+			Body: []byte(`{"operations":[
+				{"operation":"DictSet","path":"num", "value": 42},
+				{"operation":"DictAdd","path":"add", "value": 43},
+				{"operation":"Replace","path":"rep", "value": 44},
+				{"operation":"Delete","path":"rem"},
+				{"operation":"ArrayPushLast","path":"arr", "value": 42},
+				{"operation":"ArrayPushFirst","path":"arr", "value": 99},
+				{"operation":"ArrayAddUnique","path":"arr", "value": 74},
+				{"operation":"ArrayInsert","path":"arr[2]", "value": 77},
+				{"operation":"Counter","path":"ctr", "value": 2}
+			]}`),
+		})
+		requireRestSuccess(s.T(), resp)
+		assertRestValidEtag(s.T(), resp)
+
+		checkDocument(docId, []byte(`{
+			"num":42,
+			"add":43,
+			"rep":44,
+			"arr":[99,3,77,6,9,12,42,74],
+			"ctr":5
+		}`))
+	})
+
+	s.Run("DictAddPathExists", func() {
+		docId := s.binaryDocId([]byte(`{
+			"add":14
+		}`))
+
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/mutate",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+			},
+			Body: []byte(`{"operations":[
+				{"operation":"DictAdd","path":"add", "value": 43}
+			]}`),
+		})
+
+		requireRestError(s.T(), resp, http.StatusConflict, &testRestError{
+			Code: "PathExists",
+			Resource: fmt.Sprintf("/buckets/%s/scopes/%s/collections/%s/documents/%s/content/{add}",
+				s.bucketName, s.scopeName, s.collectionName, docId),
+		})
+	})
+
+	s.Run("DictReplacePathNotFound", func() {
+		docId := s.binaryDocId([]byte(`{}`))
+
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/mutate",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+			},
+			Body: []byte(`{"operations":[
+				{"operation":"Replace","path":"rep", "value": 43}
+			]}`),
+		})
+
+		requireRestError(s.T(), resp, http.StatusBadRequest, &testRestError{
+			Code: "PathNotFound",
+			Resource: fmt.Sprintf("/buckets/%s/scopes/%s/collections/%s/documents/%s/content/{rep}",
+				s.bucketName, s.scopeName, s.collectionName, docId),
+		})
+	})
+
+	s.Run("PathMismatch", func() {
+		docId := s.binaryDocId([]byte(`{"x":14}`))
+
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/mutate",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+			},
+			Body: []byte(`{"operations":[
+				{"operation":"DictSet","path":"x.y.z", "value": 43}
+			]}`),
+		})
+
+		requireRestError(s.T(), resp, http.StatusBadRequest, &testRestError{
+			Code: "PathMismatch",
+			Resource: fmt.Sprintf("/buckets/%s/scopes/%s/collections/%s/documents/%s/content/{x.y.z}",
+				s.bucketName, s.scopeName, s.collectionName, docId),
+		})
+	})
+
+	s.Run("PathInvalid", func() {
+		docId := s.binaryDocId([]byte(`{}`))
+
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/mutate",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+			},
+			Body: []byte(`{"operations":[
+				{"operation":"DictSet","path":"bad..path", "value": 43}
+			]}`),
+		})
+
+		requireRestError(s.T(), resp, http.StatusBadRequest, &testRestError{
+			Code: "InvalidArgument",
+		})
+	})
+
+	s.Run("PathTooBig", func() {
+		path := strings.Repeat(".a", 64)[1:]
+		docId := s.binaryDocId([]byte(`{}`))
+
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/mutate",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+			},
+			Body: []byte(`{"operations":[
+				{"operation":"DictSet","path":"` + path + `", "value": 43}
+			]}`),
+		})
+
+		requireRestError(s.T(), resp, http.StatusBadRequest, &testRestError{
+			Code: "InvalidArgument",
+		})
+	})
+
+	s.Run("DocLocked", func() {
+		docId := s.lockedDocId()
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				`/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/mutate`,
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+			},
+			Body: []byte(`{"operations":[
+				{"operation":"DictSet","path":"x", "value": 43}
+			]}`),
+		})
+		requireRestError(s.T(), resp, http.StatusConflict, &testRestError{
+			Code: "DocumentLocked",
+			Resource: fmt.Sprintf("/buckets/%s/scopes/%s/collections/%s/documents/%s",
+				s.bucketName, s.scopeName, s.collectionName, docId),
+		})
+	})
+
+	s.Run("DocMissing", func() {
+		docId := s.missingDocId()
+
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				`/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/mutate`,
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+			},
+			Body: []byte(`{"operations":[
+					{"operation":"DictSet","path":"x", "value": 43}
+				]}`),
+		})
+		requireRestError(s.T(), resp, http.StatusNotFound, &testRestError{
+			Code: "DocumentNotFound",
+			Resource: fmt.Sprintf("/buckets/%s/scopes/%s/collections/%s/documents/%s",
+				s.bucketName, s.scopeName, s.collectionName, docId),
+		})
+	})
+
+	s.Run("NonJsonDoc", func() {
+		docId := s.binaryDocId([]byte(`hello-world`))
+
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/mutate",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+			},
+			Body: []byte(`{"operations":[
+					{"operation":"DictSet","path":"x", "value": 43}
+				]}`),
+		})
+		requireRestError(s.T(), resp, http.StatusBadRequest, &testRestError{
+			Code: "DocumentNotJson",
+			Resource: fmt.Sprintf(
+				"/buckets/%s/scopes/%s/collections/%s/documents/%s",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+		})
+	})
+
+	s.RunCommonDapiErrorCases(func(opts *commonDapiErrorTestData) *testHttpResponse {
+		return s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/mutate",
+				opts.BucketName, opts.ScopeName, opts.CollectionName, opts.DocumentKey,
+			),
+			Headers: opts.Headers,
+			Body: []byte(`{"operations":[
+					{"operation":"DictSet","path":"x", "value": 43}
+				]}`),
 		})
 	})
 }
