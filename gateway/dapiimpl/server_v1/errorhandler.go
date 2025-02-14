@@ -39,8 +39,8 @@ type Status struct {
 	Debug      string              `json:"debug,omitempty"`
 }
 
-func (e *Status) Err() error {
-	return &StatusError{S: *e}
+func (e Status) Err() error {
+	return &StatusError{S: e}
 }
 
 type ErrorHandler struct {
@@ -379,6 +379,19 @@ func (e ErrorHandler) NewValueTooLargeStatus(baseErr error, bucketName, scopeNam
 	return st
 }
 
+func (e ErrorHandler) NewSdDocTooDeepStatus(baseErr error, bucketName, scopeName, collectionName, docId string) *Status {
+	st := &Status{
+		StatusCode: http.StatusBadRequest,
+		Code:       dataapiv1.ErrorCodeDocumentTooDeep,
+		Message: fmt.Sprintf("Document '%s' JSON structure is too deep in '%s/%s/%s'.",
+			docId, bucketName, scopeName, collectionName),
+		Resource: fmt.Sprintf("/buckets/%s/scopes/%s/collections/%s/documents/%s",
+			bucketName, scopeName, collectionName, docId),
+	}
+	st = e.tryAttachExtraContext(st, baseErr)
+	return st
+}
+
 func (e ErrorHandler) NewSdDocNotJsonStatus(baseErr error, bucketName, scopeName, collectionName, docId string) *Status {
 	st := &Status{
 		StatusCode: http.StatusBadRequest,
@@ -410,6 +423,62 @@ func (e ErrorHandler) NewSdPathMismatchStatus(baseErr error, bucketName, scopeNa
 			sdPath, docId, bucketName, scopeName, collectionName),
 		Resource: fmt.Sprintf("/buckets/%s/scopes/%s/collections/%s/documents/%s/content/{%s}",
 			bucketName, scopeName, collectionName, docId, sdPath),
+	}
+	st = e.tryAttachExtraContext(st, baseErr)
+	return st
+}
+
+func (e ErrorHandler) NewSdPathNotFoundStatus(baseErr error, bucketName, scopeName, collectionName, docId, sdPath string) *Status {
+	st := &Status{
+		StatusCode: http.StatusBadRequest,
+		Code:       dataapiv1.ErrorCodePathNotFound,
+		Message: fmt.Sprintf("Subdocument path '%s' was not found in '%s' in '%s/%s/%s'.",
+			sdPath, docId, bucketName, scopeName, collectionName),
+		Resource: fmt.Sprintf("/buckets/%s/scopes/%s/collections/%s/documents/%s/content/{%s}",
+			bucketName, scopeName, collectionName, docId, sdPath),
+	}
+	st = e.tryAttachExtraContext(st, baseErr)
+	return st
+}
+
+func (e ErrorHandler) NewSdPathExistsStatus(baseErr error, bucketName, scopeName, collectionName, docId, sdPath string) *Status {
+	st := &Status{
+		StatusCode: http.StatusConflict,
+		Code:       dataapiv1.ErrorCodePathExists,
+		Message: fmt.Sprintf("Subdocument path '%s' already exists in '%s' in '%s/%s/%s'.",
+			sdPath, docId, bucketName, scopeName, collectionName),
+		Resource: fmt.Sprintf("/buckets/%s/scopes/%s/collections/%s/documents/%s/content/{%s}",
+			bucketName, scopeName, collectionName, docId, sdPath),
+	}
+	st = e.tryAttachExtraContext(st, baseErr)
+	return st
+}
+
+func (e ErrorHandler) NewSdPathTooBigStatus(baseErr error, sdPath string) *Status {
+	st := &Status{
+		StatusCode: http.StatusBadRequest,
+		Code:       dataapiv1.ErrorCodeInvalidArgument,
+		Message:    fmt.Sprintf("Subdocument path '%s' is too long", sdPath),
+	}
+	st = e.tryAttachExtraContext(st, baseErr)
+	return st
+}
+
+func (e ErrorHandler) NewSdXattrUnknownVattrStatus(baseErr error, sdPath string) *Status {
+	st := &Status{
+		StatusCode: http.StatusBadRequest,
+		Code:       dataapiv1.ErrorCodeInvalidArgument,
+		Message:    fmt.Sprintf("Subdocument path '%s' references an invalid virtual attribute.", sdPath),
+	}
+	st = e.tryAttachExtraContext(st, baseErr)
+	return st
+}
+
+func (e ErrorHandler) NewSdBadCombo(baseErr error) *Status {
+	st := &Status{
+		StatusCode: http.StatusBadRequest,
+		Code:       dataapiv1.ErrorCodeInvalidArgument,
+		Message:    "Invalid subdocument combination specified.",
 	}
 	st = e.tryAttachExtraContext(st, baseErr)
 	return st
@@ -452,5 +521,29 @@ func (e ErrorHandler) NewDocCasMismatchStatus(baseErr error, bucketName, scopeNa
 			bucketName, scopeName, collectionName, docId),
 	}
 	st = e.tryAttachExtraContext(st, baseErr)
+	return st
+}
+
+func (e ErrorHandler) NewTooFewOperationsError() *Status {
+	st := &Status{
+		StatusCode: http.StatusBadRequest,
+		Message:    "Must specify at least one operation.",
+	}
+	return st
+}
+
+func (e ErrorHandler) NewInvalidOperationTypeError(opIndex int) *Status {
+	st := &Status{
+		StatusCode: http.StatusBadRequest,
+		Message:    fmt.Sprintf("Operation type not specified for operation at index %d.", opIndex),
+	}
+	return st
+}
+
+func (e ErrorHandler) NewInvalidStoreSemanticError() *Status {
+	st := &Status{
+		StatusCode: http.StatusBadRequest,
+		Message:    "Invalid store semantic specified.",
+	}
 	return st
 }

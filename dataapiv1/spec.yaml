@@ -529,6 +529,104 @@ paths:
           $ref: '#/components/responses/ServiceUnavailable' 
         '504':
           $ref: '#/components/responses/GatewayTimeout'
+  '/v1.alpha/buckets/{bucketName}/scopes/{scopeName}/collections/{collectionName}/documents/{documentKey}/lookup':
+    parameters:
+      - $ref: '#/components/parameters/AuthorizationHeader'
+      - $ref: '#/components/parameters/BucketName'
+      - $ref: '#/components/parameters/ScopeName'
+      - $ref: '#/components/parameters/CollectionName'
+      - $ref: '#/components/parameters/DocumentKey'
+    post:
+      operationId: lookupInDocument
+      tags:
+        - Sub-Document Operations
+      requestBody:
+        required: true
+        content:
+         'application/json':
+            schema:
+              type: object
+              properties:
+                operations:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/LookupInOperation'
+      responses:
+        '200':
+          description: Successful performed the operation.
+          headers:
+            ETag:
+              $ref: "#/components/headers/ETag"
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LookupInOperationResult'
+        '400':
+          $ref: '#/components/responses/BadRequest' 
+        '403':
+          $ref: '#/components/responses/Forbidden' 
+        '404':
+          $ref: '#/components/responses/NotFound' 
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable' 
+        '504':
+          $ref: '#/components/responses/GatewayTimeout'
+  '/v1.alpha/buckets/{bucketName}/scopes/{scopeName}/collections/{collectionName}/documents/{documentKey}/mutate':
+    parameters:
+      - $ref: '#/components/parameters/AuthorizationHeader'
+      - $ref: '#/components/parameters/BucketName'
+      - $ref: '#/components/parameters/ScopeName'
+      - $ref: '#/components/parameters/CollectionName'
+      - $ref: '#/components/parameters/DocumentKey'
+    post:
+      operationId: mutateInDocument
+      tags:
+        - Sub-Document Operations
+      parameters:
+        - $ref: '#/components/parameters/IfMatchHeader'
+        - $ref: '#/components/parameters/ExpiresHeader'
+        - $ref: '#/components/parameters/DurabilityLevelHeader'
+      requestBody:
+        required: true
+        content:
+         'application/json':
+            schema:
+              type: object
+              properties:
+                operations:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/MutateInOperation"
+                storeSemantic:
+                  $ref: '#/components/schemas/StoreSemantic'
+      responses:
+        '200':
+          description: Successful updated the document.
+          headers:
+            ETag:
+              $ref: "#/components/headers/ETag"
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MutateInOperationResult"
+        '400':
+          $ref: '#/components/responses/BadRequest' 
+        '403':
+          $ref: '#/components/responses/Forbidden' 
+        '404':
+          $ref: '#/components/responses/NotFound' 
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable' 
+        '504':
+          $ref: '#/components/responses/GatewayTimeout'
 components:
   securitySchemes:
     BasicAuth:
@@ -584,6 +682,36 @@ components:
           schema:
             $ref: '#/components/schemas/Error'
   schemas:
+    LookupInOperation:
+      type: object
+      properties:
+        operation:
+          $ref: '#/components/schemas/LookupInOperationType'
+        path:
+          description: That path within the document to perform the operation on.
+          type: string
+    LookupInOperationResult:
+      type: object
+      properties:
+        value: {}
+        error:
+          $ref: '#/components/schemas/SubdocError'
+    MutateInOperation:
+      type: object
+      properties:
+        operation:
+          $ref: '#/components/schemas/MutateInOperationType'
+        path:
+          description: That path within the document to perform the operation on.
+          type: string
+        value:
+          description: The value to use for the sub-document operation.
+          type: object
+          x-go-type: json.RawMessage
+    MutateInOperationResult:
+      type: object
+      properties:
+        value: {}
     DocumentEncoding:
       title: DocumentEncoding
       description: DocumentEncoding specifies the compression used for the the document.
@@ -608,6 +736,35 @@ components:
         - DurabilityLevelMajority
         - DurabilityLevelMajorityAndPersistOnMaster
         - DurabilityLevelPersitToMajority
+    SubdocErrorCode:
+      title: SubdocErrorCode
+      description: SubdocErrorCode specifies the more specified error that occurred in a sub-document operation.
+      type: string
+      enum:
+        - Internal
+        - PathNotFound
+        - PathMismatch
+        - InvalidArgument
+        - UnknownVattr
+      x-enum-varnames:
+        - SubdocErrorCodeInternal
+        - SubdocErrorCodePathNotFound
+        - SubdocErrorCodePathMismatch
+        - SubdocErrorCodeInvalidArgument
+        - SubdocErrorCodeUnknownVattr
+    SubdocError:
+      title: SubdocError
+      description: SubdocError represents an sub-document error from the server.
+      type: object
+      properties:
+        error:
+          $ref: '#/components/schemas/SubdocErrorCode'
+        message:
+          type: string
+          description: A human-readable description of the error.
+      required:
+        - error
+        - message
     ErrorCode:
       title: ErrorCode
       description: ErrorCode specifies the more specified error that occurred.
@@ -631,9 +788,15 @@ components:
         - DocumentLocked
         - DocumentNotLocked
         - ValueTooLarge
+        - DocumentTooDeep
         - DocumentNotJson
         - PathMismatch
         - DocumentNotNumeric
+        - PathNotFound
+        - PathExists
+        - PathInvalid
+        - PathTooBig
+        - UnknownVattr
       x-enum-varnames:
         - ErrorCodeInvalidArgument
         - ErrorCodeUnauthorized
@@ -653,9 +816,15 @@ components:
         - ErrorCodeDocumentLocked
         - ErrorCodeDocumentNotLocked
         - ErrorCodeValueTooLarge
+        - ErrorCodeDocumentTooDeep
         - ErrorCodeDocumentNotJson
         - ErrorCodePathMismatch
         - ErrorCodeDocumentNotNumeric
+        - ErrorCodePathNotFound
+        - ErrorCodePathExists
+        - ErrorCodePathInvalid
+        - ErrorCodePathTooBig
+        - ErrorCodeUnknownVattr
     Error:
       title: Error
       description: Error represents an error response from the server.
@@ -670,8 +839,56 @@ components:
           type: string
           description: The resource that caused the error.
       required:
-        - code
+        - error
         - message
+    StoreSemantic:
+      title: StoreSemantic
+      description: StoreSemantic specifies whether the document mutation should be performed as an insert, upsert or replace.
+      type: string
+      enum:
+        - Upsert
+        - Insert
+        - Replace
+      x-enum-varnames:
+        - StoreSemanticUpsert
+        - StoreSemanticInsert
+        - StoreSemanticReplace
+    LookupInOperationType:
+      title: LookupInOperationType
+      description: LookupInOperationType specifies the lookup operation to perform on the document.
+      type: string
+      enum:
+        - Get
+        - Exists
+        - GetCount
+      x-enum-varnames:
+        - LookupInOperationTypeGet
+        - LookupInOperationTypeExists
+        - LookupInOperationTypeGetCount
+    MutateInOperationType:
+      title: MutateInOperationType
+      description: MutateInOperationType specifies the mutation operation to perform on the document.
+      type: string
+      enum:
+        - DictAdd
+        - DictSet
+        - Delete
+        - Replace
+        - ArrayPushLast
+        - ArrayPushFirst
+        - ArrayInsert
+        - ArrayAddUnique
+        - Counter
+      x-enum-varnames:
+        - MutateInOperationTypeDictAdd
+        - MutateInOperationTypeDictSet
+        - MutateInOperationTypeDelete
+        - MutateInOperationTypeReplace
+        - MutateInOperationTypeArrayPushLast
+        - MutateInOperationTypeArrayPushFirst
+        - MutateInOperationTypeArrayInsert
+        - MutateInOperationTypeArrayAddUnique
+        - MutateInOperationTypeCounter
   parameters:
     AuthorizationHeader:
       in: header
