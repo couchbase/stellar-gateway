@@ -1,0 +1,57 @@
+parameters:
+  - $ref: '../parameters/headers/Authorization.yaml'
+  - $ref: '../parameters/path/BucketName.yaml'
+  - $ref: '../parameters/path/ScopeName.yaml'
+  - $ref: '../parameters/path/CollectionName.yaml'
+  - $ref: '../parameters/path/DocumentKey.yaml'
+post:
+  operationId: touchDocument
+  tags:
+    - Expiry Operations
+  parameters:
+    - $ref: '../parameters/headers/AcceptEncoding.yaml'
+  requestBody:
+    required: true
+    content:
+      'application/json':
+        schema:
+          type: object
+          properties:
+            expiry:
+              description: The new expiry to set for the document, specified as an ISO8601 string.
+              type: string
+            returnContent:
+              description: Specifies whether the documents contents should be returned in the response.
+              type: boolean
+  responses:
+    '200':
+      description: Successful updated the expiry of the document and is returning the content of the document.
+      headers:
+        Content-Encoding:
+          $ref: "../headers/ContentEncoding.yaml"
+        ETag:
+          $ref: "../headers/ETag.yaml"
+        X-CB-Flags:
+          $ref: "../headers/DocumentFlags.yaml"
+      content:
+        '*':
+          schema:
+            type: string
+            format: binary
+    '202':
+      description: Successful updated the expiry of the document but is not returning the content of the document.
+      headers:
+        ETag:
+          $ref: "../headers/ETag.yaml"
+    '400':
+      $ref: '../responses/BadRequest.yaml'
+    '403':
+      $ref: '../responses/Forbidden.yaml'
+    '404':
+      $ref: '../responses/NotFound.yaml'
+    '500':
+      $ref: '../responses/InternalServerError.yaml'
+    '503':
+      $ref: '../responses/ServiceUnavailable.yaml'
+    '504':
+      $ref: '../responses/GatewayTimeout.yaml'

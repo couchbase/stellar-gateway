@@ -1,0 +1,6 @@
+name: documentKey
+description: name of the document
+in: path
+required: true
+schema:
+  type: string

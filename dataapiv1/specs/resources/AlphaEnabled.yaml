@@ -1,0 +1,7 @@
+get:
+  operationId: alphaEnabled
+  responses:
+    '200':
+      description: The alpha API is enabled
+    '404':
+      description: The alpha API is not enabled

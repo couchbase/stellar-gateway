@@ -1,0 +1,40 @@
+parameters:
+  - $ref: '../parameters/headers/Authorization.yaml'
+  - $ref: '../parameters/path/BucketName.yaml'
+  - $ref: '../parameters/path/ScopeName.yaml'
+  - $ref: '../parameters/path/CollectionName.yaml'
+  - $ref: '../parameters/path/DocumentKey.yaml'
+post:
+  operationId: appendToDocument
+  tags:
+    - Binary Operations
+  parameters:
+    - $ref: '../parameters/headers/IfMatch.yaml'
+    - $ref: '../parameters/headers/DurabilityLevel.yaml'
+  requestBody:
+    required: true
+    content:
+      '*':
+        schema: {}
+  responses:
+    '200':
+      description: Successful appended contents to the document.
+      headers:
+        ETag:
+          $ref: "../headers/ETag.yaml"
+        X-CB-MutationToken:
+          $ref: "../headers/MutationToken.yaml"
+    '400':
+      $ref: '../responses/BadRequest.yaml'
+    '403':
+      $ref: '../responses/Forbidden.yaml'
+    '404':
+      $ref: '../responses/NotFound.yaml'
+    '409':
+      $ref: '../responses/Conflict.yaml'
+    '500':
+      $ref: '../responses/InternalServerError.yaml'
+    '503':
+      $ref: '../responses/ServiceUnavailable.yaml'
+    '504':
+      $ref: '../responses/GatewayTimeout.yaml'

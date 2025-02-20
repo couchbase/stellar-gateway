@@ -1,0 +1,8 @@
+DocumentEncoding:
+  $ref: "./DocumentEncoding.yaml"
+DurabilityLevel:
+  $ref: "./DurabilityLevel.yaml"
+Error:
+  $ref: "./Error.yaml"
+ErrorCode:
+  $ref: "./ErrorCode.yaml"

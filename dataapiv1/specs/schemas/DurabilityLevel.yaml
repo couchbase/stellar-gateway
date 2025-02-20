@@ -1,0 +1,13 @@
+title: DurabilityLevel
+description: DurabilityLevel specifies the level of synchronous replication to use.
+type: string
+enum:
+  - None
+  - Majority
+  - MajorityAndPersistOnMaster
+  - PersitToMajority
+x-enum-varnames:
+  - DurabilityLevelNone
+  - DurabilityLevelMajority
+  - DurabilityLevelMajorityAndPersistOnMaster
+  - DurabilityLevelPersitToMajority

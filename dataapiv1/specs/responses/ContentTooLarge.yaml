@@ -1,0 +1,5 @@
+description: The document is too large to be stored
+content:
+  application/json:
+    schema:
+      $ref: '../schemas/Error.yaml'

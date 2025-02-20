@@ -1,0 +1,47 @@
+title: ErrorCode
+description: ErrorCode specifies the more specified error that occurred.
+type: string
+enum:
+  - InvalidArgument
+  - Unauthorized
+  - NoReadAccess
+  - NoWriteAccess
+  - InvalidAuth
+  - Internal
+  - UnderlyingServiceUnavailable
+  - RequestCanceled
+  - DeadlineExceeded
+  - BucketNotFound
+  - ScopeNotFound
+  - CollectionNotFound
+  - DocumentNotFound
+  - DocumentExists
+  - CasMismatch
+  - DocumentLocked
+  - DocumentNotLocked
+  - ValueTooLarge
+  - DocumentNotJson
+  - PathMismatch
+  - DocumentNotNumeric
+x-enum-varnames:
+  - ErrorCodeInvalidArgument
+  - ErrorCodeUnauthorized
+  - ErrorCodeNoReadAccess
+  - ErrorCodeNoWriteAccess
+  - ErrorCodeInvalidAuth
+  - ErrorCodeInternal
+  - ErrorCodeUnderlyingServiceUnavailable
+  - ErrorCodeRequestCanceled
+  - ErrorCodeDeadlineExceeded
+  - ErrorCodeBucketNotFound
+  - ErrorCodeScopeNotFound
+  - ErrorCodeCollectionNotFound
+  - ErrorCodeDocumentNotFound
+  - ErrorCodeDocumentExists
+  - ErrorCodeCasMismatch
+  - ErrorCodeDocumentLocked
+  - ErrorCodeDocumentNotLocked
+  - ErrorCodeValueTooLarge
+  - ErrorCodeDocumentNotJson
+  - ErrorCodePathMismatch
+  - ErrorCodeDocumentNotNumeric

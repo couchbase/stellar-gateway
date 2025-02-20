@@ -1,0 +1,9 @@
+title: DocumentEncoding
+description: DocumentEncoding specifies the compression used for the the document.
+type: string
+enum:
+  - identity
+  - snappy
+x-enum-varnames:
+  - DocumentEncodingIdentity
+  - DocumentEncodingSnappy

@@ -1,0 +1,6 @@
+name: Authorization
+description: Header for authentication
+in: header
+required: true
+schema:
+  type: string

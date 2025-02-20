@@ -1,0 +1,159 @@
+parameters:
+  - $ref: '../parameters/headers/Authorization.yaml'
+  - $ref: '../parameters/path/BucketName.yaml'
+  - $ref: '../parameters/path/ScopeName.yaml'
+  - $ref: '../parameters/path/CollectionName.yaml'
+  - $ref: '../parameters/path/DocumentKey.yaml'
+get:
+  operationId: getDocument
+  tags:
+    - Single Document Operations
+  parameters:
+    - $ref: '../parameters/headers/AcceptEncoding.yaml'
+    - in: query
+      name: project
+      description: Specific fields to project from the document.
+      required: false
+      style: form
+      explode: false
+      schema:
+        type: array
+        items:
+          type: string
+  responses:
+    '200':
+      description: Successful fetch of the document
+      headers:
+        Content-Encoding:
+          $ref: "../headers/ContentEncoding.yaml"
+        ETag:
+          $ref: "../headers/ETag.yaml"
+        Expires:
+          $ref: "../headers/Expires.yaml"
+        X-CB-Flags:
+          $ref: "../headers/DocumentFlags.yaml"
+      content:
+        '*':
+          schema:
+            type: string
+            format: binary
+    '400':
+      $ref: '../responses/BadRequest.yaml'
+    '403':
+      $ref: '../responses/Forbidden.yaml'
+    '404':
+      $ref: '../responses/NotFound.yaml'
+    '500':
+      $ref: '../responses/InternalServerError.yaml'
+    '503':
+      $ref: '../responses/ServiceUnavailable.yaml'
+    '504':
+      $ref: '../responses/GatewayTimeout.yaml'
+post:
+  operationId: createDocument
+  tags:
+    - Single Document Operations
+  parameters:
+    - $ref: '../parameters/headers/ContentEncoding.yaml'
+    - $ref: '../parameters/headers/Expires.yaml'
+    - $ref: "../parameters/headers/DocumentFlags.yaml"
+    - $ref: '../parameters/headers/DurabilityLevel.yaml'
+  requestBody:
+    required: true
+    content:
+      '*':
+        schema:
+          type: string
+          format: binary
+  responses:
+    '200':
+      description: Successful creation of the document
+      headers:
+        ETag:
+          $ref: "../headers/ETag.yaml"
+        X-CB-MutationToken:
+          $ref: "../headers/MutationToken.yaml"
+    '400':
+      $ref: '../responses/BadRequest.yaml'
+    '403':
+      $ref: '../responses/Forbidden.yaml'
+    '404':
+      $ref: '../responses/NotFound.yaml'
+    '409':
+      $ref: '../responses/Conflict.yaml'
+    '413':
+      $ref: '../responses/ContentTooLarge.yaml'
+    '500':
+      $ref: '../responses/InternalServerError.yaml'
+    '503':
+      $ref: '../responses/ServiceUnavailable.yaml'
+    '504':
+      $ref: '../responses/GatewayTimeout.yaml'
+put:
+  operationId: updateDocument
+  tags:
+    - Single Document Operations
+  parameters:
+    - $ref: '../parameters/headers/ContentEncoding.yaml'
+    - $ref: '../parameters/headers/IfMatch.yaml'
+    - $ref: '../parameters/headers/Expires.yaml'
+    - $ref: '../parameters/headers/DocumentFlags.yaml'
+    - $ref: '../parameters/headers/DurabilityLevel.yaml'
+  requestBody:
+    required: true
+    content:
+      '*':
+        schema: {}
+  responses:
+    '200':
+      description: Successful creation of the document
+      headers:
+        ETag:
+          $ref: "../headers/ETag.yaml"
+        X-CB-MutationToken:
+          $ref: "../headers/MutationToken.yaml"
+    '400':
+      $ref: '../responses/BadRequest.yaml'
+    '403':
+      $ref: '../responses/Forbidden.yaml'
+    '404':
+      $ref: '../responses/NotFound.yaml'
+    '409':
+      $ref: '../responses/Conflict.yaml'
+    '413':
+      $ref: '../responses/ContentTooLarge.yaml'
+    '500':
+      $ref: '../responses/InternalServerError.yaml'
+    '503':
+      $ref: '../responses/ServiceUnavailable.yaml'
+    '504':
+      $ref: '../responses/GatewayTimeout.yaml'
+delete:
+  operationId: deleteDocument
+  tags:
+    - Single Document Operations
+  parameters:
+    - $ref: '../parameters/headers/IfMatch.yaml'
+    - $ref: '../parameters/headers/DurabilityLevel.yaml'
+  responses:
+    '200':
+      description: Successful deletion of the document
+      headers:
+        ETag:
+          $ref: "../headers/ETag.yaml"
+        X-CB-MutationToken:
+          $ref: "../headers/MutationToken.yaml"
+    '400':
+      $ref: '../responses/BadRequest.yaml'
+    '403':
+      $ref: '../responses/Forbidden.yaml'
+    '404':
+      $ref: '../responses/NotFound.yaml'
+    '409':
+      $ref: '../responses/Conflict.yaml'
+    '500':
+      $ref: '../responses/InternalServerError.yaml'
+    '503':
+      $ref: '../responses/ServiceUnavailable.yaml'
+    '504':
+      $ref: '../responses/GatewayTimeout.yaml'

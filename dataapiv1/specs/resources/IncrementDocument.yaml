@@ -1,0 +1,54 @@
+parameters:
+  - $ref: '../parameters/headers/Authorization.yaml'
+  - $ref: '../parameters/path/BucketName.yaml'
+  - $ref: '../parameters/path/ScopeName.yaml'
+  - $ref: '../parameters/path/CollectionName.yaml'
+  - $ref: '../parameters/path/DocumentKey.yaml'
+post:
+  operationId: incrementDocument
+  tags:
+    - Binary Operations
+  parameters:
+    - $ref: '../parameters/headers/Expires.yaml'
+    - $ref: '../parameters/headers/DurabilityLevel.yaml'
+  requestBody:
+    content:
+      '*':
+        schema: {}
+      'application/json':
+        schema:
+          type: object
+          properties:
+            initial:
+              description: The value to set the document to if the document does not exist.
+              type: integer
+              format: uint64
+            delta:
+              description: The value to increment the document by if it exists.
+              type: integer
+              format: uint64
+  responses:
+    '200':
+      description: Successful incremented the document.
+      headers:
+        ETag:
+          $ref: "../headers/ETag.yaml"
+        X-CB-MutationToken:
+          $ref: "../headers/MutationToken.yaml"
+      content:
+        application/json:
+          schema:
+            type: integer
+            format: uint64
+    '400':
+      $ref: '../responses/BadRequest.yaml'
+    '403':
+      $ref: '../responses/Forbidden.yaml'
+    '404':
+      $ref: '../responses/NotFound.yaml'
+    '500':
+      $ref: '../responses/InternalServerError.yaml'
+    '503':
+      $ref: '../responses/ServiceUnavailable.yaml'
+    '504':
+      $ref: '../responses/GatewayTimeout.yaml'

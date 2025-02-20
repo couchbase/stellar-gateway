@@ -1,0 +1,6 @@
+name: scopeName
+description: name of the scope containing the document
+in: path
+required: true
+schema:
+  type: string

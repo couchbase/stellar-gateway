@@ -1,0 +1,5 @@
+name: X-CB-DurabilityLevel
+description: The level of durability required for this write operation.
+in: header
+schema:
+  $ref: '../../schemas/DurabilityLevel.yaml'

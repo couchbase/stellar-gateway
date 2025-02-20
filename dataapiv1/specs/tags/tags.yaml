@@ -1,0 +1,14 @@
+- name: Tools
+  description: Data API provides some tools to help ensure the configuration of your environment is correct.
+
+- name: Single Document Operations
+  description: Operations that can be performed on/with a single document.
+
+- name: Binary Operations
+  description: Operations with 1s and 0s.
+
+- name: Locking Operations
+  description: Operations that are oly allowed out on day release.
+
+- name: Expiry Operations
+  description: Operations that have gone off.
