@@ -96,6 +96,7 @@ func init() {
 	configFlags.Bool("disable-otlp-traces", false, "disable sending traces to otlp")
 	configFlags.Bool("disable-otlp-metrics", false, "disable sending metrics to otlp")
 	configFlags.Bool("trace-everything", false, "enables tracing of all components")
+	configFlags.String("otel-exporter-headers", "", "a comma seperated list of otlp expoter headers, e.g 'header1=value1,header2=value2'")
 	configFlags.String("dapi-proxy-services", "", "specifies services exposed via _p endpoint proxies")
 	configFlags.Bool("alpha-endpoints", false, "enables alpha endpoints")
 	configFlags.Bool("debug", false, "enable debug mode")
@@ -124,6 +125,7 @@ func initTelemetry(
 	enableOtlpTraces bool,
 	enableOtlpMetrics bool,
 	traceEverything bool,
+	otelExporterHeaders string,
 ) (
 	trace.TracerProvider,
 	metric.MeterProvider,
@@ -186,9 +188,26 @@ func initTelemetry(
 		// we can just return nil here...
 		tracerProvider = tracenoop.NewTracerProvider()
 	} else {
-		traceClient := otlptracegrpc.NewClient(
-			otlptracegrpc.WithInsecure(),
-			otlptracegrpc.WithEndpoint(otlpEndpoint))
+		var traceClient otlptrace.Client
+		if otelExporterHeaders != "" {
+			headers := map[string]string{}
+			for _, h := range strings.Split(otelExporterHeaders, ",") {
+				splitHeader := strings.Split(h, "=")
+				if len(splitHeader) != 2 {
+					return nil, nil, fmt.Errorf("invalid otel-exporter-headers format: %s", h)
+				}
+
+				headers[splitHeader[0]] = splitHeader[1]
+			}
+			traceClient = otlptracegrpc.NewClient(
+				otlptracegrpc.WithHeaders(headers),
+				otlptracegrpc.WithEndpoint(otlpEndpoint))
+		} else {
+			traceClient = otlptracegrpc.NewClient(
+				otlptracegrpc.WithInsecure(),
+				otlptracegrpc.WithEndpoint(otlpEndpoint))
+		}
+
 		traceExp, err := otlptrace.New(ctx, traceClient)
 		if err != nil {
 			return nil, nil, err
@@ -247,6 +266,7 @@ type config struct {
 	disableOtlpTraces     bool
 	disableOtlpMetrics    bool
 	traceEverything       bool
+	otelExporterHeaders   string
 	dapiProxyServices     string
 	alphaEndpoints        bool
 	debug                 bool
@@ -284,6 +304,7 @@ func readConfig(logger *zap.Logger) *config {
 		disableOtlpTraces:     viper.GetBool("disable-otlp-traces"),
 		disableOtlpMetrics:    viper.GetBool("disable-otlp-metrics"),
 		traceEverything:       viper.GetBool("trace-everything"),
+		otelExporterHeaders:   viper.GetString("otel-exporter-headers"),
 		dapiProxyServices:     viper.GetString("dapi-proxy-services"),
 		alphaEndpoints:        viper.GetBool("alpha-endpoints"),
 		debug:                 viper.GetBool("debug"),
@@ -320,6 +341,7 @@ func readConfig(logger *zap.Logger) *config {
 		zap.Bool("disableOtlpTraces", config.disableOtlpTraces),
 		zap.Bool("disableOtlpMetrics", config.disableOtlpMetrics),
 		zap.Bool("traceEverything", config.traceEverything),
+		// zap.String("honeycombKey", config.honeycombKey),
 		zap.String("dapiProxyServices", config.dapiProxyServices),
 		zap.Bool("alphaEndpoints", config.alphaEndpoints),
 		zap.Bool("debug", config.debug),
@@ -390,7 +412,8 @@ func startGateway() {
 			!config.disableMetrics,
 			!config.disableOtlpTraces,
 			!config.disableOtlpMetrics,
-			config.traceEverything)
+			config.traceEverything,
+			config.otelExporterHeaders)
 	if err != nil {
 		logger.Error("failed to initialize opentelemetry tracing", zap.Error(err))
 		os.Exit(1)
@@ -617,8 +640,9 @@ func startGateway() {
 			newConfig.disableMetrics != config.disableMetrics ||
 			newConfig.disableOtlpTraces != config.disableOtlpTraces ||
 			newConfig.disableOtlpMetrics != config.disableOtlpMetrics ||
-			newConfig.traceEverything != config.traceEverything {
-			logger.Warn("config changes for otlpEndpoint, disableTraces, disableMetrics, disableOtlpTraces, disableOtlpMetrics or traceEverything require a restart")
+			newConfig.traceEverything != config.traceEverything ||
+			newConfig.otelExporterHeaders != config.otelExporterHeaders {
+			logger.Warn("config changes for otlpEndpoint, disableTraces, disableMetrics, disableOtlpTraces, disableOtlpMetrics, traceEverything or otelExporterHeaders require a restart")
 		}
 
 		if newConfig.debug != config.debug {
