@@ -1,0 +1,3 @@
+description: The expiry time of the document represented as an ISO8601 string.
+schema:
+    type: string

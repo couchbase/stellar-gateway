@@ -1,0 +1,5 @@
+name: Expires
+description: The expiry time of the document.
+in: header
+schema:
+    type: string

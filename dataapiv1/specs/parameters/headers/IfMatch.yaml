@@ -1,0 +1,5 @@
+name: If-Match
+description: The CAS of the document to check before updating.
+in: header
+schema:
+  type: string

@@ -1,0 +1,6 @@
+# 409
+description: A conflict occurred while processing the request
+content:
+  application/json:
+    schema:
+      $ref: '../schemas/Error.yaml'

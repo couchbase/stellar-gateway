@@ -1,0 +1,21 @@
+parameters:
+  - $ref: '../parameters/headers/Authorization.yaml'
+get:
+  operationId: getCallerIdentity
+  tags:
+    - Tools
+  responses:
+    '200':
+      description: Successfully fetched the current callers identity.
+      content:
+        'application/json':
+          schema:
+            type: object
+            properties:
+              user:
+                type: string
+                description: The user that is making the request.
+    '403':
+      $ref: '../responses/Forbidden.yaml'
+    '500':
+      $ref: '../responses/InternalServerError.yaml'

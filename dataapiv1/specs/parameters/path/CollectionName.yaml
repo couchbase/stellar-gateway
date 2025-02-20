@@ -1,0 +1,6 @@
+name: collectionName
+description: name of the collection containing the document
+in: path
+required: true
+schema:
+  type: string

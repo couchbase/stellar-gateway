@@ -1,0 +1,5 @@
+name: Content-Encoding
+description: The encoding of the document
+in: header
+schema:
+  $ref: '../../schemas/DocumentEncoding.yaml'

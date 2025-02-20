@@ -1,0 +1,14 @@
+description: Error represents an error response from the server.
+type: object
+required:
+  - code
+  - message
+properties:
+  error:
+    $ref: './ErrorCode.yaml'
+  message:
+    type: string
+    description: A human-readable description of the error.
+  resource:
+    type: string
+    description: The resource that caused the error.

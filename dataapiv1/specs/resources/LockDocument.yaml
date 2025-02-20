@@ -1,0 +1,52 @@
+parameters:
+  - $ref: '../parameters/headers/Authorization.yaml'
+  - $ref: '../parameters/path/BucketName.yaml'
+  - $ref: '../parameters/path/ScopeName.yaml'
+  - $ref: '../parameters/path/CollectionName.yaml'
+  - $ref: '../parameters/path/DocumentKey.yaml'
+post:
+  operationId: lockDocument
+  tags:
+    - Locking Operations
+  parameters:
+    - $ref: '../parameters/headers/AcceptEncoding.yaml'
+  requestBody:
+    required: true
+    content:
+      'application/json':
+        schema:
+          type: object
+          properties:
+            lockTime:
+              description: The maximum period of time the document should remain locked.
+              type: integer
+              format: uint32
+  responses:
+    '200':
+      description: Successful locked the document
+      headers:
+        Content-Encoding:
+          $ref: "../headers/ContentEncoding.yaml"
+        ETag:
+          $ref: "../headers/ETag.yaml"
+        X-CB-Flags:
+          $ref: "../headers/DocumentFlags.yaml"
+      content:
+        '*':
+          schema:
+            type: string
+            format: binary
+    '400':
+      $ref: '../responses/BadRequest.yaml'
+    '403':
+      $ref: '../responses/Forbidden.yaml'
+    '404':
+      $ref: '../responses/NotFound.yaml'
+    '409':
+      $ref: '../responses/Conflict.yaml'
+    '500':
+      $ref: '../responses/InternalServerError.yaml'
+    '503':
+      $ref: '../responses/ServiceUnavailable.yaml'
+    '504':
+      $ref: '../responses/GatewayTimeout.yaml'

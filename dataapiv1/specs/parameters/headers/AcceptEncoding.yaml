@@ -1,0 +1,5 @@
+name: Accept-Encoding
+description: Specifies the compression used for the response in HTTP content-negotiation format.
+in: header
+schema:
+  type: string

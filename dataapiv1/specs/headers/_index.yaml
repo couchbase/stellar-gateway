@@ -1,0 +1,10 @@
+ContentEncoding:
+  $ref: "./ContentEncoding.yaml"
+DocumentFlags:
+  $ref: "./DocumentFlags.yaml"
+Expires:
+  $ref: "./Expires.yaml"
+ETag:
+  $ref: "./ETag.yaml"
+MutationToken:
+  $ref: "./MutationToken.yaml"

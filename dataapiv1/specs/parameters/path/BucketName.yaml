@@ -1,0 +1,6 @@
+name: bucketName
+description: name of the bucket containing the document
+in: path
+required: true
+schema:
+  type: string

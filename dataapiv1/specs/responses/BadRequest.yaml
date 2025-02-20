@@ -1,0 +1,6 @@
+# 400
+description: The request was malformed
+content:
+  application/json:
+    schema:
+      $ref: '../schemas/Error.yaml'

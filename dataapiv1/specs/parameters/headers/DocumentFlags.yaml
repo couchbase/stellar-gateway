@@ -1,0 +1,6 @@
+name: X-CB-Flags
+description: The Flags of the document.
+in: header
+schema:
+  type: integer
+  format: uint32

@@ -1,0 +1,6 @@
+# 504
+description: The request timed out
+content:
+  application/json:
+    schema:
+      $ref: '../schemas/Error.yaml'

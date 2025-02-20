@@ -1,0 +1,4 @@
+description: The Flags of the document.
+schema:
+  type: integer
+  format: uint32

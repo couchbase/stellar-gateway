@@ -1,0 +1,16 @@
+BadRequest:
+  $ref: "./BadRequest.yaml"
+Conflict:
+  $ref: "./Conflict.yaml"
+ContentTooLarge:
+  $ref: "./ContentTooLarge.yaml"
+Forbidden:
+  $ref: "./Forbidden.yaml"
+GatewayTimeout:
+  $ref: "./GatewayTimeout.yaml"
+InternalServerError:
+  $ref: "./InternalServerError.yaml"
+NotFound:
+  $ref: "./NotFound.yaml"
+ServiceUnavailable:
+  $ref: "./ServiceUnavailable.yaml"

@@ -1,0 +1,23 @@
+BucketName:
+  $ref: "./path/BucketName.yaml"
+ScopeName:
+  $ref: "./path/ScopeName.yaml"
+CollectionName:
+  $ref: "./path/CollectionName.yaml"
+DocumentKey:
+  $ref: "./path/DocumentKey.yaml"
+
+AcceptEncoding:
+  $ref: "./headers/AcceptEncoding.yaml"
+Authorization:
+  $ref: "./headers/Authorization.yaml"
+ContentEncoding:
+  $ref: "./headers/ContentEncoding.yaml"
+DocumentFlags:
+  $ref: "./headers/DocumentFlags.yaml"
+DurabilityLevel:
+  $ref: "./headers/DurabilityLevel.yaml"
+Expires:
+  $ref: "./headers/Expires.yaml"
+IfMatch:
+  $ref: "./headers/IfMatch.yaml"
