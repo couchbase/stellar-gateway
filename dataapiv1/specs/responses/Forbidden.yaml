@@ -1,4 +1,4 @@
-#403
+# 403
 description: The user does not have permission to access the resource
 content:
   application/json:

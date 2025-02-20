@@ -1,3 +1,4 @@
+# 503
 description: One of the underlying services was not available
 content:
   application/json:
