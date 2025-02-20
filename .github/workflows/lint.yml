@@ -23,7 +23,10 @@ jobs:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Generate Files
         run: |
-          go generate ./...
+          npm install -g @apidevtools/swagger-cli
+          cd dataapiv1
+          ./generate.sh
+          rm spec.generated.yaml
       - name: goimports
         run: |
           go run golang.org/x/tools/cmd/goimports@latest -w .

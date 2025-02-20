@@ -43,7 +43,9 @@ jobs:
         run: go get ./...
       - name: Generate Files
         run: |
-          go generate ./...
+          npm install -g @apidevtools/swagger-cli
+          cd dataapiv1
+          ./generate.sh
       - name: Initialize Test Cluster
         run: ./.github/bin/init-cluster
       - name: Check Test Cluster
