@@ -4,3 +4,8 @@ content:
   application/json:
     schema:
       $ref: '../schemas/Error.yaml'
+    examples:
+      NotFound:
+        value:
+          code: ResourceNotFound
+          message: The requested resource was not found.

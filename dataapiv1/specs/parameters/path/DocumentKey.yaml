@@ -1,5 +1,5 @@
 name: documentKey
-description: name of the document
+description: id of the document
 in: path
 required: true
 schema:

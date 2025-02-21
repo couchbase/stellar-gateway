@@ -4,3 +4,8 @@ content:
   application/json:
     schema:
       $ref: '../schemas/Error.yaml'
+    examples:
+      ServiceUnavailable:
+        value:
+          code: UnderlyingServiceUnavailable
+          message: One of the underlying services were not available.

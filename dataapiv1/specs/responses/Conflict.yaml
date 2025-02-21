@@ -4,3 +4,8 @@ content:
   application/json:
     schema:
       $ref: '../schemas/Error.yaml'
+    examples:
+      Conflict:
+        value:
+          code: ResourceConflict
+          message: There is a conflict with the current state of a resource.

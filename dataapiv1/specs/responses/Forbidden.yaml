@@ -4,3 +4,8 @@ content:
   application/json:
     schema:
       $ref: '../schemas/Error.yaml'
+    examples:
+      Forbidden:
+        value:
+          code: InvalidAuth
+          message: Your username or password is invalid.

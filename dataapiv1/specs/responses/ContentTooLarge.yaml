@@ -4,3 +4,8 @@ content:
   application/json:
     schema:
       $ref: '../schemas/Error.yaml'
+    examples:
+      ContentTooLarge:
+        value:
+          code: InvalidArgument
+          message: The content of the request was too large.

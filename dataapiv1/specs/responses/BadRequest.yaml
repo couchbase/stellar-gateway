@@ -4,3 +4,8 @@ content:
   application/json:
     schema:
       $ref: '../schemas/Error.yaml'
+    examples:
+      BadRequest:
+        value:
+          code: "InvalidArgument"
+          message: The request was malformed or invalid.

@@ -4,3 +4,8 @@ content:
   application/json:
     schema:
       $ref: '../schemas/Error.yaml'
+    examples:
+      InternalServerError:
+        value:
+          code: Internal
+          message: An internal error occurred.

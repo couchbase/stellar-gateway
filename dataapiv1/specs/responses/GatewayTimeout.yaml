@@ -4,3 +4,8 @@ content:
   application/json:
     schema:
       $ref: '../schemas/Error.yaml'
+    examples:
+      GatewayTimeout:
+        value:
+          code: RequestCanceled
+          message: The request deadline was exceeded.
