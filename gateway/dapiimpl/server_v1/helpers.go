@@ -39,6 +39,18 @@ func httpTimeToGocbcorexExpiry(when string) (uint32, *Status) {
 	return uint32(t.Unix()), nil
 }
 
+func isoTimeToGocbcorexExpiry(when string) (uint32, *Status) {
+	t, err := time.Parse(time.RFC3339, when)
+	if err != nil {
+		return 0, &Status{
+			StatusCode: http.StatusBadRequest,
+			Message:    "Invalid time format - expected ISO8601.",
+		}
+	}
+
+	return uint32(t.Unix()), nil
+}
+
 func tokenFromGocbcorex(bucketName string, token gocbcorex.MutationToken) string {
 	return fmt.Sprintf("%s:%d:%08x:%d", bucketName, token.VbID, token.VbUuid, token.SeqNo)
 }

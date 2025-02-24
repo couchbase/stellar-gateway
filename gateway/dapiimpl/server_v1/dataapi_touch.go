@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"net/http"
 
 	"github.com/couchbase/gocbcorex"
 	"github.com/couchbase/gocbcorex/memdx"
@@ -25,7 +26,7 @@ func (s *DataApiServer) TouchDocument(
 
 	var newExpiry uint32
 	if in.Body.Expiry != nil {
-		expiry, errSt := httpTimeToGocbcorexExpiry(*in.Body.Expiry)
+		expiry, errSt := parseTouchExpiry(*in.Body.Expiry)
 		if errSt != nil {
 			return nil, errSt.Err()
 		}
@@ -107,5 +108,22 @@ func (s *DataApiServer) TouchDocument(
 		resp.ContentLength = int64(len(respValue))
 
 		return resp, nil
+	}
+}
+
+func parseTouchExpiry(when string) (uint32, *Status) {
+	expiry, errSt := httpTimeToGocbcorexExpiry(when)
+	if errSt == nil {
+		return expiry, nil
+	}
+
+	expiry, errSt = isoTimeToGocbcorexExpiry(when)
+	if errSt == nil {
+		return expiry, nil
+	}
+
+	return 0, &Status{
+		StatusCode: http.StatusBadRequest,
+		Message:    "Invalid time format - expected RFC1123 or RFC3339.",
 	}
 }
