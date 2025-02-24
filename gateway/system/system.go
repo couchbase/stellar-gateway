@@ -154,7 +154,16 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 		dapiimpl.NewOtelTracingHandler(),
 		dapiimpl.NewUserAgentMetricsHandler(),
 		oapimetrics.NewStatsHandler(opts.Logger),
-	}, dataapiv1.StrictHTTPServerOptions{})
+	}, dataapiv1.StrictHTTPServerOptions{
+		// TODO: have a way to propagate the error that is passed to these functions that avoids leaking
+		// information about the internals of the system
+		RequestErrorHandlerFunc: func(w http.ResponseWriter, r *http.Request, err error) {
+			http.Error(w, "", http.StatusInternalServerError)
+		},
+		ResponseErrorHandlerFunc: func(w http.ResponseWriter, r *http.Request, err error) {
+			http.Error(w, "", http.StatusInternalServerError)
+		},
+	})
 
 	mux := http.NewServeMux()
 	mux.Handle("/v1/", dataapiv1.Handler(sh))
