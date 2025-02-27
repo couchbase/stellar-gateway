@@ -21,6 +21,7 @@ paths:
                   user:
                     type: string
                     description: The user that is making the request.
+                    example: Administrator
         '403':
           $ref: '#/components/responses/Forbidden' 
         '500':
@@ -65,6 +66,7 @@ paths:
               schema:
                 type: string
                 format: binary
+                description: The contents of the document.
         '400':
           $ref: '#/components/responses/BadRequest' 
         '403':
@@ -93,6 +95,7 @@ paths:
             schema:
               type: string
               format: binary
+              description: The contents of the document.
       responses:
         '200':
           description: Successful creation of the document
@@ -131,7 +134,10 @@ paths:
         required: true
         content:
           '*':
-            schema: {}
+            schema:
+              type: string
+              format: binary
+              description: The contents of the document.
       responses:
         '200':
           description: Successful creation of the document
@@ -188,6 +194,8 @@ paths:
   '/v1.alpha/enabled':
     get:
       operationId: alphaEnabled
+      tags:
+        - Tools
       responses:
         '200':
           description: The alpha API is enabled
@@ -214,7 +222,7 @@ paths:
             schema: {}
       responses:
         '200':
-          description: Successful appended contents to the document.
+          description: Successfully appended contents to the document.
           headers:
             ETag:
               $ref: "#/components/headers/ETag"
@@ -255,7 +263,7 @@ paths:
             schema: {}
       responses:
         '200':
-          description: Successful prepended contents to the document.
+          description: Successfully prepended contents to the document.
           headers:
             ETag:
               $ref: "#/components/headers/ETag"
@@ -291,8 +299,6 @@ paths:
         - $ref: '#/components/parameters/DurabilityLevelHeader'
       requestBody:
         content:
-          '*':
-            schema: {}
           'application/json':
             schema:
               type: object
@@ -301,13 +307,17 @@ paths:
                   description: The value to set the document to if the document does not exist.
                   type: integer
                   format: uint64
+                  example: 10
                 delta:
                   description: The value to increment the document by if it exists.
                   type: integer
                   format: uint64
+                  example: 1
+          '*':
+            schema: {}
       responses:
         '200':
-          description: Successful incremented the document.
+          description: Successfully incremented the document.
           headers:
             ETag:
               $ref: "#/components/headers/ETag"
@@ -318,6 +328,8 @@ paths:
               schema:
                 type: integer
                 format: uint64
+                example: 10
+                description: The number stored in the document after incrementing/initializing.
         '400':
           $ref: '#/components/responses/BadRequest' 
         '403':
@@ -346,8 +358,6 @@ paths:
         - $ref: '#/components/parameters/DurabilityLevelHeader'
       requestBody:
         content:
-          '':
-            schema: {}
           'application/json':
             schema:
               type: object
@@ -356,13 +366,17 @@ paths:
                   type: integer
                   format: uint64
                   description: The value to set the document to if the document does not exist.
+                  example: 10
                 delta:
                   type: integer
                   format: uint64
-                  description: The value to increment the document by if it exists.
+                  description: The value to decrement the document by if it exists.
+                  example: 1
+          '*':
+            schema: {}
       responses:
         '200':
-          description: Successful incremented the document.
+          description: Successfully incremented the document.
           headers:
             ETag:
               $ref: "#/components/headers/ETag"
@@ -373,6 +387,8 @@ paths:
               schema:
                 type: integer
                 format: uint64
+                example: 11
+                description: The number stored in the document after decrementing/initializing.
         '400':
           $ref: '#/components/responses/BadRequest' 
         '403':
@@ -401,7 +417,7 @@ paths:
       requestBody:
         required: true
         content:
-         'application/json':
+          'application/json':
             schema:
               type: object
               properties:
@@ -409,9 +425,10 @@ paths:
                   description: The maximum period of time the document should remain locked.
                   type: integer
                   format: uint32
+                  example: 10
       responses:
         '200':
-          description: Successful locked the document
+          description: Successfully locked the document
           headers:
             Content-Encoding:
               $ref: "#/components/headers/ContentEncoding"
@@ -424,6 +441,7 @@ paths:
               schema:
                 type: string
                 format: binary
+                description: The contents of the document.
         '400':
           $ref: '#/components/responses/BadRequest' 
         '403':
@@ -448,12 +466,12 @@ paths:
     post:
       operationId: unlockDocument
       tags:
-        - Binary Operations
+        - Locking Operations
       parameters:
         - $ref: '#/components/parameters/IfMatchHeader'
       responses:
         '200':
-          description: Successful unlocked the document.
+          description: Successfully unlocked the document.
           headers:
             X-CB-MutationToken:
               $ref: "#/components/headers/MutationToken"
@@ -487,13 +505,14 @@ paths:
       requestBody:
         required: true
         content:
-         'application/json':
+          'application/json':
             schema:
               type: object
               properties:
                 expiry:
                   description: The new expiry to set for the document, specified as an ISO8601 string.
                   type: string
+                  example: "YYYY-MM-DDTHH:MM:SS.sssZ"
                 returnContent:
                   description: Specifies whether the documents contents should be returned in the response.
                   type: boolean
@@ -512,6 +531,7 @@ paths:
               schema:
                 type: string
                 format: binary
+                description: The contents of the document.
         '202':
           description: Successful updated the expiry of the document but is not returning the content of the document.
           headers:
@@ -541,48 +561,88 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
+          examples:
+            BadRequest:
+              value:
+                code: InvalidArgument
+                message: The request was malformed or invalid.
     Forbidden: # 403
       description: The user does not have permission to access the resource
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
+          examples:
+            Forbidden:
+              value:
+                code: InvalidAuth
+                message: Your username or password is invalid.
     NotFound: # 404
       description: The specified resource was not found
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
+          examples:
+            NotFound:
+              value:
+                code: ResourceNotFound
+                message: The requested resource was not found.
     Conflict: # 409
       description: A conflict occurred while processing the request
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
+          examples:
+            Conflict:
+              value:
+                code: ResourceConflict
+                message: There is a conflict with the current state of a resource.
     ContentTooLarge: # 413
       description: The document is too large to be stored
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
+          examples:
+            ContentTooLarge:
+              value:
+                code: InvalidArgument
+                message: The content of the request was too large.
     InternalServerError: # 500
       description: An internal server error occurred
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
+          examples:
+            InternalServerError:
+              value:
+                code: Internal
+                message: An internal error occurred.
     ServiceUnavailable: # 503
       description: One of the underlying services was not available
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
+          examples:
+            ServiceUnavailable:
+              value:
+                code: UnderlyingServiceUnavailable
+                message: One of the underlying services were not available.
     GatewayTimeout: # 504
       description: The request timed out
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
+          examples:
+            GatewayTimeout:
+              value:
+                code: RequestCanceled
+                message: The request deadline was exceeded.
   schemas:
     DocumentEncoding:
       title: DocumentEncoding
@@ -602,12 +662,12 @@ components:
         - None
         - Majority
         - MajorityAndPersistOnMaster
-        - PersitToMajority
+        - PersistToMajority
       x-enum-varnames:
         - DurabilityLevelNone
         - DurabilityLevelMajority
         - DurabilityLevelMajorityAndPersistOnMaster
-        - DurabilityLevelPersitToMajority
+        - DurabilityLevelPersistToMajority
     ErrorCode:
       title: ErrorCode
       description: ErrorCode specifies the more specified error that occurred.
@@ -755,7 +815,7 @@ components:
       schema:
         type: string
     Expires:
-      description: The expiry time of the document represented as an ISO8601 string.
+      description: The expiry time of the document represented as an HTTP Date header.
       schema:
         type: string
     DocumentFlags:
