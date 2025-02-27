@@ -801,7 +801,7 @@ components:
         - DurabilityLevelNone
         - DurabilityLevelMajority
         - DurabilityLevelMajorityAndPersistOnMaster
-        - DurabilityLevelPersitToMajority
+        - DurabilityLevelPersistToMajority
     SubdocErrorCode:
       title: SubdocErrorCode
       description: SubdocErrorCode specifies the more specified error that occurred in a sub-document operation.
