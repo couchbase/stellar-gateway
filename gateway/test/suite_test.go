@@ -425,6 +425,7 @@ type checkDocumentOptions struct {
 	DocId          string
 	Content        []byte
 	ContentFlags   uint32
+	CheckAsJson    bool
 
 	expiry       expiryCheckType
 	expiryBounds expiryCheckTypeWithinBounds
@@ -471,7 +472,11 @@ func (s *GatewayOpsTestSuite) checkDocument(t *testing.T, opts checkDocumentOpti
 	requireRpcSuccess(s.T(), getResp, err)
 	assertValidCas(s.T(), getResp.Cas)
 
-	assert.Equal(s.T(), opts.Content, getResp.GetContentUncompressed())
+	if !opts.CheckAsJson {
+		assert.Equal(s.T(), opts.Content, getResp.GetContentUncompressed())
+	} else {
+		assert.JSONEq(s.T(), string(opts.Content), string(getResp.GetContentUncompressed()))
+	}
 	assert.Equal(s.T(), opts.ContentFlags, getResp.ContentFlags)
 
 	switch opts.expiry {
