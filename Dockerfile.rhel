@@ -20,6 +20,7 @@ COPY bin/linux/cloud-native-gateway-${TARGETARCH} /usr/local/bin/cloud-native-ga
 
 LABEL name="couchbase/cloud-native-gateway" \
       vendor="Couchbase" \
+      maintainer="Couchbase" \
       version="${PROD_VERSION}" \
       openshift_build="${OS_BUILD}" \
       exporter_build="${PROD_BUILD}" \
