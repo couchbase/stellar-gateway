@@ -61,7 +61,7 @@ func durabilityLevelToMemdx(dl dataapiv1.DurabilityLevel) (memdx.DurabilityLevel
 		return memdx.DurabilityLevelMajority, nil
 	case dataapiv1.DurabilityLevelMajorityAndPersistOnMaster:
 		return memdx.DurabilityLevelMajorityAndPersistToActive, nil
-	case dataapiv1.DurabilityLevelPersitToMajority:
+	case dataapiv1.DurabilityLevelPersistToMajority:
 		return memdx.DurabilityLevelPersistToMajority, nil
 	}
 
