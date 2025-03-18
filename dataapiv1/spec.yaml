@@ -66,7 +66,33 @@ paths:
               schema:
                 type: object
                 description: The contents of the document.
-                example: { "hello": "world", "success": true}
+                example: {
+                  "title": "Brighton",
+                  "name": "Brighton Palace Pier",
+                  "alt": null,
+                  "address": "Madeira Dr, Brighton BN2 1TW",
+                  "directions": null,
+                  "phone": "01273609361",
+                  "tollfree": null,
+                  "email": "info@brightonpalacepier.co.uk",
+                  "url": "https://www.brightonpier.co.uk",
+                  "hours": "11am–6pm",
+                  "image": null,
+                  "price": "£2",
+                  "content": "The Brighton Palace Pier, commonly known as Brighton Pier or the Palace Pier, is a Grade II listed pleasure pier in Brighton, England, located in the city centre opposite the Old Steine. 
+                               Established in 1899, it was the third pier to be constructed in Brighton after the Royal Suspension Chain Pier and the West Pier, but is now the only one still in operation.",
+                  "geo": {
+                    "lat": 50.815,
+                    "lon": -0.136944,
+                    "accuracy": "RANGE_INTERPOLATED"
+                  },
+                  "activity": "do",
+                  "type": "landmark",
+                  "id": 10044,
+                  "country": "United Kingdom",
+                  "city": "Brighton",
+                  "state": null
+                }
             '*':
               schema:
                 type: string
@@ -443,6 +469,37 @@ paths:
             X-CB-Flags:
               $ref: "#/components/headers/DocumentFlags"
           content:
+            'application/json':
+              schema:
+                type: object
+                description: The contents of the document.
+                example: {
+                  "title": "Brighton",
+                  "name": "Brighton Palace Pier",
+                  "alt": null,
+                  "address": "Madeira Dr, Brighton BN2 1TW",
+                  "directions": null,
+                  "phone": "01273609361",
+                  "tollfree": null,
+                  "email": "info@brightonpalacepier.co.uk",
+                  "url": "https://www.brightonpier.co.uk",
+                  "hours": "11am–6pm",
+                  "image": null,
+                  "price": "£2",
+                  "content": "The Brighton Palace Pier, commonly known as Brighton Pier or the Palace Pier, is a Grade II listed pleasure pier in Brighton, England, located in the city centre opposite the Old Steine. 
+                               Established in 1899, it was the third pier to be constructed in Brighton after the Royal Suspension Chain Pier and the West Pier, but is now the only one still in operation.",
+                  "geo": {
+                    "lat": 50.815,
+                    "lon": -0.136944,
+                    "accuracy": "RANGE_INTERPOLATED"
+                  },
+                  "activity": "do",
+                  "type": "landmark",
+                  "id": 10044,
+                  "country": "United Kingdom",
+                  "city": "Brighton",
+                  "state": null
+                }
             '*':
               schema:
                 type: string
@@ -533,6 +590,37 @@ paths:
             X-CB-Flags:
               $ref: "#/components/headers/DocumentFlags"
           content:
+            'application/json':
+              schema:
+                type: object
+                description: The contents of the document.
+                example: {
+                  "title": "Brighton",
+                  "name": "Brighton Palace Pier",
+                  "alt": null,
+                  "address": "Madeira Dr, Brighton BN2 1TW",
+                  "directions": null,
+                  "phone": "01273609361",
+                  "tollfree": null,
+                  "email": "info@brightonpalacepier.co.uk",
+                  "url": "https://www.brightonpier.co.uk",
+                  "hours": "11am–6pm",
+                  "image": null,
+                  "price": "£2",
+                  "content": "The Brighton Palace Pier, commonly known as Brighton Pier or the Palace Pier, is a Grade II listed pleasure pier in Brighton, England, located in the city centre opposite the Old Steine. 
+                               Established in 1899, it was the third pier to be constructed in Brighton after the Royal Suspension Chain Pier and the West Pier, but is now the only one still in operation.",
+                  "geo": {
+                    "lat": 50.815,
+                    "lon": -0.136944,
+                    "accuracy": "RANGE_INTERPOLATED"
+                  },
+                  "activity": "do",
+                  "type": "landmark",
+                  "id": 10044,
+                  "country": "United Kingdom",
+                  "city": "Brighton",
+                  "state": null
+                }
             '*':
               schema:
                 type: string
