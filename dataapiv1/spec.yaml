@@ -844,10 +844,13 @@ components:
         path:
           description: That path within the document to perform the operation on.
           type: string
+          example: "address"
     LookupInOperationResult:
       type: object
       properties:
-        value: {}
+        value:
+          example: "Madeira Dr, Brighton BN2 1TW"
+          description: "The value contained in the specified field"
         error:
           $ref: '#/components/schemas/SubdocError'
     MutateInOperation:
@@ -858,10 +861,12 @@ components:
         path:
           description: That path within the document to perform the operation on.
           type: string
+          example: "hours"
         value:
           description: The value to use for the sub-document operation.
           type: object
           x-go-type: json.RawMessage
+          example: "10am-8pm"
     MutateInOperationResult:
       type: object
       properties:
@@ -919,6 +924,7 @@ components:
       required:
         - error
         - message
+      example: null
     ErrorCode:
       title: ErrorCode
       description: ErrorCode specifies the more specified error that occurred.
@@ -1043,6 +1049,7 @@ components:
         - MutateInOperationTypeArrayInsert
         - MutateInOperationTypeArrayAddUnique
         - MutateInOperationTypeCounter
+      example: Upsert
   parameters:
     AuthorizationHeader:
       in: header
