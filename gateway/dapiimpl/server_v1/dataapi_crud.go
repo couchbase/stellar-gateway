@@ -3,6 +3,7 @@ package server_v1
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"time"
 
@@ -70,28 +71,50 @@ func (s *DataApiServer) GetDocument(
 		expiryTime = time.Unix(int64(result.Expiry), 0)
 	}
 
-	resp := dataapiv1.GetDocument200AsteriskResponse{
-		Headers: dataapiv1.GetDocument200ResponseHeaders{
-			ETag:     casToHttpEtag(result.Cas),
-			Expires:  timeToHttpTime(expiryTime),
-			XCBFlags: uint32(result.Flags),
-		},
-	}
-
-	contentType := flagsToHttpContentType(result.Flags)
-
 	contentEncoding, respValue, errSt :=
 		CompressHandler{}.MaybeCompressContent(result.Value, 0, in.Params.AcceptEncoding)
 	if errSt != nil {
 		return nil, errSt.Err()
 	}
 
-	resp.ContentType = contentType
-	resp.Headers.ContentEncoding = contentEncoding
-	resp.Body = bytes.NewReader(respValue)
-	resp.ContentLength = int64(len(respValue))
+	headers := dataapiv1.GetDocument200ResponseHeaders{
+		ETag:            casToHttpEtag(result.Cas),
+		Expires:         timeToHttpTime(expiryTime),
+		XCBFlags:        uint32(result.Flags),
+		ContentEncoding: contentEncoding,
+	}
 
-	return resp, nil
+	contentType := flagsToHttpContentType(result.Flags)
+	switch contentType {
+	case "application/json":
+		body := make(map[string]interface{})
+		err = json.Unmarshal(respValue, &body)
+		if err != nil {
+			return nil, s.errorHandler.NewSdDocNotJsonStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.DocumentKey).Err()
+		}
+
+		resp := dataapiv1.GetDocument200JSONResponse{
+			Body:    body,
+			Headers: headers,
+		}
+
+		return resp, nil
+	case "text/plain":
+		resp := dataapiv1.GetDocument200TextResponse{
+			Body:    string(respValue),
+			Headers: headers,
+		}
+
+		return resp, nil
+	default:
+		resp := dataapiv1.GetDocument200ApplicationoctetStreamResponse{
+			Body:          bytes.NewReader(respValue),
+			Headers:       headers,
+			ContentLength: int64(len(respValue)),
+		}
+
+		return resp, nil
+	}
 }
 
 func (s *DataApiServer) CreateDocument(

@@ -93,12 +93,26 @@ paths:
                   "city": "Brighton",
                   "state": null
                 }
-            '*':
+            'text/plain':
+              example: "Here is the text that was contained in the specified document."
+              schema:
+                type: string
+                description: The text contained within the document.
+                example: Here is the contents of your document
+            'application/octet-stream':
+              example: |- 
+                01001000011001010111001001100101001000000110100101110011 
+                00100000011101000110100001100101001000000110001001101001 
+                01101110011000010111001001111001001000000110001101101111 
+                01101110011101000110010101101110011101000111001100100000 
+                01101111011001100010000001110100011010000110010100100000 
+                01110011011100000110010101100011011010010110011001101001 
+                01100101011001000010000001100100011011110110001101110101 
+                0110110101100101011011100111010000101110
               schema:
                 type: string
                 format: binary
-                description: The contents of the document.
-                example: "Here is the contents of your document"
+                description: The binary contents of the document.
         '400':
           $ref: '#/components/responses/BadRequest' 
         '403':
@@ -621,11 +635,26 @@ paths:
                   "city": "Brighton",
                   "state": null
                 }
-            '*':
+            'text/plain':
+              example: "Here is the text that was contained in the specified document."
+              schema:
+                type: string
+                description: The text contained within the document.
+                example: Here is the contents of your document
+            'application/octet-stream':
+              example: |-
+                01001000011001010111001001100101001000000110100101110011 
+                00100000011101000110100001100101001000000110001001101001 
+                01101110011000010111001001111001001000000110001101101111 
+                01101110011101000110010101101110011101000111001100100000 
+                01101111011001100010000001110100011010000110010100100000 
+                01110011011100000110010101100011011010010110011001101001 
+                01100101011001000010000001100100011011110110001101110101 
+                0110110101100101011011100111010000101110
               schema:
                 type: string
                 format: binary
-                description: The contents of the document.
+                description: The binary contents of the document.
         '202':
           description: Successful updated the expiry of the document but is not returning the content of the document.
           headers:
