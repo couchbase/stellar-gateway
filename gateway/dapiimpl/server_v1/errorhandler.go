@@ -527,6 +527,7 @@ func (e ErrorHandler) NewDocCasMismatchStatus(baseErr error, bucketName, scopeNa
 func (e ErrorHandler) NewTooFewOperationsError() *Status {
 	st := &Status{
 		StatusCode: http.StatusBadRequest,
+		Code:       dataapiv1.ErrorCodeInvalidArgument,
 		Message:    "Must specify at least one operation.",
 	}
 	return st
@@ -535,6 +536,7 @@ func (e ErrorHandler) NewTooFewOperationsError() *Status {
 func (e ErrorHandler) NewInvalidOperationTypeError(opIndex int) *Status {
 	st := &Status{
 		StatusCode: http.StatusBadRequest,
+		Code:       dataapiv1.ErrorCodeInvalidArgument,
 		Message:    fmt.Sprintf("Operation type not specified for operation at index %d.", opIndex),
 	}
 	return st
@@ -543,6 +545,7 @@ func (e ErrorHandler) NewInvalidOperationTypeError(opIndex int) *Status {
 func (e ErrorHandler) NewInvalidStoreSemanticError() *Status {
 	st := &Status{
 		StatusCode: http.StatusBadRequest,
+		Code:       dataapiv1.ErrorCodeInvalidArgument,
 		Message:    "Invalid store semantic specified.",
 	}
 	return st
