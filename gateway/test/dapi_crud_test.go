@@ -1677,6 +1677,30 @@ func (s *GatewayOpsTestSuite) TestDapiMutateIn() {
 		})
 	})
 
+	s.Run("UpsertSemanticReplace", func() {
+		docId := s.randomDocId()
+
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/mutate",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+			},
+			Body: []byte(`{
+				  "storeSemantic": "Upsert",
+				  "operations":[
+				    {"operation":"Replace","path":"test", "value": 43}
+				]}`),
+		})
+
+		requireRestError(s.T(), resp, http.StatusBadRequest, &testRestError{
+			Code: "InvalidArgument",
+		})
+	})
+
 	s.Run("DocLocked", func() {
 		docId := s.lockedDocId()
 		resp := s.sendTestHttpRequest(&testHttpRequest{

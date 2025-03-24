@@ -217,6 +217,16 @@ func (s *DataApiServer) MutateInDocument(
 		})
 	}
 
+	if opts.Flags&memdx.SubdocDocFlagMkDoc != 0 {
+		for opIdx, op := range opts.Ops {
+			if op.Op == memdx.MutateInOpTypeDelete ||
+				op.Op == memdx.MutateInOpTypeReplace ||
+				op.Op == memdx.MutateInOpTypeArrayInsert {
+				return nil, s.errorHandler.NewSubDocMkDocSubDocOp(opIdx).Err()
+			}
+		}
+	}
+
 	result, err := bucketAgent.MutateIn(ctx, &opts)
 	if err != nil {
 		if errors.Is(err, memdx.ErrCasMismatch) {

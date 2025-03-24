@@ -550,3 +550,12 @@ func (e ErrorHandler) NewInvalidStoreSemanticError() *Status {
 	}
 	return st
 }
+
+func (e ErrorHandler) NewSubDocMkDocSubDocOp(opIndex int) *Status {
+	st := &Status{
+		StatusCode: http.StatusBadRequest,
+		Code:       dataapiv1.ErrorCodeInvalidArgument,
+		Message:    fmt.Sprintf("Cannot execute replace semantic sub-document operations when store semantic implies document may not exist at index %d.", opIndex),
+	}
+	return st
+}
