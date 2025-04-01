@@ -58,6 +58,8 @@ func tokenFromGocbcorex(bucketName string, token gocbcorex.MutationToken) string
 func durabilityLevelToMemdx(dl dataapiv1.DurabilityLevel) (memdx.DurabilityLevel, *Status) {
 	switch dl {
 	case dataapiv1.DurabilityLevelNone:
+		return memdx.DurabilityLevelNone, nil
+	case dataapiv1.DurabilityLevelMajority:
 		return memdx.DurabilityLevelMajority, nil
 	case dataapiv1.DurabilityLevelMajorityAndPersistOnMaster:
 		return memdx.DurabilityLevelMajorityAndPersistToActive, nil
