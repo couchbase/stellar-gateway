@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type commonDapiErrorTestData struct {
+type commonDapiTestData struct {
 	ScopeName      string
 	BucketName     string
 	CollectionName string
@@ -19,10 +19,10 @@ type commonDapiErrorTestData struct {
 }
 
 func (s *GatewayOpsTestSuite) RunCommonDapiErrorCases(
-	fn func(opts *commonDapiErrorTestData) *testHttpResponse,
+	fn func(opts *commonDapiTestData) *testHttpResponse,
 ) {
 	s.Run("CollectionMissing", func() {
-		resp := fn(&commonDapiErrorTestData{
+		resp := fn(&commonDapiTestData{
 			BucketName:     s.bucketName,
 			ScopeName:      s.scopeName,
 			CollectionName: "invalid-collection",
@@ -39,7 +39,7 @@ func (s *GatewayOpsTestSuite) RunCommonDapiErrorCases(
 	})
 
 	s.Run("ScopeMissing", func() {
-		resp := fn(&commonDapiErrorTestData{
+		resp := fn(&commonDapiTestData{
 			BucketName:     s.bucketName,
 			ScopeName:      "invalid-scope",
 			CollectionName: s.collectionName,
@@ -56,7 +56,7 @@ func (s *GatewayOpsTestSuite) RunCommonDapiErrorCases(
 	})
 
 	s.Run("BucketMissing", func() {
-		resp := fn(&commonDapiErrorTestData{
+		resp := fn(&commonDapiTestData{
 			BucketName:     "invalid-bucket",
 			ScopeName:      s.scopeName,
 			CollectionName: s.collectionName,
@@ -72,7 +72,7 @@ func (s *GatewayOpsTestSuite) RunCommonDapiErrorCases(
 	})
 
 	s.Run("BadCredentials", func() {
-		resp := fn(&commonDapiErrorTestData{
+		resp := fn(&commonDapiTestData{
 			BucketName:     s.bucketName,
 			ScopeName:      s.scopeName,
 			CollectionName: s.collectionName,
@@ -87,7 +87,7 @@ func (s *GatewayOpsTestSuite) RunCommonDapiErrorCases(
 	})
 
 	s.Run("Unauthenticated", func() {
-		resp := fn(&commonDapiErrorTestData{
+		resp := fn(&commonDapiTestData{
 			BucketName:     s.bucketName,
 			ScopeName:      s.scopeName,
 			CollectionName: s.collectionName,
@@ -103,7 +103,7 @@ func (s *GatewayOpsTestSuite) RunCommonDapiErrorCases(
 	})
 
 	s.Run("DocKeyTooLong", func() {
-		resp := fn(&commonDapiErrorTestData{
+		resp := fn(&commonDapiTestData{
 			BucketName:     s.bucketName,
 			ScopeName:      s.scopeName,
 			CollectionName: s.collectionName,
@@ -116,6 +116,43 @@ func (s *GatewayOpsTestSuite) RunCommonDapiErrorCases(
 			Code: "InvalidArgument",
 		})
 	})
+}
+
+func (s *GatewayOpsTestSuite) RunDapiDurabilityLevelTests(
+	fn func(opts *commonDapiTestData) *testHttpResponse,
+) {
+	DurabilityLevelHeaders := []string{"None", "Majority", "MajorityAndPersistOnMaster", "PersistToMajority"}
+
+	for _, durabilityLevelHeader := range DurabilityLevelHeaders {
+		s.Run(fmt.Sprintf("DurabilityLevel%s", durabilityLevelHeader), func() {
+			docId := s.randomDocId()
+
+			resp := fn(&commonDapiTestData{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				DocumentKey:    docId,
+				Headers: map[string]string{
+					"Authorization":        s.basicRestCreds,
+					"X-CB-Flags":           fmt.Sprintf("%d", TEST_CONTENT_FLAGS),
+					"X-CB-DurabilityLevel": durabilityLevelHeader,
+				},
+			})
+
+			requireRestSuccess(s.T(), resp)
+			assertRestValidEtag(s.T(), resp)
+			assertRestValidMutationToken(s.T(), resp, s.bucketName)
+
+			s.checkDocument(s.T(), checkDocumentOptions{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				DocId:          docId,
+				Content:        TEST_CONTENT,
+				ContentFlags:   TEST_CONTENT_FLAGS,
+			})
+		})
+	}
 }
 
 func (s *GatewayOpsTestSuite) TestDapiGet() {
@@ -273,7 +310,7 @@ func (s *GatewayOpsTestSuite) TestDapiGet() {
 		})
 	})
 
-	s.RunCommonDapiErrorCases(func(opts *commonDapiErrorTestData) *testHttpResponse {
+	s.RunCommonDapiErrorCases(func(opts *commonDapiTestData) *testHttpResponse {
 		return s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodGet,
 			Path: fmt.Sprintf(
@@ -449,7 +486,19 @@ func (s *GatewayOpsTestSuite) TestDapiPost() {
 		})
 	})
 
-	s.RunCommonDapiErrorCases(func(opts *commonDapiErrorTestData) *testHttpResponse {
+	s.RunCommonDapiErrorCases(func(opts *commonDapiTestData) *testHttpResponse {
+		return s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
+				opts.BucketName, opts.ScopeName, opts.CollectionName, opts.DocumentKey,
+			),
+			Headers: opts.Headers,
+			Body:    TEST_CONTENT,
+		})
+	})
+
+	s.RunDapiDurabilityLevelTests(func(opts *commonDapiTestData) *testHttpResponse {
 		return s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
 			Path: fmt.Sprintf(
@@ -815,7 +864,19 @@ func (s *GatewayOpsTestSuite) TestDapiPut() {
 		})
 	})
 
-	s.RunCommonDapiErrorCases(func(opts *commonDapiErrorTestData) *testHttpResponse {
+	s.RunCommonDapiErrorCases(func(opts *commonDapiTestData) *testHttpResponse {
+		return s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPut,
+			Path: fmt.Sprintf(
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
+				opts.BucketName, opts.ScopeName, opts.CollectionName, opts.DocumentKey,
+			),
+			Headers: opts.Headers,
+			Body:    TEST_CONTENT,
+		})
+	})
+
+	s.RunDapiDurabilityLevelTests(func(opts *commonDapiTestData) *testHttpResponse {
 		return s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPut,
 			Path: fmt.Sprintf(
@@ -973,7 +1034,7 @@ func (s *GatewayOpsTestSuite) TestDapiDelete() {
 		})
 	})
 
-	s.RunCommonDapiErrorCases(func(opts *commonDapiErrorTestData) *testHttpResponse {
+	s.RunCommonDapiErrorCases(func(opts *commonDapiTestData) *testHttpResponse {
 		return s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodDelete,
 			Path: fmt.Sprintf(
@@ -1128,7 +1189,7 @@ func (s *GatewayOpsTestSuite) TestDapiIncrement() {
 		})
 	})
 
-	s.RunCommonDapiErrorCases(func(opts *commonDapiErrorTestData) *testHttpResponse {
+	s.RunCommonDapiErrorCases(func(opts *commonDapiTestData) *testHttpResponse {
 		return s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
 			Path: fmt.Sprintf(
@@ -1283,7 +1344,7 @@ func (s *GatewayOpsTestSuite) TestDapiDecrement() {
 		})
 	})
 
-	s.RunCommonDapiErrorCases(func(opts *commonDapiErrorTestData) *testHttpResponse {
+	s.RunCommonDapiErrorCases(func(opts *commonDapiTestData) *testHttpResponse {
 		return s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
 			Path: fmt.Sprintf(
@@ -1490,7 +1551,7 @@ func (s *GatewayOpsTestSuite) TestDapiLookupIn() {
 		})
 	})
 
-	s.RunCommonDapiErrorCases(func(opts *commonDapiErrorTestData) *testHttpResponse {
+	s.RunCommonDapiErrorCases(func(opts *commonDapiTestData) *testHttpResponse {
 		return s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
 			Path: fmt.Sprintf(
@@ -1771,7 +1832,7 @@ func (s *GatewayOpsTestSuite) TestDapiMutateIn() {
 		})
 	})
 
-	s.RunCommonDapiErrorCases(func(opts *commonDapiErrorTestData) *testHttpResponse {
+	s.RunCommonDapiErrorCases(func(opts *commonDapiTestData) *testHttpResponse {
 		return s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
 			Path: fmt.Sprintf(
