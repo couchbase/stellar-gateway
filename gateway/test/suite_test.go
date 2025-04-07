@@ -261,6 +261,7 @@ func (s *GatewayOpsTestSuite) SetupSuite() {
 		DapiCertificate: *gwCert,
 		AlphaEndpoints:  true,
 		NumInstances:    1,
+		ProxyServices:   []string{"query", "analytics", "mgmt", "search"},
 
 		StartupCallback: func(m *gateway.StartupInfo) {
 			gwStartInfoCh <- m
