@@ -16,6 +16,7 @@ type commonDapiTestData struct {
 	CollectionName string
 	DocumentKey    string
 	Headers        map[string]string
+	Body           *[]byte
 }
 
 func (s *GatewayOpsTestSuite) RunCommonDapiErrorCases(
@@ -126,6 +127,7 @@ func (s *GatewayOpsTestSuite) RunDapiDurabilityLevelTests(
 	for _, durabilityLevelHeader := range DurabilityLevelHeaders {
 		s.Run(fmt.Sprintf("DurabilityLevel%s", durabilityLevelHeader), func() {
 			docId := s.randomDocId()
+			var body = TEST_CONTENT
 
 			resp := fn(&commonDapiTestData{
 				BucketName:     s.bucketName,
@@ -137,6 +139,7 @@ func (s *GatewayOpsTestSuite) RunDapiDurabilityLevelTests(
 					"X-CB-Flags":           fmt.Sprintf("%d", TEST_CONTENT_FLAGS),
 					"X-CB-DurabilityLevel": durabilityLevelHeader,
 				},
+				Body: &body,
 			})
 
 			requireRestSuccess(s.T(), resp)
@@ -148,7 +151,7 @@ func (s *GatewayOpsTestSuite) RunDapiDurabilityLevelTests(
 				ScopeName:      s.scopeName,
 				CollectionName: s.collectionName,
 				DocId:          docId,
-				Content:        TEST_CONTENT,
+				Content:        body,
 				ContentFlags:   TEST_CONTENT_FLAGS,
 			})
 		})
@@ -1084,6 +1087,29 @@ func (s *GatewayOpsTestSuite) TestDapiDelete() {
 				opts.BucketName, opts.ScopeName, opts.CollectionName, opts.DocumentKey,
 			),
 			Headers: opts.Headers,
+		})
+	})
+
+	s.RunDapiDurabilityLevelTests(func(opts *commonDapiTestData) *testHttpResponse {
+		s.createDocument(createDocumentOptions{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			DocId:          opts.DocumentKey,
+			Content:        TEST_CONTENT,
+			ContentFlags:   0,
+		})
+
+		*opts.Body = nil
+
+		return s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodDelete,
+			Path: fmt.Sprintf(
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
+				opts.BucketName, opts.ScopeName, opts.CollectionName, opts.DocumentKey,
+			),
+			Headers: opts.Headers,
+			Body:    nil,
 		})
 	})
 }
