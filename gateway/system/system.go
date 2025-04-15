@@ -3,6 +3,7 @@ package system
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"net/http"
 	"runtime"
 	"sync"
@@ -23,6 +24,7 @@ import (
 	"github.com/couchbase/goprotostellar/genproto/admin_collection_v1"
 	"github.com/couchbase/goprotostellar/genproto/admin_query_v1"
 	"github.com/couchbase/goprotostellar/genproto/admin_search_v1"
+	"github.com/couchbase/goprotostellar/genproto/datastream_v1"
 	"github.com/couchbase/goprotostellar/genproto/internal_hooks_v1"
 	"github.com/couchbase/goprotostellar/genproto/kv_v1"
 	"github.com/couchbase/goprotostellar/genproto/query_v1"
@@ -129,6 +131,7 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 	kv_v1.RegisterKvServiceServer(dataSrv, dataImpl.KvV1Server)
 	query_v1.RegisterQueryServiceServer(dataSrv, dataImpl.QueryV1Server)
 	search_v1.RegisterSearchServiceServer(dataSrv, dataImpl.SearchV1Server)
+	datastream_v1.RegisterDatastreamServiceServer(dataSrv, dataImpl.DatastreamV1Server)
 	admin_bucket_v1.RegisterBucketAdminServiceServer(dataSrv, dataImpl.AdminBucketV1Server)
 	admin_collection_v1.RegisterCollectionAdminServiceServer(dataSrv, dataImpl.AdminCollectionV1Server)
 	admin_query_v1.RegisterQueryAdminServiceServer(dataSrv, dataImpl.AdminQueryIndexV1Server)

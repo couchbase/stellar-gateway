@@ -23,6 +23,7 @@ type Servers struct {
 	QueryV1Server            *server_v1.QueryServer
 	SearchV1Server           *server_v1.SearchServer
 	AnalyticsV1Server        *server_v1.AnalyticsServer
+	DatastreamV1Server       *server_v1.DatastreamServer
 	AdminBucketV1Server      *server_v1.BucketAdminServer
 	AdminCollectionV1Server  *server_v1.CollectionAdminServer
 	AdminQueryIndexV1Server  *server_v1.QueryIndexAdminServer
@@ -61,6 +62,11 @@ func New(opts *NewOptions) *Servers {
 		),
 		AnalyticsV1Server: server_v1.NewAnalyticsServer(
 			opts.Logger.Named("analytics"),
+			v1ErrHandler,
+			v1AuthHandler,
+		),
+		DatastreamV1Server: server_v1.NewDatastreamServer(
+			opts.Logger.Named("datastream"),
 			v1ErrHandler,
 			v1AuthHandler,
 		),

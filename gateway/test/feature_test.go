@@ -13,6 +13,7 @@ var (
 	TestFeatureSearchManagementCollections = TestFeatureCode("searchmgmtcollections")
 	TestFeatureBucketManagement            = TestFeatureCode("bucketmgmt")
 	TestFeatureCollectionNoExpriy          = TestFeatureCode("collectionnoexpiry")
+	TestFeatureDatastream                  = TestFeatureCode("datastream")
 )
 
 type TestFeature struct {
@@ -55,6 +56,8 @@ func (s *GatewayOpsTestSuite) SupportsFeature(code TestFeatureCode) bool {
 	case TestFeatureQueryManagement:
 		return true
 	case TestFeatureSearchManagement:
+		return true
+	case TestFeatureDatastream:
 		return true
 	case TestFeatureSearchManagementCollections:
 		return !s.clusterVersion.Lower(SrvVer750)
