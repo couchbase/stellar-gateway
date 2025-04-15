@@ -239,7 +239,7 @@ func (s *System) Serve(ctx context.Context, l *Listeners) error {
 		wg.Add(1)
 		go func() {
 			err := s.dapiServer.ServeTLS(l.dapiListener, "", "")
-			if err != nil {
+			if err != nil && !errors.Is(err, http.ErrServerClosed) {
 				s.logger.Warn("data api server serve failed", zap.Error(err))
 			}
 			wg.Done()
