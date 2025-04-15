@@ -118,10 +118,30 @@ func (e ErrorHandler) NewUnavailableStatus(err error) *Status {
 func (e ErrorHandler) NewUnknownStatus(baseErr error) *Status {
 	var memdErr *memdx.ServerError
 	if errors.As(baseErr, &memdErr) {
+		var errText string
+
+		var memdSrvErr *memdx.ServerErrorWithContext
+		if errors.As(baseErr, &memdSrvErr) {
+			parsedCtx := memdSrvErr.ParseContext()
+
+			if parsedCtx.Ref != "" && parsedCtx.Text != "" {
+				errText = fmt.Sprintf("An unknown memcached error occurred (status: %d, ref: %s, text: %s).",
+					memdErr.Status, parsedCtx.Ref, parsedCtx.Text)
+			} else if parsedCtx.Ref != "" {
+				errText = fmt.Sprintf("An unknown memcached error occurred (status: %d, ref: %s).",
+					memdErr.Status, parsedCtx.Ref)
+			} else if parsedCtx.Text != "" {
+				errText = fmt.Sprintf("An unknown memcached error occurred (status: %d, text: %s).",
+					memdErr.Status, parsedCtx.Text)
+			}
+		} else {
+			errText = fmt.Sprintf("An unknown memcached error occurred (status: %d).", memdErr.Status)
+		}
+
 		st := &Status{
 			StatusCode: http.StatusInternalServerError,
 			Code:       dataapiv1.ErrorCodeInternal,
-			Message:    fmt.Sprintf("An unknown memcached error occurred (status: %d).", memdErr.Status),
+			Message:    errText,
 		}
 		st = e.tryAttachExtraContext(st, baseErr)
 		return st
