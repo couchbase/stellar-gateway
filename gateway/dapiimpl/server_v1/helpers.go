@@ -32,7 +32,7 @@ func httpTimeToGocbcorexExpiry(when string) (uint32, *Status) {
 	if err != nil {
 		return 0, &Status{
 			StatusCode: http.StatusBadRequest,
-			Message:    "Invalid time format.",
+			Message:    "Invalid time format - expected ISO8601 format or 0.",
 		}
 	}
 
