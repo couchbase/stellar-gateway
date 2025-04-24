@@ -55,6 +55,8 @@ type GatewayOpsTestSuite struct {
 
 	clusterVersion *NodeVersion
 	features       []TestFeature
+
+	createSg bool
 }
 
 func (s *GatewayOpsTestSuite) incorrectCas(validCas uint64) uint64 {
@@ -185,6 +187,8 @@ func (s *GatewayOpsTestSuite) SetupSuite() {
 
 	testConfig := testutils.GetTestConfig(s.T())
 
+	s.createSg = testConfig.SgConnStr == ""
+
 	s.T().Logf("setting up canonical test cluster...")
 
 	testClusterInfo, err := testutils.SetupCanonicalTestCluster(testutils.CanonicalTestClusterOptions{
@@ -235,87 +239,111 @@ func (s *GatewayOpsTestSuite) SetupSuite() {
 
 	s.ParseSupportedFeatures(os.Getenv("SGTEST_FEATS"))
 
-	s.T().Logf("launching test gateway...")
+	if s.createSg {
+		s.T().Logf("launching test gateway...")
 
-	logger, err := zap.NewDevelopment()
-	if err != nil {
-		s.T().Fatalf("failed to initialize test logging: %s", err)
-	}
-
-	gwCert, err := selfsignedcert.GenerateCertificate()
-	if err != nil {
-		s.T().Fatalf("failed to create testing certificate: %s", err)
-	}
-
-	gwStartInfoCh := make(chan *gateway.StartupInfo, 1)
-	gwCtx, gwCtxCancel := context.WithCancel(context.Background())
-	gw, err := gateway.NewGateway(&gateway.Config{
-		Logger:          logger.Named("gateway"),
-		CbConnStr:       testConfig.CbConnStr,
-		Username:        testConfig.CbUser,
-		Password:        testConfig.CbPass,
-		BindDataPort:    0,
-		BindSdPort:      0,
-		BindDapiPort:    0,
-		GrpcCertificate: *gwCert,
-		DapiCertificate: *gwCert,
-		AlphaEndpoints:  true,
-		NumInstances:    1,
-		ProxyServices:   []string{"query", "analytics", "mgmt", "search"},
-
-		StartupCallback: func(m *gateway.StartupInfo) {
-			gwStartInfoCh <- m
-		},
-	})
-	if err != nil {
-		s.T().Fatalf("failed to initialize gateway: %s", err)
-	}
-
-	gwClosedCh := make(chan struct{})
-	go func() {
-		err := gw.Run(gwCtx)
+		logger, err := zap.NewDevelopment()
 		if err != nil {
-			s.T().Errorf("gateway run failed: %s", err)
+			s.T().Fatalf("failed to initialize test logging: %s", err)
 		}
 
-		s.T().Logf("test gateway has shut down")
-		close(gwClosedCh)
-	}()
+		gwCert, err := selfsignedcert.GenerateCertificate()
+		if err != nil {
+			s.T().Fatalf("failed to create testing certificate: %s", err)
+		}
 
-	startInfo := <-gwStartInfoCh
+		gwStartInfoCh := make(chan *gateway.StartupInfo, 1)
+		gwCtx, gwCtxCancel := context.WithCancel(context.Background())
+		gw, err := gateway.NewGateway(&gateway.Config{
+			Logger:          logger.Named("gateway"),
+			CbConnStr:       testConfig.CbConnStr,
+			Username:        testConfig.CbUser,
+			Password:        testConfig.CbPass,
+			BindDataPort:    0,
+			BindSdPort:      0,
+			BindDapiPort:    0,
+			GrpcCertificate: *gwCert,
+			DapiCertificate: *gwCert,
+			AlphaEndpoints:  true,
+			NumInstances:    1,
+			ProxyServices:   []string{"query", "analytics", "mgmt", "search"},
 
-	connAddr := fmt.Sprintf("%s:%d", "127.0.0.1", startInfo.AdvertisePorts.PS)
-	conn, err := grpc.NewClient(connAddr,
-		grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{
-			InsecureSkipVerify: true,
-		})), grpc.WithUserAgent("test-client"))
-	if err != nil {
-		s.T().Fatalf("failed to connect to test gateway: %s", err)
+			StartupCallback: func(m *gateway.StartupInfo) {
+				gwStartInfoCh <- m
+			},
+		})
+		if err != nil {
+			s.T().Fatalf("failed to initialize gateway: %s", err)
+		}
+
+		gwClosedCh := make(chan struct{})
+		go func() {
+			err := gw.Run(gwCtx)
+			if err != nil {
+				s.T().Errorf("gateway run failed: %s", err)
+			}
+
+			s.T().Logf("test gateway has shut down")
+			close(gwClosedCh)
+		}()
+
+		startInfo := <-gwStartInfoCh
+
+		connAddr := fmt.Sprintf("%s:%d", "127.0.0.1", startInfo.AdvertisePorts.PS)
+		conn, err := grpc.NewClient(connAddr,
+			grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{
+				InsecureSkipVerify: true,
+			})), grpc.WithUserAgent("test-client"))
+		if err != nil {
+			s.T().Fatalf("failed to connect to test gateway: %s", err)
+		}
+
+		dapiAddr := fmt.Sprintf("%s:%d", "127.0.0.1", startInfo.AdvertisePorts.DAPI)
+		dapiCli := &http.Client{
+			Transport: &http.Transport{
+				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+			},
+		}
+
+		s.gatewayConn = conn
+		s.gatewayCloseFunc = gwCtxCancel
+		s.gatewayClosedCh = gwClosedCh
+		s.dapiCli = dapiCli
+		s.dapiAddr = dapiAddr
+	} else {
+		connAddr := fmt.Sprintf("%s:%d", testConfig.SgConnStr, testConfig.SgPort)
+		conn, err := grpc.NewClient(connAddr,
+			grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{
+				InsecureSkipVerify: true,
+			})), grpc.WithUserAgent("test-client"))
+		if err != nil {
+			s.T().Fatalf("failed to connect to test gateway: %s", err)
+		}
+
+		dapiAddr := fmt.Sprintf("%s:%d", testConfig.SgConnStr, testConfig.DapiPort)
+		dapiCli := &http.Client{
+			Transport: &http.Transport{
+				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+			},
+		}
+
+		s.gatewayConn = conn
+		s.dapiCli = dapiCli
+		s.dapiAddr = dapiAddr
 	}
-
-	dapiAddr := fmt.Sprintf("%s:%d", "127.0.0.1", startInfo.AdvertisePorts.DAPI)
-	dapiCli := &http.Client{
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-		},
-	}
-
-	s.gatewayConn = conn
-	s.gatewayCloseFunc = gwCtxCancel
-	s.gatewayClosedCh = gwClosedCh
-	s.dapiCli = dapiCli
-	s.dapiAddr = dapiAddr
 }
 
 func (s *GatewayOpsTestSuite) TearDownSuite() {
-	s.T().Logf("tearing down gateway ops suite")
+	if s.createSg {
+		s.T().Logf("tearing down gateway ops suite")
 
-	s.gatewayCloseFunc()
-	<-s.gatewayClosedCh
-	s.gatewayConn = nil
+		s.gatewayCloseFunc()
+		<-s.gatewayClosedCh
+		s.gatewayConn = nil
 
-	s.dapiCli.CloseIdleConnections()
-	s.dapiCli = nil
+		s.dapiCli.CloseIdleConnections()
+		s.dapiCli = nil
+	}
 }
 
 func (s *GatewayOpsTestSuite) ParseSupportedFeatures(featsStr string) {
