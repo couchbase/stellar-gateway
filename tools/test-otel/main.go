@@ -12,15 +12,21 @@ import (
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/propagation"
+	semconv "go.opentelemetry.io/otel/semconv/v1.20.0"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
 
+	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
 
+var (
+	tracer = otel.Tracer("cng-otel-test")
+)
+
 func main() {
-	connAddr := "localhost:18098"
+	connAddr := "192.168.107.2:30813"
 	username := "Administrator"
 	password := "password"
 
@@ -36,9 +42,13 @@ func main() {
 
 	bsp := sdktrace.NewBatchSpanProcessor(traceExp)
 
+	traceRes, _ := resource.New(ctx, resource.WithAttributes(
+		semconv.ServiceNameKey.String("cng-otel-test"),
+	))
 	tp := sdktrace.NewTracerProvider(
 		sdktrace.WithSampler(sdktrace.AlwaysSample()),
 		sdktrace.WithSpanProcessor(bsp),
+		sdktrace.WithResource(traceRes),
 	)
 	otel.SetTracerProvider(tp)
 	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{}))
@@ -70,7 +80,9 @@ func main() {
 	)
 	reqCtx := metadata.NewOutgoingContext(context.Background(), md)
 
-	resp, err := kvClient.Upsert(reqCtx, &kv_v1.UpsertRequest{
+	spanCtx, span := tracer.Start(reqCtx, "test-operation")
+
+	resp, err := kvClient.Upsert(spanCtx, &kv_v1.UpsertRequest{
 		BucketName:     "default",
 		ScopeName:      "_default",
 		CollectionName: "_default",
@@ -82,6 +94,8 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+
+	span.End()
 
 	log.Printf("RESP: %+v", resp)
 }
