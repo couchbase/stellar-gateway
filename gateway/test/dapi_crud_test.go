@@ -233,6 +233,25 @@ func (s *GatewayOpsTestSuite) TestDapiGet() {
 		assert.Equal(s.T(), "", resp.Headers.Get("Expires"))
 	})
 
+	s.Run("ProjectNestedMissing", func() {
+		docId := s.testDocId()
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodGet,
+			Path: fmt.Sprintf(
+				`/v1/buckets/%s/scopes/%s/collections/%s/documents/%s?project=arr,obj.num.nest`,
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+			},
+		})
+		requireRestError(s.T(), resp, http.StatusBadRequest, &testRestError{
+			Code: "PathMismatch",
+			Resource: fmt.Sprintf("/buckets/%s/scopes/%s/collections/%s/documents/%s/content/{obj.num.nest}",
+				s.bucketName, s.scopeName, s.collectionName, docId),
+		})
+	})
+
 	s.Run("DocLocked", func() {
 		docId := s.lockedDocId()
 		resp := s.sendTestHttpRequest(&testHttpRequest{
