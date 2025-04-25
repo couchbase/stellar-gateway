@@ -6,8 +6,10 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"unicode/utf8"
 
 	"github.com/couchbase/gocbcorex"
+	"github.com/couchbase/gocbcorex/commonflags"
 	"github.com/couchbase/gocbcorex/memdx"
 	"github.com/couchbase/stellar-gateway/dataapiv1"
 )
@@ -100,37 +102,36 @@ func (s *DataApiServer) TouchDocument(
 			ContentEncoding: contentEncoding,
 		}
 
-		contentType := flagsToHttpContentType(result.Flags)
-		switch contentType {
-		case "application/json":
-			body := make(map[string]interface{})
-			err = json.Unmarshal(respValue, &body)
-			if err != nil {
-				return nil, s.errorHandler.NewSdDocNotJsonStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.DocumentKey).Err()
-			}
-
-			resp := dataapiv1.TouchDocument200JSONResponse{
-				Body:    body,
-				Headers: headers,
-			}
-
-			return resp, nil
-		case "text/plain":
-			resp := dataapiv1.TouchDocument200TextResponse{
-				Body:    string(respValue),
-				Headers: headers,
-			}
-
-			return resp, nil
-		default:
-			resp := dataapiv1.TouchDocument200ApplicationoctetStreamResponse{
-				Body:          bytes.NewReader(respValue),
-				Headers:       headers,
-				ContentLength: int64(len(respValue)),
-			}
-
-			return resp, nil
+		var contentType string
+		dataType, _ := commonflags.Decode(result.Flags)
+		if result.Flags == 0 {
+			// this is special handling for the legacy flags case where the datatype
+			// is not set. We need to guess the type based on the content.
+			dataType = commonflags.UnknownType
 		}
+		switch dataType {
+		default:
+			if json.Valid(result.Value) {
+				contentType = "application/json"
+			} else if utf8.Valid(result.Value) {
+				contentType = "text/plain"
+			} else {
+				contentType = "application/octet-stream"
+			}
+		case commonflags.JSONType:
+			contentType = "application/json"
+		case commonflags.StringType:
+			contentType = "text/plain"
+		case commonflags.BinaryType:
+			contentType = "application/octet-stream"
+		}
+
+		return dataapiv1.TouchDocument200AsteriskResponse{
+			Body:          bytes.NewReader(respValue),
+			Headers:       headers,
+			ContentType:   contentType,
+			ContentLength: int64(len(respValue)),
+		}, nil
 	}
 }
 

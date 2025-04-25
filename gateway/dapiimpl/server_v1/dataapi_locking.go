@@ -3,9 +3,12 @@ package server_v1
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
+	"unicode/utf8"
 
 	"github.com/couchbase/gocbcorex"
+	"github.com/couchbase/gocbcorex/commonflags"
 	"github.com/couchbase/gocbcorex/memdx"
 	"github.com/couchbase/stellar-gateway/dataapiv1"
 )
@@ -49,27 +52,48 @@ func (s *DataApiServer) LockDocument(
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
 
-	resp := dataapiv1.LockDocument200AsteriskResponse{
-		Headers: dataapiv1.LockDocument200ResponseHeaders{
-			ETag:     casToHttpEtag(result.Cas),
-			XCBFlags: uint32(result.Flags),
-		},
-	}
-
-	contentType := flagsToHttpContentType(result.Flags)
-
 	contentEncoding, respValue, errSt :=
 		CompressHandler{}.MaybeCompressContent(result.Value, 0, in.Params.AcceptEncoding)
 	if errSt != nil {
 		return nil, errSt.Err()
 	}
 
-	resp.ContentType = contentType
-	resp.Headers.ContentEncoding = contentEncoding
-	resp.Body = bytes.NewReader(respValue)
-	resp.ContentLength = int64(len(respValue))
+	headers := dataapiv1.LockDocument200ResponseHeaders{
+		ETag:            casToHttpEtag(result.Cas),
+		XCBFlags:        uint32(result.Flags),
+		ContentEncoding: contentEncoding,
+	}
 
-	return resp, nil
+	var contentType string
+	dataType, _ := commonflags.Decode(result.Flags)
+	if result.Flags == 0 {
+		// this is special handling for the legacy flags case where the datatype
+		// is not set. We need to guess the type based on the content.
+		dataType = commonflags.UnknownType
+	}
+	switch dataType {
+	default:
+		if json.Valid(result.Value) {
+			contentType = "application/json"
+		} else if utf8.Valid(result.Value) {
+			contentType = "text/plain"
+		} else {
+			contentType = "application/octet-stream"
+		}
+	case commonflags.JSONType:
+		contentType = "application/json"
+	case commonflags.StringType:
+		contentType = "text/plain"
+	case commonflags.BinaryType:
+		contentType = "application/octet-stream"
+	}
+
+	return dataapiv1.LockDocument200AsteriskResponse{
+		Body:          bytes.NewReader(respValue),
+		Headers:       headers,
+		ContentType:   contentType,
+		ContentLength: int64(len(respValue)),
+	}, nil
 }
 
 func (s *DataApiServer) UnlockDocument(

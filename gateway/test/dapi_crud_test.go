@@ -171,7 +171,30 @@ func (s *GatewayOpsTestSuite) TestDapiGet() {
 		assertRestValidEtag(s.T(), resp)
 		assert.Equal(s.T(), fmt.Sprintf("%d", TEST_CONTENT_FLAGS), resp.Headers.Get("X-CB-Flags"))
 		assert.Equal(s.T(), "", resp.Headers.Get("Content-Encoding"))
+		assert.Equal(s.T(), "application/json", resp.Headers.Get("Content-Type"))
 		assert.Equal(s.T(), TEST_CONTENT, resp.Body)
+		assert.Equal(s.T(), "", resp.Headers.Get("Expires"))
+	})
+
+	s.Run("NonBinary", func() {
+		docBytes := []byte(`hello world`)
+		docId := s.binaryDocId(docBytes)
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodGet,
+			Path: fmt.Sprintf(
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+			},
+		})
+		requireRestSuccess(s.T(), resp)
+		assertRestValidEtag(s.T(), resp)
+		assert.Equal(s.T(), "0", resp.Headers.Get("X-CB-Flags"))
+		assert.Equal(s.T(), "", resp.Headers.Get("Content-Encoding"))
+		assert.Equal(s.T(), "text/plain", resp.Headers.Get("Content-Type"))
+		assert.Equal(s.T(), docBytes, resp.Body)
 		assert.Equal(s.T(), "", resp.Headers.Get("Expires"))
 	})
 

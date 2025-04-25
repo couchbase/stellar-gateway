@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/couchbase/gocbcorex"
-	"github.com/couchbase/gocbcorex/commonflags"
 	"github.com/couchbase/gocbcorex/memdx"
 	"github.com/couchbase/stellar-gateway/dataapiv1"
 )
@@ -71,19 +70,6 @@ func durabilityLevelToMemdx(dl dataapiv1.DurabilityLevel) (memdx.DurabilityLevel
 		StatusCode: http.StatusBadRequest,
 		Message:    "Invalid durability level specified.",
 	}
-}
-
-func flagsToHttpContentType(flags uint32) string {
-	dataType, _ := commonflags.Decode(flags)
-
-	switch dataType {
-	case commonflags.JSONType:
-		return "application/json"
-	case commonflags.StringType:
-		return "text/plain"
-	}
-
-	return "application/octet-stream"
 }
 
 func lookupInOperationToMemdx(dl *dataapiv1.LookupInOperationType) (memdx.LookupInOpType, bool) {
