@@ -463,6 +463,7 @@ type checkDocumentOptions struct {
 	ScopeName      string
 	CollectionName string
 	DocId          string
+	Cas            uint64
 	Content        []byte
 	ContentFlags   uint32
 	CheckAsJson    bool
@@ -518,6 +519,10 @@ func (s *GatewayOpsTestSuite) checkDocument(t *testing.T, opts checkDocumentOpti
 		assert.JSONEq(s.T(), string(opts.Content), string(getResp.GetContentUncompressed()))
 	}
 	assert.Equal(s.T(), opts.ContentFlags, getResp.ContentFlags)
+
+	if opts.Cas != 0 {
+		assert.Equal(s.T(), opts.Cas, getResp.Cas)
+	}
 
 	switch opts.expiry {
 	case expiryCheckType_None:
