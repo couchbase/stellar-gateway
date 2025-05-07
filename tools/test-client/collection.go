@@ -137,7 +137,7 @@ func (c *Collection) GetAndLock(ctx context.Context, id string, lockTime time.Du
 		ScopeName:      scopeName,
 		CollectionName: collName,
 		Key:            id,
-		LockTime:       uint32(lockTime / time.Second),
+		LockTimeSecs:   uint32(lockTime / time.Second),
 	}
 
 	resp, err := client.kvClient.GetAndLock(ctx, req)

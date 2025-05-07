@@ -2126,7 +2126,7 @@ func (s *GatewayOpsTestSuite) TestGetAndLock() {
 			ScopeName:      s.scopeName,
 			CollectionName: s.collectionName,
 			Key:            docId,
-			LockTime:       30,
+			LockTimeSecs:   30,
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
 		requireRpcSuccess(s.T(), resp, err)
 		assertValidCas(s.T(), resp.Cas)
@@ -2159,7 +2159,7 @@ func (s *GatewayOpsTestSuite) TestGetAndLock() {
 			ScopeName:      s.scopeName,
 			CollectionName: s.collectionName,
 			Key:            docId,
-			LockTime:       30,
+			LockTimeSecs:   30,
 			Compression:    kv_v1.CompressionEnabled_COMPRESSION_ENABLED_ALWAYS.Enum(),
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
 		requireRpcSuccess(s.T(), resp, err)
@@ -2176,7 +2176,7 @@ func (s *GatewayOpsTestSuite) TestGetAndLock() {
 			ScopeName:      s.scopeName,
 			CollectionName: s.collectionName,
 			Key:            s.missingDocId(),
-			LockTime:       5,
+			LockTimeSecs:   5,
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
 		assertRpcStatus(s.T(), err, codes.NotFound)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
@@ -2190,7 +2190,7 @@ func (s *GatewayOpsTestSuite) TestGetAndLock() {
 			ScopeName:      s.scopeName,
 			CollectionName: s.collectionName,
 			Key:            s.lockedDocId(),
-			LockTime:       5,
+			LockTimeSecs:   5,
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
 		assertRpcStatus(s.T(), err, codes.FailedPrecondition)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.PreconditionFailure) {
@@ -2205,7 +2205,7 @@ func (s *GatewayOpsTestSuite) TestGetAndLock() {
 			ScopeName:      opts.ScopeName,
 			CollectionName: opts.CollectionName,
 			Key:            opts.Key,
-			LockTime:       5,
+			LockTimeSecs:   5,
 		}, opts.CallOptions...)
 	})
 }
@@ -2223,7 +2223,7 @@ func (s *GatewayOpsTestSuite) TestUnlock() {
 			ScopeName:      s.scopeName,
 			CollectionName: s.collectionName,
 			Key:            docId,
-			LockTime:       30,
+			LockTimeSecs:   30,
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
 		requireRpcSuccess(s.T(), galResp, err)
 
@@ -2245,7 +2245,7 @@ func (s *GatewayOpsTestSuite) TestUnlock() {
 			ScopeName:      s.scopeName,
 			CollectionName: s.collectionName,
 			Key:            galDocId,
-			LockTime:       30,
+			LockTimeSecs:   30,
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
 		requireRpcSuccess(s.T(), galResp, err)
 
@@ -2270,7 +2270,7 @@ func (s *GatewayOpsTestSuite) TestUnlock() {
 			ScopeName:      s.scopeName,
 			CollectionName: s.collectionName,
 			Key:            galDocId,
-			LockTime:       30,
+			LockTimeSecs:   30,
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
 		requireRpcSuccess(s.T(), galResp, err)
 

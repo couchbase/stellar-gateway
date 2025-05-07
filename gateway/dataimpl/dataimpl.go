@@ -26,6 +26,7 @@ type Servers struct {
 	AdminQueryIndexV1Server  *server_v1.QueryIndexAdminServer
 	AdminSearchIndexV1Server *server_v1.SearchIndexAdminServer
 	TransactionsV1Server     *server_v1.TransactionsServer
+	XdcrV1Server             *server_v1.XdcrServer
 }
 
 func New(opts *NewOptions) *Servers {
@@ -84,6 +85,11 @@ func New(opts *NewOptions) *Servers {
 		),
 		TransactionsV1Server: server_v1.NewTransactionsServer(
 			opts.Logger.Named("transactions"),
+			v1ErrHandler,
+			v1AuthHandler,
+		),
+		XdcrV1Server: server_v1.NewXdcrServer(
+			opts.Logger.Named("xdcr"),
 			v1ErrHandler,
 			v1AuthHandler,
 		),

@@ -27,6 +27,7 @@ import (
 	"github.com/couchbase/goprotostellar/genproto/admin_query_v1"
 	"github.com/couchbase/goprotostellar/genproto/admin_search_v1"
 	"github.com/couchbase/goprotostellar/genproto/internal_hooks_v1"
+	"github.com/couchbase/goprotostellar/genproto/internal_xdcr_v1"
 	"github.com/couchbase/goprotostellar/genproto/kv_v1"
 	"github.com/couchbase/goprotostellar/genproto/query_v1"
 	"github.com/couchbase/goprotostellar/genproto/search_v1"
@@ -131,6 +132,7 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 	admin_collection_v1.RegisterCollectionAdminServiceServer(dataSrv, dataImpl.AdminCollectionV1Server)
 	admin_query_v1.RegisterQueryAdminServiceServer(dataSrv, dataImpl.AdminQueryIndexV1Server)
 	admin_search_v1.RegisterSearchAdminServiceServer(dataSrv, dataImpl.AdminSearchIndexV1Server)
+	internal_xdcr_v1.RegisterXdcrServiceServer(dataSrv, dataImpl.XdcrV1Server)
 
 	// health check
 	healthServer := health.NewServer()
