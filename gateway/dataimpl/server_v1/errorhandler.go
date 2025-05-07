@@ -537,6 +537,23 @@ func (e ErrorHandler) NewValueTooLargeStatus(baseErr error, bucketName, scopeNam
 	return st
 }
 
+func (e ErrorHandler) NewDurabilityImpossibleStatus(baseErr error, bucketName string) *status.Status {
+	var st *status.Status
+	st = status.New(codes.FailedPrecondition,
+		fmt.Sprintf("Not enough servers to use this durability level on '%s' bucket.",
+			bucketName))
+	st = e.tryAttachStatusDetails(st, &epb.PreconditionFailure{
+		Violations: []*epb.PreconditionFailure_Violation{{
+			Type:        "DURABILITY_IMPOSSIBLE",
+			Subject:     fmt.Sprintf("%ss", bucketName),
+			Description: "",
+		}},
+	})
+
+	st = e.tryAttachExtraContext(st, baseErr)
+	return st
+}
+
 func (e ErrorHandler) NewCollectionNoReadAccessStatus(baseErr error, bucketName, scopeName, collectionName string) *status.Status {
 	st := status.New(codes.PermissionDenied,
 		fmt.Sprintf("No permissions to read documents from '%s/%s/%s'.",

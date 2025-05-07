@@ -68,6 +68,8 @@ func (s *DataApiServer) AppendToDocument(
 			return nil, s.errorHandler.NewCollectionNoWriteAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
 		} else if errors.Is(err, memdx.ErrValueTooLarge) {
 			return nil, s.errorHandler.NewValueTooLargeStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.DocumentKey, true).Err()
+		} else if errors.Is(err, memdx.ErrDurabilityImpossible) {
+			return nil, s.errorHandler.NewDurabilityImpossibleStatus(err, in.BucketName).Err()
 		}
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
@@ -139,6 +141,8 @@ func (s *DataApiServer) PrependToDocument(
 			return nil, s.errorHandler.NewCollectionNoWriteAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
 		} else if errors.Is(err, memdx.ErrValueTooLarge) {
 			return nil, s.errorHandler.NewValueTooLargeStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.DocumentKey, true).Err()
+		} else if errors.Is(err, memdx.ErrDurabilityImpossible) {
+			return nil, s.errorHandler.NewDurabilityImpossibleStatus(err, in.BucketName).Err()
 		}
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
