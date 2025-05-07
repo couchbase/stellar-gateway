@@ -602,6 +602,17 @@ func (e ErrorHandler) NewDocCasMismatchStatus(baseErr error, bucketName, scopeNa
 	return st
 }
 
+func (e ErrorHandler) NewDocConflictStatus(baseErr error, bucketName, scopeName, collectionName, docId string) *status.Status {
+	st := status.New(codes.Aborted,
+		fmt.Sprintf("Conflict resolution rejected '%s' in '%s/%s/%s'.",
+			docId, bucketName, scopeName, collectionName))
+	st = e.tryAttachStatusDetails(st, &epb.ErrorInfo{
+		Reason: "DOC_NEWER",
+	})
+	st = e.tryAttachExtraContext(st, baseErr)
+	return st
+}
+
 func (e ErrorHandler) NewZeroCasStatus() *status.Status {
 	st := status.New(codes.InvalidArgument, "CAS value cannot be zero.")
 	return st
@@ -1000,5 +1011,23 @@ func (e ErrorHandler) NewInvalidKeyLengthStatus(key string) *status.Status {
 	st := status.New(
 		codes.InvalidArgument,
 		fmt.Sprintf("Length of document key '%s' must be between 1 and 251 characters.", key))
+	return st
+}
+
+func (e ErrorHandler) NewVbUuidDivergenceStatus(baseErr error, bucketName, scopeName, collectionName, docId string) *status.Status {
+	st := status.New(codes.Aborted,
+		fmt.Sprintf("The specified vbuuid for '%s' in '%s/%s/%s' did not match.",
+			docId, bucketName, scopeName, collectionName))
+	st = e.tryAttachStatusDetails(st, &epb.ErrorInfo{
+		Reason: "VBUUID_MISMATCH",
+	})
+	st = e.tryAttachExtraContext(st, baseErr)
+	return st
+}
+
+func (e ErrorHandler) NewUnimplementedServerVersionStatus() *status.Status {
+	st := status.New(
+		codes.Unimplemented,
+		"The requested feature is not available on this server version.")
 	return st
 }
