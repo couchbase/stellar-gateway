@@ -399,6 +399,19 @@ func (e ErrorHandler) NewValueTooLargeStatus(baseErr error, bucketName, scopeNam
 	return st
 }
 
+func (e ErrorHandler) NewDurabilityImpossibleStatus(baseErr error, bucketName string) *Status {
+	st := &Status{
+		StatusCode: http.StatusBadRequest,
+		Code:       dataapiv1.ErrorCodeDurabilityImpossible,
+		Message: fmt.Sprintf("Not enough servers to use this durability level on '%s' bucket.",
+			bucketName),
+		Resource: fmt.Sprintf("/buckets/%s",
+			bucketName),
+	}
+	st = e.tryAttachExtraContext(st, baseErr)
+	return st
+}
+
 func (e ErrorHandler) NewSdDocTooDeepStatus(baseErr error, bucketName, scopeName, collectionName, docId string) *Status {
 	st := &Status{
 		StatusCode: http.StatusBadRequest,

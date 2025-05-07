@@ -1016,6 +1016,7 @@ components:
         - PathInvalid
         - PathTooBig
         - UnknownVattr
+        - DurabilityImpossible
       x-enum-varnames:
         - ErrorCodeInvalidArgument
         - ErrorCodeUnauthorized
@@ -1044,6 +1045,7 @@ components:
         - ErrorCodePathInvalid
         - ErrorCodePathTooBig
         - ErrorCodeUnknownVattr
+        - ErrorCodeDurabilityImpossible
     Error:
       title: Error
       description: Error represents an error response from the server.
