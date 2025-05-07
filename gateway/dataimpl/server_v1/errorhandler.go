@@ -464,6 +464,17 @@ func (e ErrorHandler) NewDocCasMismatchStatus(baseErr error, bucketName, scopeNa
 	return st
 }
 
+func (e ErrorHandler) NewDocConflictStatus(baseErr error, bucketName, scopeName, collectionName, docId string) *status.Status {
+	st := status.New(codes.Aborted,
+		fmt.Sprintf("Conflict resolution rejected '%s' in '%s/%s/%s'.",
+			docId, bucketName, scopeName, collectionName))
+	st = e.tryAttachStatusDetails(st, &epb.ErrorInfo{
+		Reason: "CONFLICT_RESOLUTION",
+	})
+	st = e.tryAttachExtraContext(st, baseErr)
+	return st
+}
+
 func (e ErrorHandler) NewZeroCasStatus() *status.Status {
 	st := status.New(codes.InvalidArgument, "CAS value cannot be zero.")
 	return st
