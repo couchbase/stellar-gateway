@@ -156,13 +156,19 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 		dapiimpl.NewUserAgentMetricsHandler(),
 		oapimetrics.NewStatsHandler(opts.Logger),
 	}, dataapiv1.StrictHTTPServerOptions{
-		// TODO: have a way to propagate the error that is passed to these functions that avoids leaking
-		// information about the internals of the system
 		RequestErrorHandlerFunc: func(w http.ResponseWriter, r *http.Request, err error) {
-			http.Error(w, "", http.StatusInternalServerError)
+			opts.Logger.Error("handling a data api request", zap.Any("error: ", err))
+			http.Error(
+				w,
+				`{"code": "Internal", "message": "an internal error occured, please contact support"}`,
+				http.StatusInternalServerError)
 		},
 		ResponseErrorHandlerFunc: func(w http.ResponseWriter, r *http.Request, err error) {
-			http.Error(w, "", http.StatusInternalServerError)
+			opts.Logger.Error("handling a data api response", zap.Any("error: ", err))
+			http.Error(
+				w,
+				`{"code": "Internal", "message": "an internal error occured, please contact support"}`,
+				http.StatusInternalServerError)
 		},
 	})
 
