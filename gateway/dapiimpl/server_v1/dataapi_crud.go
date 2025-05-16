@@ -205,6 +205,8 @@ func (s *DataApiServer) CreateDocument(
 			return nil, s.errorHandler.NewValueTooLargeStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.DocumentKey, false).Err()
 		} else if errors.Is(err, memdx.ErrDurabilityImpossible) {
 			return nil, s.errorHandler.NewDurabilityImpossibleStatus(err, in.BucketName).Err()
+		} else if errors.Is(err, memdx.ErrSyncWriteAmbiguous) {
+			return nil, s.errorHandler.NewSyncWriteAmbiguousStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.DocumentKey).Err()
 		}
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
@@ -337,6 +339,8 @@ func (s *DataApiServer) UpdateDocument(
 				return nil, s.errorHandler.NewValueTooLargeStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.DocumentKey, false).Err()
 			} else if errors.Is(err, memdx.ErrDurabilityImpossible) {
 				return nil, s.errorHandler.NewDurabilityImpossibleStatus(err, in.BucketName).Err()
+			} else if errors.Is(err, memdx.ErrSyncWriteAmbiguous) {
+				return nil, s.errorHandler.NewSyncWriteAmbiguousStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.DocumentKey).Err()
 			}
 			return nil, s.errorHandler.NewGenericStatus(err).Err()
 		}
@@ -439,6 +443,8 @@ func (s *DataApiServer) DeleteDocument(
 			return nil, s.errorHandler.NewCollectionNoWriteAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
 		} else if errors.Is(err, memdx.ErrDurabilityImpossible) {
 			return nil, s.errorHandler.NewDurabilityImpossibleStatus(err, in.BucketName).Err()
+		} else if errors.Is(err, memdx.ErrSyncWriteAmbiguous) {
+			return nil, s.errorHandler.NewSyncWriteAmbiguousStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.DocumentKey).Err()
 		}
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
