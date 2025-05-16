@@ -554,6 +554,12 @@ func (e ErrorHandler) NewDurabilityImpossibleStatus(baseErr error, bucketName st
 	return st
 }
 
+func (e ErrorHandler) NewSyncWriteAmbiguousStatus(baseErr error, bucketName, scopeName, collectionName, docId string) *status.Status {
+	return status.New(codes.DeadlineExceeded,
+		fmt.Sprintf("Sync write operation on '%s' in '%s/%s/%s' timed out.",
+			docId, bucketName, scopeName, collectionName))
+}
+
 func (e ErrorHandler) NewCollectionNoReadAccessStatus(baseErr error, bucketName, scopeName, collectionName string) *status.Status {
 	st := status.New(codes.PermissionDenied,
 		fmt.Sprintf("No permissions to read documents from '%s/%s/%s'.",

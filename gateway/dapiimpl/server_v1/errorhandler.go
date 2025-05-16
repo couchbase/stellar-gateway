@@ -412,6 +412,15 @@ func (e ErrorHandler) NewDurabilityImpossibleStatus(baseErr error, bucketName st
 	return st
 }
 
+func (e ErrorHandler) NewSyncWriteAmbiguousStatus(baseErr error, bucketName, scopeName, collectionName, docId string) *Status {
+	st := &Status{
+		StatusCode: http.StatusRequestTimeout,
+		Message: fmt.Sprintf("Sync write operation on '%s' in '%s/%s/%s' timed out.",
+			docId, bucketName, scopeName, collectionName),
+	}
+	return st
+}
+
 func (e ErrorHandler) NewSdDocTooDeepStatus(baseErr error, bucketName, scopeName, collectionName, docId string) *Status {
 	st := &Status{
 		StatusCode: http.StatusBadRequest,
