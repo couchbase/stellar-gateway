@@ -54,6 +54,9 @@ image-artifacts: build
 dist: image-artifacts
 	rm -rf dist
 	mkdir -p dist
+	for file in $(ARTIFACTS)/bin/linux/*; do \
+	 cp $$file dist/$$(basename $$file)_$(productVersion); \
+	done
 	tar -C $(ARTIFACTS)/.. -czf dist/couchbase-cloud-native-gateway-image_$(productVersion).tgz .
 
 container: build
