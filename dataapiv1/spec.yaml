@@ -2,6 +2,27 @@ openapi: "3.0.0"
 info:
   version: 1.0.0
   title: Couchbase Data API
+  description: |-
+    # Introduction
+    The Couchbase Capella Data API provides a set of REST APIs for working with data.
+    It enables users to perform operations such as creating, reading, updating, or deleting data.
+    It also provides passthrough access to the Couchbase Services REST APIs, which enable you to query your data with SQL++, use vector search for AI applications, and more.
+externalDocs:
+  description: Data API Overview
+  url: https://docs.couchbase.com/cloud/data-api-guide/data-api-intro.html
+tags:
+  - name: Tools
+    description: General utilities for the Data API.
+  - name: Single Document Operations
+    description: Create, read, update, and delete operations for single documents.
+  - name: Binary Operations
+    description: Append, prepend, increment, and decrement operations for binary documents.
+  - name: Locking Operations
+    description: Operations that apply to document locking.
+  - name: Expiry Operations
+    description: Operations that apply to document expiry.
+  - name: Sub-Document Operations
+    description: Lookup and mutate operations for sub-documents within a document.
 paths:
   '/v1/callerIdentity':
     parameters:
