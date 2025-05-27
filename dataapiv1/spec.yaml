@@ -1147,6 +1147,10 @@ components:
         - LookupInOperationTypeGet
         - LookupInOperationTypeExists
         - LookupInOperationTypeGetCount
+      x-enumDescriptions:
+        Get: Retrieve the sub-document at the given path.
+        Exists: Check if the given path exists in the document.
+        GetCount: Count the number of elements in the sub-document at the given path.
     MutateInOperationType:
       title: MutateInOperationType
       description: Specifies the mutation operation to perform on the document.
@@ -1171,6 +1175,20 @@ components:
         - MutateInOperationTypeArrayInsert
         - MutateInOperationTypeArrayAddUnique
         - MutateInOperationTypeCounter
+      x-enumDescriptions:
+        DictAdd: Add the value at the given path, if the given path does not exist.
+        DictSet: Unconditionally set the value at the given path.
+        Delete: Remove item at the given path.
+        Replace: Store value at the given path.
+        ArrayPushLast: Append value to the array given by the path.
+        ArrayPushFirst: Prepend value to the array given by the path.
+        ArrayInsert: |-
+          Add the value at the given array index.
+          Path must include index, e.g. `my.list[4]`.
+        ArrayAddUnique: Add the value to the array given by the path, if the value is not already in the array.
+        Counter: |-
+          Increment or decrement an existing numeric path.
+          The value must be 64-bit integer.
       example: Upsert
   parameters:
     AuthorizationHeader:
