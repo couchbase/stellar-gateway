@@ -35,7 +35,7 @@ paths:
         - Tools
       responses:
         '200':
-          description: Successfully fetched the current callers identity.
+          description: Successfully fetched the current caller's identity.
           content:
             'application/json':
               schema:
@@ -671,7 +671,7 @@ paths:
                   type: string
                   example: "YYYY-MM-DDTHH:MM:SS.sssZ"
                 returnContent:
-                  description: Specifies whether the documents contents should be returned in the response.
+                  description: Specifies whether the document's contents should be returned in the response.
                   type: boolean
       responses:
         '200':
@@ -960,7 +960,7 @@ components:
         operation:
           $ref: '#/components/schemas/LookupInOperationType'
         path:
-          description: That path within the document to perform the operation on.
+          description: The path within the document where you want to perform the operation.
           type: string
           example: "address"
     LookupInOperationResult:
@@ -977,7 +977,7 @@ components:
         operation:
           $ref: '#/components/schemas/MutateInOperationType'
         path:
-          description: That path within the document to perform the operation on.
+          description: The path within the document where you want to perform the operation.
           type: string
           example: "hours"
         value:
@@ -991,7 +991,7 @@ components:
         value: {}
     DocumentEncoding:
       title: DocumentEncoding
-      description: DocumentEncoding specifies the compression used for the the document.
+      description: The compression used for the the document.
       type: string
       enum:
         - identity
@@ -1001,7 +1001,9 @@ components:
         - DocumentEncodingSnappy
     DurabilityLevel:
       title: DurabilityLevel
-      description: DurabilityLevel specifies the level of synchronous replication to use.
+      description: |-
+        The level of synchronous replication to use.
+        For details, see [Durability](https://docs.couchbase.com/server/current/learn/data/durability.html).
       type: string
       enum:
         - None
@@ -1015,7 +1017,7 @@ components:
         - DurabilityLevelPersistToMajority
     SubdocErrorCode:
       title: SubdocErrorCode
-      description: SubdocErrorCode specifies the more specified error that occurred in a sub-document operation.
+      description: The specific sub-document error that occurred.
       type: string
       enum:
         - Internal
@@ -1031,7 +1033,7 @@ components:
         - SubdocErrorCodeUnknownVattr
     SubdocError:
       title: SubdocError
-      description: SubdocError represents an sub-document error from the server.
+      description: A sub-document error from the server.
       type: object
       properties:
         error:
@@ -1045,7 +1047,7 @@ components:
       example: null
     ErrorCode:
       title: ErrorCode
-      description: ErrorCode specifies the more specified error that occurred.
+      description: The specific error that occurred.
       type: string
       enum:
         - InvalidArgument
@@ -1107,7 +1109,7 @@ components:
         - ErrorCodeDurabilityImpossible
     Error:
       title: Error
-      description: Error represents an error response from the server.
+      description: An error response from the server.
       type: object
       properties:
         error:
@@ -1123,7 +1125,7 @@ components:
         - message
     StoreSemantic:
       title: StoreSemantic
-      description: StoreSemantic specifies whether the document mutation should be performed as an insert, upsert or replace.
+      description: Specifies whether the document mutation should be performed as an insert, upsert, or replace.
       type: string
       enum:
         - Upsert
@@ -1135,7 +1137,7 @@ components:
         - StoreSemanticReplace
     LookupInOperationType:
       title: LookupInOperationType
-      description: LookupInOperationType specifies the lookup operation to perform on the document.
+      description: Specifies the lookup operation to perform on the document.
       type: string
       enum:
         - Get
@@ -1147,7 +1149,7 @@ components:
         - LookupInOperationTypeGetCount
     MutateInOperationType:
       title: MutateInOperationType
-      description: MutateInOperationType specifies the mutation operation to perform on the document.
+      description: Specifies the mutation operation to perform on the document.
       type: string
       enum:
         - DictAdd
@@ -1174,7 +1176,7 @@ components:
     AuthorizationHeader:
       in: header
       name: Authorization
-      description: Header for authentication
+      description: Header for authentication.
       schema:
         type: string
       required: true
@@ -1187,7 +1189,7 @@ components:
     ContentEncodingHeader:
       in: header
       name: Content-Encoding
-      description: The encoding of the document
+      description: The encoding of the document.
       schema:
         $ref: '#/components/schemas/DocumentEncoding'
     IfMatchHeader:
@@ -1205,41 +1207,43 @@ components:
     DocumentFlagsHeader:
       in: header
       name: X-CB-Flags
-      description: The Flags of the document.
+      description: The flags of the document.
       schema:
         type: integer
         format: uint32
     DurabilityLevelHeader:
       in: header
       name: X-CB-DurabilityLevel
-      description: The level of durability required for this write operation.
+      description: |-
+        The level of durability required for this write operation.
+        For details, see [Durability](https://docs.couchbase.com/server/current/learn/data/durability.html).
       schema:
         $ref: '#/components/schemas/DurabilityLevel'
     BucketName:
       in: path
       name: bucketName
-      description: name of the bucket containing the document
+      description: The name of the bucket containing the document.
       schema:
         type: string
       required: true
     ScopeName:
       in: path
       name: scopeName
-      description: name of the scope containing the document
+      description: The name of the scope containing the document.
       schema:
         type: string
       required: true
     CollectionName:
       in: path
       name: collectionName
-      description: name of the collection containing the document
+      description: The name of the collection containing the document.
       schema:
         type: string
       required: true
     DocumentKey:
       in: path
       name: documentKey
-      description: name of the document
+      description: The name of the document.
       schema:
         type: string
       required: true
@@ -1257,7 +1261,7 @@ components:
       schema:
         type: string
     DocumentFlags:
-      description: The Flags of the document.
+      description: The flags of the document.
       schema:
         type: integer
         format: uint32
