@@ -274,6 +274,7 @@ paths:
         '504':
           $ref: '#/components/responses/GatewayTimeout'
   '/v1.alpha/enabled':
+    x-internal: true
     get:
       operationId: alphaEnabled
       summary: Check Alpha API
