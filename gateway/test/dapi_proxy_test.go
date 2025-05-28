@@ -38,6 +38,35 @@ func (s *GatewayOpsTestSuite) TestDapiQueryProxy() {
 		assert.Equal(s.T(), 1, len(queryResponse.Results))
 		assert.Equal(s.T(), queryResponse.Results[0], map[string]interface{}{"$1": true})
 	})
+
+	s.Run("Unauthenticated", func() {
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path:   "/_p/query/query/service",
+			Headers: map[string]string{
+				"Content-Type": "application/json",
+			},
+			Body: []byte(`{"statement": "SELECT 1 == 1"}`),
+		})
+
+		require.NotNil(s.T(), resp)
+		require.Equal(s.T(), http.StatusUnauthorized, resp.StatusCode)
+	})
+
+	s.Run("BadCredentials", func() {
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path:   "/_p/query/query/service",
+			Headers: map[string]string{
+				"Authorization": s.badRestCreds,
+				"Content-Type":  "application/json",
+			},
+			Body: []byte(`{"statement": "SELECT 1 == 1"}`),
+		})
+
+		require.NotNil(s.T(), resp)
+		require.Equal(s.T(), http.StatusUnauthorized, resp.StatusCode)
+	})
 }
 
 func (s *GatewayOpsTestSuite) TestDapiAnalyticsProxy() {
@@ -61,6 +90,35 @@ func (s *GatewayOpsTestSuite) TestDapiAnalyticsProxy() {
 
 		assert.Equal(s.T(), 1, len(queryResponse.Results))
 		assert.Equal(s.T(), queryResponse.Results[0], map[string]interface{}{"$1": true})
+	})
+
+	s.Run("Unauthenticated", func() {
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path:   "/_p/cbas/analytics/service",
+			Headers: map[string]string{
+				"Content-Type": "application/json",
+			},
+			Body: []byte(`{"statement": "SELECT 1 = 1"}`),
+		})
+
+		require.NotNil(s.T(), resp)
+		require.Equal(s.T(), http.StatusUnauthorized, resp.StatusCode)
+	})
+
+	s.Run("BadCredentials", func() {
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path:   "/_p/cbas/analytics/service",
+			Headers: map[string]string{
+				"Authorization": s.badRestCreds,
+				"Content-Type":  "application/json",
+			},
+			Body: []byte(`{"statement": "SELECT 1 = 1"}`),
+		})
+
+		require.NotNil(s.T(), resp)
+		require.Equal(s.T(), http.StatusUnauthorized, resp.StatusCode)
 	})
 }
 
@@ -88,6 +146,33 @@ func (s *GatewayOpsTestSuite) TestDapiManagementProxy() {
 
 		assert.Equal(s.T(), 1, len(bucketsResponse))
 		assert.Equal(s.T(), "default", bucketsResponse[0].Name)
+	})
+
+	s.Run("Unauthenticated", func() {
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodGet,
+			Path:   "/_p/mgmt/pools/default/buckets",
+			Headers: map[string]string{
+				"Content-Type": "application/json",
+			},
+		})
+
+		require.NotNil(s.T(), resp)
+		require.Equal(s.T(), http.StatusUnauthorized, resp.StatusCode)
+	})
+
+	s.Run("BadCredentials", func() {
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodGet,
+			Path:   "/_p/mgmt/pools/default/buckets",
+			Headers: map[string]string{
+				"Authorization": s.badRestCreds,
+				"Content-Type":  "application/json",
+			},
+		})
+
+		require.NotNil(s.T(), resp)
+		require.Equal(s.T(), http.StatusUnauthorized, resp.StatusCode)
 	})
 }
 
@@ -118,5 +203,32 @@ func (s *GatewayOpsTestSuite) TestDapiSearchProxy() {
 		require.NoError(s.T(), err)
 
 		assert.Equal(s.T(), "ok", indexResponse.Status)
+	})
+
+	s.Run("Unauthenticated", func() {
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodGet,
+			Path:   "/_p/fts/api/index",
+			Headers: map[string]string{
+				"Content-Type": "application/json",
+			},
+		})
+
+		require.NotNil(s.T(), resp)
+		require.Equal(s.T(), http.StatusForbidden, resp.StatusCode)
+	})
+
+	s.Run("BadCredentials", func() {
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodGet,
+			Path:   "/_p/fts/api/index",
+			Headers: map[string]string{
+				"Authorization": s.badRestCreds,
+				"Content-Type":  "application/json",
+			},
+		})
+
+		require.NotNil(s.T(), resp)
+		require.Equal(s.T(), http.StatusForbidden, resp.StatusCode)
 	})
 }
