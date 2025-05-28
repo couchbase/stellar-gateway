@@ -8,8 +8,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type QueryError struct {
+	Code    int    `json:"code,omitempty"`
+	Message string `json:"msg,omitempty"`
+}
+
 type QueryResponse struct {
 	Results []map[string]interface{} `json:"results"`
+	Errors  []QueryError             `json:"errors,omitempty"`
 }
 
 func (s *GatewayOpsTestSuite) TestDapiQueryProxy() {
@@ -46,11 +52,27 @@ func (s *GatewayOpsTestSuite) TestDapiQueryProxy() {
 			Headers: map[string]string{
 				"Content-Type": "application/json",
 			},
-			Body: []byte(`{"statement": "SELECT 1 == 1"}`),
+			Body: []byte(`{"statement": "SELECT * FROM default LIMIT 1"}`),
 		})
 
-		require.NotNil(s.T(), resp)
-		require.Equal(s.T(), http.StatusUnauthorized, resp.StatusCode)
+		// Query only performs authentication on the moment a request is
+		// received from 7.6.0 onwards. Before this the request will be accepted
+		// and a 200 returned.
+		if s.IsOlderServerVersion("7.6.0") {
+			requireRestSuccess(s.T(), resp)
+
+			queryResponse := QueryResponse{}
+			err := json.Unmarshal(resp.Body, &queryResponse)
+			require.NoError(s.T(), err)
+
+			require.Equal(s.T(), len(queryResponse.Errors), 1)
+			require.NotNil(s.T(), queryResponse.Errors[0])
+			require.Equal(s.T(), queryResponse.Errors[0].Code, 13014)
+			require.Contains(s.T(), queryResponse.Errors[0].Message, "User does not have credentials")
+		} else {
+			require.NotNil(s.T(), resp)
+			require.Equal(s.T(), http.StatusUnauthorized, resp.StatusCode)
+		}
 	})
 
 	s.Run("BadCredentials", func() {
@@ -61,11 +83,27 @@ func (s *GatewayOpsTestSuite) TestDapiQueryProxy() {
 				"Authorization": s.badRestCreds,
 				"Content-Type":  "application/json",
 			},
-			Body: []byte(`{"statement": "SELECT 1 == 1"}`),
+			Body: []byte(`{"statement": "SELECT * FROM default LIMIT 1"}`),
 		})
 
-		require.NotNil(s.T(), resp)
-		require.Equal(s.T(), http.StatusUnauthorized, resp.StatusCode)
+		// Query only performs authentication on the moment a request is
+		// received from 7.6.0 onwards. Before this the request will be accepted
+		// and a 200 returned.
+		if s.IsOlderServerVersion("7.6.0") {
+			requireRestSuccess(s.T(), resp)
+
+			queryResponse := QueryResponse{}
+			err := json.Unmarshal(resp.Body, &queryResponse)
+			require.NoError(s.T(), err)
+
+			require.Equal(s.T(), len(queryResponse.Errors), 1)
+			require.NotNil(s.T(), queryResponse.Errors[0])
+			require.Equal(s.T(), queryResponse.Errors[0].Code, 13014)
+			require.Contains(s.T(), queryResponse.Errors[0].Message, "User does not have credentials")
+		} else {
+			require.NotNil(s.T(), resp)
+			require.Equal(s.T(), http.StatusUnauthorized, resp.StatusCode)
+		}
 	})
 }
 
