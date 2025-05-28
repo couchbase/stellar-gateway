@@ -22,7 +22,7 @@ tags:
   - name: Expiry Operations
     description: Operations that apply to document expiry.
   - name: Sub-Document Operations
-    description: Lookup and mutate operations for sub-documents within a document.
+    description: Lookup and mutate operations for fields within a document.
 paths:
   '/v1/callerIdentity':
     parameters:
@@ -59,7 +59,7 @@ paths:
     get:
       operationId: getDocument
       summary: Get Document
-      description: Retrieves the document with the specified name.
+      description: Retrieves the specified document.
       tags:
         - Single Document Operations
       parameters:
@@ -158,7 +158,7 @@ paths:
     post:
       operationId: createDocument
       summary: Create Document
-      description: Creates a document with the specified name and contents.
+      description: Creates a document with the given ID and contents.
       tags:
         - Single Document Operations
       parameters:
@@ -201,7 +201,7 @@ paths:
     put:
       operationId: updateDocument
       summary: Update Document
-      description: Updates the document with the specified name and contents.
+      description: Updates the specified document with the given contents.
       tags:
         - Single Document Operations
       parameters:
@@ -245,7 +245,7 @@ paths:
     delete:
       operationId: deleteDocument
       summary: Delete Document
-      description: Deletes the document with the specified name.
+      description: Deletes the specified document.
       tags:
         - Single Document Operations
       parameters:
@@ -287,6 +287,7 @@ paths:
         '404':
           description: The alpha API is not enabled
   '/v1.alpha/buckets/{bucketName}/scopes/{scopeName}/collections/{collectionName}/documents/{documentKey}/append':
+    x-internal: true
     parameters:
       - $ref: '#/components/parameters/AuthorizationHeader'
       - $ref: '#/components/parameters/BucketName'
@@ -330,6 +331,7 @@ paths:
         '504':
           $ref: '#/components/responses/GatewayTimeout'
   '/v1.alpha/buckets/{bucketName}/scopes/{scopeName}/collections/{collectionName}/documents/{documentKey}/prepend':
+    x-internal: true
     parameters:
       - $ref: '#/components/parameters/AuthorizationHeader'
       - $ref: '#/components/parameters/BucketName'
@@ -373,6 +375,7 @@ paths:
         '504':
           $ref: '#/components/responses/GatewayTimeout'
   '/v1.alpha/buckets/{bucketName}/scopes/{scopeName}/collections/{collectionName}/documents/{documentKey}/increment':
+    x-internal: true
     parameters:
       - $ref: '#/components/parameters/AuthorizationHeader'
       - $ref: '#/components/parameters/BucketName'
@@ -438,6 +441,7 @@ paths:
         '504':
           $ref: '#/components/responses/GatewayTimeout'
   '/v1.alpha/buckets/{bucketName}/scopes/{scopeName}/collections/{collectionName}/documents/{documentKey}/decrement':
+    x-internal: true
     parameters:
       - $ref: '#/components/parameters/AuthorizationHeader'
       - $ref: '#/components/parameters/BucketName'
@@ -503,6 +507,7 @@ paths:
         '504':
           $ref: '#/components/responses/GatewayTimeout'
   '/v1.alpha/buckets/{bucketName}/scopes/{scopeName}/collections/{collectionName}/documents/{documentKey}/lock':
+    x-internal: true
     parameters:
       - $ref: '#/components/parameters/AuthorizationHeader'
       - $ref: '#/components/parameters/BucketName'
@@ -611,6 +616,7 @@ paths:
         '504':
           $ref: '#/components/responses/GatewayTimeout'
   '/v1.alpha/buckets/{bucketName}/scopes/{scopeName}/collections/{collectionName}/documents/{documentKey}/unlock':
+    x-internal: true
     parameters:
       - $ref: '#/components/parameters/AuthorizationHeader'
       - $ref: '#/components/parameters/BucketName'
@@ -646,6 +652,7 @@ paths:
         '504':
           $ref: '#/components/responses/GatewayTimeout'
   '/v1.alpha/buckets/{bucketName}/scopes/{scopeName}/collections/{collectionName}/documents/{documentKey}/touch':
+    x-internal: true
     parameters:
       - $ref: '#/components/parameters/AuthorizationHeader'
       - $ref: '#/components/parameters/BucketName'
@@ -759,6 +766,7 @@ paths:
         '504':
           $ref: '#/components/responses/GatewayTimeout'
   '/v1.alpha/buckets/{bucketName}/scopes/{scopeName}/collections/{collectionName}/documents/{documentKey}/lookup':
+    x-internal: true
     parameters:
       - $ref: '#/components/parameters/AuthorizationHeader'
       - $ref: '#/components/parameters/BucketName'
@@ -768,7 +776,7 @@ paths:
     post:
       operationId: lookupInDocument
       summary: Lookup in Document
-      description: Looks up a sub-document within a document.
+      description: Looks up a field within a document.
       tags:
         - Sub-Document Operations
       requestBody:
@@ -807,6 +815,7 @@ paths:
         '504':
           $ref: '#/components/responses/GatewayTimeout'
   '/v1.alpha/buckets/{bucketName}/scopes/{scopeName}/collections/{collectionName}/documents/{documentKey}/mutate':
+    x-internal: true
     parameters:
       - $ref: '#/components/parameters/AuthorizationHeader'
       - $ref: '#/components/parameters/BucketName'
@@ -816,7 +825,7 @@ paths:
     post:
       operationId: mutateInDocument
       summary: Mutate in Document
-      description: Updates a sub-document within a document.
+      description: Updates a field within a document.
       tags:
         - Sub-Document Operations
       parameters:
@@ -1149,9 +1158,9 @@ components:
         - LookupInOperationTypeExists
         - LookupInOperationTypeGetCount
       x-enumDescriptions:
-        Get: Retrieve the sub-document at the given path.
+        Get: Retrieve the field at the given path.
         Exists: Check if the given path exists in the document.
-        GetCount: Count the number of elements in the sub-document at the given path.
+        GetCount: Count the number of elements in the field at the given path.
     MutateInOperationType:
       title: MutateInOperationType
       description: Specifies the mutation operation to perform on the document.
@@ -1185,7 +1194,7 @@ components:
         ArrayPushFirst: Prepend value to the array given by the path.
         ArrayInsert: |-
           Add the value at the given array index.
-          Path must include index, e.g. `my.list[4]`.
+          Path must include index, for example `my.list[4]`.
         ArrayAddUnique: Add the value to the array given by the path, if the value is not already in the array.
         Counter: |-
           Increment or decrement an existing numeric path.
@@ -1262,7 +1271,7 @@ components:
     DocumentKey:
       in: path
       name: documentKey
-      description: The name of the document.
+      description: The ID of the document.
       schema:
         type: string
       required: true
