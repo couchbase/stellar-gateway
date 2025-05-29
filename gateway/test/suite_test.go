@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"net/http"
 	"os"
 	"strings"
@@ -398,6 +399,15 @@ func (s *GatewayOpsTestSuite) largeTestContent() []byte {
 	var v []byte
 	for i := 0; i < 21000000; i++ {
 		v = append(v, byte(i))
+	}
+
+	return v
+}
+
+func (s *GatewayOpsTestSuite) largeTestRandomContent() []byte {
+	var v []byte
+	for i := 0; i < 21000000; i++ {
+		v = append(v, byte(rand.Intn(2100000)))
 	}
 
 	return v
