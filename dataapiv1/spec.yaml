@@ -2,17 +2,40 @@ openapi: "3.0.0"
 info:
   version: 1.0.0
   title: Couchbase Data API
+  description: |-
+    # Introduction
+    The Couchbase Capella Data API provides a set of REST APIs for working with data.
+    It enables users to perform operations such as creating, reading, updating, or deleting data.
+    It also provides passthrough access to the Couchbase Services REST APIs, which enable you to query your data with SQL++, use vector search for AI applications, and more.
+externalDocs:
+  description: Data API Overview
+  url: https://docs.couchbase.com/cloud/data-api-guide/data-api-intro.html
+tags:
+  - name: Tools
+    description: General utilities for the Data API.
+  - name: Single Document Operations
+    description: Create, read, update, and delete operations for single documents.
+  - name: Binary Operations
+    description: Append, prepend, increment, and decrement operations for binary documents.
+  - name: Locking Operations
+    description: Operations that apply to document locking.
+  - name: Expiry Operations
+    description: Operations that apply to document expiry.
+  - name: Sub-Document Operations
+    description: Lookup and mutate operations for fields within a document.
 paths:
   '/v1/callerIdentity':
     parameters:
       - $ref: '#/components/parameters/AuthorizationHeader'
     get:
       operationId: getCallerIdentity
+      summary: Get Caller Identity
+      description: Retrieves the identity of the user making the current request.
       tags:
         - Tools
       responses:
         '200':
-          description: Successfully fetched the current callers identity.
+          description: Successfully fetched the current caller's identity.
           content:
             'application/json':
               schema:
@@ -35,6 +58,8 @@ paths:
       - $ref: '#/components/parameters/DocumentKey'
     get:
       operationId: getDocument
+      summary: Get Document
+      description: Retrieves the specified document.
       tags:
         - Single Document Operations
       parameters:
@@ -132,6 +157,8 @@ paths:
           $ref: '#/components/responses/GatewayTimeout' 
     post:
       operationId: createDocument
+      summary: Create Document
+      description: Creates a document with the given ID and contents.
       tags:
         - Single Document Operations
       parameters:
@@ -173,6 +200,8 @@ paths:
           $ref: '#/components/responses/GatewayTimeout' 
     put:
       operationId: updateDocument
+      summary: Update Document
+      description: Updates the specified document with the given contents.
       tags:
         - Single Document Operations
       parameters:
@@ -215,6 +244,8 @@ paths:
           $ref: '#/components/responses/GatewayTimeout' 
     delete:
       operationId: deleteDocument
+      summary: Delete Document
+      description: Deletes the specified document.
       tags:
         - Single Document Operations
       parameters:
@@ -243,8 +274,11 @@ paths:
         '504':
           $ref: '#/components/responses/GatewayTimeout'
   '/v1.alpha/enabled':
+    x-internal: true
     get:
       operationId: alphaEnabled
+      summary: Check Alpha API
+      description: Checks whether the alpha API is enabled.
       tags:
         - Tools
       responses:
@@ -253,6 +287,7 @@ paths:
         '404':
           description: The alpha API is not enabled
   '/v1.alpha/buckets/{bucketName}/scopes/{scopeName}/collections/{collectionName}/documents/{documentKey}/append':
+    x-internal: true
     parameters:
       - $ref: '#/components/parameters/AuthorizationHeader'
       - $ref: '#/components/parameters/BucketName'
@@ -261,6 +296,8 @@ paths:
       - $ref: '#/components/parameters/DocumentKey'
     post:
       operationId: appendToDocument
+      summary: Append to Document
+      description: Appends the specified contents to the end of the document.
       tags:
         - Binary Operations
       parameters:
@@ -294,6 +331,7 @@ paths:
         '504':
           $ref: '#/components/responses/GatewayTimeout'
   '/v1.alpha/buckets/{bucketName}/scopes/{scopeName}/collections/{collectionName}/documents/{documentKey}/prepend':
+    x-internal: true
     parameters:
       - $ref: '#/components/parameters/AuthorizationHeader'
       - $ref: '#/components/parameters/BucketName'
@@ -302,6 +340,8 @@ paths:
       - $ref: '#/components/parameters/DocumentKey'
     post:
       operationId: prependToDocument
+      summary: Prepend to Document
+      description: Prepends the specified contents to the start of the document.
       tags:
         - Binary Operations
       parameters:
@@ -335,6 +375,7 @@ paths:
         '504':
           $ref: '#/components/responses/GatewayTimeout'
   '/v1.alpha/buckets/{bucketName}/scopes/{scopeName}/collections/{collectionName}/documents/{documentKey}/increment':
+    x-internal: true
     parameters:
       - $ref: '#/components/parameters/AuthorizationHeader'
       - $ref: '#/components/parameters/BucketName'
@@ -343,6 +384,13 @@ paths:
       - $ref: '#/components/parameters/DocumentKey'
     post:
       operationId: incrementDocument
+      summary: Increment Document
+      description: |-
+        Increments the value of the document.
+        The document must contain a parsable integer as its content.
+        For details, see [Counters](https://docs.couchbase.com/java-sdk/current/concept-docs/documents.html#counters).
+
+        If the document does not exist, sets the initial value of the document.
       tags:
         - Binary Operations
       parameters:
@@ -394,6 +442,7 @@ paths:
         '504':
           $ref: '#/components/responses/GatewayTimeout'
   '/v1.alpha/buckets/{bucketName}/scopes/{scopeName}/collections/{collectionName}/documents/{documentKey}/decrement':
+    x-internal: true
     parameters:
       - $ref: '#/components/parameters/AuthorizationHeader'
       - $ref: '#/components/parameters/BucketName'
@@ -402,6 +451,13 @@ paths:
       - $ref: '#/components/parameters/DocumentKey'
     post:
       operationId: decrementDocument
+      summary: Decrement Document
+      description: |-
+        Decrements the value of the document.
+        The document must contain a parsable integer as its content.
+        For details, see [Counters](https://docs.couchbase.com/java-sdk/current/concept-docs/documents.html#counters).
+
+        If the document does not exist, sets the initial value of the document.
       tags:
         - Binary Operations
       parameters:
@@ -453,6 +509,7 @@ paths:
         '504':
           $ref: '#/components/responses/GatewayTimeout'
   '/v1.alpha/buckets/{bucketName}/scopes/{scopeName}/collections/{collectionName}/documents/{documentKey}/lock':
+    x-internal: true
     parameters:
       - $ref: '#/components/parameters/AuthorizationHeader'
       - $ref: '#/components/parameters/BucketName'
@@ -461,6 +518,8 @@ paths:
       - $ref: '#/components/parameters/DocumentKey'
     post:
       operationId: lockDocument
+      summary: Lock Document
+      description: Locks a document for the specified duration.
       tags:
         - Locking Operations
       parameters:
@@ -559,6 +618,7 @@ paths:
         '504':
           $ref: '#/components/responses/GatewayTimeout'
   '/v1.alpha/buckets/{bucketName}/scopes/{scopeName}/collections/{collectionName}/documents/{documentKey}/unlock':
+    x-internal: true
     parameters:
       - $ref: '#/components/parameters/AuthorizationHeader'
       - $ref: '#/components/parameters/BucketName'
@@ -567,6 +627,8 @@ paths:
       - $ref: '#/components/parameters/DocumentKey'
     post:
       operationId: unlockDocument
+      summary: Unlock Document
+      description: Unlocks a previously locked document.
       tags:
         - Locking Operations
       parameters:
@@ -592,6 +654,7 @@ paths:
         '504':
           $ref: '#/components/responses/GatewayTimeout'
   '/v1.alpha/buckets/{bucketName}/scopes/{scopeName}/collections/{collectionName}/documents/{documentKey}/touch':
+    x-internal: true
     parameters:
       - $ref: '#/components/parameters/AuthorizationHeader'
       - $ref: '#/components/parameters/BucketName'
@@ -600,6 +663,8 @@ paths:
       - $ref: '#/components/parameters/DocumentKey'
     post:
       operationId: touchDocument
+      summary: Touch Document
+      description: Updates the expiry of a document.
       tags:
         - Expiry Operations
       parameters:
@@ -616,7 +681,7 @@ paths:
                   type: string
                   example: "YYYY-MM-DDTHH:MM:SS.sssZ"
                 returnContent:
-                  description: Specifies whether the documents contents should be returned in the response.
+                  description: Specifies whether the document's contents should be returned in the response.
                   type: boolean
       responses:
         '200':
@@ -703,6 +768,7 @@ paths:
         '504':
           $ref: '#/components/responses/GatewayTimeout'
   '/v1.alpha/buckets/{bucketName}/scopes/{scopeName}/collections/{collectionName}/documents/{documentKey}/lookup':
+    x-internal: true
     parameters:
       - $ref: '#/components/parameters/AuthorizationHeader'
       - $ref: '#/components/parameters/BucketName'
@@ -711,6 +777,8 @@ paths:
       - $ref: '#/components/parameters/DocumentKey'
     post:
       operationId: lookupInDocument
+      summary: Lookup in Document
+      description: Looks up a field within a document.
       tags:
         - Sub-Document Operations
       requestBody:
@@ -749,6 +817,7 @@ paths:
         '504':
           $ref: '#/components/responses/GatewayTimeout'
   '/v1.alpha/buckets/{bucketName}/scopes/{scopeName}/collections/{collectionName}/documents/{documentKey}/mutate':
+    x-internal: true
     parameters:
       - $ref: '#/components/parameters/AuthorizationHeader'
       - $ref: '#/components/parameters/BucketName'
@@ -757,6 +826,8 @@ paths:
       - $ref: '#/components/parameters/DocumentKey'
     post:
       operationId: mutateInDocument
+      summary: Mutate in Document
+      description: Updates a field within a document.
       tags:
         - Sub-Document Operations
       parameters:
@@ -901,7 +972,7 @@ components:
         operation:
           $ref: '#/components/schemas/LookupInOperationType'
         path:
-          description: That path within the document to perform the operation on.
+          description: The path within the document where you want to perform the operation.
           type: string
           example: "address"
     LookupInOperationResult:
@@ -918,7 +989,7 @@ components:
         operation:
           $ref: '#/components/schemas/MutateInOperationType'
         path:
-          description: That path within the document to perform the operation on.
+          description: The path within the document where you want to perform the operation.
           type: string
           example: "hours"
         value:
@@ -932,7 +1003,7 @@ components:
         value: {}
     DocumentEncoding:
       title: DocumentEncoding
-      description: DocumentEncoding specifies the compression used for the the document.
+      description: The compression used for the the document.
       type: string
       enum:
         - identity
@@ -942,7 +1013,9 @@ components:
         - DocumentEncodingSnappy
     DurabilityLevel:
       title: DurabilityLevel
-      description: DurabilityLevel specifies the level of synchronous replication to use.
+      description: |-
+        The level of synchronous replication to use.
+        For details, see [Durability](https://docs.couchbase.com/server/current/learn/data/durability.html).
       type: string
       enum:
         - None
@@ -956,7 +1029,7 @@ components:
         - DurabilityLevelPersistToMajority
     SubdocErrorCode:
       title: SubdocErrorCode
-      description: SubdocErrorCode specifies the more specified error that occurred in a sub-document operation.
+      description: The specific sub-document error that occurred.
       type: string
       enum:
         - Internal
@@ -972,7 +1045,7 @@ components:
         - SubdocErrorCodeUnknownVattr
     SubdocError:
       title: SubdocError
-      description: SubdocError represents an sub-document error from the server.
+      description: A sub-document error from the server.
       type: object
       properties:
         error:
@@ -986,7 +1059,7 @@ components:
       example: null
     ErrorCode:
       title: ErrorCode
-      description: ErrorCode specifies the more specified error that occurred.
+      description: The specific error that occurred.
       type: string
       enum:
         - InvalidArgument
@@ -1048,7 +1121,7 @@ components:
         - ErrorCodeDurabilityImpossible
     Error:
       title: Error
-      description: Error represents an error response from the server.
+      description: An error response from the server.
       type: object
       properties:
         error:
@@ -1064,7 +1137,7 @@ components:
         - message
     StoreSemantic:
       title: StoreSemantic
-      description: StoreSemantic specifies whether the document mutation should be performed as an insert, upsert or replace.
+      description: Specifies whether the document mutation should be performed as an insert, upsert, or replace.
       type: string
       enum:
         - Upsert
@@ -1076,7 +1149,7 @@ components:
         - StoreSemanticReplace
     LookupInOperationType:
       title: LookupInOperationType
-      description: LookupInOperationType specifies the lookup operation to perform on the document.
+      description: Specifies the lookup operation to perform on the document.
       type: string
       enum:
         - Get
@@ -1086,9 +1159,13 @@ components:
         - LookupInOperationTypeGet
         - LookupInOperationTypeExists
         - LookupInOperationTypeGetCount
+      x-enumDescriptions:
+        Get: Retrieve the field at the given path.
+        Exists: Check if the given path exists in the document.
+        GetCount: Count the number of elements in the field at the given path.
     MutateInOperationType:
       title: MutateInOperationType
-      description: MutateInOperationType specifies the mutation operation to perform on the document.
+      description: Specifies the mutation operation to perform on the document.
       type: string
       enum:
         - DictAdd
@@ -1110,12 +1187,26 @@ components:
         - MutateInOperationTypeArrayInsert
         - MutateInOperationTypeArrayAddUnique
         - MutateInOperationTypeCounter
+      x-enumDescriptions:
+        DictAdd: Add the value at the given path, if the given path does not exist.
+        DictSet: Unconditionally set the value at the given path.
+        Delete: Remove item at the given path.
+        Replace: Store value at the given path.
+        ArrayPushLast: Append value to the array given by the path.
+        ArrayPushFirst: Prepend value to the array given by the path.
+        ArrayInsert: |-
+          Add the value at the given array index.
+          Path must include index, for example `my.list[4]`.
+        ArrayAddUnique: Add the value to the array given by the path, if the value is not already in the array.
+        Counter: |-
+          Increment or decrement an existing numeric path.
+          The value must be 64-bit integer.
       example: Upsert
   parameters:
     AuthorizationHeader:
       in: header
       name: Authorization
-      description: Header for authentication
+      description: Header for authentication.
       schema:
         type: string
       required: true
@@ -1128,7 +1219,7 @@ components:
     ContentEncodingHeader:
       in: header
       name: Content-Encoding
-      description: The encoding of the document
+      description: The encoding of the document.
       schema:
         $ref: '#/components/schemas/DocumentEncoding'
     IfMatchHeader:
@@ -1146,41 +1237,43 @@ components:
     DocumentFlagsHeader:
       in: header
       name: X-CB-Flags
-      description: The Flags of the document.
+      description: The flags of the document.
       schema:
         type: integer
         format: uint32
     DurabilityLevelHeader:
       in: header
       name: X-CB-DurabilityLevel
-      description: The level of durability required for this write operation.
+      description: |-
+        The level of durability required for this write operation.
+        For details, see [Durability](https://docs.couchbase.com/server/current/learn/data/durability.html).
       schema:
         $ref: '#/components/schemas/DurabilityLevel'
     BucketName:
       in: path
       name: bucketName
-      description: name of the bucket containing the document
+      description: The name of the bucket containing the document.
       schema:
         type: string
       required: true
     ScopeName:
       in: path
       name: scopeName
-      description: name of the scope containing the document
+      description: The name of the scope containing the document.
       schema:
         type: string
       required: true
     CollectionName:
       in: path
       name: collectionName
-      description: name of the collection containing the document
+      description: The name of the collection containing the document.
       schema:
         type: string
       required: true
     DocumentKey:
       in: path
       name: documentKey
-      description: name of the document
+      description: The ID of the document.
       schema:
         type: string
       required: true
@@ -1198,7 +1291,7 @@ components:
       schema:
         type: string
     DocumentFlags:
-      description: The Flags of the document.
+      description: The flags of the document.
       schema:
         type: integer
         format: uint32
