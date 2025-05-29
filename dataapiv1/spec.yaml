@@ -387,7 +387,8 @@ paths:
       summary: Increment Document
       description: |-
         Increments the value of the document.
-        (The document must contain a parsable integer as its content.)
+        The document must contain a parsable integer as its content.
+        For details, see [Counters](https://docs.couchbase.com/java-sdk/current/concept-docs/documents.html#counters).
 
         If the document does not exist, sets the initial value of the document.
       tags:
@@ -453,7 +454,8 @@ paths:
       summary: Decrement Document
       description: |-
         Decrements the value of the document.
-        (The document must contain a parsable integer as its content.)
+        The document must contain a parsable integer as its content.
+        For details, see [Counters](https://docs.couchbase.com/java-sdk/current/concept-docs/documents.html#counters).
 
         If the document does not exist, sets the initial value of the document.
       tags:
