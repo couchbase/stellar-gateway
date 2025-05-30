@@ -1,11 +1,16 @@
 package test
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
+	"google.golang.org/grpc"
+
+	"github.com/couchbase/goprotostellar/genproto/kv_v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -18,6 +23,8 @@ type commonDapiTestData struct {
 	Headers        map[string]string
 	Body           *[]byte
 }
+
+var durabilityLevelHeaders = []string{"None", "Majority", "MajorityAndPersistOnMaster", "PersistToMajority"}
 
 func (s *GatewayOpsTestSuite) RunCommonDapiErrorCases(
 	fn func(opts *commonDapiTestData) *testHttpResponse,
@@ -122,9 +129,7 @@ func (s *GatewayOpsTestSuite) RunCommonDapiErrorCases(
 func (s *GatewayOpsTestSuite) RunDapiDurabilityLevelTests(
 	fn func(opts *commonDapiTestData) *testHttpResponse,
 ) {
-	DurabilityLevelHeaders := []string{"None", "Majority", "MajorityAndPersistOnMaster", "PersistToMajority"}
-
-	for _, durabilityLevelHeader := range DurabilityLevelHeaders {
+	for _, durabilityLevelHeader := range durabilityLevelHeaders {
 		s.Run(fmt.Sprintf("DurabilityLevel%s", durabilityLevelHeader), func() {
 			docId := s.randomDocId()
 			var body = TEST_CONTENT
@@ -427,6 +432,28 @@ func (s *GatewayOpsTestSuite) TestDapiPost() {
 		})
 	})
 
+	// ING-1110
+	// s.Run("Uncompressed with compressed headers", func() {
+	// 	docId := s.randomDocId()
+	//
+	// 	resp := s.sendTestHttpRequest(&testHttpRequest{
+	// 		Method: http.MethodPost,
+	// 		Path: fmt.Sprintf(
+	// 			"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
+	// 			s.bucketName, s.scopeName, s.collectionName, docId,
+	// 		),
+	// 		Headers: map[string]string{
+	// 			"Authorization":    s.basicRestCreds,
+	// 			"X-CB-Flags":       fmt.Sprintf("%d", TEST_CONTENT_FLAGS),
+	// 			"Content-Encoding": "snappy",
+	// 		},
+	// 		Body: TEST_CONTENT,
+	// 	})
+	// 	requireRestError(s.T(), resp, http.StatusBadRequest, &testRestError{
+	// 		Code: "InvalidArgument",
+	// 	})
+	// })
+
 	s.Run("Expiry", func() {
 		docId := s.randomDocId()
 		expiryTime := time.Now().Add(1 * time.Hour)
@@ -531,6 +558,27 @@ func (s *GatewayOpsTestSuite) TestDapiPost() {
 		})
 	})
 
+	s.Run("Compressed ValueTooLarge", func() {
+		docId := s.randomDocId()
+
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization":    s.basicRestCreds,
+				"X-CB-Flags":       fmt.Sprintf("%d", TEST_CONTENT_FLAGS),
+				"Content-Encoding": "snappy",
+			},
+			Body: s.compressContent(s.largeTestRandomContent()),
+		})
+		requireRestError(s.T(), resp, http.StatusRequestEntityTooLarge, &testRestError{
+			Code: "InvalidArgument",
+		})
+	})
+
 	s.RunCommonDapiErrorCases(func(opts *commonDapiTestData) *testHttpResponse {
 		return s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
@@ -618,6 +666,28 @@ func (s *GatewayOpsTestSuite) TestDapiPut() {
 			})
 		})
 
+		// ING-1110
+		// s.Run("Uncompressed with compressed headers", func() {
+		// 	docId := s.randomDocId()
+		//
+		// 	resp := s.sendTestHttpRequest(&testHttpRequest{
+		// 		Method: http.MethodPut,
+		// 		Path: fmt.Sprintf(
+		// 			"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
+		// 			s.bucketName, s.scopeName, s.collectionName, docId,
+		// 		),
+		// 		Headers: map[string]string{
+		// 			"Authorization":    s.basicRestCreds,
+		// 			"X-CB-Flags":       fmt.Sprintf("%d", TEST_CONTENT_FLAGS),
+		// 			"Content-Encoding": "snappy",
+		// 		},
+		// 		Body: TEST_CONTENT,
+		// 	})
+		// 	requireRestError(s.T(), resp, http.StatusBadRequest, &testRestError{
+		// 		Code: "InvalidArgument",
+		// 	})
+		// })
+
 		s.Run("Expiry", func() {
 			docId := s.randomDocId()
 			expiryTime := time.Now().Add(1 * time.Hour)
@@ -675,6 +745,102 @@ func (s *GatewayOpsTestSuite) TestDapiPut() {
 					"/buckets/%s/scopes/%s/collections/%s/documents/%s",
 					s.bucketName, s.scopeName, s.collectionName, docId,
 				),
+			})
+		})
+
+		s.Run("ValueTooLarge", func() {
+			docId := s.randomDocId()
+
+			resp := s.sendTestHttpRequest(&testHttpRequest{
+				Method: http.MethodPut,
+				Path: fmt.Sprintf(
+					"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
+					s.bucketName, s.scopeName, s.collectionName, docId,
+				),
+				Headers: map[string]string{
+					"Authorization": s.basicRestCreds,
+					"X-CB-Flags":    fmt.Sprintf("%d", TEST_CONTENT_FLAGS),
+				},
+				Body: s.largeTestContent(),
+			})
+			requireRestError(s.T(), resp, http.StatusRequestEntityTooLarge, &testRestError{
+				Code: "InvalidArgument",
+			})
+		})
+
+		s.Run("Compressed ValueTooLarge", func() {
+			docId := s.randomDocId()
+
+			resp := s.sendTestHttpRequest(&testHttpRequest{
+				Method: http.MethodPut,
+				Path: fmt.Sprintf(
+					"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
+					s.bucketName, s.scopeName, s.collectionName, docId,
+				),
+				Headers: map[string]string{
+					"Authorization":    s.basicRestCreds,
+					"X-CB-Flags":       fmt.Sprintf("%d", TEST_CONTENT_FLAGS),
+					"Content-Encoding": "snappy",
+				},
+				Body: s.compressContent(s.largeTestRandomContent()),
+			})
+			requireRestError(s.T(), resp, http.StatusRequestEntityTooLarge, &testRestError{
+				Code: "InvalidArgument",
+			})
+		})
+
+		s.Run("PreserveExpiry", func() {
+			kvClient := kv_v1.NewKvServiceClient(s.gatewayConn)
+			expiry := 24 * time.Hour
+			docId := s.randomDocId()
+
+			upsertResp, err := kvClient.Upsert(context.Background(), &kv_v1.UpsertRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+				Content: &kv_v1.UpsertRequest_ContentUncompressed{
+					ContentUncompressed: TEST_CONTENT,
+				},
+				ContentFlags: TEST_CONTENT_FLAGS,
+				Expiry: &kv_v1.UpsertRequest_ExpirySecs{
+					ExpirySecs: uint32(expiry.Seconds()),
+				},
+				PreserveExpiryOnExisting: nil,
+				DurabilityLevel:          nil,
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			requireRpcSuccess(s.T(), upsertResp, err)
+			assertValidCas(s.T(), upsertResp.Cas)
+			assertValidMutationToken(s.T(), upsertResp.MutationToken, s.bucketName)
+
+			resp := s.sendTestHttpRequest(&testHttpRequest{
+				Method: http.MethodPut,
+				Path: fmt.Sprintf(
+					"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
+					s.bucketName, s.scopeName, s.collectionName, docId,
+				),
+				Headers: map[string]string{
+					"Authorization": s.basicRestCreds,
+					"X-CB-Flags":    fmt.Sprintf("%d", TEST_CONTENT_FLAGS),
+				},
+				Body: TEST_CONTENT,
+			})
+			requireRestSuccess(s.T(), resp)
+			assertRestValidEtag(s.T(), resp)
+			assertRestValidMutationToken(s.T(), resp, s.bucketName)
+
+			s.checkDocument(s.T(), checkDocumentOptions{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				DocId:          docId,
+				Content:        TEST_CONTENT,
+				ContentFlags:   TEST_CONTENT_FLAGS,
+				expiry:         expiryCheckType_Within,
+				expiryBounds: expiryCheckTypeWithinBounds{
+					MaxSecs: int((24 * time.Hour).Seconds()) + 1,
+					MinSecs: int((23 * time.Hour).Seconds()),
+				},
 			})
 		})
 	})
@@ -743,6 +909,29 @@ func (s *GatewayOpsTestSuite) TestDapiPut() {
 				ContentFlags:   TEST_CONTENT_FLAGS,
 			})
 		})
+
+		// ING-1110
+		// s.Run("Uncompressed with compressed headers", func() {
+		// 	docId := s.randomDocId()
+		//
+		// 	resp := s.sendTestHttpRequest(&testHttpRequest{
+		// 		Method: http.MethodPut,
+		// 		Path: fmt.Sprintf(
+		// 			"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
+		// 			s.bucketName, s.scopeName, s.collectionName, docId,
+		// 		),
+		// 		Headers: map[string]string{
+		// 			"Authorization":    s.basicRestCreds,
+		// 			"If-Match":         "*",
+		// 			"X-CB-Flags":       fmt.Sprintf("%d", TEST_CONTENT_FLAGS),
+		// 			"Content-Encoding": "snappy",
+		// 		},
+		// 		Body: TEST_CONTENT,
+		// 	})
+		// 	requireRestError(s.T(), resp, http.StatusBadRequest, &testRestError{
+		// 		Code: "InvalidArgument",
+		// 	})
+		// })
 
 		s.Run("Expiry", func() {
 			docId := s.testDocId()
@@ -905,6 +1094,105 @@ func (s *GatewayOpsTestSuite) TestDapiPut() {
 					"/buckets/%s/scopes/%s/collections/%s/documents/%s",
 					s.bucketName, s.scopeName, s.collectionName, docId,
 				),
+			})
+		})
+
+		s.Run("ValueTooLarge", func() {
+			docId := s.randomDocId()
+
+			resp := s.sendTestHttpRequest(&testHttpRequest{
+				Method: http.MethodPut,
+				Path: fmt.Sprintf(
+					"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
+					s.bucketName, s.scopeName, s.collectionName, docId,
+				),
+				Headers: map[string]string{
+					"Authorization": s.basicRestCreds,
+					"If-Match":      "*",
+					"X-CB-Flags":    fmt.Sprintf("%d", TEST_CONTENT_FLAGS),
+				},
+				Body: s.largeTestContent(),
+			})
+			requireRestError(s.T(), resp, http.StatusRequestEntityTooLarge, &testRestError{
+				Code: "InvalidArgument",
+			})
+		})
+
+		s.Run("Compressed ValueTooLarge", func() {
+			docId := s.randomDocId()
+
+			resp := s.sendTestHttpRequest(&testHttpRequest{
+				Method: http.MethodPut,
+				Path: fmt.Sprintf(
+					"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
+					s.bucketName, s.scopeName, s.collectionName, docId,
+				),
+				Headers: map[string]string{
+					"Authorization":    s.basicRestCreds,
+					"If-Match":         "*",
+					"X-CB-Flags":       fmt.Sprintf("%d", TEST_CONTENT_FLAGS),
+					"Content-Encoding": "snappy",
+				},
+				Body: s.compressContent(s.largeTestRandomContent()),
+			})
+			requireRestError(s.T(), resp, http.StatusRequestEntityTooLarge, &testRestError{
+				Code: "InvalidArgument",
+			})
+		})
+
+		s.Run("PreserveExpiry", func() {
+			kvClient := kv_v1.NewKvServiceClient(s.gatewayConn)
+			expiry := 24 * time.Hour
+			docId := s.randomDocId()
+
+			upsertResp, err := kvClient.Upsert(context.Background(), &kv_v1.UpsertRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+				Content: &kv_v1.UpsertRequest_ContentUncompressed{
+					ContentUncompressed: TEST_CONTENT,
+				},
+				ContentFlags: TEST_CONTENT_FLAGS,
+				Expiry: &kv_v1.UpsertRequest_ExpirySecs{
+					ExpirySecs: uint32(expiry.Seconds()),
+				},
+				PreserveExpiryOnExisting: nil,
+				DurabilityLevel:          nil,
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			requireRpcSuccess(s.T(), upsertResp, err)
+			assertValidCas(s.T(), upsertResp.Cas)
+			assertValidMutationToken(s.T(), upsertResp.MutationToken, s.bucketName)
+
+			resp := s.sendTestHttpRequest(&testHttpRequest{
+				Method: http.MethodPut,
+				Path: fmt.Sprintf(
+					"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
+					s.bucketName, s.scopeName, s.collectionName, docId,
+				),
+				Headers: map[string]string{
+					"Authorization": s.basicRestCreds,
+					"If-Match":      "*",
+					"X-CB-Flags":    fmt.Sprintf("%d", TEST_CONTENT_FLAGS),
+				},
+				Body: TEST_CONTENT,
+			})
+			requireRestSuccess(s.T(), resp)
+			assertRestValidEtag(s.T(), resp)
+			assertRestValidMutationToken(s.T(), resp, s.bucketName)
+
+			s.checkDocument(s.T(), checkDocumentOptions{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				DocId:          docId,
+				Content:        TEST_CONTENT,
+				ContentFlags:   TEST_CONTENT_FLAGS,
+				expiry:         expiryCheckType_Within,
+				expiryBounds: expiryCheckTypeWithinBounds{
+					MaxSecs: int((24 * time.Hour).Seconds()) + 1,
+					MinSecs: int((23 * time.Hour).Seconds()),
+				},
 			})
 		})
 	})
@@ -1146,6 +1434,28 @@ func (s *GatewayOpsTestSuite) TestDapiIncrement() {
 		checkDocument(docId, []byte("6"))
 	})
 
+	// ING-1107
+	// s.Run("0 Delta", func() {
+	// 	docId := s.binaryDocId([]byte("5"))
+	//
+	// 	resp := s.sendTestHttpRequest(&testHttpRequest{
+	// 		Method: http.MethodPost,
+	// 		Path: fmt.Sprintf(
+	// 			"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/increment",
+	// 			s.bucketName, s.scopeName, s.collectionName, docId,
+	// 		),
+	// 		Headers: map[string]string{
+	// 			"Authorization": s.basicRestCreds,
+	// 		},
+	// 		Body: []byte(`{"delta": 0}`),
+	// 	})
+	// 	requireRestSuccess(s.T(), resp)
+	// 	assertRestValidEtag(s.T(), resp)
+	// 	assertRestValidMutationToken(s.T(), resp, s.bucketName)
+	//
+	// 	checkDocument(docId, []byte("5"))
+	// })
+
 	s.Run("WithInitialExists", func() {
 		docId := s.binaryDocId([]byte("5"))
 
@@ -1190,6 +1500,27 @@ func (s *GatewayOpsTestSuite) TestDapiIncrement() {
 		checkDocument(docId, []byte("5"))
 	})
 
+	// ING-1108
+	// s.Run("WithInitialNegative", func() {
+	// 	docId := s.randomDocId()
+	//
+	// 	resp := s.sendTestHttpRequest(&testHttpRequest{
+	// 		Method: http.MethodPost,
+	// 		Path: fmt.Sprintf(
+	// 			"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/increment",
+	// 			s.bucketName, s.scopeName, s.collectionName, docId,
+	// 		),
+	// 		Headers: map[string]string{
+	// 			"Authorization": s.basicRestCreds,
+	// 			"Content-Type":  "application/json",
+	// 		},
+	// 		Body: []byte(`{"initial": -2}`),
+	// 	})
+	// 	requireRestError(s.T(), resp, http.StatusBadRequest, &testRestError{
+	// 		Code: "InvalidArgument",
+	// 	})
+	// })
+
 	s.Run("DocMissing", func() {
 		docId := s.missingDocId()
 
@@ -1257,6 +1588,94 @@ func (s *GatewayOpsTestSuite) TestDapiIncrement() {
 		})
 	})
 
+	// ING-1109
+	// s.Run("Expiry", func() {
+	// 	docId := s.binaryDocId([]byte("5"))
+	// 	expiryTime := time.Now().Add(1 * time.Hour)
+	//
+	// 	resp := s.sendTestHttpRequest(&testHttpRequest{
+	// 		Method: http.MethodPost,
+	// 		Path: fmt.Sprintf(
+	// 			"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/increment",
+	// 			s.bucketName, s.scopeName, s.collectionName, docId,
+	// 		),
+	// 		Headers: map[string]string{
+	// 			"Authorization": s.basicRestCreds,
+	// 			"Expires":       expiryTime.Format(time.RFC1123),
+	// 		},
+	// 	})
+	// 	requireRestSuccess(s.T(), resp)
+	// 	assertRestValidEtag(s.T(), resp)
+	// 	assertRestValidMutationToken(s.T(), resp, s.bucketName)
+	//
+	// 	s.checkDocument(s.T(), checkDocumentOptions{
+	// 		BucketName:     s.bucketName,
+	// 		ScopeName:      s.scopeName,
+	// 		CollectionName: s.collectionName,
+	// 		DocId:          docId,
+	// 		Content:        []byte("6"),
+	// 		ContentFlags:   0,
+	// 		expiry:         expiryCheckType_Within,
+	// 		expiryBounds: expiryCheckTypeWithinBounds{
+	// 			MinSecs: 59 * 60,
+	// 			MaxSecs: 61 * 60,
+	// 		},
+	// 	})
+	// })
+
+	s.Run("PreserveExpiry", func() {
+		kvClient := kv_v1.NewKvServiceClient(s.gatewayConn)
+		expiry := 24 * time.Hour
+		docId := s.randomDocId()
+
+		upsertResp, err := kvClient.Upsert(context.Background(), &kv_v1.UpsertRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            docId,
+			Content: &kv_v1.UpsertRequest_ContentUncompressed{
+				ContentUncompressed: []byte(`6`),
+			},
+			ContentFlags: 0,
+			Expiry: &kv_v1.UpsertRequest_ExpirySecs{
+				ExpirySecs: uint32(expiry.Seconds()),
+			},
+			PreserveExpiryOnExisting: nil,
+			DurabilityLevel:          nil,
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		requireRpcSuccess(s.T(), upsertResp, err)
+		assertValidCas(s.T(), upsertResp.Cas)
+		assertValidMutationToken(s.T(), upsertResp.MutationToken, s.bucketName)
+
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/increment",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+			},
+		})
+		requireRestSuccess(s.T(), resp)
+		assertRestValidEtag(s.T(), resp)
+		assertRestValidMutationToken(s.T(), resp, s.bucketName)
+
+		s.checkDocument(s.T(), checkDocumentOptions{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			DocId:          docId,
+			Content:        []byte("7"),
+			ContentFlags:   0,
+			expiry:         expiryCheckType_Within,
+			expiryBounds: expiryCheckTypeWithinBounds{
+				MaxSecs: int((24 * time.Hour).Seconds()) + 1,
+				MinSecs: int((23 * time.Hour).Seconds()),
+			},
+		})
+	})
+
 	s.RunCommonDapiErrorCases(func(opts *commonDapiTestData) *testHttpResponse {
 		return s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
@@ -1266,6 +1685,38 @@ func (s *GatewayOpsTestSuite) TestDapiIncrement() {
 			),
 			Headers: opts.Headers,
 		})
+	})
+
+	s.Run("DurabilityLevels", func() {
+		for _, durabilityLevelHeader := range durabilityLevelHeaders {
+			s.Run(fmt.Sprintf("DurabilityLevel%s", durabilityLevelHeader), func() {
+				docId := s.binaryDocId([]byte("5"))
+
+				resp := s.sendTestHttpRequest(&testHttpRequest{
+					Method: http.MethodPost,
+					Path: fmt.Sprintf(
+						"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/increment",
+						s.bucketName, s.scopeName, s.collectionName, docId,
+					),
+					Headers: map[string]string{
+						"Authorization":        s.basicRestCreds,
+						"X-CB-DurabilityLevel": durabilityLevelHeader,
+					},
+				})
+				requireRestSuccess(s.T(), resp)
+				assertRestValidEtag(s.T(), resp)
+				assertRestValidMutationToken(s.T(), resp, s.bucketName)
+
+				s.checkDocument(s.T(), checkDocumentOptions{
+					BucketName:     s.bucketName,
+					ScopeName:      s.scopeName,
+					CollectionName: s.collectionName,
+					DocId:          docId,
+					Content:        []byte("6"),
+					ContentFlags:   0,
+				})
+			})
+		}
 	})
 }
 
@@ -1300,6 +1751,28 @@ func (s *GatewayOpsTestSuite) TestDapiDecrement() {
 
 		checkDocument(docId, []byte("4"))
 	})
+
+	// ING-1107
+	// s.Run("0 Delta", func() {
+	// 	docId := s.binaryDocId([]byte("5"))
+	//
+	// 	resp := s.sendTestHttpRequest(&testHttpRequest{
+	// 		Method: http.MethodPost,
+	// 		Path: fmt.Sprintf(
+	// 			"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/decrement",
+	// 			s.bucketName, s.scopeName, s.collectionName, docId,
+	// 		),
+	// 		Headers: map[string]string{
+	// 			"Authorization": s.basicRestCreds,
+	// 		},
+	// 		Body: []byte(`{"delta": 0}`),
+	// 	})
+	// 	requireRestSuccess(s.T(), resp)
+	// 	assertRestValidEtag(s.T(), resp)
+	// 	assertRestValidMutationToken(s.T(), resp, s.bucketName)
+	//
+	// 	checkDocument(docId, []byte("5"))
+	// })
 
 	s.Run("WithInitialExists", func() {
 		docId := s.binaryDocId([]byte("5"))
@@ -1345,6 +1818,27 @@ func (s *GatewayOpsTestSuite) TestDapiDecrement() {
 		checkDocument(docId, []byte("5"))
 	})
 
+	// ING-1108
+	// s.Run("WithInitialNegative", func() {
+	// 	docId := s.randomDocId()
+	//
+	// 	resp := s.sendTestHttpRequest(&testHttpRequest{
+	// 		Method: http.MethodPost,
+	// 		Path: fmt.Sprintf(
+	// 			"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/decrement",
+	// 			s.bucketName, s.scopeName, s.collectionName, docId,
+	// 		),
+	// 		Headers: map[string]string{
+	// 			"Authorization": s.basicRestCreds,
+	// 			"Content-Type":  "application/json",
+	// 		},
+	// 		Body: []byte(`{"initial": -2}`),
+	// 	})
+	// 	requireRestError(s.T(), resp, http.StatusBadRequest, &testRestError{
+	// 		Code: "InvalidArgument",
+	// 	})
+	// })
+
 	s.Run("DocMissing", func() {
 		docId := s.missingDocId()
 
@@ -1412,6 +1906,94 @@ func (s *GatewayOpsTestSuite) TestDapiDecrement() {
 		})
 	})
 
+	// ING-1109
+	// s.Run("Expiry", func() {
+	// 	docId := s.binaryDocId([]byte("5"))
+	// 	expiryTime := time.Now().Add(1 * time.Hour)
+	//
+	// 	resp := s.sendTestHttpRequest(&testHttpRequest{
+	// 		Method: http.MethodPost,
+	// 		Path: fmt.Sprintf(
+	// 			"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/decrement",
+	// 			s.bucketName, s.scopeName, s.collectionName, docId,
+	// 		),
+	// 		Headers: map[string]string{
+	// 			"Authorization": s.basicRestCreds,
+	// 			"Expires":       expiryTime.Format(time.RFC1123),
+	// 		},
+	// 	})
+	// 	requireRestSuccess(s.T(), resp)
+	// 	assertRestValidEtag(s.T(), resp)
+	// 	assertRestValidMutationToken(s.T(), resp, s.bucketName)
+	//
+	// 	s.checkDocument(s.T(), checkDocumentOptions{
+	// 		BucketName:     s.bucketName,
+	// 		ScopeName:      s.scopeName,
+	// 		CollectionName: s.collectionName,
+	// 		DocId:          docId,
+	// 		Content:        []byte("5"),
+	// 		ContentFlags:   0,
+	// 		expiry:         expiryCheckType_Within,
+	// 		expiryBounds: expiryCheckTypeWithinBounds{
+	// 			MinSecs: 59 * 60,
+	// 			MaxSecs: 61 * 60,
+	// 		},
+	// 	})
+	// })
+
+	s.Run("PreserveExpiry", func() {
+		kvClient := kv_v1.NewKvServiceClient(s.gatewayConn)
+		expiry := 24 * time.Hour
+		docId := s.randomDocId()
+
+		upsertResp, err := kvClient.Upsert(context.Background(), &kv_v1.UpsertRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            docId,
+			Content: &kv_v1.UpsertRequest_ContentUncompressed{
+				ContentUncompressed: []byte(`6`),
+			},
+			ContentFlags: 0,
+			Expiry: &kv_v1.UpsertRequest_ExpirySecs{
+				ExpirySecs: uint32(expiry.Seconds()),
+			},
+			PreserveExpiryOnExisting: nil,
+			DurabilityLevel:          nil,
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		requireRpcSuccess(s.T(), upsertResp, err)
+		assertValidCas(s.T(), upsertResp.Cas)
+		assertValidMutationToken(s.T(), upsertResp.MutationToken, s.bucketName)
+
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/decrement",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+			},
+		})
+		requireRestSuccess(s.T(), resp)
+		assertRestValidEtag(s.T(), resp)
+		assertRestValidMutationToken(s.T(), resp, s.bucketName)
+
+		s.checkDocument(s.T(), checkDocumentOptions{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			DocId:          docId,
+			Content:        []byte("5"),
+			ContentFlags:   0,
+			expiry:         expiryCheckType_Within,
+			expiryBounds: expiryCheckTypeWithinBounds{
+				MaxSecs: int((24 * time.Hour).Seconds()) + 1,
+				MinSecs: int((23 * time.Hour).Seconds()),
+			},
+		})
+	})
+
 	s.RunCommonDapiErrorCases(func(opts *commonDapiTestData) *testHttpResponse {
 		return s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
@@ -1421,6 +2003,38 @@ func (s *GatewayOpsTestSuite) TestDapiDecrement() {
 			),
 			Headers: opts.Headers,
 		})
+	})
+
+	s.Run("DurabilityLevels", func() {
+		for _, durabilityLevelHeader := range durabilityLevelHeaders {
+			s.Run(fmt.Sprintf("DurabilityLevel%s", durabilityLevelHeader), func() {
+				docId := s.binaryDocId([]byte("5"))
+
+				resp := s.sendTestHttpRequest(&testHttpRequest{
+					Method: http.MethodPost,
+					Path: fmt.Sprintf(
+						"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/decrement",
+						s.bucketName, s.scopeName, s.collectionName, docId,
+					),
+					Headers: map[string]string{
+						"Authorization":        s.basicRestCreds,
+						"X-CB-DurabilityLevel": durabilityLevelHeader,
+					},
+				})
+				requireRestSuccess(s.T(), resp)
+				assertRestValidEtag(s.T(), resp)
+				assertRestValidMutationToken(s.T(), resp, s.bucketName)
+
+				s.checkDocument(s.T(), checkDocumentOptions{
+					BucketName:     s.bucketName,
+					ScopeName:      s.scopeName,
+					CollectionName: s.collectionName,
+					DocId:          docId,
+					Content:        []byte("4"),
+					ContentFlags:   0,
+				})
+			})
+		}
 	})
 }
 
@@ -1619,6 +2233,211 @@ func (s *GatewayOpsTestSuite) TestDapiLookupIn() {
 		})
 	})
 
+	s.Run("ArrayElement", func() {
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/lookup",
+				s.bucketName, s.scopeName, s.collectionName, s.testDocId(),
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+			},
+			Body: []byte(`{"operations":[
+				{"operation":"Get","path":"obj.arr[1]"}
+			]}`),
+		})
+		requireRestSuccess(s.T(), resp)
+		assertRestValidEtag(s.T(), resp)
+		assert.Equal(s.T(), "application/json", resp.Headers.Get("Content-Type"))
+		assert.JSONEq(s.T(), `[
+			{"value":5}
+		]`, string(resp.Body))
+	})
+
+	// ING-1101
+	// s.Run("InvalidJsonPayload", func() {
+	// 	docId := s.testDocId()
+	// 	resp := s.sendTestHttpRequest(&testHttpRequest{
+	// 		Method: http.MethodPost,
+	// 		Path: fmt.Sprintf(
+	// 			"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/lookup",
+	// 			s.bucketName, s.scopeName, s.collectionName, docId,
+	// 		),
+	// 		Headers: map[string]string{
+	// 			"Authorization": s.basicRestCreds,
+	// 		},
+	// 		Body: []byte(`{"operations":[
+	// 			{"operation":"Get","path":"obj.arr[1]"},
+	// 		]}`),
+	// 	})
+	// 	requireRestError(s.T(), resp, http.StatusBadRequest, &testRestError{
+	// 		Code: "??",
+	// 		Resource: fmt.Sprintf(
+	// 			"/buckets/%s/scopes/%s/collections/%s/documents/%s",
+	// 			s.bucketName, s.scopeName, s.collectionName, docId,
+	// 		),
+	// 	})
+	// })
+
+	// // ING-1102
+	// s.Run("Empty Path", func() {
+	// 	resp := s.sendTestHttpRequest(&testHttpRequest{
+	// 		Method: http.MethodPost,
+	// 		Path: fmt.Sprintf(
+	// 			"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/lookup",
+	// 			s.bucketName, s.scopeName, s.collectionName, s.testDocId(),
+	// 		),
+	// 		Headers: map[string]string{
+	// 			"Authorization": s.basicRestCreds,
+	// 		},
+	// 		Body: []byte(`{"operations":[
+	// 			{"operation":"Get","path":""}
+	// 		]}`),
+	// 	})
+	// 	requireRestSuccess(s.T(), resp)
+	// 	assertRestValidEtag(s.T(), resp)
+	// 	assert.Equal(s.T(), "application/json", resp.Headers.Get("Content-Type"))
+	// 	assert.JSONEq(s.T(), string(TEST_CONTENT), string(resp.Body))
+	// })
+
+	// ING-1102
+	// s.Run("No Path", func() {
+	// 	resp := s.sendTestHttpRequest(&testHttpRequest{
+	// 		Method: http.MethodPost,
+	// 		Path: fmt.Sprintf(
+	// 			"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/lookup",
+	// 			s.bucketName, s.scopeName, s.collectionName, s.testDocId(),
+	// 		),
+	// 		Headers: map[string]string{
+	// 			"Authorization": s.basicRestCreds,
+	// 		},
+	// 		Body: []byte(`{"operations":[
+	// 			{"operation":"Get","path":""}
+	// 		]}`),
+	// 	})
+	// 	requireRestSuccess(s.T(), resp)
+	// 	assertRestValidEtag(s.T(), resp)
+	// 	assert.Equal(s.T(), "application/json", resp.Headers.Get("Content-Type"))
+	// 	assert.JSONEq(s.T(), string(TEST_CONTENT), string(resp.Body))
+	// })
+
+	// ING-1111
+	// s.Run("Too Many Operations", func() {
+	// 	docId := s.testDocId()
+	// 	resp := s.sendTestHttpRequest(&testHttpRequest{
+	// 		Method: http.MethodPost,
+	// 		Path: fmt.Sprintf(
+	// 			"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/lookup",
+	// 			s.bucketName, s.scopeName, s.collectionName, docId,
+	// 		),
+	// 		Headers: map[string]string{
+	// 			"Authorization": s.basicRestCreds,
+	// 		},
+	// 		Body: []byte(`{"operations":[
+	// 			{"operation":"Get","path":"obj"},
+	// 			{"operation":"Get","path":"obj"},
+	// 			{"operation":"Get","path":"obj"},
+	// 			{"operation":"Get","path":"obj"},
+	// 			{"operation":"Get","path":"obj"},
+	// 			{"operation":"Get","path":"obj"},
+	// 			{"operation":"Get","path":"obj"},
+	// 			{"operation":"Get","path":"obj"},
+	// 			{"operation":"Get","path":"obj"},
+	// 			{"operation":"Get","path":"obj"},
+	// 			{"operation":"Get","path":"obj"},
+	// 			{"operation":"Get","path":"obj"},
+	// 			{"operation":"Get","path":"obj"},
+	// 			{"operation":"Get","path":"obj"},
+	// 			{"operation":"Get","path":"obj"},
+	// 			{"operation":"Get","path":"obj"},
+	// 			{"operation":"Get","path":"obj"}
+	// 		]}`),
+	// 	})
+	// 	requireRestError(s.T(), resp, http.StatusBadRequest, &testRestError{
+	// 		Code: "InvalidArgument",
+	// 	})
+	// })
+
+	// ING-1106
+	// s.Run("No Operations", func() {
+	// 	docId := s.testDocId()
+	// 	resp := s.sendTestHttpRequest(&testHttpRequest{
+	// 		Method: http.MethodPost,
+	// 		Path: fmt.Sprintf(
+	// 			"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/lookup",
+	// 			s.bucketName, s.scopeName, s.collectionName, docId,
+	// 		),
+	// 		Headers: map[string]string{
+	// 			"Authorization": s.basicRestCreds,
+	// 		},
+	// 		Body: []byte(`{"operations":[]}`),
+	// 	})
+	// 	requireRestError(s.T(), resp, http.StatusBadRequest, &testRestError{
+	// 		Code: "InvalidArgument",
+	// 	})
+	// })
+
+	// ING-1106
+	// s.Run("Missing Operations", func() {
+	// 	docId := s.testDocId()
+	// 	resp := s.sendTestHttpRequest(&testHttpRequest{
+	// 		Method: http.MethodPost,
+	// 		Path: fmt.Sprintf(
+	// 			"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/lookup",
+	// 			s.bucketName, s.scopeName, s.collectionName, docId,
+	// 		),
+	// 		Headers: map[string]string{
+	// 			"Authorization": s.basicRestCreds,
+	// 		},
+	// 		Body: []byte(`{}`),
+	// 	})
+	// 	requireRestError(s.T(), resp, http.StatusBadRequest, &testRestError{
+	// 		Code: "InvalidArgument",
+	// 	})
+	// })
+
+	s.Run("Doc too deep", func() {
+		var depth int
+		body := make(map[string]interface{})
+
+		var addToBody func(map[string]interface{})
+		addToBody = func(b map[string]interface{}) {
+			depth++
+			if depth > 64 {
+				return
+			}
+
+			b["a"] = make(map[string]interface{})
+			current := b["a"].(map[string]interface{})
+			addToBody(current)
+		}
+		addToBody(body)
+
+		b, _ := json.Marshal(body)
+
+		docId := s.binaryDocId(b)
+
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/lookup",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+			},
+			Body: []byte(`{"operations":[
+				{"operation":"Get","path":"a"}
+			]}`),
+		})
+		requireRestError(s.T(), resp, http.StatusBadRequest, &testRestError{
+			Code: "DocumentTooDeep",
+			Resource: fmt.Sprintf("/buckets/%s/scopes/%s/collections/%s/documents/%s",
+				s.bucketName, s.scopeName, s.collectionName, docId),
+		})
+	})
+
 	s.RunCommonDapiErrorCases(func(opts *commonDapiTestData) *testHttpResponse {
 		return s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
@@ -1757,6 +2576,54 @@ func (s *GatewayOpsTestSuite) TestDapiMutateIn() {
 		requireRestError(s.T(), resp, http.StatusBadRequest, &testRestError{
 			Code: "PathMismatch",
 			Resource: fmt.Sprintf("/buckets/%s/scopes/%s/collections/%s/documents/%s/content/{x.y.z}",
+				s.bucketName, s.scopeName, s.collectionName, docId),
+		})
+	})
+
+	s.Run("ArrayPushLastOnNonArray", func() {
+		docId := s.binaryDocId([]byte(`{"x":14}`))
+
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/mutate",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+			},
+			Body: []byte(`{"operations":[
+				{"operation":"ArrayPushLast","path":"x", "value": 43}
+			]}`),
+		})
+
+		requireRestError(s.T(), resp, http.StatusBadRequest, &testRestError{
+			Code: "PathMismatch",
+			Resource: fmt.Sprintf("/buckets/%s/scopes/%s/collections/%s/documents/%s/content/{x}",
+				s.bucketName, s.scopeName, s.collectionName, docId),
+		})
+	})
+
+	s.Run("CounterOnNonNumber", func() {
+		docId := s.binaryDocId([]byte(`{"x":"y"}`))
+
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/mutate",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+			},
+			Body: []byte(`{"operations":[
+				{"operation":"Counter","path":"x", "value": 1}
+			]}`),
+		})
+
+		requireRestError(s.T(), resp, http.StatusBadRequest, &testRestError{
+			Code: "PathMismatch",
+			Resource: fmt.Sprintf("/buckets/%s/scopes/%s/collections/%s/documents/%s/content/{x}",
 				s.bucketName, s.scopeName, s.collectionName, docId),
 		})
 	})
@@ -1900,6 +2767,163 @@ func (s *GatewayOpsTestSuite) TestDapiMutateIn() {
 		})
 	})
 
+	// ING-1101
+	// s.Run("InvalidJsonPayload", func() {
+	// 	docId := s.testDocId()
+	// 	resp := s.sendTestHttpRequest(&testHttpRequest{
+	// 		Method: http.MethodPost,
+	// 		Path: fmt.Sprintf(
+	// 			"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/mutate",
+	// 			s.bucketName, s.scopeName, s.collectionName, docId,
+	// 		),
+	// 		Headers: map[string]string{
+	// 			"Authorization": s.basicRestCreds,
+	// 		},
+	// 		Body: []byte(`{"operations":[
+	// 				{"operation":"DictSet","path":"x", "value": 43},
+	// 		]}`),
+	// 	})
+	// 	requireRestError(s.T(), resp, http.StatusBadRequest, &testRestError{
+	// 		Code: "??",
+	// 		Resource: fmt.Sprintf(
+	// 			"/buckets/%s/scopes/%s/collections/%s/documents/%s",
+	// 			s.bucketName, s.scopeName, s.collectionName, docId,
+	// 		),
+	// 	})
+	// })
+
+	// ING-1102
+	// s.Run("Empty Path", func() {
+	// 	resp := s.sendTestHttpRequest(&testHttpRequest{
+	// 		Method: http.MethodPost,
+	// 		Path: fmt.Sprintf(
+	// 			"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/mutate",
+	// 			s.bucketName, s.scopeName, s.collectionName, s.testDocId(),
+	// 		),
+	// 		Headers: map[string]string{
+	// 			"Authorization": s.basicRestCreds,
+	// 		},
+	// 		Body: []byte(`{"operations":[
+	// 				{"operation":"DictSet","path":"","value": 43}
+	// 		]}`),
+	// 	})
+	// requireRestError(s.T(), resp, http.StatusBadRequest, &testRestError{
+	// 	Code: "InvalidArgument",
+	// })
+	// })
+
+	// ING-1102
+	// s.Run("No Path", func() {
+	// 	resp := s.sendTestHttpRequest(&testHttpRequest{
+	// 		Method: http.MethodPost,
+	// 		Path: fmt.Sprintf(
+	// 			"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/mutate",
+	// 			s.bucketName, s.scopeName, s.collectionName, s.testDocId(),
+	// 		),
+	// 		Headers: map[string]string{
+	// 			"Authorization": s.basicRestCreds,
+	// 		},
+	// 		Body: []byte(`{"operations":[
+	// 				{"operation":"DictSet","value": 43}
+	// 		]}`),
+	// 	})
+	// requireRestError(s.T(), resp, http.StatusBadRequest, &testRestError{
+	// 	Code: "InvalidArgument",
+	// })
+	// })
+
+	// ING-1105
+	// s.Run("No Value", func() {
+	// 	resp := s.sendTestHttpRequest(&testHttpRequest{
+	// 		Method: http.MethodPost,
+	// 		Path: fmt.Sprintf(
+	// 			"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/mutate",
+	// 			s.bucketName, s.scopeName, s.collectionName, s.testDocId(),
+	// 		),
+	// 		Headers: map[string]string{
+	// 			"Authorization": s.basicRestCreds,
+	// 		},
+	// 		Body: []byte(`{"operations":[
+	// 				{"operation":"DictSet","path":"x"}
+	// 		]}`),
+	// 	})
+	// requireRestError(s.T(), resp, http.StatusBadRequest, &testRestError{
+	// 	Code: "InvalidArgument",
+	// })
+	// })
+
+	s.Run("Too Many Operations", func() {
+		docId := s.testDocId()
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/mutate",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+			},
+			Body: []byte(`{"operations":[
+				{"operation":"DictSet","path":"x", "value": 43},
+				{"operation":"DictSet","path":"x", "value": 43},
+				{"operation":"DictSet","path":"x", "value": 43},
+				{"operation":"DictSet","path":"x", "value": 43},
+				{"operation":"DictSet","path":"x", "value": 43},
+				{"operation":"DictSet","path":"x", "value": 43},
+				{"operation":"DictSet","path":"x", "value": 43},
+				{"operation":"DictSet","path":"x", "value": 43},
+				{"operation":"DictSet","path":"x", "value": 43},
+				{"operation":"DictSet","path":"x", "value": 43},
+				{"operation":"DictSet","path":"x", "value": 43},
+				{"operation":"DictSet","path":"x", "value": 43},
+				{"operation":"DictSet","path":"x", "value": 43},
+				{"operation":"DictSet","path":"x", "value": 43},
+				{"operation":"DictSet","path":"x", "value": 43},
+				{"operation":"DictSet","path":"x", "value": 43},
+				{"operation":"DictSet","path":"x", "value": 43}
+			]}`),
+		})
+		requireRestError(s.T(), resp, http.StatusBadRequest, &testRestError{
+			Code: "InvalidArgument",
+		})
+	})
+
+	s.Run("No Operations", func() {
+		docId := s.testDocId()
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/mutate",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+			},
+			Body: []byte(`{"operations":[]}`),
+		})
+		requireRestError(s.T(), resp, http.StatusBadRequest, &testRestError{
+			Code: "InvalidArgument",
+		})
+	})
+
+	s.Run("Missing Operations", func() {
+		docId := s.testDocId()
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/mutate",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+			},
+			Body: []byte(`{}`),
+		})
+		requireRestError(s.T(), resp, http.StatusBadRequest, &testRestError{
+			Code: "InvalidArgument",
+		})
+	})
+
 	s.RunCommonDapiErrorCases(func(opts *commonDapiTestData) *testHttpResponse {
 		return s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
@@ -1912,6 +2936,47 @@ func (s *GatewayOpsTestSuite) TestDapiMutateIn() {
 					{"operation":"DictSet","path":"x", "value": 43}
 				]}`),
 		})
+	})
+
+	s.Run("DurabilityLevels", func() {
+		for _, durabilityLevelHeader := range durabilityLevelHeaders {
+			s.Run(fmt.Sprintf("DurabilityLevel%s", durabilityLevelHeader), func() {
+				docId := s.binaryDocId([]byte(`{
+					"num":14,
+					"rep":16,
+					"arr":[3,6,9,12],
+					"ctr":3,
+					"rem":true
+				}`))
+
+				resp := s.sendTestHttpRequest(&testHttpRequest{
+					Method: http.MethodPost,
+					Path: fmt.Sprintf(
+						"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/mutate",
+						s.bucketName, s.scopeName, s.collectionName, docId,
+					),
+					Headers: map[string]string{
+						"Authorization":        s.basicRestCreds,
+						"X-CB-DurabilityLevel": durabilityLevelHeader,
+					},
+					Body: []byte(`{"operations":[
+						{"operation":"DictSet","path":"num","value": 42}
+					]}`),
+				})
+				requireRestSuccess(s.T(), resp)
+				assertRestValidEtag(s.T(), resp)
+				// ING-1104
+				// assertRestValidMutationToken(s.T(), resp, s.bucketName)
+
+				checkDocument(docId, []byte(`{
+					"num":42,
+					"rep":16,
+					"arr":[3,6,9,12],
+					"ctr":3,
+					"rem":true
+				}`))
+			})
+		}
 	})
 }
 

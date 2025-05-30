@@ -59,20 +59,21 @@ func assertRestValidEtag(t *testing.T, resp *testHttpResponse) {
 
 func assertRestValidMutationToken(t *testing.T, resp *testHttpResponse, bucketName string) {
 	token := resp.Headers.Get("X-CB-MutationToken")
-	assert.NotEmpty(t, token)
+	if assert.NotEmpty(t, token) {
 
-	// fmt.Sprintf("%s:%d:%08x:%d", bucketName, token.VbID, token.VbUuid, token.SeqNo)
-	parts := strings.Split(token, ":")
-	assert.Len(t, parts, 4)
+		// fmt.Sprintf("%s:%d:%08x:%d", bucketName, token.VbID, token.VbUuid, token.SeqNo)
+		parts := strings.Split(token, ":")
+		assert.Len(t, parts, 4)
 
-	if len(parts) >= 4 {
-		assert.NotEmpty(t, parts[0])
-		assert.Equal(t, bucketName, parts[0])
+		if len(parts) >= 4 {
+			assert.NotEmpty(t, parts[0])
+			assert.Equal(t, bucketName, parts[0])
 
-		assert.NotEmpty(t, parts[1])
+			assert.NotEmpty(t, parts[1])
 
-		assert.NotEmpty(t, parts[2])
+			assert.NotEmpty(t, parts[2])
 
-		assert.NotEmpty(t, parts[3])
+			assert.NotEmpty(t, parts[3])
+		}
 	}
 }
