@@ -2488,30 +2488,23 @@ func (s *GatewayOpsTestSuite) TestDapiLookupIn() {
 		]`, string(resp.Body))
 	})
 
-	// ING-1101
-	// s.Run("InvalidJsonPayload", func() {
-	// 	docId := s.testDocId()
-	// 	resp := s.sendTestHttpRequest(&testHttpRequest{
-	// 		Method: http.MethodPost,
-	// 		Path: fmt.Sprintf(
-	// 			"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/lookup",
-	// 			s.bucketName, s.scopeName, s.collectionName, docId,
-	// 		),
-	// 		Headers: map[string]string{
-	// 			"Authorization": s.basicRestCreds,
-	// 		},
-	// 		Body: []byte(`{"operations":[
-	// 			{"operation":"Get","path":"obj.arr[1]"},
-	// 		]}`),
-	// 	})
-	// 	requireRestError(s.T(), resp, http.StatusBadRequest, &testRestError{
-	// 		Code: "??",
-	// 		Resource: fmt.Sprintf(
-	// 			"/buckets/%s/scopes/%s/collections/%s/documents/%s",
-	// 			s.bucketName, s.scopeName, s.collectionName, docId,
-	// 		),
-	// 	})
-	// })
+	s.Run("InvalidJsonPayload", func() {
+		docId := s.testDocId()
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/lookup",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+			},
+			Body: []byte(`{"operations":[
+				{"operation":"Get","path":"obj.arr[1]"},
+			]}`),
+		})
+		requireRestError(s.T(), resp, http.StatusBadRequest, nil)
+	})
 
 	// // ING-1102
 	// s.Run("Empty Path", func() {
@@ -3000,30 +2993,23 @@ func (s *GatewayOpsTestSuite) TestDapiMutateIn() {
 		})
 	})
 
-	// ING-1101
-	// s.Run("InvalidJsonPayload", func() {
-	// 	docId := s.testDocId()
-	// 	resp := s.sendTestHttpRequest(&testHttpRequest{
-	// 		Method: http.MethodPost,
-	// 		Path: fmt.Sprintf(
-	// 			"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/mutate",
-	// 			s.bucketName, s.scopeName, s.collectionName, docId,
-	// 		),
-	// 		Headers: map[string]string{
-	// 			"Authorization": s.basicRestCreds,
-	// 		},
-	// 		Body: []byte(`{"operations":[
-	// 				{"operation":"DictSet","path":"x", "value": 43},
-	// 		]}`),
-	// 	})
-	// 	requireRestError(s.T(), resp, http.StatusBadRequest, &testRestError{
-	// 		Code: "??",
-	// 		Resource: fmt.Sprintf(
-	// 			"/buckets/%s/scopes/%s/collections/%s/documents/%s",
-	// 			s.bucketName, s.scopeName, s.collectionName, docId,
-	// 		),
-	// 	})
-	// })
+	s.Run("InvalidJsonPayload", func() {
+		docId := s.testDocId()
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/mutate",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+			},
+			Body: []byte(`{"operations":[
+					{"operation":"DictSet","path":"x", "value": 43},
+			]}`),
+		})
+		requireRestError(s.T(), resp, http.StatusBadRequest, nil)
+	})
 
 	// ING-1102
 	// s.Run("Empty Path", func() {
