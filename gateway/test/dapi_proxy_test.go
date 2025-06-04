@@ -108,6 +108,9 @@ func (s *GatewayOpsTestSuite) TestDapiQueryProxy() {
 }
 
 func (s *GatewayOpsTestSuite) TestDapiAnalyticsProxy() {
+	if !s.SupportsFeature(TestFeatureAnalytics) {
+		s.T().Skip()
+	}
 	s.Run("Basic", func() {
 		resp := s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
