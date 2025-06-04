@@ -40,7 +40,7 @@ func requireRestError(t *testing.T, resp *testHttpResponse, expectedCode int, ex
 
 	var restErr restErrorJson
 	err := json.Unmarshal(resp.Body, &restErr)
-	require.NoError(t, err)
+	require.NoError(t, err, "Failed to unmarshal error response body: %s", string(resp.Body))
 
 	if expectedError != nil {
 		if expectedError.Code != "" {
