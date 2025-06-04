@@ -11,6 +11,7 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/couchbase/goprotostellar/genproto/kv_v1"
+	"github.com/golang/snappy"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -144,6 +145,43 @@ func (s *GatewayOpsTestSuite) IterDapiDurabilityLevelTests(
 	s.Run("BlankDurabilityLevel", func() {
 		fn("", func(resp *testHttpResponse) {
 			requireRestError(s.T(), resp, http.StatusBadRequest, nil)
+		})
+	})
+}
+
+func (s *GatewayOpsTestSuite) IterDapiDocumentEncodingTests(
+	testContent []byte,
+	fn func(contentEncoding string,
+		encodedContent []byte,
+		assertFailure func(*testHttpResponse)),
+) {
+	snappyContent := snappy.Encode(nil, testContent)
+
+	s.Run("DocumentEncodingIdentity", func() {
+		fn("identity", testContent, nil)
+	})
+
+	s.Run("DocumentEncodingSnappy", func() {
+		fn("snappy", snappyContent, nil)
+	})
+
+	s.Run("InvalidDocumentEncoding", func() {
+		fn("invalid", testContent, func(resp *testHttpResponse) {
+			requireRestError(s.T(), resp, http.StatusBadRequest, nil)
+		})
+	})
+
+	s.Run("BlankDocumentEncoding", func() {
+		fn("", testContent, func(resp *testHttpResponse) {
+			requireRestError(s.T(), resp, http.StatusBadRequest, nil)
+		})
+	})
+
+	s.Run("DocumentEncodingSnappy_NotSnappyData", func() {
+		// This is a test for the case where the content is not actually snappy encoded,
+		// but the request says it is.
+		fn("snappy", testContent, func(resp *testHttpResponse) {
+			requireRestError(s.T(), resp, http.StatusInternalServerError, nil)
 		})
 	})
 }
@@ -598,6 +636,44 @@ func (s *GatewayOpsTestSuite) TestDapiPost() {
 		})
 	})
 
+	s.IterDapiDocumentEncodingTests(TEST_CONTENT, func(
+		contentEncoding string,
+		encodedContent []byte,
+		assertFailure func(*testHttpResponse),
+	) {
+		docId := s.randomDocId()
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization":    s.basicRestCreds,
+				"X-CB-Flags":       fmt.Sprintf("%d", TEST_CONTENT_FLAGS),
+				"Content-Encoding": contentEncoding,
+			},
+			Body: encodedContent,
+		})
+		if assertFailure != nil {
+			assertFailure(resp)
+			return
+		}
+
+		requireRestSuccess(s.T(), resp)
+		assertRestValidEtag(s.T(), resp)
+		assertRestValidMutationToken(s.T(), resp, s.bucketName)
+
+		s.checkDocument(s.T(), checkDocumentOptions{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			DocId:          docId,
+			Content:        TEST_CONTENT,
+			ContentFlags:   TEST_CONTENT_FLAGS,
+		})
+	})
+
 	s.RunCommonDapiErrorCases(func(opts *commonDapiTestData) *testHttpResponse {
 		return s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
@@ -866,6 +942,45 @@ func (s *GatewayOpsTestSuite) TestDapiPut() {
 					"X-CB-DurabilityLevel": durabilityLevel,
 				},
 				Body: TEST_CONTENT,
+			})
+			if assertFailure != nil {
+				assertFailure(resp)
+				return
+			}
+
+			requireRestSuccess(s.T(), resp)
+			assertRestValidEtag(s.T(), resp)
+			assertRestValidMutationToken(s.T(), resp, s.bucketName)
+
+			s.checkDocument(s.T(), checkDocumentOptions{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				DocId:          docId,
+				Content:        TEST_CONTENT,
+				ContentFlags:   TEST_CONTENT_FLAGS,
+			})
+		})
+
+		s.IterDapiDocumentEncodingTests(TEST_CONTENT, func(
+			contentEncoding string,
+			encodedContent []byte,
+			assertFailure func(*testHttpResponse),
+		) {
+			docId := s.randomDocId()
+
+			resp := s.sendTestHttpRequest(&testHttpRequest{
+				Method: http.MethodPut,
+				Path: fmt.Sprintf(
+					"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
+					s.bucketName, s.scopeName, s.collectionName, docId,
+				),
+				Headers: map[string]string{
+					"Authorization":    s.basicRestCreds,
+					"X-CB-Flags":       fmt.Sprintf("%d", TEST_CONTENT_FLAGS),
+					"Content-Encoding": contentEncoding,
+				},
+				Body: encodedContent,
 			})
 			if assertFailure != nil {
 				assertFailure(resp)
@@ -1254,6 +1369,46 @@ func (s *GatewayOpsTestSuite) TestDapiPut() {
 					"X-CB-DurabilityLevel": durabilityLevel,
 				},
 				Body: newContent,
+			})
+			if assertFailure != nil {
+				assertFailure(resp)
+				return
+			}
+
+			requireRestSuccess(s.T(), resp)
+			assertRestValidEtag(s.T(), resp)
+			assertRestValidMutationToken(s.T(), resp, s.bucketName)
+
+			s.checkDocument(s.T(), checkDocumentOptions{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				DocId:          docId,
+				Content:        newContent,
+				ContentFlags:   TEST_CONTENT_FLAGS,
+			})
+		})
+
+		s.IterDapiDocumentEncodingTests(newContent, func(
+			contentEncoding string,
+			encodedContent []byte,
+			assertFailure func(*testHttpResponse),
+		) {
+			docId := s.testDocId()
+
+			resp := s.sendTestHttpRequest(&testHttpRequest{
+				Method: http.MethodPut,
+				Path: fmt.Sprintf(
+					"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
+					s.bucketName, s.scopeName, s.collectionName, docId,
+				),
+				Headers: map[string]string{
+					"Authorization":    s.basicRestCreds,
+					"If-Match":         "*",
+					"X-CB-Flags":       fmt.Sprintf("%d", TEST_CONTENT_FLAGS),
+					"Content-Encoding": contentEncoding,
+				},
+				Body: encodedContent,
 			})
 			if assertFailure != nil {
 				assertFailure(resp)
