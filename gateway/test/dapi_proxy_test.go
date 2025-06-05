@@ -45,6 +45,42 @@ func (s *GatewayOpsTestSuite) TestDapiQueryProxy() {
 		assert.Equal(s.T(), queryResponse.Results[0], map[string]interface{}{"$1": true})
 	})
 
+	s.Run("Insert", func() {
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path:   "/_p/query/query/service",
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+				"Content-Type":  "application/json",
+			},
+			Body: []byte(`{"statement": "UPSERT INTO default (KEY, VALUE) VALUES ('query-insert', { 'hello': 'world' })"}`),
+		})
+
+		requireRestSuccess(s.T(), resp)
+
+		queryResponse := QueryResponse{}
+
+		err := json.Unmarshal(resp.Body, &queryResponse)
+		require.NoError(s.T(), err)
+	})
+
+	s.Run("Chunked", func() {
+		// Send a query with lots of data to ensure chunking is used
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path:   "/_p/query/query/service",
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+				"Content-Type":  "application/json",
+			},
+			Body: []byte(`{"statement": "SELECT i FROM ARRAY_RANGE(0,10000) AS i"}`),
+		})
+
+		requireRestSuccess(s.T(), resp)
+		require.Equal(s.T(), []string{"chunked"}, resp.TransferEncoding)
+		require.Empty(s.T(), resp.Headers.Get("Content-Length"))
+	})
+
 	s.Run("Unauthenticated", func() {
 		resp := s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
