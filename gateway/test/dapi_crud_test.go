@@ -149,6 +149,50 @@ func (s *GatewayOpsTestSuite) IterDapiDurabilityLevelTests(
 	})
 }
 
+func (s *GatewayOpsTestSuite) IterDapiAcceptEncodingTests(
+	fn func(acceptEncoding string,
+		assertContentEncoding func(string),
+		assertFailure func(*testHttpResponse)),
+) {
+	requireIdentityEncoding := func(contentEncoding string) {
+		require.Equal(s.T(), "", contentEncoding)
+	}
+	requireSnappyEncoding := func(contentEncoding string) {
+		require.Equal(s.T(), "snappy", contentEncoding)
+	}
+	requireSnappyOrIdentityEncoding := func(contentEncoding string) {
+		if contentEncoding != "snappy" && contentEncoding != "" {
+			require.Fail(s.T(), "Expected content encoding to be either 'snappy' or empty, got: %s", contentEncoding)
+		}
+	}
+
+	s.Run("AcceptEncodingIdentity", func() {
+		fn("identity", requireIdentityEncoding, nil)
+	})
+
+	s.Run("AcceptEncodingSnappy", func() {
+		fn("snappy", requireSnappyOrIdentityEncoding, nil)
+	})
+
+	s.Run("AcceptEncodingUnknown", func() {
+		fn("gzip;q=1.0,*;q=0.5", requireIdentityEncoding, nil)
+	})
+
+	s.Run("AcceptEncodingSnappyNoIdentity", func() {
+		fn("snappy, identity;q=0", requireSnappyEncoding, nil)
+	})
+
+	s.Run("AcceptEncodingSnappyOnly", func() {
+		fn("snappy, *;q=0", requireSnappyEncoding, nil)
+	})
+
+	s.Run("InvalidDocumentEncoding", func() {
+		fn("inv-ali;;;2", requireIdentityEncoding, func(resp *testHttpResponse) {
+			requireRestError(s.T(), resp, http.StatusBadRequest, nil)
+		})
+	})
+}
+
 func (s *GatewayOpsTestSuite) IterDapiDocumentEncodingTests(
 	testContent []byte,
 	fn func(contentEncoding string,
@@ -381,6 +425,36 @@ func (s *GatewayOpsTestSuite) TestDapiGet() {
 			Resource: fmt.Sprintf("/buckets/%s/scopes/%s/collections/%s/documents/%s",
 				s.bucketName, s.scopeName, s.collectionName, docId),
 		})
+	})
+
+	s.IterDapiAcceptEncodingTests(func(
+		acceptEncoding string,
+		assertContentEncoding func(string),
+		assertFailure func(*testHttpResponse),
+	) {
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodGet,
+			Path: fmt.Sprintf(
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
+				s.bucketName, s.scopeName, s.collectionName, s.testDocId(),
+			),
+			Headers: map[string]string{
+				"Authorization":   s.basicRestCreds,
+				"Accept-Encoding": acceptEncoding,
+			},
+		})
+		if assertFailure != nil {
+			assertFailure(resp)
+			return
+		}
+
+		requireRestSuccess(s.T(), resp)
+		assertRestValidEtag(s.T(), resp)
+		assert.Equal(s.T(), fmt.Sprintf("%d", TEST_CONTENT_FLAGS), resp.Headers.Get("X-CB-Flags"))
+		assertContentEncoding(resp.Headers.Get("Content-Encoding"))
+		assert.Equal(s.T(), "application/json", resp.Headers.Get("Content-Type"))
+		// we assume the content is correct, we've already checked this in other tests
+		assert.Equal(s.T(), "", resp.Headers.Get("Expires"))
 	})
 
 	s.RunCommonDapiErrorCases(func(opts *commonDapiTestData) *testHttpResponse {
