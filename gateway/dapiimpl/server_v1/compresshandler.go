@@ -47,6 +47,8 @@ func (h CompressHandler) MaybeCompressContent(
 	datatype memdx.DatatypeFlag,
 	acceptedEncoding *string,
 ) (dataapiv1.DocumentEncoding, []byte, *Status) {
+	isIdentityExplicit := false
+	isSnappyExplicit := false
 	identityQ := 0.001
 	snappyQ := 0.0
 
@@ -93,8 +95,17 @@ func (h CompressHandler) MaybeCompressContent(
 
 			if encodingName == "identity" {
 				identityQ = encodingQ
+				isIdentityExplicit = true
 			} else if encodingName == "snappy" {
 				snappyQ = encodingQ
+				isSnappyExplicit = true
+			} else if encodingName == "*" {
+				if !isIdentityExplicit {
+					identityQ = encodingQ
+				}
+				if !isSnappyExplicit {
+					snappyQ = encodingQ
+				}
 			} else {
 				// we intentionally ignore unknown encodings
 				continue
