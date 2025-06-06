@@ -602,6 +602,42 @@ func (s *GatewayOpsTestSuite) TestDapiPost() {
 		})
 	})
 
+	s.Run("InvalidFlags", func() {
+		docId := s.randomDocId()
+
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+				"X-CB-Flags":    "invalid-flags",
+			},
+			Body: TEST_CONTENT,
+		})
+		requireRestError(s.T(), resp, http.StatusBadRequest, nil)
+	})
+
+	s.Run("BlankFlags", func() {
+		docId := s.randomDocId()
+
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+				"X-CB-Flags":    "",
+			},
+			Body: TEST_CONTENT,
+		})
+		requireRestError(s.T(), resp, http.StatusBadRequest, nil)
+	})
+
 	s.IterDapiDurabilityLevelTests(func(durabilityLevel string, assertFailure func(*testHttpResponse)) {
 		docId := s.randomDocId()
 		resp := s.sendTestHttpRequest(&testHttpRequest{
@@ -925,6 +961,42 @@ func (s *GatewayOpsTestSuite) TestDapiPut() {
 					MinSecs: int((23 * time.Hour).Seconds()),
 				},
 			})
+		})
+
+		s.Run("InvalidFlags", func() {
+			docId := s.randomDocId()
+
+			resp := s.sendTestHttpRequest(&testHttpRequest{
+				Method: http.MethodPut,
+				Path: fmt.Sprintf(
+					"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
+					s.bucketName, s.scopeName, s.collectionName, docId,
+				),
+				Headers: map[string]string{
+					"Authorization": s.basicRestCreds,
+					"X-CB-Flags":    "invalid-flags",
+				},
+				Body: TEST_CONTENT,
+			})
+			requireRestError(s.T(), resp, http.StatusBadRequest, nil)
+		})
+
+		s.Run("EmptyFlags", func() {
+			docId := s.randomDocId()
+
+			resp := s.sendTestHttpRequest(&testHttpRequest{
+				Method: http.MethodPut,
+				Path: fmt.Sprintf(
+					"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
+					s.bucketName, s.scopeName, s.collectionName, docId,
+				),
+				Headers: map[string]string{
+					"Authorization": s.basicRestCreds,
+					"X-CB-Flags":    "",
+				},
+				Body: TEST_CONTENT,
+			})
+			requireRestError(s.T(), resp, http.StatusBadRequest, nil)
 		})
 
 		s.IterDapiDurabilityLevelTests(func(durabilityLevel string, assertFailure func(*testHttpResponse)) {
@@ -1351,6 +1423,44 @@ func (s *GatewayOpsTestSuite) TestDapiPut() {
 					MinSecs: int((23 * time.Hour).Seconds()),
 				},
 			})
+		})
+
+		s.Run("InvalidFlags", func() {
+			docId := s.testDocId()
+
+			resp := s.sendTestHttpRequest(&testHttpRequest{
+				Method: http.MethodPut,
+				Path: fmt.Sprintf(
+					"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
+					s.bucketName, s.scopeName, s.collectionName, docId,
+				),
+				Headers: map[string]string{
+					"Authorization": s.basicRestCreds,
+					"If-Match":      "*",
+					"X-CB-Flags":    "invalid-flags",
+				},
+				Body: newContent,
+			})
+			requireRestError(s.T(), resp, http.StatusBadRequest, nil)
+		})
+
+		s.Run("EmptyFlags", func() {
+			docId := s.testDocId()
+
+			resp := s.sendTestHttpRequest(&testHttpRequest{
+				Method: http.MethodPut,
+				Path: fmt.Sprintf(
+					"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
+					s.bucketName, s.scopeName, s.collectionName, docId,
+				),
+				Headers: map[string]string{
+					"Authorization": s.basicRestCreds,
+					"If-Match":      "*",
+					"X-CB-Flags":    "",
+				},
+				Body: newContent,
+			})
+			requireRestError(s.T(), resp, http.StatusBadRequest, nil)
 		})
 
 		s.IterDapiDurabilityLevelTests(func(durabilityLevel string, assertFailure func(*testHttpResponse)) {
