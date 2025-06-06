@@ -17,9 +17,10 @@ type testHttpRequest struct {
 }
 
 type testHttpResponse struct {
-	StatusCode int
-	Headers    http.Header
-	Body       []byte
+	StatusCode       int
+	Headers          http.Header
+	TransferEncoding []string
+	Body             []byte
 }
 
 func (s *GatewayOpsTestSuite) sendTestHttpRequest(req *testHttpRequest) *testHttpResponse {
@@ -46,8 +47,9 @@ func (s *GatewayOpsTestSuite) sendTestHttpRequest(req *testHttpRequest) *testHtt
 	hresp.Body.Close()
 
 	return &testHttpResponse{
-		StatusCode: hresp.StatusCode,
-		Headers:    hresp.Header,
-		Body:       fullBody,
+		StatusCode:       hresp.StatusCode,
+		Headers:          hresp.Header,
+		TransferEncoding: hresp.TransferEncoding,
+		Body:             fullBody,
 	}
 }

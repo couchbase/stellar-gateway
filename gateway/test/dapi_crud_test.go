@@ -11,6 +11,7 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/couchbase/goprotostellar/genproto/kv_v1"
+	"github.com/golang/snappy"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -23,8 +24,6 @@ type commonDapiTestData struct {
 	Headers        map[string]string
 	Body           *[]byte
 }
-
-var durabilityLevelHeaders = []string{"None", "Majority", "MajorityAndPersistOnMaster", "PersistToMajority"}
 
 func (s *GatewayOpsTestSuite) RunCommonDapiErrorCases(
 	fn func(opts *commonDapiTestData) *testHttpResponse,
@@ -126,41 +125,109 @@ func (s *GatewayOpsTestSuite) RunCommonDapiErrorCases(
 	})
 }
 
-func (s *GatewayOpsTestSuite) RunDapiDurabilityLevelTests(
-	fn func(opts *commonDapiTestData) *testHttpResponse,
+func (s *GatewayOpsTestSuite) IterDapiDurabilityLevelTests(
+	fn func(durabilityLevel string,
+		assertFailure func(*testHttpResponse)),
 ) {
-	for _, durabilityLevelHeader := range durabilityLevelHeaders {
-		s.Run(fmt.Sprintf("DurabilityLevel%s", durabilityLevelHeader), func() {
-			docId := s.randomDocId()
-			var body = TEST_CONTENT
-
-			resp := fn(&commonDapiTestData{
-				BucketName:     s.bucketName,
-				ScopeName:      s.scopeName,
-				CollectionName: s.collectionName,
-				DocumentKey:    docId,
-				Headers: map[string]string{
-					"Authorization":        s.basicRestCreds,
-					"X-CB-Flags":           fmt.Sprintf("%d", TEST_CONTENT_FLAGS),
-					"X-CB-DurabilityLevel": durabilityLevelHeader,
-				},
-				Body: &body,
-			})
-
-			requireRestSuccess(s.T(), resp)
-			assertRestValidEtag(s.T(), resp)
-			assertRestValidMutationToken(s.T(), resp, s.bucketName)
-
-			s.checkDocument(s.T(), checkDocumentOptions{
-				BucketName:     s.bucketName,
-				ScopeName:      s.scopeName,
-				CollectionName: s.collectionName,
-				DocId:          docId,
-				Content:        body,
-				ContentFlags:   TEST_CONTENT_FLAGS,
-			})
+	DurabilityLevels := []string{"None", "Majority", "MajorityAndPersistOnMaster", "PersistToMajority"}
+	for _, durabilityLevel := range DurabilityLevels {
+		s.Run(fmt.Sprintf("DurabilityLevel%s", durabilityLevel), func() {
+			fn(durabilityLevel, nil)
 		})
 	}
+
+	s.Run("InvalidDurabilityLevel", func() {
+		fn("invalid-level", func(resp *testHttpResponse) {
+			requireRestError(s.T(), resp, http.StatusBadRequest, nil)
+		})
+	})
+
+	s.Run("BlankDurabilityLevel", func() {
+		fn("", func(resp *testHttpResponse) {
+			requireRestError(s.T(), resp, http.StatusBadRequest, nil)
+		})
+	})
+}
+
+func (s *GatewayOpsTestSuite) IterDapiAcceptEncodingTests(
+	fn func(acceptEncoding string,
+		assertContentEncoding func(string),
+		assertFailure func(*testHttpResponse)),
+) {
+	requireIdentityEncoding := func(contentEncoding string) {
+		require.Equal(s.T(), "", contentEncoding)
+	}
+	requireSnappyEncoding := func(contentEncoding string) {
+		require.Equal(s.T(), "snappy", contentEncoding)
+	}
+	requireSnappyOrIdentityEncoding := func(contentEncoding string) {
+		if contentEncoding != "snappy" && contentEncoding != "" {
+			require.Fail(s.T(), "Expected content encoding to be either 'snappy' or empty, got: %s", contentEncoding)
+		}
+	}
+
+	s.Run("AcceptEncodingIdentity", func() {
+		fn("identity", requireIdentityEncoding, nil)
+	})
+
+	s.Run("AcceptEncodingSnappy", func() {
+		fn("snappy", requireSnappyOrIdentityEncoding, nil)
+	})
+
+	s.Run("AcceptEncodingUnknown", func() {
+		fn("gzip;q=1.0,*;q=0.5", requireIdentityEncoding, nil)
+	})
+
+	s.Run("AcceptEncodingSnappyNoIdentity", func() {
+		fn("snappy, identity;q=0", requireSnappyEncoding, nil)
+	})
+
+	s.Run("AcceptEncodingSnappyOnly", func() {
+		fn("snappy, *;q=0", requireSnappyEncoding, nil)
+	})
+
+	s.Run("InvalidDocumentEncoding", func() {
+		fn("inv-ali;;;2", requireIdentityEncoding, func(resp *testHttpResponse) {
+			requireRestError(s.T(), resp, http.StatusBadRequest, nil)
+		})
+	})
+}
+
+func (s *GatewayOpsTestSuite) IterDapiDocumentEncodingTests(
+	testContent []byte,
+	fn func(contentEncoding string,
+		encodedContent []byte,
+		assertFailure func(*testHttpResponse)),
+) {
+	snappyContent := snappy.Encode(nil, testContent)
+
+	s.Run("DocumentEncodingIdentity", func() {
+		fn("identity", testContent, nil)
+	})
+
+	s.Run("DocumentEncodingSnappy", func() {
+		fn("snappy", snappyContent, nil)
+	})
+
+	s.Run("InvalidDocumentEncoding", func() {
+		fn("invalid", testContent, func(resp *testHttpResponse) {
+			requireRestError(s.T(), resp, http.StatusBadRequest, nil)
+		})
+	})
+
+	s.Run("BlankDocumentEncoding", func() {
+		fn("", testContent, func(resp *testHttpResponse) {
+			requireRestError(s.T(), resp, http.StatusBadRequest, nil)
+		})
+	})
+
+	s.Run("DocumentEncodingSnappy_NotSnappyData", func() {
+		// This is a test for the case where the content is not actually snappy encoded,
+		// but the request says it is.
+		fn("snappy", testContent, func(resp *testHttpResponse) {
+			requireRestError(s.T(), resp, http.StatusInternalServerError, nil)
+		})
+	})
 }
 
 func (s *GatewayOpsTestSuite) TestDapiGet() {
@@ -358,6 +425,36 @@ func (s *GatewayOpsTestSuite) TestDapiGet() {
 			Resource: fmt.Sprintf("/buckets/%s/scopes/%s/collections/%s/documents/%s",
 				s.bucketName, s.scopeName, s.collectionName, docId),
 		})
+	})
+
+	s.IterDapiAcceptEncodingTests(func(
+		acceptEncoding string,
+		assertContentEncoding func(string),
+		assertFailure func(*testHttpResponse),
+	) {
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodGet,
+			Path: fmt.Sprintf(
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
+				s.bucketName, s.scopeName, s.collectionName, s.testDocId(),
+			),
+			Headers: map[string]string{
+				"Authorization":   s.basicRestCreds,
+				"Accept-Encoding": acceptEncoding,
+			},
+		})
+		if assertFailure != nil {
+			assertFailure(resp)
+			return
+		}
+
+		requireRestSuccess(s.T(), resp)
+		assertRestValidEtag(s.T(), resp)
+		assert.Equal(s.T(), fmt.Sprintf("%d", TEST_CONTENT_FLAGS), resp.Headers.Get("X-CB-Flags"))
+		assertContentEncoding(resp.Headers.Get("Content-Encoding"))
+		assert.Equal(s.T(), "application/json", resp.Headers.Get("Content-Type"))
+		// we assume the content is correct, we've already checked this in other tests
+		assert.Equal(s.T(), "", resp.Headers.Get("Expires"))
 	})
 
 	s.RunCommonDapiErrorCases(func(opts *commonDapiTestData) *testHttpResponse {
@@ -579,19 +676,115 @@ func (s *GatewayOpsTestSuite) TestDapiPost() {
 		})
 	})
 
-	s.RunCommonDapiErrorCases(func(opts *commonDapiTestData) *testHttpResponse {
-		return s.sendTestHttpRequest(&testHttpRequest{
+	s.Run("InvalidFlags", func() {
+		docId := s.randomDocId()
+
+		resp := s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
 			Path: fmt.Sprintf(
 				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
-				opts.BucketName, opts.ScopeName, opts.CollectionName, opts.DocumentKey,
+				s.bucketName, s.scopeName, s.collectionName, docId,
 			),
-			Headers: opts.Headers,
-			Body:    TEST_CONTENT,
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+				"X-CB-Flags":    "invalid-flags",
+			},
+			Body: TEST_CONTENT,
+		})
+		requireRestError(s.T(), resp, http.StatusBadRequest, nil)
+	})
+
+	s.Run("BlankFlags", func() {
+		docId := s.randomDocId()
+
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+				"X-CB-Flags":    "",
+			},
+			Body: TEST_CONTENT,
+		})
+		requireRestError(s.T(), resp, http.StatusBadRequest, nil)
+	})
+
+	s.IterDapiDurabilityLevelTests(func(durabilityLevel string, assertFailure func(*testHttpResponse)) {
+		docId := s.randomDocId()
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization":        s.basicRestCreds,
+				"X-CB-Flags":           fmt.Sprintf("%d", TEST_CONTENT_FLAGS),
+				"X-CB-DurabilityLevel": durabilityLevel,
+			},
+			Body: TEST_CONTENT,
+		})
+		if assertFailure != nil {
+			assertFailure(resp)
+			return
+		}
+
+		requireRestSuccess(s.T(), resp)
+		assertRestValidEtag(s.T(), resp)
+		assertRestValidMutationToken(s.T(), resp, s.bucketName)
+
+		s.checkDocument(s.T(), checkDocumentOptions{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			DocId:          docId,
+			Content:        TEST_CONTENT,
+			ContentFlags:   TEST_CONTENT_FLAGS,
 		})
 	})
 
-	s.RunDapiDurabilityLevelTests(func(opts *commonDapiTestData) *testHttpResponse {
+	s.IterDapiDocumentEncodingTests(TEST_CONTENT, func(
+		contentEncoding string,
+		encodedContent []byte,
+		assertFailure func(*testHttpResponse),
+	) {
+		docId := s.randomDocId()
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization":    s.basicRestCreds,
+				"X-CB-Flags":       fmt.Sprintf("%d", TEST_CONTENT_FLAGS),
+				"Content-Encoding": contentEncoding,
+			},
+			Body: encodedContent,
+		})
+		if assertFailure != nil {
+			assertFailure(resp)
+			return
+		}
+
+		requireRestSuccess(s.T(), resp)
+		assertRestValidEtag(s.T(), resp)
+		assertRestValidMutationToken(s.T(), resp, s.bucketName)
+
+		s.checkDocument(s.T(), checkDocumentOptions{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			DocId:          docId,
+			Content:        TEST_CONTENT,
+			ContentFlags:   TEST_CONTENT_FLAGS,
+		})
+	})
+
+	s.RunCommonDapiErrorCases(func(opts *commonDapiTestData) *testHttpResponse {
 		return s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
 			Path: fmt.Sprintf(
@@ -841,6 +1034,116 @@ func (s *GatewayOpsTestSuite) TestDapiPut() {
 					MaxSecs: int((24 * time.Hour).Seconds()) + 1,
 					MinSecs: int((23 * time.Hour).Seconds()),
 				},
+			})
+		})
+
+		s.Run("InvalidFlags", func() {
+			docId := s.randomDocId()
+
+			resp := s.sendTestHttpRequest(&testHttpRequest{
+				Method: http.MethodPut,
+				Path: fmt.Sprintf(
+					"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
+					s.bucketName, s.scopeName, s.collectionName, docId,
+				),
+				Headers: map[string]string{
+					"Authorization": s.basicRestCreds,
+					"X-CB-Flags":    "invalid-flags",
+				},
+				Body: TEST_CONTENT,
+			})
+			requireRestError(s.T(), resp, http.StatusBadRequest, nil)
+		})
+
+		s.Run("EmptyFlags", func() {
+			docId := s.randomDocId()
+
+			resp := s.sendTestHttpRequest(&testHttpRequest{
+				Method: http.MethodPut,
+				Path: fmt.Sprintf(
+					"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
+					s.bucketName, s.scopeName, s.collectionName, docId,
+				),
+				Headers: map[string]string{
+					"Authorization": s.basicRestCreds,
+					"X-CB-Flags":    "",
+				},
+				Body: TEST_CONTENT,
+			})
+			requireRestError(s.T(), resp, http.StatusBadRequest, nil)
+		})
+
+		s.IterDapiDurabilityLevelTests(func(durabilityLevel string, assertFailure func(*testHttpResponse)) {
+			docId := s.randomDocId()
+
+			resp := s.sendTestHttpRequest(&testHttpRequest{
+				Method: http.MethodPut,
+				Path: fmt.Sprintf(
+					"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
+					s.bucketName, s.scopeName, s.collectionName, docId,
+				),
+				Headers: map[string]string{
+					"Authorization":        s.basicRestCreds,
+					"X-CB-Flags":           fmt.Sprintf("%d", TEST_CONTENT_FLAGS),
+					"X-CB-DurabilityLevel": durabilityLevel,
+				},
+				Body: TEST_CONTENT,
+			})
+			if assertFailure != nil {
+				assertFailure(resp)
+				return
+			}
+
+			requireRestSuccess(s.T(), resp)
+			assertRestValidEtag(s.T(), resp)
+			assertRestValidMutationToken(s.T(), resp, s.bucketName)
+
+			s.checkDocument(s.T(), checkDocumentOptions{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				DocId:          docId,
+				Content:        TEST_CONTENT,
+				ContentFlags:   TEST_CONTENT_FLAGS,
+			})
+		})
+
+		s.IterDapiDocumentEncodingTests(TEST_CONTENT, func(
+			contentEncoding string,
+			encodedContent []byte,
+			assertFailure func(*testHttpResponse),
+		) {
+			docId := s.randomDocId()
+
+			resp := s.sendTestHttpRequest(&testHttpRequest{
+				Method: http.MethodPut,
+				Path: fmt.Sprintf(
+					"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
+					s.bucketName, s.scopeName, s.collectionName, docId,
+				),
+				Headers: map[string]string{
+					"Authorization":    s.basicRestCreds,
+					"X-CB-Flags":       fmt.Sprintf("%d", TEST_CONTENT_FLAGS),
+					"Content-Encoding": contentEncoding,
+				},
+				Body: encodedContent,
+			})
+			if assertFailure != nil {
+				assertFailure(resp)
+				return
+			}
+
+			requireRestSuccess(s.T(), resp)
+			assertRestValidEtag(s.T(), resp)
+			assertRestValidMutationToken(s.T(), resp, s.bucketName)
+
+			s.checkDocument(s.T(), checkDocumentOptions{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				DocId:          docId,
+				Content:        TEST_CONTENT,
+				ContentFlags:   TEST_CONTENT_FLAGS,
 			})
 		})
 	})
@@ -1195,21 +1498,123 @@ func (s *GatewayOpsTestSuite) TestDapiPut() {
 				},
 			})
 		})
-	})
 
-	s.RunCommonDapiErrorCases(func(opts *commonDapiTestData) *testHttpResponse {
-		return s.sendTestHttpRequest(&testHttpRequest{
-			Method: http.MethodPut,
-			Path: fmt.Sprintf(
-				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
-				opts.BucketName, opts.ScopeName, opts.CollectionName, opts.DocumentKey,
-			),
-			Headers: opts.Headers,
-			Body:    TEST_CONTENT,
+		s.Run("InvalidFlags", func() {
+			docId := s.testDocId()
+
+			resp := s.sendTestHttpRequest(&testHttpRequest{
+				Method: http.MethodPut,
+				Path: fmt.Sprintf(
+					"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
+					s.bucketName, s.scopeName, s.collectionName, docId,
+				),
+				Headers: map[string]string{
+					"Authorization": s.basicRestCreds,
+					"If-Match":      "*",
+					"X-CB-Flags":    "invalid-flags",
+				},
+				Body: newContent,
+			})
+			requireRestError(s.T(), resp, http.StatusBadRequest, nil)
+		})
+
+		s.Run("EmptyFlags", func() {
+			docId := s.testDocId()
+
+			resp := s.sendTestHttpRequest(&testHttpRequest{
+				Method: http.MethodPut,
+				Path: fmt.Sprintf(
+					"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
+					s.bucketName, s.scopeName, s.collectionName, docId,
+				),
+				Headers: map[string]string{
+					"Authorization": s.basicRestCreds,
+					"If-Match":      "*",
+					"X-CB-Flags":    "",
+				},
+				Body: newContent,
+			})
+			requireRestError(s.T(), resp, http.StatusBadRequest, nil)
+		})
+
+		s.IterDapiDurabilityLevelTests(func(durabilityLevel string, assertFailure func(*testHttpResponse)) {
+			docId := s.testDocId()
+
+			resp := s.sendTestHttpRequest(&testHttpRequest{
+				Method: http.MethodPut,
+				Path: fmt.Sprintf(
+					"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
+					s.bucketName, s.scopeName, s.collectionName, docId,
+				),
+				Headers: map[string]string{
+					"Authorization":        s.basicRestCreds,
+					"If-Match":             "*",
+					"X-CB-Flags":           fmt.Sprintf("%d", TEST_CONTENT_FLAGS),
+					"X-CB-DurabilityLevel": durabilityLevel,
+				},
+				Body: newContent,
+			})
+			if assertFailure != nil {
+				assertFailure(resp)
+				return
+			}
+
+			requireRestSuccess(s.T(), resp)
+			assertRestValidEtag(s.T(), resp)
+			assertRestValidMutationToken(s.T(), resp, s.bucketName)
+
+			s.checkDocument(s.T(), checkDocumentOptions{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				DocId:          docId,
+				Content:        newContent,
+				ContentFlags:   TEST_CONTENT_FLAGS,
+			})
+		})
+
+		s.IterDapiDocumentEncodingTests(newContent, func(
+			contentEncoding string,
+			encodedContent []byte,
+			assertFailure func(*testHttpResponse),
+		) {
+			docId := s.testDocId()
+
+			resp := s.sendTestHttpRequest(&testHttpRequest{
+				Method: http.MethodPut,
+				Path: fmt.Sprintf(
+					"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
+					s.bucketName, s.scopeName, s.collectionName, docId,
+				),
+				Headers: map[string]string{
+					"Authorization":    s.basicRestCreds,
+					"If-Match":         "*",
+					"X-CB-Flags":       fmt.Sprintf("%d", TEST_CONTENT_FLAGS),
+					"Content-Encoding": contentEncoding,
+				},
+				Body: encodedContent,
+			})
+			if assertFailure != nil {
+				assertFailure(resp)
+				return
+			}
+
+			requireRestSuccess(s.T(), resp)
+			assertRestValidEtag(s.T(), resp)
+			assertRestValidMutationToken(s.T(), resp, s.bucketName)
+
+			s.checkDocument(s.T(), checkDocumentOptions{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				DocId:          docId,
+				Content:        newContent,
+				ContentFlags:   TEST_CONTENT_FLAGS,
+			})
 		})
 	})
 
-	s.RunDapiDurabilityLevelTests(func(opts *commonDapiTestData) *testHttpResponse {
+	s.RunCommonDapiErrorCases(func(opts *commonDapiTestData) *testHttpResponse {
 		return s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPut,
 			Path: fmt.Sprintf(
@@ -1367,6 +1772,39 @@ func (s *GatewayOpsTestSuite) TestDapiDelete() {
 		})
 	})
 
+	s.IterDapiDurabilityLevelTests(func(durabilityLevel string, assertFailure func(*testHttpResponse)) {
+		docId := s.testDocId()
+
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodDelete,
+			Path: fmt.Sprintf(
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization":        s.basicRestCreds,
+				"X-CB-DurabilityLevel": durabilityLevel,
+			},
+			Body: nil,
+		})
+		if assertFailure != nil {
+			assertFailure(resp)
+			return
+		}
+
+		requireRestSuccess(s.T(), resp)
+		assertRestValidEtag(s.T(), resp)
+		assertRestValidMutationToken(s.T(), resp, s.bucketName)
+
+		s.checkDocument(s.T(), checkDocumentOptions{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			DocId:          docId,
+			Content:        nil,
+		})
+	})
+
 	s.RunCommonDapiErrorCases(func(opts *commonDapiTestData) *testHttpResponse {
 		return s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodDelete,
@@ -1375,29 +1813,6 @@ func (s *GatewayOpsTestSuite) TestDapiDelete() {
 				opts.BucketName, opts.ScopeName, opts.CollectionName, opts.DocumentKey,
 			),
 			Headers: opts.Headers,
-		})
-	})
-
-	s.RunDapiDurabilityLevelTests(func(opts *commonDapiTestData) *testHttpResponse {
-		s.createDocument(createDocumentOptions{
-			BucketName:     s.bucketName,
-			ScopeName:      s.scopeName,
-			CollectionName: s.collectionName,
-			DocId:          opts.DocumentKey,
-			Content:        TEST_CONTENT,
-			ContentFlags:   0,
-		})
-
-		*opts.Body = nil
-
-		return s.sendTestHttpRequest(&testHttpRequest{
-			Method: http.MethodDelete,
-			Path: fmt.Sprintf(
-				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
-				opts.BucketName, opts.ScopeName, opts.CollectionName, opts.DocumentKey,
-			),
-			Headers: opts.Headers,
-			Body:    nil,
 		})
 	})
 }
@@ -1687,36 +2102,37 @@ func (s *GatewayOpsTestSuite) TestDapiIncrement() {
 		})
 	})
 
-	s.Run("DurabilityLevels", func() {
-		for _, durabilityLevelHeader := range durabilityLevelHeaders {
-			s.Run(fmt.Sprintf("DurabilityLevel%s", durabilityLevelHeader), func() {
-				docId := s.binaryDocId([]byte("5"))
+	s.IterDapiDurabilityLevelTests(func(durabilityLevel string, assertFailure func(*testHttpResponse)) {
+		docId := s.binaryDocId([]byte("5"))
 
-				resp := s.sendTestHttpRequest(&testHttpRequest{
-					Method: http.MethodPost,
-					Path: fmt.Sprintf(
-						"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/increment",
-						s.bucketName, s.scopeName, s.collectionName, docId,
-					),
-					Headers: map[string]string{
-						"Authorization":        s.basicRestCreds,
-						"X-CB-DurabilityLevel": durabilityLevelHeader,
-					},
-				})
-				requireRestSuccess(s.T(), resp)
-				assertRestValidEtag(s.T(), resp)
-				assertRestValidMutationToken(s.T(), resp, s.bucketName)
-
-				s.checkDocument(s.T(), checkDocumentOptions{
-					BucketName:     s.bucketName,
-					ScopeName:      s.scopeName,
-					CollectionName: s.collectionName,
-					DocId:          docId,
-					Content:        []byte("6"),
-					ContentFlags:   0,
-				})
-			})
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/increment",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization":        s.basicRestCreds,
+				"X-CB-DurabilityLevel": durabilityLevel,
+			},
+		})
+		if assertFailure != nil {
+			assertFailure(resp)
+			return
 		}
+
+		requireRestSuccess(s.T(), resp)
+		assertRestValidEtag(s.T(), resp)
+		assertRestValidMutationToken(s.T(), resp, s.bucketName)
+
+		s.checkDocument(s.T(), checkDocumentOptions{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			DocId:          docId,
+			Content:        []byte("6"),
+			ContentFlags:   0,
+		})
 	})
 }
 
@@ -1994,6 +2410,39 @@ func (s *GatewayOpsTestSuite) TestDapiDecrement() {
 		})
 	})
 
+	s.IterDapiDurabilityLevelTests(func(durabilityLevel string, assertFailure func(*testHttpResponse)) {
+		docId := s.binaryDocId([]byte("5"))
+
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/decrement",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization":        s.basicRestCreds,
+				"X-CB-DurabilityLevel": durabilityLevel,
+			},
+		})
+		if assertFailure != nil {
+			assertFailure(resp)
+			return
+		}
+
+		requireRestSuccess(s.T(), resp)
+		assertRestValidEtag(s.T(), resp)
+		assertRestValidMutationToken(s.T(), resp, s.bucketName)
+
+		s.checkDocument(s.T(), checkDocumentOptions{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			DocId:          docId,
+			Content:        []byte("4"),
+			ContentFlags:   0,
+		})
+	})
+
 	s.RunCommonDapiErrorCases(func(opts *commonDapiTestData) *testHttpResponse {
 		return s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
@@ -2003,38 +2452,6 @@ func (s *GatewayOpsTestSuite) TestDapiDecrement() {
 			),
 			Headers: opts.Headers,
 		})
-	})
-
-	s.Run("DurabilityLevels", func() {
-		for _, durabilityLevelHeader := range durabilityLevelHeaders {
-			s.Run(fmt.Sprintf("DurabilityLevel%s", durabilityLevelHeader), func() {
-				docId := s.binaryDocId([]byte("5"))
-
-				resp := s.sendTestHttpRequest(&testHttpRequest{
-					Method: http.MethodPost,
-					Path: fmt.Sprintf(
-						"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/decrement",
-						s.bucketName, s.scopeName, s.collectionName, docId,
-					),
-					Headers: map[string]string{
-						"Authorization":        s.basicRestCreds,
-						"X-CB-DurabilityLevel": durabilityLevelHeader,
-					},
-				})
-				requireRestSuccess(s.T(), resp)
-				assertRestValidEtag(s.T(), resp)
-				assertRestValidMutationToken(s.T(), resp, s.bucketName)
-
-				s.checkDocument(s.T(), checkDocumentOptions{
-					BucketName:     s.bucketName,
-					ScopeName:      s.scopeName,
-					CollectionName: s.collectionName,
-					DocId:          docId,
-					Content:        []byte("4"),
-					ContentFlags:   0,
-				})
-			})
-		}
 	})
 }
 
@@ -2255,30 +2672,23 @@ func (s *GatewayOpsTestSuite) TestDapiLookupIn() {
 		]`, string(resp.Body))
 	})
 
-	// ING-1101
-	// s.Run("InvalidJsonPayload", func() {
-	// 	docId := s.testDocId()
-	// 	resp := s.sendTestHttpRequest(&testHttpRequest{
-	// 		Method: http.MethodPost,
-	// 		Path: fmt.Sprintf(
-	// 			"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/lookup",
-	// 			s.bucketName, s.scopeName, s.collectionName, docId,
-	// 		),
-	// 		Headers: map[string]string{
-	// 			"Authorization": s.basicRestCreds,
-	// 		},
-	// 		Body: []byte(`{"operations":[
-	// 			{"operation":"Get","path":"obj.arr[1]"},
-	// 		]}`),
-	// 	})
-	// 	requireRestError(s.T(), resp, http.StatusBadRequest, &testRestError{
-	// 		Code: "??",
-	// 		Resource: fmt.Sprintf(
-	// 			"/buckets/%s/scopes/%s/collections/%s/documents/%s",
-	// 			s.bucketName, s.scopeName, s.collectionName, docId,
-	// 		),
-	// 	})
-	// })
+	s.Run("InvalidJsonPayload", func() {
+		docId := s.testDocId()
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/lookup",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+			},
+			Body: []byte(`{"operations":[
+				{"operation":"Get","path":"obj.arr[1]"},
+			]}`),
+		})
+		requireRestError(s.T(), resp, http.StatusBadRequest, nil)
+	})
 
 	// // ING-1102
 	// s.Run("Empty Path", func() {
@@ -2767,30 +3177,23 @@ func (s *GatewayOpsTestSuite) TestDapiMutateIn() {
 		})
 	})
 
-	// ING-1101
-	// s.Run("InvalidJsonPayload", func() {
-	// 	docId := s.testDocId()
-	// 	resp := s.sendTestHttpRequest(&testHttpRequest{
-	// 		Method: http.MethodPost,
-	// 		Path: fmt.Sprintf(
-	// 			"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/mutate",
-	// 			s.bucketName, s.scopeName, s.collectionName, docId,
-	// 		),
-	// 		Headers: map[string]string{
-	// 			"Authorization": s.basicRestCreds,
-	// 		},
-	// 		Body: []byte(`{"operations":[
-	// 				{"operation":"DictSet","path":"x", "value": 43},
-	// 		]}`),
-	// 	})
-	// 	requireRestError(s.T(), resp, http.StatusBadRequest, &testRestError{
-	// 		Code: "??",
-	// 		Resource: fmt.Sprintf(
-	// 			"/buckets/%s/scopes/%s/collections/%s/documents/%s",
-	// 			s.bucketName, s.scopeName, s.collectionName, docId,
-	// 		),
-	// 	})
-	// })
+	s.Run("InvalidJsonPayload", func() {
+		docId := s.testDocId()
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/mutate",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+			},
+			Body: []byte(`{"operations":[
+					{"operation":"DictSet","path":"x", "value": 43},
+			]}`),
+		})
+		requireRestError(s.T(), resp, http.StatusBadRequest, nil)
+	})
 
 	// ING-1102
 	// s.Run("Empty Path", func() {
@@ -2924,6 +3327,48 @@ func (s *GatewayOpsTestSuite) TestDapiMutateIn() {
 		})
 	})
 
+	s.IterDapiDurabilityLevelTests(func(durabilityLevel string, assertFailure func(*testHttpResponse)) {
+		docId := s.binaryDocId([]byte(`{
+					"num":14,
+					"rep":16,
+					"arr":[3,6,9,12],
+					"ctr":3,
+					"rem":true
+				}`))
+
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/mutate",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization":        s.basicRestCreds,
+				"X-CB-DurabilityLevel": durabilityLevel,
+			},
+			Body: []byte(`{"operations":[
+						{"operation":"DictSet","path":"num","value": 42}
+					]}`),
+		})
+		if assertFailure != nil {
+			assertFailure(resp)
+			return
+		}
+
+		requireRestSuccess(s.T(), resp)
+		assertRestValidEtag(s.T(), resp)
+		// ING-1104
+		// assertRestValidMutationToken(s.T(), resp, s.bucketName)
+
+		checkDocument(docId, []byte(`{
+					"num":42,
+					"rep":16,
+					"arr":[3,6,9,12],
+					"ctr":3,
+					"rem":true
+				}`))
+	})
+
 	s.RunCommonDapiErrorCases(func(opts *commonDapiTestData) *testHttpResponse {
 		return s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
@@ -2936,47 +3381,6 @@ func (s *GatewayOpsTestSuite) TestDapiMutateIn() {
 					{"operation":"DictSet","path":"x", "value": 43}
 				]}`),
 		})
-	})
-
-	s.Run("DurabilityLevels", func() {
-		for _, durabilityLevelHeader := range durabilityLevelHeaders {
-			s.Run(fmt.Sprintf("DurabilityLevel%s", durabilityLevelHeader), func() {
-				docId := s.binaryDocId([]byte(`{
-					"num":14,
-					"rep":16,
-					"arr":[3,6,9,12],
-					"ctr":3,
-					"rem":true
-				}`))
-
-				resp := s.sendTestHttpRequest(&testHttpRequest{
-					Method: http.MethodPost,
-					Path: fmt.Sprintf(
-						"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/mutate",
-						s.bucketName, s.scopeName, s.collectionName, docId,
-					),
-					Headers: map[string]string{
-						"Authorization":        s.basicRestCreds,
-						"X-CB-DurabilityLevel": durabilityLevelHeader,
-					},
-					Body: []byte(`{"operations":[
-						{"operation":"DictSet","path":"num","value": 42}
-					]}`),
-				})
-				requireRestSuccess(s.T(), resp)
-				assertRestValidEtag(s.T(), resp)
-				// ING-1104
-				// assertRestValidMutationToken(s.T(), resp, s.bucketName)
-
-				checkDocument(docId, []byte(`{
-					"num":42,
-					"rep":16,
-					"arr":[3,6,9,12],
-					"ctr":3,
-					"rem":true
-				}`))
-			})
-		}
 	})
 }
 

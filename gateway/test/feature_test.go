@@ -11,6 +11,7 @@ var (
 	TestFeatureQueryManagement             = TestFeatureCode("querymgmt")
 	TestFeatureSearchManagement            = TestFeatureCode("searchmgmt")
 	TestFeatureSearchManagementCollections = TestFeatureCode("searchmgmtcollections")
+	TestFeatureAnalytics                   = TestFeatureCode("analytics")
 	TestFeatureBucketManagement            = TestFeatureCode("bucketmgmt")
 	TestFeatureCollectionNoExpriy          = TestFeatureCode("collectionnoexpiry")
 )
@@ -49,6 +50,8 @@ func (s *GatewayOpsTestSuite) SupportsFeature(code TestFeatureCode) bool {
 	case TestFeatureSearch:
 		return true
 	case TestFeatureQuery:
+		return true
+	case TestFeatureAnalytics:
 		return true
 	case TestFeatureBucketManagement:
 		return true

@@ -3,7 +3,9 @@ package system
 import (
 	"context"
 	"crypto/tls"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"runtime"
 	"sync"
@@ -149,6 +151,14 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 	internal_hooks_v1.RegisterHooksServiceServer(sdSrv, hooksManager.Server())
 	routing_v1.RegisterRoutingServiceServer(sdSrv, sdImpl.RoutingV1Server)
 
+	writeErrorResp := func(w http.ResponseWriter, statusCode int, code dataapiv1.ErrorCode, message string) {
+		encodedErr, _ := json.Marshal(&dataapiv1.Error{
+			Error:   code,
+			Message: message,
+		})
+		http.Error(w, string(encodedErr), statusCode)
+	}
+
 	// data api
 	sh := dataapiv1.NewStrictHandlerWithOptions(dapiImpl.DataApiV1Server, []nethttp.StrictHTTPMiddlewareFunc{
 		dapiimpl.NewErrorHandler(opts.Logger),
@@ -157,26 +167,57 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 		oapimetrics.NewStatsHandler(opts.Logger),
 	}, dataapiv1.StrictHTTPServerOptions{
 		RequestErrorHandlerFunc: func(w http.ResponseWriter, r *http.Request, err error) {
-			opts.Logger.Error("handling a data api request", zap.Any("error: ", err))
-			http.Error(
-				w,
-				`{"code": "Internal", "message": "an internal error occured, please contact support"}`,
-				http.StatusInternalServerError)
+			writeErrorResp(w,
+				http.StatusBadRequest, dataapiv1.ErrorCodeInternal,
+				err.Error())
 		},
 		ResponseErrorHandlerFunc: func(w http.ResponseWriter, r *http.Request, err error) {
-			opts.Logger.Error("handling a data api response", zap.Any("error: ", err))
-			http.Error(
-				w,
-				`{"code": "Internal", "message": "an internal error occured, please contact support"}`,
-				http.StatusInternalServerError)
+			opts.Logger.Error("handling unexpected data api error",
+				zap.Error(err))
+			writeErrorResp(w,
+				http.StatusInternalServerError, dataapiv1.ErrorCodeInternal,
+				"an internal error occured, please contact support")
+		},
+	})
+
+	h := dataapiv1.HandlerWithOptions(sh, dataapiv1.GorillaServerOptions{
+		ErrorHandlerFunc: func(w http.ResponseWriter, r *http.Request, err error) {
+			writeInvalidArgsResp := func(w http.ResponseWriter, message string) {
+				writeErrorResp(w, http.StatusBadRequest, dataapiv1.ErrorCodeInvalidArgument, message)
+			}
+
+			switch e := err.(type) {
+			case *dataapiv1.RequiredHeaderError:
+				writeInvalidArgsResp(w, fmt.Sprintf(
+					`required header %s is missing`,
+					e.ParamName))
+			case *dataapiv1.RequiredParamError:
+				writeInvalidArgsResp(w, fmt.Sprintf(
+					`required parameter %s is missing`,
+					e.ParamName))
+			case *dataapiv1.InvalidParamFormatError:
+				writeInvalidArgsResp(w, fmt.Sprintf(
+					`invalid format for parameter %s: %s`,
+					e.ParamName, e.Err.Error()))
+			case *dataapiv1.UnmarshalingParamError:
+				writeInvalidArgsResp(w, fmt.Sprintf(
+					`failed to unmarshal parameter %s: %s`,
+					e.ParamName, e.Err.Error()))
+			default:
+				opts.Logger.Error("handling unexpected data api server error",
+					zap.Error(err))
+				writeErrorResp(w,
+					http.StatusInternalServerError, dataapiv1.ErrorCodeInternal,
+					"an internal error occured, please contact support")
+			}
 		},
 	})
 
 	mux := http.NewServeMux()
-	mux.Handle("/v1/", dataapiv1.Handler(sh))
+	mux.Handle("/v1/", h)
 	mux.Handle("/_p/", dapiImpl.DataApiProxy)
 	if opts.AlphaEndpoints {
-		mux.Handle("/v1.alpha/", dataapiv1.Handler(sh))
+		mux.Handle("/v1.alpha/", h)
 	}
 
 	c := cors.New(cors.Options{
