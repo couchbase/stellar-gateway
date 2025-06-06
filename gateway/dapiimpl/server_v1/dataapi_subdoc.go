@@ -227,6 +227,14 @@ func (s *DataApiServer) MutateInDocument(
 		}
 	}
 
+	if in.Params.XCBDurabilityLevel != nil {
+		dl, errSt := durabilityLevelToMemdx(*in.Params.XCBDurabilityLevel)
+		if errSt != nil {
+			return nil, errSt.Err()
+		}
+		opts.DurabilityLevel = dl
+	}
+
 	result, err := bucketAgent.MutateIn(ctx, &opts)
 	if err != nil {
 		if errors.Is(err, memdx.ErrCasMismatch) {
