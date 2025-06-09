@@ -12,7 +12,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/secretsmanager v1.34.9
 	github.com/cenkalti/backoff/v4 v4.3.0
 	github.com/couchbase/gocbcore/v10 v10.5.3
-	github.com/couchbase/gocbcorex v0.0.0-20250513074640-3511b115cd77
+	github.com/couchbase/gocbcorex v0.0.0-20250609213012-6917e0f3d395
 	github.com/couchbase/goprotostellar v1.0.3-0.20240514104501-9958dd1cee8a
 	github.com/couchbaselabs/gocbconnstr v1.0.5
 	github.com/couchbaselabs/gocbconnstr/v2 v2.0.0-20240607131231-fb385523de28
