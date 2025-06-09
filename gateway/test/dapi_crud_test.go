@@ -225,7 +225,9 @@ func (s *GatewayOpsTestSuite) IterDapiDocumentEncodingTests(
 		// This is a test for the case where the content is not actually snappy encoded,
 		// but the request says it is.
 		fn("snappy", testContent, func(resp *testHttpResponse) {
-			requireRestError(s.T(), resp, http.StatusInternalServerError, nil)
+			requireRestError(s.T(), resp, http.StatusBadRequest, &testRestError{
+				Code: "InvalidArgument",
+			})
 		})
 	})
 }
@@ -528,28 +530,6 @@ func (s *GatewayOpsTestSuite) TestDapiPost() {
 			ContentFlags:   TEST_CONTENT_FLAGS,
 		})
 	})
-
-	// ING-1110
-	// s.Run("Uncompressed with compressed headers", func() {
-	// 	docId := s.randomDocId()
-	//
-	// 	resp := s.sendTestHttpRequest(&testHttpRequest{
-	// 		Method: http.MethodPost,
-	// 		Path: fmt.Sprintf(
-	// 			"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
-	// 			s.bucketName, s.scopeName, s.collectionName, docId,
-	// 		),
-	// 		Headers: map[string]string{
-	// 			"Authorization":    s.basicRestCreds,
-	// 			"X-CB-Flags":       fmt.Sprintf("%d", TEST_CONTENT_FLAGS),
-	// 			"Content-Encoding": "snappy",
-	// 		},
-	// 		Body: TEST_CONTENT,
-	// 	})
-	// 	requireRestError(s.T(), resp, http.StatusBadRequest, &testRestError{
-	// 		Code: "InvalidArgument",
-	// 	})
-	// })
 
 	s.Run("Expiry", func() {
 		docId := s.randomDocId()
@@ -858,28 +838,6 @@ func (s *GatewayOpsTestSuite) TestDapiPut() {
 				ContentFlags:   TEST_CONTENT_FLAGS,
 			})
 		})
-
-		// ING-1110
-		// s.Run("Uncompressed with compressed headers", func() {
-		// 	docId := s.randomDocId()
-		//
-		// 	resp := s.sendTestHttpRequest(&testHttpRequest{
-		// 		Method: http.MethodPut,
-		// 		Path: fmt.Sprintf(
-		// 			"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
-		// 			s.bucketName, s.scopeName, s.collectionName, docId,
-		// 		),
-		// 		Headers: map[string]string{
-		// 			"Authorization":    s.basicRestCreds,
-		// 			"X-CB-Flags":       fmt.Sprintf("%d", TEST_CONTENT_FLAGS),
-		// 			"Content-Encoding": "snappy",
-		// 		},
-		// 		Body: TEST_CONTENT,
-		// 	})
-		// 	requireRestError(s.T(), resp, http.StatusBadRequest, &testRestError{
-		// 		Code: "InvalidArgument",
-		// 	})
-		// })
 
 		s.Run("Expiry", func() {
 			docId := s.randomDocId()
@@ -1212,29 +1170,6 @@ func (s *GatewayOpsTestSuite) TestDapiPut() {
 				ContentFlags:   TEST_CONTENT_FLAGS,
 			})
 		})
-
-		// ING-1110
-		// s.Run("Uncompressed with compressed headers", func() {
-		// 	docId := s.randomDocId()
-		//
-		// 	resp := s.sendTestHttpRequest(&testHttpRequest{
-		// 		Method: http.MethodPut,
-		// 		Path: fmt.Sprintf(
-		// 			"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
-		// 			s.bucketName, s.scopeName, s.collectionName, docId,
-		// 		),
-		// 		Headers: map[string]string{
-		// 			"Authorization":    s.basicRestCreds,
-		// 			"If-Match":         "*",
-		// 			"X-CB-Flags":       fmt.Sprintf("%d", TEST_CONTENT_FLAGS),
-		// 			"Content-Encoding": "snappy",
-		// 		},
-		// 		Body: TEST_CONTENT,
-		// 	})
-		// 	requireRestError(s.T(), resp, http.StatusBadRequest, &testRestError{
-		// 		Code: "InvalidArgument",
-		// 	})
-		// })
 
 		s.Run("Expiry", func() {
 			docId := s.testDocId()

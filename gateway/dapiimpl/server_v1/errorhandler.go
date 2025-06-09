@@ -593,6 +593,15 @@ func (e ErrorHandler) NewInvalidStoreSemanticError() *Status {
 	return st
 }
 
+func (e ErrorHandler) NewInvalidSnappyValueError() *Status {
+	st := &Status{
+		StatusCode: http.StatusBadRequest,
+		Code:       dataapiv1.ErrorCodeInvalidArgument,
+		Message:    "Failed to snappy inflate value.",
+	}
+	return st
+}
+
 func (e ErrorHandler) NewSubDocMkDocSubDocOp(opIndex int) *Status {
 	st := &Status{
 		StatusCode: http.StatusBadRequest,
