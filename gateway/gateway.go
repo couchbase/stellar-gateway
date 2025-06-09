@@ -3,9 +3,11 @@ package gateway
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -71,6 +73,7 @@ type Config struct {
 
 	GrpcCertificate tls.Certificate
 	DapiCertificate tls.Certificate
+	ClusterCaCert   *x509.CertPool
 
 	NumInstances    uint
 	StartupCallback func(*StartupInfo)
@@ -103,11 +106,11 @@ func NewGateway(config *Config) (*Gateway, error) {
 	return gw, nil
 }
 
-func connStrToMgmtHostPort(connStr string) (string, error) {
+func connStrToMgmtHostPortAndScheme(connStr string) (string, string, error) {
 	// attempt to parse the connection string
 	connSpec, err := gocbconnstr.Parse(connStr)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
 	// if the connection string is blank, assume http
@@ -115,26 +118,49 @@ func connStrToMgmtHostPort(connStr string) (string, error) {
 		connSpec.Scheme = "http"
 	}
 
-	// we use cbauth, and thus can only bootstrap with http
-	if connSpec.Scheme != "http" {
-		return "", errors.New("only the http connection string scheme is supported")
-	}
-
 	// we only support a single host to bootstrap with
 	if len(connSpec.Addresses) != 1 {
-		return "", errors.New("you must pass exactly one address in the connection string")
+		return "", "", errors.New("you must pass exactly one address in the connection string")
 	}
 
 	// grab the address
 	address := connSpec.Addresses[0]
 
-	// if the port is undefined, assume its 8091
+	// if the port is undefined, and we aren't using tls assume its 8091,
+	// if using tls then assume 18091.
 	if address.Port == -1 {
-		address.Port = 8091
+		if connSpec.Scheme == "couchbases" {
+			address.Port = 18091
+		} else {
+			address.Port = 8091
+		}
 	}
 
 	// calculate the full host/port pair
 	hostPort := fmt.Sprintf("%s:%d", address.Host, address.Port)
+
+	return hostPort, connSpec.Scheme, nil
+}
+
+func mgmtHostPortToAuthHostPort(mgmtHostPort string) (string, error) {
+	// attempt to parse the connection string
+	connSpec, err := gocbconnstr.Parse(mgmtHostPort)
+	if err != nil {
+		return "", err
+	}
+
+	// grab the address
+	address := connSpec.Addresses[0]
+
+	var authPort int
+	if address.Port == 18091 {
+		authPort = 8091
+	} else {
+		authPort = address.Port
+	}
+
+	// calculate the full host/port pair
+	hostPort := fmt.Sprintf("%s:%d", address.Host, authPort)
 
 	return hostPort, nil
 }
@@ -143,11 +169,29 @@ func pingCouchbaseCluster(
 	ctx context.Context,
 	mgmtHostPort,
 	username, password string,
+	tlsConfig *tls.Config,
 ) (string, error) {
+	var endpoint string
+	if tlsConfig != nil {
+		endpoint = "https://" + mgmtHostPort
+	} else {
+		endpoint = "http://" + mgmtHostPort
+	}
+
+	transport := &http.Transport{
+		Proxy:                 http.ProxyFromEnvironment,
+		ForceAttemptHTTP2:     true,
+		MaxIdleConns:          100,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+		TLSClientConfig:       tlsConfig,
+	}
+
 	mgmt := &cbmgmtx.Management{
-		Transport: http.DefaultTransport,
+		Transport: transport,
 		UserAgent: "cloud-native-gateway-startup",
-		Endpoint:  "http://" + mgmtHostPort,
+		Endpoint:  endpoint,
 		Username:  username,
 		Password:  password,
 	}
@@ -195,7 +239,7 @@ func (g *Gateway) Run(ctx context.Context) error {
 	config.Logger.Info("linking to couchbase cluster", zap.String("connectionString", config.CbConnStr), zap.String("User", config.Username))
 
 	// identify the ns_server host/port
-	mgmtHostPort, err := connStrToMgmtHostPort(config.CbConnStr)
+	mgmtHostPort, scheme, err := connStrToMgmtHostPortAndScheme(config.CbConnStr)
 	if err != nil {
 		config.Logger.Error("failed to parse connection string", zap.Error(err))
 		return err
@@ -205,9 +249,17 @@ func (g *Gateway) Run(ctx context.Context) error {
 	// ping the cluster first to make sure its alive
 	config.Logger.Info("waiting for couchbase server to become available", zap.String("address", mgmtHostPort))
 
+	var tlsConfig *tls.Config
+	if scheme == "couchbases" {
+		tlsConfig = &tls.Config{
+			RootCAs:    config.ClusterCaCert,
+			ServerName: strings.Split(mgmtHostPort, ":")[0],
+		}
+	}
+
 	var clusterUUID string
 	for {
-		currentUUID, err := pingCouchbaseCluster(ctx, mgmtHostPort, config.Username, config.Password)
+		currentUUID, err := pingCouchbaseCluster(ctx, mgmtHostPort, config.Username, config.Password, tlsConfig)
 		if err != nil {
 			config.Logger.Warn("failed to ping cluster", zap.Error(err))
 
@@ -233,10 +285,16 @@ func (g *Gateway) Run(ctx context.Context) error {
 		break
 	}
 
+	authHostPort, err := mgmtHostPortToAuthHostPort(mgmtHostPort)
+	if err != nil {
+		config.Logger.Error("failed to form auth host port", zap.Error(err))
+		return err
+	}
+
 	// initialize cb-auth
 	authenticator, err := auth.NewCbAuthAuthenticator(ctx, auth.NewCbAuthAuthenticatorOptions{
 		NodeId:      nodeID,
-		Addresses:   []string{mgmtHostPort},
+		Addresses:   []string{authHostPort},
 		Username:    config.Username,
 		Password:    config.Password,
 		ClusterUUID: clusterUUID,
@@ -245,7 +303,7 @@ func (g *Gateway) Run(ctx context.Context) error {
 	if err != nil {
 		config.Logger.Error("failed to initialize cbauth connection",
 			zap.Error(err),
-			zap.String("hostPort", mgmtHostPort),
+			zap.String("hostPort", authHostPort),
 			zap.String("user", config.Username))
 		return err
 	}
@@ -253,7 +311,7 @@ func (g *Gateway) Run(ctx context.Context) error {
 	// try to establish a client connection to the cluster
 	agentMgr, err := gocbcorex.CreateBucketsTrackingAgentManager(ctx, gocbcorex.BucketsTrackingAgentManagerOptions{
 		Logger:    config.Logger.Named("gocbcorex"),
-		TLSConfig: nil,
+		TLSConfig: tlsConfig,
 		Authenticator: &gocbcorex.PasswordAuthenticator{
 			Username: config.Username,
 			Password: config.Password,

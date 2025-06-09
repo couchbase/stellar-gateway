@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"os"
 	"os/exec"
@@ -84,6 +85,7 @@ func init() {
 	configFlags.Int("web-port", 9091, "the web metrics/health port")
 	configFlags.Bool("self-sign", false, "specifies to allow a self-signed certificate")
 	configFlags.String("cert", "", "path to default tls cert")
+	configFlags.String("cluster-cert", "", "path to cluster tls ca cert")
 	configFlags.String("key", "", "path to default private tls key")
 	configFlags.String("grpc-cert", "", "path to grpc tls cert for GRPC")
 	configFlags.String("grpc-key", "", "path to grpc private tls key for GRPC")
@@ -259,6 +261,7 @@ type config struct {
 	grpcKeyPath           string
 	dapiCertPath          string
 	dapiKeyPath           string
+	clusterCaCertPath     string
 	rateLimit             int
 	otlpEndpoint          string
 	disableTraces         bool
@@ -297,6 +300,7 @@ func readConfig(logger *zap.Logger) *config {
 		grpcKeyPath:           viper.GetString("grpc-key"),
 		dapiCertPath:          viper.GetString("dapi-cert"),
 		dapiKeyPath:           viper.GetString("dapi-key"),
+		clusterCaCertPath:     viper.GetString("cluster-cert"),
 		rateLimit:             viper.GetInt("rate-limit"),
 		otlpEndpoint:          viper.GetString("otlp-endpoint"),
 		disableTraces:         viper.GetBool("disable-traces"),
@@ -334,6 +338,7 @@ func readConfig(logger *zap.Logger) *config {
 		zap.String("grpcKeyPath", config.grpcKeyPath),
 		zap.String("dapiCertPath", config.dapiCertPath),
 		zap.String("dapiKeyPath", config.dapiKeyPath),
+		zap.String("clusterCaCertPath", config.clusterCaCertPath),
 		zap.Int("rateLimit", config.rateLimit),
 		zap.String("otlpEndpoint", config.otlpEndpoint),
 		zap.Bool("disableTraces", config.disableTraces),
@@ -508,6 +513,17 @@ func startGateway() {
 		}
 	}
 
+	var caCertPool *x509.CertPool
+	if config.clusterCaCertPath != "" {
+		caCertPool = x509.NewCertPool()
+		caCert, err := os.ReadFile(config.clusterCaCertPath)
+		if err != nil {
+			logger.Error("failed to load cluster tls ca certificate", zap.Error(err))
+		}
+
+		caCertPool.AppendCertsFromPEM(caCert)
+	}
+
 	if config.cbCredsAwsId != "" {
 		if config.cbUser != "Administrator" || config.cbPass != "password" {
 			logger.Error("cannot use cb-pass or cb-user when fetching creds from cloud provider")
@@ -584,6 +600,7 @@ func startGateway() {
 		RateLimit:       config.rateLimit,
 		GrpcCertificate: grpcCertificate,
 		DapiCertificate: dapiCertificate,
+		ClusterCaCert:   caCertPool,
 		NumInstances:    1,
 		StartupCallback: func(m *gateway.StartupInfo) {
 			webapi.MarkSystemHealthy()
