@@ -10,8 +10,9 @@ import (
 
 	"google.golang.org/grpc"
 
-	"github.com/couchbase/goprotostellar/genproto/kv_v1"
 	"github.com/golang/snappy"
+
+	"github.com/couchbase/goprotostellar/genproto/kv_v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -3369,4 +3370,376 @@ func (s *GatewayOpsTestSuite) TestDapiCors() {
 	requireRestSuccess(s.T(), resp)
 	assert.Equal(s.T(), "*",
 		resp.Headers.Get("Access-Control-Allow-Origin"))
+}
+
+func (s *GatewayOpsTestSuite) TestDapiAppend() {
+	checkDocument := func(docId string, content []byte) {
+		s.checkDocument(s.T(), checkDocumentOptions{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			DocId:          docId,
+			Content:        content,
+			ContentFlags:   0,
+		})
+	}
+
+	s.Run("Basic", func() {
+		docId := s.binaryDocId([]byte("abcde"))
+
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/append",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+			},
+			Body: []byte(`fghi`),
+		})
+		requireRestSuccess(s.T(), resp)
+		assertRestValidEtag(s.T(), resp)
+		assertRestValidMutationToken(s.T(), resp, s.bucketName)
+
+		checkDocument(docId, []byte("abcdefghi"))
+	})
+
+	s.Run("WithCas", func() {
+		docId := s.randomDocId()
+		cas := s.createDocument(createDocumentOptions{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			DocId:          docId,
+			Content:        []byte("abcde"),
+			ContentFlags:   0,
+		})
+
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/append",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+				"If-Match":      fmt.Sprintf("%08x", cas),
+			},
+			Body: []byte(`fghi`),
+		})
+		requireRestSuccess(s.T(), resp)
+		assertRestValidEtag(s.T(), resp)
+		assertRestValidMutationToken(s.T(), resp, s.bucketName)
+
+		checkDocument(docId, []byte("abcdefghi"))
+	})
+
+	s.Run("WithWrongCas", func() {
+		docId := s.binaryDocId([]byte("abcde"))
+
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/append",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+				"If-Match":      fmt.Sprintf("%08x", 12345),
+			},
+			Body: []byte(`fghi`),
+		})
+		requireRestError(s.T(), resp, http.StatusConflict, &testRestError{
+			Code: "CasMismatch",
+			Resource: fmt.Sprintf("/buckets/%s/scopes/%s/collections/%s/documents/%s",
+				s.bucketName, s.scopeName, s.collectionName, docId),
+		})
+	})
+
+	s.Run("DocMissing", func() {
+		docId := s.randomDocId()
+
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/append",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+			},
+			Body: []byte(`fghi`),
+		})
+		requireRestError(s.T(), resp, http.StatusNotFound, &testRestError{
+			Code: "DocumentNotFound",
+			Resource: fmt.Sprintf("/buckets/%s/scopes/%s/collections/%s/documents/%s",
+				s.bucketName, s.scopeName, s.collectionName, docId),
+		})
+	})
+
+	s.Run("DocToolarge", func() {
+		docId := s.randomDocId()
+
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/append",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+			},
+			Body: s.largeTestContent(),
+		})
+		requireRestError(s.T(), resp, http.StatusRequestEntityTooLarge, &testRestError{
+			Code: "InvalidArgument",
+		})
+	})
+
+	// ING-1129
+	// s.Run("MissingBody", func() {
+	// 	docId := s.binaryDocId([]byte("abcde"))
+	//
+	// 	resp := s.sendTestHttpRequest(&testHttpRequest{
+	// 		Method: http.MethodPost,
+	// 		Path: fmt.Sprintf(
+	// 			"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/append",
+	// 			s.bucketName, s.scopeName, s.collectionName, docId,
+	// 		),
+	// 		Headers: map[string]string{
+	// 			"Authorization": s.basicRestCreds,
+	// 		},
+	// 	})
+	// 	requireRestError(s.T(), resp, http.StatusBadRequest, &testRestError{
+	// 		Code: "??",
+	// 		Resource: fmt.Sprintf("/buckets/%s/scopes/%s/collections/%s/documents/%s",
+	// 			s.bucketName, s.scopeName, s.collectionName, docId),
+	// 	})
+	// })
+
+	s.IterDapiDurabilityLevelTests(func(durabilityLevel string, assertFailure func(*testHttpResponse)) {
+		docId := s.binaryDocId([]byte(`abcde`))
+
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/append",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization":        s.basicRestCreds,
+				"X-CB-DurabilityLevel": durabilityLevel,
+			},
+			Body: []byte(`fghi`),
+		})
+		if assertFailure != nil {
+			assertFailure(resp)
+			return
+		}
+
+		requireRestSuccess(s.T(), resp)
+		assertRestValidEtag(s.T(), resp)
+		assertRestValidMutationToken(s.T(), resp, s.bucketName)
+
+		checkDocument(docId, []byte(`abcdefghi`))
+	})
+
+	s.RunCommonDapiErrorCases(func(opts *commonDapiTestData) *testHttpResponse {
+		return s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/append",
+				opts.BucketName, opts.ScopeName, opts.CollectionName, opts.DocumentKey,
+			),
+			Headers: opts.Headers,
+			Body:    []byte(`fghi`),
+		})
+	})
+}
+
+func (s *GatewayOpsTestSuite) TestDapiPrepend() {
+	checkDocument := func(docId string, content []byte) {
+		s.checkDocument(s.T(), checkDocumentOptions{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			DocId:          docId,
+			Content:        content,
+			ContentFlags:   0,
+		})
+	}
+
+	s.Run("Basic", func() {
+		docId := s.binaryDocId([]byte("fghi"))
+
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/prepend",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+			},
+			Body: []byte(`abcde`),
+		})
+		requireRestSuccess(s.T(), resp)
+		assertRestValidEtag(s.T(), resp)
+		assertRestValidMutationToken(s.T(), resp, s.bucketName)
+
+		checkDocument(docId, []byte("abcdefghi"))
+	})
+
+	s.Run("WithCas", func() {
+		docId := s.randomDocId()
+		cas := s.createDocument(createDocumentOptions{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			DocId:          docId,
+			Content:        []byte("fghi"),
+			ContentFlags:   0,
+		})
+
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/prepend",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+				"If-Match":      fmt.Sprintf("%08x", cas),
+			},
+			Body: []byte(`abcde`),
+		})
+		requireRestSuccess(s.T(), resp)
+		assertRestValidEtag(s.T(), resp)
+		assertRestValidMutationToken(s.T(), resp, s.bucketName)
+
+		checkDocument(docId, []byte("abcdefghi"))
+	})
+
+	s.Run("WithWrongCas", func() {
+		docId := s.binaryDocId([]byte("fghi"))
+
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/prepend",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+				"If-Match":      fmt.Sprintf("%08x", 12345),
+			},
+			Body: []byte(`abcde`),
+		})
+		requireRestError(s.T(), resp, http.StatusConflict, &testRestError{
+			Code: "CasMismatch",
+			Resource: fmt.Sprintf("/buckets/%s/scopes/%s/collections/%s/documents/%s",
+				s.bucketName, s.scopeName, s.collectionName, docId),
+		})
+	})
+
+	s.Run("DocMissing", func() {
+		docId := s.randomDocId()
+
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/prepend",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+			},
+			Body: []byte(`abcde`),
+		})
+		requireRestError(s.T(), resp, http.StatusNotFound, &testRestError{
+			Code: "DocumentNotFound",
+			Resource: fmt.Sprintf("/buckets/%s/scopes/%s/collections/%s/documents/%s",
+				s.bucketName, s.scopeName, s.collectionName, docId),
+		})
+	})
+
+	s.Run("DocToolarge", func() {
+		docId := s.randomDocId()
+
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/prepend",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+			},
+			Body: s.largeTestContent(),
+		})
+		requireRestError(s.T(), resp, http.StatusRequestEntityTooLarge, &testRestError{
+			Code: "InvalidArgument",
+		})
+	})
+
+	// ING-1129
+	// s.Run("MissingBody", func() {
+	// 	docId := s.binaryDocId([]byte("abcde"))
+	//
+	// 	resp := s.sendTestHttpRequest(&testHttpRequest{
+	// 		Method: http.MethodPost,
+	// 		Path: fmt.Sprintf(
+	// 			"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/prepend",
+	// 			s.bucketName, s.scopeName, s.collectionName, docId,
+	// 		),
+	// 		Headers: map[string]string{
+	// 			"Authorization": s.basicRestCreds,
+	// 		},
+	// 	})
+	// 	requireRestError(s.T(), resp, http.StatusBadRequest, &testRestError{
+	// 		Code: "??",
+	// 		Resource: fmt.Sprintf("/buckets/%s/scopes/%s/collections/%s/documents/%s",
+	// 			s.bucketName, s.scopeName, s.collectionName, docId),
+	// 	})
+	// })
+
+	s.IterDapiDurabilityLevelTests(func(durabilityLevel string, assertFailure func(*testHttpResponse)) {
+		docId := s.binaryDocId([]byte(`fghi`))
+
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/prepend",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization":        s.basicRestCreds,
+				"X-CB-DurabilityLevel": durabilityLevel,
+			},
+			Body: []byte(`abcde`),
+		})
+		if assertFailure != nil {
+			assertFailure(resp)
+			return
+		}
+
+		requireRestSuccess(s.T(), resp)
+		assertRestValidEtag(s.T(), resp)
+		assertRestValidMutationToken(s.T(), resp, s.bucketName)
+
+		checkDocument(docId, []byte(`abcdefghi`))
+	})
+
+	s.RunCommonDapiErrorCases(func(opts *commonDapiTestData) *testHttpResponse {
+		return s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/prepend",
+				opts.BucketName, opts.ScopeName, opts.CollectionName, opts.DocumentKey,
+			),
+			Headers: opts.Headers,
+			Body:    []byte(`fghi`),
+		})
+	})
 }
