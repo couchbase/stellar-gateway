@@ -240,6 +240,15 @@ func (e ErrorHandler) NewBucketMissingStatus(baseErr error, bucketName string) *
 	return st
 }
 
+func (e ErrorHandler) NewEmptyContentStatus() *Status {
+	st := &Status{
+		StatusCode: http.StatusBadRequest,
+		Code:       dataapiv1.ErrorCodeInvalidArgument,
+		Message:    "No content was provided in the request body.",
+	}
+	return st
+}
+
 func (e ErrorHandler) NewContentTooLargeStatus() *Status {
 	st := &Status{
 		StatusCode: http.StatusRequestEntityTooLarge,
