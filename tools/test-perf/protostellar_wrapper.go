@@ -31,7 +31,7 @@ func (w *protostellarWrapper) Connect(addr, username, password string) error {
 }
 
 func (w *protostellarWrapper) Close() {
-	w.client.Close()
+	_ = w.client.Close()
 	w.client = nil
 }
 

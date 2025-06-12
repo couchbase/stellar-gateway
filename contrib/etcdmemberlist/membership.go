@@ -24,14 +24,14 @@ func (m *Membership) key() string {
 func (m *Membership) join(ctx context.Context) error {
 	leaseTimeoutInSecs := int64(m.leasePeriod / time.Second)
 
-	lease, err := m.etcdClient.Lease.Grant(ctx, int64(leaseTimeoutInSecs))
+	lease, err := m.etcdClient.Grant(ctx, int64(leaseTimeoutInSecs))
 	if err != nil {
 		return err
 	}
 
 	leaseID := lease.ID
 
-	leaseKaCh, err := m.etcdClient.Lease.KeepAlive(context.Background(), leaseID)
+	leaseKaCh, err := m.etcdClient.KeepAlive(context.Background(), leaseID)
 	if err != nil {
 		return err
 	}
@@ -46,7 +46,7 @@ func (m *Membership) join(ctx context.Context) error {
 
 	m.leaseID = leaseID
 
-	_, err = m.etcdClient.KV.Put(ctx, m.key(), string(m.metaData), etcd.WithLease(leaseID))
+	_, err = m.etcdClient.Put(ctx, m.key(), string(m.metaData), etcd.WithLease(leaseID))
 	if err != nil {
 		return err
 	}
@@ -57,7 +57,7 @@ func (m *Membership) join(ctx context.Context) error {
 func (m *Membership) SetMetaData(ctx context.Context, data []byte) error {
 	m.metaData = data
 
-	_, err := m.etcdClient.KV.Put(ctx, m.key(), string(m.metaData), etcd.WithLease(m.leaseID))
+	_, err := m.etcdClient.Put(ctx, m.key(), string(m.metaData), etcd.WithLease(m.leaseID))
 	if err != nil {
 		return err
 	}
@@ -66,7 +66,7 @@ func (m *Membership) SetMetaData(ctx context.Context, data []byte) error {
 }
 
 func (m *Membership) Leave(ctx context.Context) error {
-	_, err := m.etcdClient.KV.Delete(ctx, m.key())
+	_, err := m.etcdClient.Delete(ctx, m.key())
 	if err != nil {
 		return err
 	}

@@ -71,19 +71,19 @@ func NewListeners(opts *ListenersOptions) (*Listeners, error) {
 
 	l.mgmtListener, err = makePlain(opts.Ports.Mgmt)
 	if err != nil {
-		l.Close()
+		_ = l.Close()
 		return nil, err
 	}
 
 	l.kvListener, err = makePlain(opts.Ports.KV)
 	if err != nil {
-		l.Close()
+		_ = l.Close()
 		return nil, err
 	}
 
 	l.queryListener, err = makePlain(opts.Ports.Query)
 	if err != nil {
-		l.Close()
+		_ = l.Close()
 		return nil, err
 	}
 
@@ -92,19 +92,19 @@ func NewListeners(opts *ListenersOptions) (*Listeners, error) {
 
 		l.mgmtTLSListener, err = makeTLS(opts.TLSPorts.Mgmt)
 		if err != nil {
-			l.Close()
+			_ = l.Close()
 			return nil, err
 		}
 
 		l.kvTLSListener, err = makeTLS(opts.TLSPorts.KV)
 		if err != nil {
-			l.Close()
+			_ = l.Close()
 			return nil, err
 		}
 
 		l.queryTLSListener, err = makeTLS(opts.TLSPorts.Query)
 		if err != nil {
-			l.Close()
+			_ = l.Close()
 			return nil, err
 		}
 	} else {
@@ -119,7 +119,7 @@ func NewListeners(opts *ListenersOptions) (*Listeners, error) {
 			errorText = "provided explit query port but no tls config"
 		}
 		if errorText != "" {
-			l.Close()
+			_ = l.Close()
 			return nil, errors.New(errorText)
 		}
 	}
@@ -129,28 +129,28 @@ func NewListeners(opts *ListenersOptions) (*Listeners, error) {
 
 func (l *Listeners) Close() error {
 	if l.mgmtListener != nil {
-		l.mgmtListener.Close()
+		_ = l.mgmtListener.Close()
 		l.mgmtListener = nil
 	}
 	if l.kvListener != nil {
-		l.kvListener.Close()
+		_ = l.kvListener.Close()
 		l.kvListener = nil
 	}
 	if l.queryListener != nil {
-		l.queryListener.Close()
+		_ = l.queryListener.Close()
 		l.queryListener = nil
 	}
 
 	if l.mgmtTLSListener != nil {
-		l.mgmtTLSListener.Close()
+		_ = l.mgmtTLSListener.Close()
 		l.mgmtTLSListener = nil
 	}
 	if l.kvTLSListener != nil {
-		l.kvTLSListener.Close()
+		_ = l.kvTLSListener.Close()
 		l.kvTLSListener = nil
 	}
 	if l.queryTLSListener != nil {
-		l.queryTLSListener.Close()
+		_ = l.queryTLSListener.Close()
 		l.queryTLSListener = nil
 	}
 

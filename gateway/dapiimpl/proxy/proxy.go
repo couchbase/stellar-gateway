@@ -125,9 +125,9 @@ func (p *DataApiProxy) writeError(w http.ResponseWriter, err error, msg string) 
 	w.WriteHeader(502)
 
 	if !p.debugMode {
-		fmt.Fprintf(w, "%s", msg)
+		_, _ = fmt.Fprintf(w, "%s", msg)
 	} else {
-		fmt.Fprintf(w, "%s: %s", msg, err)
+		_, _ = fmt.Fprintf(w, "%s: %s", msg, err)
 	}
 }
 
@@ -149,7 +149,8 @@ func (p *DataApiProxy) proxyService(
 	var roundTripper http.RoundTripper
 	var svcEndpoint string
 	var pathPrefix string
-	if serviceName == ServiceTypeMgmt {
+	switch serviceName {
+	case ServiceTypeMgmt:
 		endpointInfo, err := agent.GetMgmtEndpoint(ctx)
 		if err != nil {
 			p.writeError(w, err, "failed to select mgmt endpoint")
@@ -159,7 +160,7 @@ func (p *DataApiProxy) proxyService(
 		roundTripper = endpointInfo.RoundTripper
 		svcEndpoint = endpointInfo.Endpoint
 		pathPrefix = "/_p/mgmt"
-	} else if serviceName == ServiceTypeQuery {
+	case ServiceTypeQuery:
 		endpointInfo, err := agent.GetQueryEndpoint(ctx)
 		if err != nil {
 			p.writeError(w, err, "failed to select query endpoint")
@@ -169,7 +170,7 @@ func (p *DataApiProxy) proxyService(
 		roundTripper = endpointInfo.RoundTripper
 		svcEndpoint = endpointInfo.Endpoint
 		pathPrefix = "/_p/query"
-	} else if serviceName == ServiceTypeSearch {
+	case ServiceTypeSearch:
 		endpointInfo, err := agent.GetSearchEndpoint(ctx)
 		if err != nil {
 			p.writeError(w, err, "failed to select search endpoint")
@@ -179,7 +180,7 @@ func (p *DataApiProxy) proxyService(
 		roundTripper = endpointInfo.RoundTripper
 		svcEndpoint = endpointInfo.Endpoint
 		pathPrefix = "/_p/fts"
-	} else if serviceName == ServiceTypeAnalytics {
+	case ServiceTypeAnalytics:
 		endpointInfo, err := agent.GetAnalyticsEndpoint(ctx)
 		if err != nil {
 			p.writeError(w, err, "failed to select analytics endpoint")
@@ -189,7 +190,8 @@ func (p *DataApiProxy) proxyService(
 		roundTripper = endpointInfo.RoundTripper
 		svcEndpoint = endpointInfo.Endpoint
 		pathPrefix = "/_p/cbas"
-	} else {
+	default:
+
 		p.writeError(w, nil, "unexpected service name")
 		return
 	}

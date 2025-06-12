@@ -44,7 +44,7 @@ func (s *GatewayOpsTestSuite) sendTestHttpRequest(req *testHttpRequest) *testHtt
 	fullBody, err := io.ReadAll(hresp.Body)
 	require.NoError(s.T(), err)
 
-	hresp.Body.Close()
+	_ = hresp.Body.Close()
 
 	return &testHttpResponse{
 		StatusCode:       hresp.StatusCode,

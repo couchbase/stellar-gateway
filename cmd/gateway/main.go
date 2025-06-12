@@ -731,7 +731,8 @@ func startGateway() {
 
 		hasReceivedSigInt := false
 		for sig := range sigCh {
-			if sig == syscall.SIGINT {
+			switch sig {
+			case syscall.SIGINT:
 				if hasReceivedSigInt {
 					logger.Info("Received SIGINT a second time, terminating...")
 					os.Exit(1)
@@ -740,10 +741,10 @@ func startGateway() {
 					hasReceivedSigInt = true
 					beginGracefulShutdown()
 				}
-			} else if sig == syscall.SIGTERM {
+			case syscall.SIGTERM:
 				logger.Info("Received SIGTERM, attempting graceful shutdown...")
 				beginGracefulShutdown()
-			} else if sig == syscall.SIGHUP {
+			case syscall.SIGHUP:
 				logger.Info("Received SIGHUP, reloading configuration...")
 				reloadConfiguration()
 			}
@@ -772,7 +773,8 @@ func startGatewayWatchdog() {
 		signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 
 		for sig := range sigCh {
-			if sig == syscall.SIGINT {
+			switch sig {
+			case syscall.SIGINT:
 				if hasReceivedSigInt {
 					logger.Info("received sigint a second time, terminating...")
 					os.Exit(1)
@@ -780,7 +782,7 @@ func startGatewayWatchdog() {
 					logger.Info("received sigint, waiting for graceful shutdown...")
 					hasReceivedSigInt = true
 				}
-			} else if sig == syscall.SIGTERM {
+			case syscall.SIGTERM:
 				logger.Info("received sigterm, waiting for graceful shutdown...")
 			}
 		}

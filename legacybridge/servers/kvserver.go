@@ -78,7 +78,7 @@ func (s *KvServer) handleNewConnection(conn net.Conn) {
 	})
 	if err != nil {
 		s.logger.Info("failed to init kv proxy client", zap.Error(err))
-		conn.Close()
+		_ = conn.Close()
 		return
 	}
 

@@ -25,7 +25,7 @@ func NewListeners(opts *ListenersOptions) (*Listeners, error) {
 	if opts.DataPort >= 0 {
 		l.dataListener, err = net.Listen("tcp", fmt.Sprintf("%s:%d", opts.Address, opts.DataPort))
 		if err != nil {
-			l.Close()
+			_ = l.Close()
 			return nil, err
 		}
 	}
@@ -33,7 +33,7 @@ func NewListeners(opts *ListenersOptions) (*Listeners, error) {
 	if opts.SdPort >= 0 {
 		l.sdListener, err = net.Listen("tcp", fmt.Sprintf("%s:%d", opts.Address, opts.SdPort))
 		if err != nil {
-			l.Close()
+			_ = l.Close()
 			return nil, err
 		}
 	}
@@ -41,7 +41,7 @@ func NewListeners(opts *ListenersOptions) (*Listeners, error) {
 	if opts.DapiPort >= 0 {
 		l.dapiListener, err = net.Listen("tcp", fmt.Sprintf("%s:%d", opts.Address, opts.DapiPort))
 		if err != nil {
-			l.Close()
+			_ = l.Close()
 			return nil, err
 		}
 	}
@@ -72,15 +72,15 @@ func (l *Listeners) BoundDapiPort() int {
 
 func (l *Listeners) Close() error {
 	if l.dataListener != nil {
-		l.dataListener.Close()
+		_ = l.dataListener.Close()
 		l.dataListener = nil
 	}
 	if l.sdListener != nil {
-		l.sdListener.Close()
+		_ = l.sdListener.Close()
 		l.sdListener = nil
 	}
 	if l.dapiListener != nil {
-		l.dapiListener.Close()
+		_ = l.dapiListener.Close()
 		l.dapiListener = nil
 	}
 
