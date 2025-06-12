@@ -64,7 +64,9 @@ func FetchGcpSecret(secretId string, projectId string) (string, string, error) {
 	if err != nil {
 		return "", "", fmt.Errorf("failed to create gcp secretmanager client: %w", err)
 	}
-	defer client.Close()
+	defer func() {
+		_ = client.Close()
+	}()
 
 	req := &secretmanagerpb.AccessSecretVersionRequest{
 		Name: fmt.Sprintf("projects/%s/secrets/%s/versions/latest", projectId, secretId),

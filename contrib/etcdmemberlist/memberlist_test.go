@@ -182,7 +182,10 @@ func TestDisconnectLeave(t *testing.T) {
 		t.Fatalf("members list should have had a single entry")
 	}
 
-	etcdClientDc.Close()
+	err = etcdClientDc.Close()
+	if err != nil {
+		t.Fatalf("failed to close etcd client: %s", err)
+	}
 
 	time.Sleep(6 * time.Second)
 

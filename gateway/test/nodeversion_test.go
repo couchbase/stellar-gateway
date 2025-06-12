@@ -127,13 +127,14 @@ func editionModifierFromString(editionModifier string) (NodeEdition, string, err
 	editionStr := strings.ToLower(split[0])
 	var edition NodeEdition
 	var modifier string
-	if editionStr == "enterprise" {
+	switch editionStr {
+	case "enterprise":
 		edition = EnterpriseNodeEdition
-	} else if editionStr == "community" {
+	case "community":
 		edition = CommunityNodeEdition
-	} else if editionStr == "dp" {
+	case "dp":
 		modifier = editionStr
-	} else {
+	default:
 		return 0, "", errors.New("Unrecognised edition or modifier: " + editionStr)
 	}
 	if len(split) == 1 {

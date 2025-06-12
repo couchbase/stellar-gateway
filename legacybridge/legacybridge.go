@@ -88,7 +88,7 @@ func Run(ctx context.Context, config *Config) error {
 		}
 
 		etcdCtx, etcdCtxCancelFn := context.WithDeadline(context.Background(), time.Now().Add(2500*time.Millisecond))
-		_, err = etcdClient.KV.Get(etcdCtx, "test-key")
+		_, err = etcdClient.Get(etcdCtx, "test-key")
 		etcdCtxCancelFn()
 		if err != nil {
 			config.Logger.Error("failed to validate etcd connection", zap.Error(err))

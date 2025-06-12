@@ -258,7 +258,7 @@ func (s *System) Serve(ctx context.Context, l *Listeners) error {
 		<-ctx.Done()
 		s.dataServer.Stop()
 		s.sdServer.Stop()
-		s.dapiServer.Close()
+		_ = s.dapiServer.Close()
 	}()
 
 	if l.dataListener != nil {

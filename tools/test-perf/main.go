@@ -16,13 +16,14 @@ func main() {
 	flag.Parse()
 
 	var wrapper clientWrapper
-	if *mode == "protostellar" {
+	switch *mode {
+	case "protostellar":
 		log.Printf("testing in protostellar mode")
 		wrapper = &protostellarWrapper{}
-	} else if *mode == "direct" {
+	case "direct":
 		log.Printf("testing in direct mode")
 		wrapper = &directWrapper{}
-	} else {
+	default:
 		log.Fatalf("mode must be specified as `protostellar` or `direct`")
 	}
 
@@ -63,7 +64,7 @@ func main() {
 	NUM_OPS_TEST := 100000
 	NUM_THREADS := 64
 
-	var numOpsLeft int64 = int64(NUM_OPS_TEST)
+	var numOpsLeft = int64(NUM_OPS_TEST)
 	var numOps int64
 	var totalOpTimeInt int64
 

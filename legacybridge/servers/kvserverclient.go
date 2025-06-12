@@ -176,7 +176,8 @@ func (c *KvServerClient) sendUnknownCommand(
 }
 
 func (c *KvServerClient) handlePacket(pak *memd.Packet) {
-	if pak.Magic == memd.CmdMagicReq {
+	switch pak.Magic {
+	case memd.CmdMagicReq:
 		switch pak.Command {
 		// bootstrap commands
 		case memd.CmdHello:
@@ -207,12 +208,12 @@ func (c *KvServerClient) handlePacket(pak *memd.Packet) {
 		default:
 			c.sendUnknownCommand(pak)
 		}
-	} else if pak.Magic == memd.CmdMagicRes {
+	case memd.CmdMagicRes:
 		switch pak.Command {
 		default:
 			c.sendUnknownCommand(pak)
 		}
-	} else {
+	default:
 		c.sendUnknownCommand(pak)
 	}
 }

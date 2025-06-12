@@ -83,7 +83,7 @@ func (ml *MemberList) Join(ctx context.Context, opts *JoinOptions) (*Membership,
 
 func (ml *MemberList) Members(ctx context.Context) (*MembersSnapshot, error) {
 	membersPrefix := ml.keyPrefix + "/"
-	resp, err := ml.etcdClient.KV.Get(ctx, membersPrefix, etcd.WithPrefix())
+	resp, err := ml.etcdClient.Get(ctx, membersPrefix, etcd.WithPrefix())
 	if err != nil {
 		return nil, err
 	}
@@ -133,7 +133,7 @@ func (ml *MemberList) WatchMembers(ctx context.Context) (chan *MembersSnapshot, 
 	}
 
 	// fetch the initial state of the members
-	resp, err := ml.etcdClient.KV.Get(ctx, membersPrefix, etcd.WithPrefix())
+	resp, err := ml.etcdClient.Get(ctx, membersPrefix, etcd.WithPrefix())
 	if err != nil {
 		return nil, err
 	}
@@ -147,7 +147,7 @@ func (ml *MemberList) WatchMembers(ctx context.Context) (chan *MembersSnapshot, 
 	// Emit the initial members list
 	emitKeyMap()
 
-	watchCh := ml.etcdClient.Watcher.Watch(ctx, membersPrefix, etcd.WithRev(resp.Header.Revision))
+	watchCh := ml.etcdClient.Watch(ctx, membersPrefix, etcd.WithRev(resp.Header.Revision))
 	go func() {
 		for {
 			watchEvts, ok := <-watchCh

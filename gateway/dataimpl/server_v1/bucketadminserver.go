@@ -358,7 +358,7 @@ func (s *BucketAdminServer) UpdateBucket(
 	}
 
 	errSt = s.validateHistorySettings(
-		bucket.BucketSettings.StorageBackend,
+		bucket.StorageBackend,
 		in.BucketName,
 		in.HistoryRetentionCollectionDefault,
 		in.HistoryRetentionBytes,

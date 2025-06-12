@@ -93,20 +93,21 @@ func (h CompressHandler) MaybeCompressContent(
 				encodingQ = parsedQ
 			}
 
-			if encodingName == "identity" {
+			switch encodingName {
+			case "identity":
 				identityQ = encodingQ
 				isIdentityExplicit = true
-			} else if encodingName == "snappy" {
+			case "snappy":
 				snappyQ = encodingQ
 				isSnappyExplicit = true
-			} else if encodingName == "*" {
+			case "*":
 				if !isIdentityExplicit {
 					identityQ = encodingQ
 				}
 				if !isSnappyExplicit {
 					snappyQ = encodingQ
 				}
-			} else {
+			default:
 				// we intentionally ignore unknown encodings
 				continue
 			}

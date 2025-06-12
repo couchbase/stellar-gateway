@@ -38,9 +38,10 @@ func (s *GatewayOpsTestSuite) SupportsFeature(code TestFeatureCode) bool {
 			}
 		}
 	}
-	if featureFlagValue == +1 {
+	switch featureFlagValue {
+	case +1:
 		return true
-	} else if featureFlagValue == -1 {
+	case -1:
 		return false
 	}
 

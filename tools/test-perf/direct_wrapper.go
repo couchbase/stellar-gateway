@@ -55,8 +55,7 @@ func (w *directWrapper) Connect(addr, username, password string) error {
 }
 
 func (w *directWrapper) Close() {
-	w.client.Close()
-
+	_ = w.client.Close()
 	w.client = nil
 }
 

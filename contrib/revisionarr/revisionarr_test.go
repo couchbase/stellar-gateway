@@ -75,11 +75,12 @@ func TestCompare(t *testing.T) {
 
 		// we also check that the inversion matches
 		var ie int
-		if e == +1 {
+		switch e {
+		case +1:
 			ie = -1
-		} else if e == -1 {
+		case -1:
 			ie = +1
-		} else {
+		default:
 			ie = 0
 		}
 
