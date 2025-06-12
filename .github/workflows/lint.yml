@@ -11,15 +11,15 @@ jobs:
     name: Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           submodules: recursive
-      - uses: actions/setup-go@v2
+      - uses: actions/setup-go@v5
         with:
-          go-version: 1.21
-      - uses: arduino/setup-protoc@v1
+          go-version: 1.23
+      - uses: arduino/setup-protoc@v3
         with:
-          version: 3.17
+          version: 31.1
           repo-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Generate Files
         run: |
@@ -34,9 +34,7 @@ jobs:
             exit 1
           fi
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v2
+        uses: golangci/golangci-lint-action@v8
         with:
-          version: v1.61
+          version: v2.1.6
           args: --timeout=3m
-          skip-pkg-cache: true
-          skip-build-cache: true
