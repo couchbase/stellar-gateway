@@ -299,15 +299,31 @@ func (s *System) Serve(ctx context.Context, l *Listeners) error {
 }
 
 func (s *System) Shutdown() {
+	var wg sync.WaitGroup
+
 	if s.dataServer != nil {
-		s.dataServer.GracefulStop()
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			s.dataServer.GracefulStop()
+		}()
 	}
 
 	if s.sdServer != nil {
-		s.sdServer.GracefulStop()
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			s.sdServer.GracefulStop()
+		}()
 	}
 
 	if s.sdServer != nil {
-		_ = s.dapiServer.Shutdown(context.Background())
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_ = s.dapiServer.Shutdown(context.Background())
+		}()
 	}
+
+	wg.Wait()
 }
