@@ -321,6 +321,7 @@ func (s *System) Shutdown() {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
+			s.dapiServer.SetKeepAlivesEnabled(false)
 			_ = s.dapiServer.Shutdown(context.Background())
 		}()
 	}
