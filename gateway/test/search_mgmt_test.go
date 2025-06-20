@@ -173,6 +173,139 @@ func (s *GatewayOpsTestSuite) TestSearchMgmtGet() {
 	}
 }
 
+func (s *GatewayOpsTestSuite) TestSearchMgmtList() {
+	if !s.SupportsFeature(TestFeatureSearchManagement) {
+		s.T().Skip()
+	}
+
+	searchAdminClient := admin_search_v1.NewSearchAdminServiceClient(s.gatewayConn)
+
+	var bucket, scope *string
+	if s.scopeName != "" && s.scopeName != "_default" {
+		if !s.SupportsFeature(TestFeatureSearchManagementCollections) {
+			s.T().Skip()
+		}
+		bucket = &s.bucketName
+		scope = &s.scopeName
+	}
+
+	indexName := newIndexName()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	s.T().Cleanup(func() {
+		defer cancel()
+		_, _ = searchAdminClient.DeleteIndex(ctx, &admin_search_v1.DeleteIndexRequest{
+			Name:       indexName,
+			BucketName: bucket,
+			ScopeName:  scope,
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+	})
+
+	type listTest struct {
+		description     string
+		modifyDefault   func(*admin_search_v1.ListIndexesRequest) *admin_search_v1.ListIndexesRequest
+		expect          codes.Code
+		resourceDetails string
+		creds           *credentials.PerRPCCredentials
+	}
+
+	resp, err := searchAdminClient.CreateIndex(ctx, &admin_search_v1.CreateIndexRequest{
+		Name:       indexName,
+		BucketName: bucket,
+		ScopeName:  scope,
+		Type:       "fulltext-index",
+		SourceType: ptr.To("couchbase"),
+		SourceName: &s.bucketName,
+	}, grpc.PerRPCCredentials(s.basicRpcCreds))
+	requireRpcSuccess(s.T(), resp, err)
+
+	listTests := []listTest{
+		{
+			description: "Basic",
+			modifyDefault: func(def *admin_search_v1.ListIndexesRequest) *admin_search_v1.ListIndexesRequest {
+				return def
+			},
+			expect: codes.OK,
+		},
+		// TODO - ING-1160
+		// {
+		// 	description: "RequestMissingBucket",
+		// 	modifyDefault: func(def *admin_search_v1.ListIndexesRequest) *admin_search_v1.ListIndexesRequest {
+		// 		def.BucketName = nil
+		// 		return def
+		// 	},
+		// 	expect: codes.InvalidArgument,
+		// },
+		{
+			description: "BucketNotFound",
+			modifyDefault: func(def *admin_search_v1.ListIndexesRequest) *admin_search_v1.ListIndexesRequest {
+				def.BucketName = ptr.To("missing-bucket")
+				return def
+			},
+			resourceDetails: "bucket",
+			expect:          codes.NotFound,
+		},
+		// TODO - ING-1161
+		// {
+		// 	description: "RequestMissingScope",
+		// 	modifyDefault: func(def *admin_search_v1.ListIndexesRequest) *admin_search_v1.ListIndexesRequest {
+		// 		def.ScopeName = nil
+		// 		return def
+		// 	},
+		// 	expect: codes.InvalidArgument,
+		// },
+		// TODO - ING-1162
+		// {
+		// 	description: "ScopeNotFound",
+		// 	modifyDefault: func(def *admin_search_v1.ListIndexesRequest) *admin_search_v1.ListIndexesRequest {
+		// 		def.ScopeName = ptr.To("missing-scope")
+		// 		return def
+		// 	},
+		// 	resourceDetails: "scope",
+		// 	expect:          codes.NotFound,
+		// },
+		// TODO - ING-1163
+		// {
+		// 	description: "BadCredentials",
+		// 	modifyDefault: func(def *admin_search_v1.ListIndexesRequest) *admin_search_v1.ListIndexesRequest {
+		// 		return def
+		// 	},
+		// 	creds:  &s.badRpcCreds,
+		// 	expect: codes.Unauthenticated,
+		// },
+	}
+
+	for i := range listTests {
+		t := listTests[i]
+		s.Run(t.description, func() {
+			defaultListRequest := admin_search_v1.ListIndexesRequest{
+				BucketName: bucket,
+				ScopeName:  scope,
+			}
+			req := t.modifyDefault(&defaultListRequest)
+			creds := s.basicRpcCreds
+			if t.creds != nil {
+				creds = *t.creds
+			}
+
+			resp, err := searchAdminClient.ListIndexes(ctx, req, grpc.PerRPCCredentials(creds))
+			if t.expect == codes.OK {
+				require.NoError(s.T(), err)
+				requireRpcSuccess(s.T(), resp, err)
+				s.Assert().Equal(len(resp.Indexes), 1)
+				s.Assert().Equal(indexName, resp.Indexes[0].Name)
+				s.Assert().Equal("fulltext-index", resp.Indexes[0].Type)
+				return
+			}
+
+			assertRpcStatus(s.T(), err, t.expect)
+			assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
+				assert.Equal(s.T(), t.resourceDetails, d.ResourceType)
+			})
+		})
+	}
+}
+
 func (s *GatewayOpsTestSuite) TestSearchMgmtCreate() {
 	if !s.SupportsFeature(TestFeatureSearchManagement) {
 		s.T().Skip()
