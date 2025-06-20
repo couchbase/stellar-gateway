@@ -83,6 +83,7 @@ func (s *GatewayOpsTestSuite) TestSearchMgmtGet() {
 		// 		def.Name = ""
 		// 		return def
 		// 	},
+		//  resourceDetails: "search-index",
 		// 	expect: codes.InvalidArgument,
 		// },
 		{
@@ -91,7 +92,8 @@ func (s *GatewayOpsTestSuite) TestSearchMgmtGet() {
 				def.Name = "missing-index"
 				return def
 			},
-			expect: codes.NotFound,
+			resourceDetails: "searchindex",
+			expect:          codes.NotFound,
 		},
 		{
 			description: "EmptyBucketName",
@@ -99,7 +101,8 @@ func (s *GatewayOpsTestSuite) TestSearchMgmtGet() {
 				def.BucketName = nil
 				return def
 			},
-			expect: codes.OK,
+			resourceDetails: "bucket",
+			expect:          codes.OK,
 		},
 		{
 			description: "EmptyScopeName",
@@ -115,7 +118,8 @@ func (s *GatewayOpsTestSuite) TestSearchMgmtGet() {
 				def.BucketName = ptr.To("missing-bucket")
 				return def
 			},
-			expect: codes.NotFound,
+			resourceDetails: "bucket",
+			expect:          codes.NotFound,
 		},
 		// TODO -ING-1152
 		// {
@@ -124,6 +128,7 @@ func (s *GatewayOpsTestSuite) TestSearchMgmtGet() {
 		// 		def.ScopeName = ptr.To("missing-scope")
 		// 		return def
 		// 	},
+		//  resourceDetails: "scope",
 		// 	expect: codes.NotFound,
 		// },
 		// TODO - ING-1153
@@ -161,6 +166,9 @@ func (s *GatewayOpsTestSuite) TestSearchMgmtGet() {
 			}
 
 			assertRpcStatus(s.T(), err, t.expect)
+			assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
+				assert.Equal(s.T(), t.resourceDetails, d.ResourceType)
+			})
 		})
 	}
 }
@@ -207,10 +215,11 @@ func (s *GatewayOpsTestSuite) TestSearchMgmtCreate() {
 	})
 
 	type createTest struct {
-		description   string
-		modifyDefault func(*admin_search_v1.CreateIndexRequest) *admin_search_v1.CreateIndexRequest
-		expect        codes.Code
-		creds         *credentials.PerRPCCredentials
+		description     string
+		modifyDefault   func(*admin_search_v1.CreateIndexRequest) *admin_search_v1.CreateIndexRequest
+		resourceDetails string
+		expect          codes.Code
+		creds           *credentials.PerRPCCredentials
 	}
 
 	type response struct {
@@ -264,7 +273,8 @@ func (s *GatewayOpsTestSuite) TestSearchMgmtCreate() {
 				def.BucketName = ptr.To("missing-bucket")
 				return def
 			},
-			expect: codes.NotFound,
+			resourceDetails: "bucket",
+			expect:          codes.NotFound,
 		},
 		// TODO - ING-1148
 		// {
@@ -274,6 +284,7 @@ func (s *GatewayOpsTestSuite) TestSearchMgmtCreate() {
 		// 		def.ScopeName = ptr.To("missing-scope")
 		// 		return def
 		// 	},
+		//  resourceDetails: "scope",
 		// 	expect: codes.NotFound,
 		// },
 		// TODO - ING-1144
@@ -283,6 +294,7 @@ func (s *GatewayOpsTestSuite) TestSearchMgmtCreate() {
 		// 		def.Name = "special-char-name!"
 		// 		return def
 		// 	},
+		//  resourceDetails: "searchindex",
 		// 	expect: codes.InvalidArgument,
 		// },
 		// TODO - ING-1145
@@ -292,6 +304,7 @@ func (s *GatewayOpsTestSuite) TestSearchMgmtCreate() {
 		// 		def.Name = s.docIdOfLen(260)
 		// 		return def
 		// 	},
+		//  resourceDetails: "searchindex",
 		// 	expect: codes.InvalidArgument,
 		// },
 		// TODO - ING-1147
@@ -301,6 +314,7 @@ func (s *GatewayOpsTestSuite) TestSearchMgmtCreate() {
 		// 		def.SourceType = ptr.To("not-a-source-type")
 		// 		return def
 		// 	},
+		//  resourceDetails: "searchindex",
 		// 	expect: codes.InvalidArgument,
 		// },
 		//
@@ -311,6 +325,7 @@ func (s *GatewayOpsTestSuite) TestSearchMgmtCreate() {
 		// 		def.SourceName = ptr.To("some-bucket")
 		// 		return def
 		// 	},
+		//  resourceDetails: "searchindex",
 		// 	expect: codes.NotFound || codes.InvalidArgument,
 		// },
 		// TODO - ING-1150
@@ -320,6 +335,7 @@ func (s *GatewayOpsTestSuite) TestSearchMgmtCreate() {
 		// 		def.Type = "not-a-type"
 		// 		return def
 		// 	},
+		//  resourceDetails: "searchindex",
 		// 	expect: codes.InvalidArgument,
 		// },
 		// TODO - ING-1154
@@ -359,6 +375,9 @@ func (s *GatewayOpsTestSuite) TestSearchMgmtCreate() {
 			}
 
 			assertRpcStatus(s.T(), err, t.expect)
+			assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
+				assert.Equal(s.T(), t.resourceDetails, d.ResourceType)
+			})
 		})
 	}
 }
@@ -466,6 +485,7 @@ func (s *GatewayOpsTestSuite) TestSearchMgmtUpdate() {
 		// 		def.Index.SourceType = ptr.To("notASourceType")
 		// 		return def
 		// 	},
+		//  resourceDetails: "searchindex",
 		// 	expect: codes.InvalidArgument,
 		// },
 		// TODO - ING-1157
@@ -475,6 +495,7 @@ func (s *GatewayOpsTestSuite) TestSearchMgmtUpdate() {
 		// 		def.Index.SourceName = ptr.To("missing-source")
 		// 		return def
 		// 	},
+		//  resourceDetails: "searchindex",
 		// 	expect: codes.NotFound,
 		// },
 		// TODO - ING-1558
@@ -484,6 +505,7 @@ func (s *GatewayOpsTestSuite) TestSearchMgmtUpdate() {
 		// 		def.Index.Name = "missing-index"
 		// 		return def
 		// 	},
+		//  resourceDetails: "searchindex",
 		// 	expect: codes.NotFound,
 		// },
 		{
@@ -492,7 +514,8 @@ func (s *GatewayOpsTestSuite) TestSearchMgmtUpdate() {
 				def.Index.Uuid = "123456"
 				return def
 			},
-			expect: codes.Aborted,
+			resourceDetails: "searchindex",
+			expect:          codes.Aborted,
 		},
 		// TODO - ING-1159
 		// {
@@ -550,6 +573,9 @@ func (s *GatewayOpsTestSuite) TestSearchMgmtUpdate() {
 			}
 
 			assertRpcStatus(s.T(), err, t.expect)
+			assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
+				assert.Equal(s.T(), t.resourceDetails, d.ResourceType)
+			})
 		})
 	}
 }
@@ -754,6 +780,6 @@ func (s *GatewayOpsTestSuite) TestCreateIndexAlreadyExists() {
 	}, grpc.PerRPCCredentials(s.basicRpcCreds))
 	assertRpcStatus(s.T(), err, codes.AlreadyExists)
 	assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
-		assert.Equal(s.T(), d.ResourceType, "searchindex")
+		assert.Equal(s.T(), "searchindex", d.ResourceType)
 	})
 }
