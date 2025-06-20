@@ -22,7 +22,7 @@ func newIndexName() string {
 	return indexName
 }
 
-func (s *GatewayOpsTestSuite) TestSearchMgmtGet() {
+func (s *GatewayOpsTestSuite) TestGetIndex() {
 	if !s.SupportsFeature(TestFeatureSearchManagement) {
 		s.T().Skip()
 	}
@@ -83,8 +83,8 @@ func (s *GatewayOpsTestSuite) TestSearchMgmtGet() {
 		// 		def.Name = ""
 		// 		return def
 		// 	},
-		//  resourceDetails: "search-index",
-		// 	expect: codes.InvalidArgument,
+		// 	resourceDetails: "search-index",
+		// 	expect:          codes.InvalidArgument,
 		// },
 		{
 			description: "IndexNotFound",
@@ -173,7 +173,7 @@ func (s *GatewayOpsTestSuite) TestSearchMgmtGet() {
 	}
 }
 
-func (s *GatewayOpsTestSuite) TestSearchMgmtList() {
+func (s *GatewayOpsTestSuite) TestListIndexes() {
 	if !s.SupportsFeature(TestFeatureSearchManagement) {
 		s.T().Skip()
 	}
@@ -306,7 +306,7 @@ func (s *GatewayOpsTestSuite) TestSearchMgmtList() {
 	}
 }
 
-func (s *GatewayOpsTestSuite) TestSearchMgmtCreate() {
+func (s *GatewayOpsTestSuite) TestCreateIndex() {
 	if !s.SupportsFeature(TestFeatureSearchManagement) {
 		s.T().Skip()
 	}
@@ -523,7 +523,7 @@ func (s *GatewayOpsTestSuite) TestSearchMgmtCreate() {
 	}
 }
 
-func (s *GatewayOpsTestSuite) TestSearchMgmtUpdate() {
+func (s *GatewayOpsTestSuite) TestUpdateIndex() {
 	if !s.SupportsFeature(TestFeatureSearchManagement) {
 		s.T().Skip()
 	}
@@ -721,7 +721,7 @@ func (s *GatewayOpsTestSuite) TestSearchMgmtUpdate() {
 	}
 }
 
-func (s *GatewayOpsTestSuite) TestSearchMgmtDelete() {
+func (s *GatewayOpsTestSuite) TestDeleteIndex() {
 	if !s.SupportsFeature(TestFeatureSearchManagement) {
 		s.T().Skip()
 	}
@@ -876,6 +876,151 @@ func (s *GatewayOpsTestSuite) TestSearchMgmtDelete() {
 				}, grpc.PerRPCCredentials(s.basicRpcCreds))
 				requireRpcSuccess(s.T(), resp, err)
 
+				return
+			}
+
+			assertRpcStatus(s.T(), err, t.expect)
+			assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
+				assert.Equal(s.T(), t.resourceDetails, d.ResourceType)
+			})
+		})
+	}
+}
+
+func (s *GatewayOpsTestSuite) TestPauseIndexIngest() {
+	if !s.SupportsFeature(TestFeatureSearchManagement) {
+		s.T().Skip()
+	}
+
+	searchAdminClient := admin_search_v1.NewSearchAdminServiceClient(s.gatewayConn)
+
+	var bucket, scope *string
+	if s.scopeName != "" && s.scopeName != "_default" {
+		if !s.SupportsFeature(TestFeatureSearchManagementCollections) {
+			s.T().Skip()
+		}
+		bucket = &s.bucketName
+		scope = &s.scopeName
+	}
+
+	indexName := newIndexName()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	s.T().Cleanup(func() {
+		defer cancel()
+		_, _ = searchAdminClient.DeleteIndex(ctx, &admin_search_v1.DeleteIndexRequest{
+			Name:       indexName,
+			BucketName: bucket,
+			ScopeName:  scope,
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+	})
+
+	resp, err := searchAdminClient.CreateIndex(ctx, &admin_search_v1.CreateIndexRequest{
+		Name:       indexName,
+		BucketName: bucket,
+		ScopeName:  scope,
+		Type:       "fulltext-index",
+		SourceType: ptr.To("couchbase"),
+		SourceName: &s.bucketName,
+	}, grpc.PerRPCCredentials(s.basicRpcCreds))
+	requireRpcSuccess(s.T(), resp, err)
+
+	type pauseTest struct {
+		description     string
+		modifyDefault   func(*admin_search_v1.PauseIndexIngestRequest) *admin_search_v1.PauseIndexIngestRequest
+		expect          codes.Code
+		resourceDetails string
+		creds           *credentials.PerRPCCredentials
+	}
+
+	pauseTests := []pauseTest{
+		{
+			description: "Basic",
+			modifyDefault: func(def *admin_search_v1.PauseIndexIngestRequest) *admin_search_v1.PauseIndexIngestRequest {
+				return def
+			},
+			expect: codes.OK,
+		},
+		{
+			description: "AlreadyPaused",
+			modifyDefault: func(def *admin_search_v1.PauseIndexIngestRequest) *admin_search_v1.PauseIndexIngestRequest {
+				return def
+			},
+			expect: codes.OK,
+		},
+		{
+			description: "IndexNotFound",
+			modifyDefault: func(def *admin_search_v1.PauseIndexIngestRequest) *admin_search_v1.PauseIndexIngestRequest {
+				def.Name = "missing-index"
+				return def
+			},
+			resourceDetails: "searchindex",
+			expect:          codes.NotFound,
+		},
+		{
+			description: "BucketNotFound",
+			modifyDefault: func(def *admin_search_v1.PauseIndexIngestRequest) *admin_search_v1.PauseIndexIngestRequest {
+				def.BucketName = ptr.To("missing-bucket")
+				return def
+			},
+			resourceDetails: "bucket",
+			expect:          codes.NotFound,
+		},
+		{
+			description: "RequestMissingBucket",
+			modifyDefault: func(def *admin_search_v1.PauseIndexIngestRequest) *admin_search_v1.PauseIndexIngestRequest {
+				def.BucketName = nil
+				return def
+			},
+			expect: codes.OK,
+		},
+		// TODO - ING-1167
+		// {
+		// 	description: "ScopeNotFound",
+		// 	modifyDefault: func(def *admin_search_v1.PauseIndexIngestRequest) *admin_search_v1.PauseIndexIngestRequest {
+		// 		def.ScopeName = ptr.To("missing-scope")
+		// 		return def
+		// 	},
+		// 	resourceDetails: "scope",
+		// 	expect:          codes.NotFound,
+		// },
+		{
+			description: "RequestMissingScope",
+			modifyDefault: func(def *admin_search_v1.PauseIndexIngestRequest) *admin_search_v1.PauseIndexIngestRequest {
+				def.ScopeName = nil
+				return def
+			},
+			expect: codes.OK,
+		},
+		// TODO - ING-1168
+		// {
+		// 	description: "BadCredentials",
+		// 	modifyDefault: func(def *admin_search_v1.PauseIndexIngestRequest) *admin_search_v1.PauseIndexIngestRequest {
+		// 		return def
+		// 	},
+		// 	creds:  &s.badRpcCreds,
+		// 	expect: codes.Unauthenticated,
+		// },
+	}
+
+	for i := range pauseTests {
+		t := pauseTests[i]
+		s.Run(t.description, func() {
+			defaultPauseRequest := admin_search_v1.PauseIndexIngestRequest{
+				Name:       indexName,
+				BucketName: bucket,
+				ScopeName:  scope,
+			}
+			req := t.modifyDefault(&defaultPauseRequest)
+			creds := s.basicRpcCreds
+			if t.creds != nil {
+				creds = *t.creds
+			}
+
+			resp, err := searchAdminClient.PauseIndexIngest(ctx, req, grpc.PerRPCCredentials(creds))
+			if t.expect == codes.OK {
+				require.NoError(s.T(), err)
+				requireRpcSuccess(s.T(), resp, err)
 				return
 			}
 
@@ -1044,49 +1189,4 @@ func (s *GatewayOpsTestSuite) TestIndexesPartitionControl() {
 		ScopeName:  scope,
 	}, grpc.PerRPCCredentials(s.basicRpcCreds))
 	requireRpcSuccess(s.T(), unfreezeResp, err)
-}
-
-func (s *GatewayOpsTestSuite) TestCreateIndexAlreadyExists() {
-	if !s.SupportsFeature(TestFeatureSearchManagement) {
-		s.T().Skip()
-	}
-	searchAdminClient := admin_search_v1.NewSearchAdminServiceClient(s.gatewayConn)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-	defer cancel()
-
-	indexName := newIndexName()
-
-	var bucket, scope *string
-	if s.scopeName != "" && s.scopeName != "_default" {
-		if !s.SupportsFeature(TestFeatureSearchManagementCollections) {
-			s.T().Skip()
-		}
-		bucket = &s.bucketName
-		scope = &s.scopeName
-	}
-
-	sourceType := "couchbase"
-	resp, err := searchAdminClient.CreateIndex(ctx, &admin_search_v1.CreateIndexRequest{
-		Name:       indexName,
-		BucketName: bucket,
-		ScopeName:  scope,
-		Type:       "fulltext-index",
-		SourceType: &sourceType,
-		SourceName: &s.bucketName,
-	}, grpc.PerRPCCredentials(s.basicRpcCreds))
-	requireRpcSuccess(s.T(), resp, err)
-
-	_, err = searchAdminClient.CreateIndex(ctx, &admin_search_v1.CreateIndexRequest{
-		Name:       indexName,
-		BucketName: bucket,
-		ScopeName:  scope,
-		Type:       "fulltext-index",
-		SourceType: &sourceType,
-		SourceName: &s.bucketName,
-	}, grpc.PerRPCCredentials(s.basicRpcCreds))
-	assertRpcStatus(s.T(), err, codes.AlreadyExists)
-	assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
-		assert.Equal(s.T(), "searchindex", d.ResourceType)
-	})
 }
