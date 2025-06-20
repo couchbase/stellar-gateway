@@ -96,15 +96,6 @@ func (s *GatewayOpsTestSuite) TestGetIndex() {
 			expect:          codes.NotFound,
 		},
 		{
-			description: "EmptyBucketName",
-			modifyDefault: func(def *admin_search_v1.GetIndexRequest) *admin_search_v1.GetIndexRequest {
-				def.BucketName = nil
-				return def
-			},
-			resourceDetails: "bucket",
-			expect:          codes.OK,
-		},
-		{
 			description: "EmptyScopeName",
 			modifyDefault: func(def *admin_search_v1.GetIndexRequest) *admin_search_v1.GetIndexRequest {
 				def.ScopeName = nil
@@ -123,13 +114,13 @@ func (s *GatewayOpsTestSuite) TestGetIndex() {
 		},
 		// TODO -ING-1152
 		// {
-		// 	description: "ScopeNotFound",
+		// 	description: "ScopeNamedWithoutBucket",
 		// 	modifyDefault: func(def *admin_search_v1.GetIndexRequest) *admin_search_v1.GetIndexRequest {
-		// 		def.ScopeName = ptr.To("missing-scope")
+		// 		def.ScopeName = ptr.To("_defualt")
 		// 		return def
 		// 	},
 		//  resourceDetails: "scope",
-		// 	expect: codes.NotFound,
+		// 	expect: codes.InvalidArgument,
 		// },
 		// TODO - ING-1153
 		// {
@@ -227,15 +218,6 @@ func (s *GatewayOpsTestSuite) TestListIndexes() {
 			},
 			expect: codes.OK,
 		},
-		// TODO - ING-1160
-		// {
-		// 	description: "RequestMissingBucket",
-		// 	modifyDefault: func(def *admin_search_v1.ListIndexesRequest) *admin_search_v1.ListIndexesRequest {
-		// 		def.BucketName = nil
-		// 		return def
-		// 	},
-		// 	expect: codes.InvalidArgument,
-		// },
 		{
 			description: "BucketNotFound",
 			modifyDefault: func(def *admin_search_v1.ListIndexesRequest) *admin_search_v1.ListIndexesRequest {
@@ -245,24 +227,15 @@ func (s *GatewayOpsTestSuite) TestListIndexes() {
 			resourceDetails: "bucket",
 			expect:          codes.NotFound,
 		},
-		// TODO - ING-1161
-		// {
-		// 	description: "RequestMissingScope",
-		// 	modifyDefault: func(def *admin_search_v1.ListIndexesRequest) *admin_search_v1.ListIndexesRequest {
-		// 		def.ScopeName = nil
-		// 		return def
-		// 	},
-		// 	expect: codes.InvalidArgument,
-		// },
 		// TODO - ING-1162
 		// {
-		// 	description: "ScopeNotFound",
+		// 	description: "ScopeNamedWithoutBucket",
 		// 	modifyDefault: func(def *admin_search_v1.ListIndexesRequest) *admin_search_v1.ListIndexesRequest {
-		// 		def.ScopeName = ptr.To("missing-scope")
+		// 		def.ScopeName = ptr.To("_default")
 		// 		return def
 		// 	},
 		// 	resourceDetails: "scope",
-		// 	expect:          codes.NotFound,
+		// 	expect:          codes.InvaliArgument,
 		// },
 		// TODO - ING-1163
 		// {
@@ -292,7 +265,7 @@ func (s *GatewayOpsTestSuite) TestListIndexes() {
 			if t.expect == codes.OK {
 				require.NoError(s.T(), err)
 				requireRpcSuccess(s.T(), resp, err)
-				s.Assert().Equal(len(resp.Indexes), 1)
+				s.Assert().Equal(1, len(resp.Indexes))
 				s.Assert().Equal(indexName, resp.Indexes[0].Name)
 				s.Assert().Equal("fulltext-index", resp.Indexes[0].Type)
 				return
@@ -488,6 +461,15 @@ func (s *GatewayOpsTestSuite) TestCreateIndex() {
 			resourceDetails: "searchindex",
 			expect:          codes.AlreadyExists,
 		},
+		// TODO - ING-1170
+		// {
+		// 	description: "ScopeNamedWithoutBucket",
+		// 	modifyDefault: func(def *admin_search_v1.CreateIndexRequest) *admin_search_v1.CreateIndexRequest {
+		// 		def.ScopeName = ptr.To("_default")
+		// 		return def
+		// 	},
+		// 	expect: codes.InvalidArgument,
+		// },
 	}
 
 	for i := range createTests {
@@ -788,22 +770,6 @@ func (s *GatewayOpsTestSuite) TestDeleteIndex() {
 		// 	expect:          codes.InvalidArgument,
 		// },
 		{
-			description: "BucketNameMissing",
-			modifyDefault: func(def *admin_search_v1.DeleteIndexRequest) *admin_search_v1.DeleteIndexRequest {
-				def.BucketName = nil
-				return def
-			},
-			expect: codes.OK,
-		},
-		{
-			description: "ScopeNameMissing",
-			modifyDefault: func(def *admin_search_v1.DeleteIndexRequest) *admin_search_v1.DeleteIndexRequest {
-				def.ScopeName = nil
-				return def
-			},
-			expect: codes.OK,
-		},
-		{
 			description: "BucketNotFound",
 			modifyDefault: func(def *admin_search_v1.DeleteIndexRequest) *admin_search_v1.DeleteIndexRequest {
 				def.BucketName = ptr.To("missing-bucket")
@@ -814,13 +780,13 @@ func (s *GatewayOpsTestSuite) TestDeleteIndex() {
 		},
 		// TODO - ING-1165
 		// {
-		// 	description: "ScopeNotFound",
+		// 	description: "ScopeNamedWithoutBucket",
 		// 	modifyDefault: func(def *admin_search_v1.DeleteIndexRequest) *admin_search_v1.DeleteIndexRequest {
-		// 		def.ScopeName = ptr.To("missing-scope")
+		// 		def.ScopeName = ptr.To("_defualt")
 		// 		return def
 		// 	},
 		// 	resourceDetails: "scope",
-		// 	expect:          codes.NotFound,
+		// 	expect:          codes.InvalidArgument,
 		// },
 		// TODO - ING-1166
 		// {
@@ -1032,16 +998,12 @@ func (s *GatewayOpsTestSuite) TestPauseIndexIngest() {
 	}
 }
 
-func (s *GatewayOpsTestSuite) TestIndexesIngestControl() {
+func (s *GatewayOpsTestSuite) TestResumeIndexIngest() {
 	if !s.SupportsFeature(TestFeatureSearchManagement) {
 		s.T().Skip()
 	}
+
 	searchAdminClient := admin_search_v1.NewSearchAdminServiceClient(s.gatewayConn)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-	defer cancel()
-
-	indexName := newIndexName()
 
 	var bucket, scope *string
 	if s.scopeName != "" && s.scopeName != "_default" {
@@ -1052,17 +1014,11 @@ func (s *GatewayOpsTestSuite) TestIndexesIngestControl() {
 		scope = &s.scopeName
 	}
 
-	sourceType := "couchbase"
-	resp, err := searchAdminClient.CreateIndex(ctx, &admin_search_v1.CreateIndexRequest{
-		Name:       indexName,
-		BucketName: bucket,
-		ScopeName:  scope,
-		Type:       "fulltext-index",
-		SourceType: &sourceType,
-		SourceName: &s.bucketName,
-	}, grpc.PerRPCCredentials(s.basicRpcCreds))
-	requireRpcSuccess(s.T(), resp, err)
+	indexName := newIndexName()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	s.T().Cleanup(func() {
+		defer cancel()
 		_, _ = searchAdminClient.DeleteIndex(ctx, &admin_search_v1.DeleteIndexRequest{
 			Name:       indexName,
 			BucketName: bucket,
@@ -1070,19 +1026,117 @@ func (s *GatewayOpsTestSuite) TestIndexesIngestControl() {
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
 	})
 
-	pauseResp, err := searchAdminClient.PauseIndexIngest(ctx, &admin_search_v1.PauseIndexIngestRequest{
+	resp, err := searchAdminClient.CreateIndex(ctx, &admin_search_v1.CreateIndexRequest{
 		Name:       indexName,
 		BucketName: bucket,
 		ScopeName:  scope,
+		Type:       "fulltext-index",
+		SourceType: ptr.To("couchbase"),
+		SourceName: &s.bucketName,
 	}, grpc.PerRPCCredentials(s.basicRpcCreds))
-	requireRpcSuccess(s.T(), pauseResp, err)
+	requireRpcSuccess(s.T(), resp, err)
 
-	resumeResp, err := searchAdminClient.ResumeIndexIngest(ctx, &admin_search_v1.ResumeIndexIngestRequest{
+	_, err = searchAdminClient.PauseIndexIngest(ctx, &admin_search_v1.PauseIndexIngestRequest{
 		Name:       indexName,
 		BucketName: bucket,
 		ScopeName:  scope,
 	}, grpc.PerRPCCredentials(s.basicRpcCreds))
-	requireRpcSuccess(s.T(), resumeResp, err)
+
+	type pauseTest struct {
+		description     string
+		modifyDefault   func(*admin_search_v1.ResumeIndexIngestRequest) *admin_search_v1.ResumeIndexIngestRequest
+		expect          codes.Code
+		resourceDetails string
+		creds           *credentials.PerRPCCredentials
+	}
+
+	pauseTests := []pauseTest{
+		{
+			description: "Basic",
+			modifyDefault: func(def *admin_search_v1.ResumeIndexIngestRequest) *admin_search_v1.ResumeIndexIngestRequest {
+				return def
+			},
+			expect: codes.OK,
+		},
+		{
+			description: "AlreadyResumed",
+			modifyDefault: func(def *admin_search_v1.ResumeIndexIngestRequest) *admin_search_v1.ResumeIndexIngestRequest {
+				return def
+			},
+			expect: codes.OK,
+		},
+		{
+			description: "IndexNotFound",
+			modifyDefault: func(def *admin_search_v1.ResumeIndexIngestRequest) *admin_search_v1.ResumeIndexIngestRequest {
+				def.Name = "missing-index"
+				return def
+			},
+			resourceDetails: "searchindex",
+			expect:          codes.NotFound,
+		},
+		{
+			description: "BucketNotFound",
+			modifyDefault: func(def *admin_search_v1.ResumeIndexIngestRequest) *admin_search_v1.ResumeIndexIngestRequest {
+				def.BucketName = ptr.To("missing-bucket")
+				return def
+			},
+			resourceDetails: "bucket",
+			expect:          codes.NotFound,
+		},
+		{
+			description: "RequestMissingBucket",
+			modifyDefault: func(def *admin_search_v1.ResumeIndexIngestRequest) *admin_search_v1.ResumeIndexIngestRequest {
+				def.BucketName = nil
+				return def
+			},
+			expect: codes.OK,
+		},
+		{
+			description: "RequestMissingScope",
+			modifyDefault: func(def *admin_search_v1.ResumeIndexIngestRequest) *admin_search_v1.ResumeIndexIngestRequest {
+				def.ScopeName = nil
+				return def
+			},
+			expect: codes.OK,
+		},
+		// TODO - ING-1168
+		// {
+		// 	description: "BadCredentials",
+		// 	modifyDefault: func(def *admin_search_v1.PauseIndexIngestRequest) *admin_search_v1.PauseIndexIngestRequest {
+		// 		return def
+		// 	},
+		// 	creds:  &s.badRpcCreds,
+		// 	expect: codes.Unauthenticated,
+		// },
+	}
+
+	for i := range pauseTests {
+		t := pauseTests[i]
+		s.Run(t.description, func() {
+			defaultResumeRequest := admin_search_v1.ResumeIndexIngestRequest{
+				Name:       indexName,
+				BucketName: bucket,
+				ScopeName:  scope,
+			}
+			req := t.modifyDefault(&defaultResumeRequest)
+			creds := s.basicRpcCreds
+			if t.creds != nil {
+				creds = *t.creds
+			}
+
+			resp, err := searchAdminClient.ResumeIndexIngest(ctx, req, grpc.PerRPCCredentials(creds))
+			if t.expect == codes.OK {
+				require.NoError(s.T(), err)
+				requireRpcSuccess(s.T(), resp, err)
+				return
+			}
+
+			assertRpcStatus(s.T(), err, t.expect)
+			assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
+				assert.Equal(s.T(), t.resourceDetails, d.ResourceType)
+			})
+		})
+	}
 }
 
 func (s *GatewayOpsTestSuite) TestIndexesQueryControl() {
