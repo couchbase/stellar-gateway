@@ -363,16 +363,12 @@ func (s *GatewayOpsTestSuite) TestSearchMgmtCreate() {
 	}
 }
 
-func (s *GatewayOpsTestSuite) TestCreateUpdateGetDeleteIndex() {
+func (s *GatewayOpsTestSuite) TestSearchMgmtUpdate() {
 	if !s.SupportsFeature(TestFeatureSearchManagement) {
 		s.T().Skip()
 	}
+
 	searchAdminClient := admin_search_v1.NewSearchAdminServiceClient(s.gatewayConn)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-	defer cancel()
-
-	indexName := newIndexName()
 
 	var bucket, scope *string
 	if s.scopeName != "" && s.scopeName != "_default" {
@@ -383,66 +379,179 @@ func (s *GatewayOpsTestSuite) TestCreateUpdateGetDeleteIndex() {
 		scope = &s.scopeName
 	}
 
-	sourceType := "couchbase"
+	indexName := newIndexName()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	s.T().Cleanup(func() {
+		defer cancel()
+		_, _ = searchAdminClient.DeleteIndex(ctx, &admin_search_v1.DeleteIndexRequest{
+			Name:       indexName,
+			BucketName: bucket,
+			ScopeName:  scope,
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+	})
+
+	params := map[string]interface{}{
+		"test":  map[string]interface{}{},
+		"test2": map[string]interface{}{},
+	}
+	b, err := json.Marshal(params)
+	s.Require().NoError(err)
+
 	resp, err := searchAdminClient.CreateIndex(ctx, &admin_search_v1.CreateIndexRequest{
 		Name:       indexName,
 		BucketName: bucket,
 		ScopeName:  scope,
 		Type:       "fulltext-index",
-		SourceType: &sourceType,
+		SourceType: ptr.To("couchbase"),
 		SourceName: &s.bucketName,
 	}, grpc.PerRPCCredentials(s.basicRpcCreds))
 	requireRpcSuccess(s.T(), resp, err)
 
-	index, err := searchAdminClient.GetIndex(ctx, &admin_search_v1.GetIndexRequest{
-		Name:       indexName,
-		BucketName: bucket,
-		ScopeName:  scope,
-	}, grpc.PerRPCCredentials(s.basicRpcCreds))
-	requireRpcSuccess(s.T(), index, err)
-
-	s.Assert().Equal(indexName, index.Index.Name)
-	s.Assert().Equal("fulltext-index", index.Index.Type)
-
-	indexes, err := searchAdminClient.ListIndexes(ctx, &admin_search_v1.ListIndexesRequest{
-		BucketName: bucket,
-		ScopeName:  scope,
-	}, grpc.PerRPCCredentials(s.basicRpcCreds))
-	requireRpcSuccess(s.T(), indexes, err)
-
-	var found bool
-	for _, i := range indexes.Indexes {
-		if i.Name == indexName {
-			found = true
-			break
-		}
+	type updateTest struct {
+		description     string
+		modifyDefault   func(*admin_search_v1.UpdateIndexRequest) *admin_search_v1.UpdateIndexRequest
+		expect          codes.Code
+		resourceDetails string
+		creds           *credentials.PerRPCCredentials
 	}
-	s.Assert().True(found, "Did not find expected index in GetAllIndexes")
 
-	updateIndex := index.Index
-	planParams := map[string]interface{}{
-		"test":  map[string]interface{}{},
-		"test2": map[string]interface{}{},
+	updateTests := []updateTest{
+		{
+			description: "SourceType",
+			modifyDefault: func(def *admin_search_v1.UpdateIndexRequest) *admin_search_v1.UpdateIndexRequest {
+				def.Index.SourceType = ptr.To("gocbcore")
+				return def
+			},
+			expect: codes.OK,
+		},
+		{
+			description: "Params",
+			modifyDefault: func(def *admin_search_v1.UpdateIndexRequest) *admin_search_v1.UpdateIndexRequest {
+				def.Index.Params = map[string][]byte{
+					"targets": b,
+				}
+
+				return def
+			},
+			expect: codes.OK,
+		},
+		{
+			description: "SourceParams",
+			modifyDefault: func(def *admin_search_v1.UpdateIndexRequest) *admin_search_v1.UpdateIndexRequest {
+				def.Index.SourceParams = map[string][]byte{
+					"targets": b,
+				}
+
+				return def
+			},
+			expect: codes.OK,
+		},
+		// TODO - ING-1155
+		// {
+		// 	description: "PlanParams",
+		// 	modifyDefault: func(def *admin_search_v1.UpdateIndexRequest) *admin_search_v1.UpdateIndexRequest {
+		// 		def.Index.PlanParams = map[string][]byte{
+		// 			"targets": b,
+		// 		}
+
+		// 		return def
+		// 	},
+		// 	expect: codes.OK,
+		// },
+		// TODO - ING-1156
+		// {
+		// 	description: "InvalidSourceType",
+		// 	modifyDefault: func(def *admin_search_v1.UpdateIndexRequest) *admin_search_v1.UpdateIndexRequest {
+		// 		def.Index.SourceType = ptr.To("notASourceType")
+		// 		return def
+		// 	},
+		// 	expect: codes.InvalidArgument,
+		// },
+		// TODO - ING-1157
+		// {
+		// 	description: "SourceNameNotFound",
+		// 	modifyDefault: func(def *admin_search_v1.UpdateIndexRequest) *admin_search_v1.UpdateIndexRequest {
+		// 		def.Index.SourceName = ptr.To("missing-source")
+		// 		return def
+		// 	},
+		// 	expect: codes.NotFound,
+		// },
+		// TODO - ING-1558
+		// {
+		// 	description: "IndexNotFound",
+		// 	modifyDefault: func(def *admin_search_v1.UpdateIndexRequest) *admin_search_v1.UpdateIndexRequest {
+		// 		def.Index.Name = "missing-index"
+		// 		return def
+		// 	},
+		// 	expect: codes.NotFound,
+		// },
+		{
+			description: "UuidMismatch",
+			modifyDefault: func(def *admin_search_v1.UpdateIndexRequest) *admin_search_v1.UpdateIndexRequest {
+				def.Index.Uuid = "123456"
+				return def
+			},
+			expect: codes.Aborted,
+		},
+		// TODO - ING-1159
+		// {
+		// 	description: "BadCredentials",
+		// 	modifyDefault: func(def *admin_search_v1.UpdateIndexRequest) *admin_search_v1.UpdateIndexRequest {
+		// 		return def
+		// 	},
+		// 	creds:  &s.badRpcCreds,
+		// 	expect: codes.Unauthenticated,
+		// },
 	}
-	b, err := json.Marshal(planParams)
-	s.Require().NoError(err)
 
-	updateIndex.PlanParams = map[string][]byte{
-		"targets": b,
+	for i := range updateTests {
+		t := updateTests[i]
+		s.Run(t.description, func() {
+			getResp, err := searchAdminClient.GetIndex(ctx, &admin_search_v1.GetIndexRequest{
+				Name:       indexName,
+				BucketName: bucket,
+				ScopeName:  scope,
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			requireRpcSuccess(s.T(), getResp, err)
+
+			index := getResp.Index
+
+			defaultUpdateRequest := admin_search_v1.UpdateIndexRequest{
+				Index:      index,
+				BucketName: bucket,
+				ScopeName:  scope,
+			}
+			req := t.modifyDefault(&defaultUpdateRequest)
+			creds := s.basicRpcCreds
+			if t.creds != nil {
+				creds = *t.creds
+			}
+
+			resp, err := searchAdminClient.UpdateIndex(ctx, req, grpc.PerRPCCredentials(creds))
+			if t.expect == codes.OK {
+				require.NoError(s.T(), err)
+				requireRpcSuccess(s.T(), resp, err)
+
+				updatedGetResp, err := searchAdminClient.GetIndex(ctx, &admin_search_v1.GetIndexRequest{
+					Name:       indexName,
+					BucketName: bucket,
+					ScopeName:  scope,
+				}, grpc.PerRPCCredentials(s.basicRpcCreds))
+				requireRpcSuccess(s.T(), getResp, err)
+
+				assert.Equal(s.T(), req.Index.SourceParams, updatedGetResp.Index.SourceParams)
+				assert.Equal(s.T(), req.Index.PlanParams, updatedGetResp.Index.PlanParams)
+				assert.Equal(s.T(), req.Index.SourceName, updatedGetResp.Index.SourceName)
+				assert.Equal(s.T(), req.Index.SourceType, updatedGetResp.Index.SourceType)
+				assert.Equal(s.T(), req.Index.SourceUuid, updatedGetResp.Index.SourceUuid)
+				assert.Equal(s.T(), req.Index.Type, updatedGetResp.Index.Type)
+				return
+			}
+
+			assertRpcStatus(s.T(), err, t.expect)
+		})
 	}
-	updateResp, err := searchAdminClient.UpdateIndex(ctx, &admin_search_v1.UpdateIndexRequest{
-		Index:      updateIndex,
-		BucketName: bucket,
-		ScopeName:  scope,
-	}, grpc.PerRPCCredentials(s.basicRpcCreds))
-	requireRpcSuccess(s.T(), updateResp, err)
-
-	delResp, err := searchAdminClient.DeleteIndex(ctx, &admin_search_v1.DeleteIndexRequest{
-		Name:       updateIndex.Name,
-		BucketName: bucket,
-		ScopeName:  scope,
-	}, grpc.PerRPCCredentials(s.basicRpcCreds))
-	requireRpcSuccess(s.T(), delResp, err)
 }
 
 func (s *GatewayOpsTestSuite) TestIndexesIngestControl() {
@@ -644,54 +753,6 @@ func (s *GatewayOpsTestSuite) TestCreateIndexAlreadyExists() {
 		SourceName: &s.bucketName,
 	}, grpc.PerRPCCredentials(s.basicRpcCreds))
 	assertRpcStatus(s.T(), err, codes.AlreadyExists)
-	assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
-		assert.Equal(s.T(), d.ResourceType, "searchindex")
-	})
-}
-
-func (s *GatewayOpsTestSuite) TestUpdateIndexUUIDMismatch() {
-	if !s.SupportsFeature(TestFeatureSearchManagement) {
-		s.T().Skip()
-	}
-	searchAdminClient := admin_search_v1.NewSearchAdminServiceClient(s.gatewayConn)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-	defer cancel()
-
-	indexName := newIndexName()
-
-	var bucket, scope *string
-	if s.scopeName != "" && s.scopeName != "_default" {
-		if !s.SupportsFeature(TestFeatureSearchManagementCollections) {
-			s.T().Skip()
-		}
-		bucket = &s.bucketName
-		scope = &s.scopeName
-	}
-
-	sourceType := "couchbase"
-	resp, err := searchAdminClient.CreateIndex(ctx, &admin_search_v1.CreateIndexRequest{
-		Name:       indexName,
-		BucketName: bucket,
-		ScopeName:  scope,
-		Type:       "fulltext-index",
-		SourceType: &sourceType,
-		SourceName: &s.bucketName,
-	}, grpc.PerRPCCredentials(s.basicRpcCreds))
-	requireRpcSuccess(s.T(), resp, err)
-
-	_, err = searchAdminClient.UpdateIndex(ctx, &admin_search_v1.UpdateIndexRequest{
-		Index: &admin_search_v1.Index{
-			Name:       indexName,
-			Type:       "fulltext-index",
-			SourceType: &sourceType,
-			SourceName: &s.bucketName,
-			Uuid:       "123456",
-		},
-		BucketName: bucket,
-		ScopeName:  scope,
-	}, grpc.PerRPCCredentials(s.basicRpcCreds))
-	assertRpcStatus(s.T(), err, codes.Aborted)
 	assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
 		assert.Equal(s.T(), d.ResourceType, "searchindex")
 	})
