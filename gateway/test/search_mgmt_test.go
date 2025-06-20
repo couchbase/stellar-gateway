@@ -50,14 +50,6 @@ func (s *GatewayOpsTestSuite) TestSearchMgmtGet() {
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
 	})
 
-	type getTest struct {
-		description     string
-		modifyDefault   func(*admin_search_v1.GetIndexRequest) *admin_search_v1.GetIndexRequest
-		expect          codes.Code
-		resourceDetails string
-		creds           *credentials.PerRPCCredentials
-	}
-
 	resp, err := searchAdminClient.CreateIndex(ctx, &admin_search_v1.CreateIndexRequest{
 		Name:       indexName,
 		BucketName: bucket,
@@ -67,6 +59,14 @@ func (s *GatewayOpsTestSuite) TestSearchMgmtGet() {
 		SourceName: &s.bucketName,
 	}, grpc.PerRPCCredentials(s.basicRpcCreds))
 	requireRpcSuccess(s.T(), resp, err)
+
+	type getTest struct {
+		description     string
+		modifyDefault   func(*admin_search_v1.GetIndexRequest) *admin_search_v1.GetIndexRequest
+		expect          codes.Code
+		resourceDetails string
+		creds           *credentials.PerRPCCredentials
+	}
 
 	getTests := []getTest{
 		{
@@ -702,6 +702,172 @@ func (s *GatewayOpsTestSuite) TestSearchMgmtUpdate() {
 				assert.Equal(s.T(), req.Index.SourceType, updatedGetResp.Index.SourceType)
 				assert.Equal(s.T(), req.Index.SourceUuid, updatedGetResp.Index.SourceUuid)
 				assert.Equal(s.T(), req.Index.Type, updatedGetResp.Index.Type)
+				return
+			}
+
+			assertRpcStatus(s.T(), err, t.expect)
+			assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
+				assert.Equal(s.T(), t.resourceDetails, d.ResourceType)
+			})
+		})
+	}
+}
+
+func (s *GatewayOpsTestSuite) TestSearchMgmtDelete() {
+	if !s.SupportsFeature(TestFeatureSearchManagement) {
+		s.T().Skip()
+	}
+
+	searchAdminClient := admin_search_v1.NewSearchAdminServiceClient(s.gatewayConn)
+
+	var bucket, scope *string
+	if s.scopeName != "" && s.scopeName != "_default" {
+		if !s.SupportsFeature(TestFeatureSearchManagementCollections) {
+			s.T().Skip()
+		}
+		bucket = &s.bucketName
+		scope = &s.scopeName
+	}
+
+	indexName := newIndexName()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	s.T().Cleanup(func() {
+		defer cancel()
+		_, _ = searchAdminClient.DeleteIndex(ctx, &admin_search_v1.DeleteIndexRequest{
+			Name:       indexName,
+			BucketName: bucket,
+			ScopeName:  scope,
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+	})
+
+	resp, err := searchAdminClient.CreateIndex(ctx, &admin_search_v1.CreateIndexRequest{
+		Name:       indexName,
+		BucketName: bucket,
+		ScopeName:  scope,
+		Type:       "fulltext-index",
+		SourceType: ptr.To("couchbase"),
+		SourceName: &s.bucketName,
+	}, grpc.PerRPCCredentials(s.basicRpcCreds))
+	requireRpcSuccess(s.T(), resp, err)
+
+	type deleteTest struct {
+		description     string
+		modifyDefault   func(*admin_search_v1.DeleteIndexRequest) *admin_search_v1.DeleteIndexRequest
+		expect          codes.Code
+		resourceDetails string
+		creds           *credentials.PerRPCCredentials
+	}
+
+	deleteTests := []deleteTest{
+		{
+			description: "IndexNotFound",
+			modifyDefault: func(def *admin_search_v1.DeleteIndexRequest) *admin_search_v1.DeleteIndexRequest {
+				def.Name = "missing-index"
+				return def
+			},
+			resourceDetails: "searchindex",
+			expect:          codes.NotFound,
+		},
+		// TODO-ING-1164
+		// {
+		// 	description: "SpecialCharsInIndexName",
+		// 	modifyDefault: func(def *admin_search_v1.DeleteIndexRequest) *admin_search_v1.DeleteIndexRequest {
+		// 		def.Name = "special-char-name@£$%"
+		// 		return def
+		// 	},
+		// 	resourceDetails: "searchindex",
+		// 	expect:          codes.InvalidArgument,
+		// },
+		{
+			description: "BucketNameMissing",
+			modifyDefault: func(def *admin_search_v1.DeleteIndexRequest) *admin_search_v1.DeleteIndexRequest {
+				def.BucketName = nil
+				return def
+			},
+			expect: codes.OK,
+		},
+		{
+			description: "ScopeNameMissing",
+			modifyDefault: func(def *admin_search_v1.DeleteIndexRequest) *admin_search_v1.DeleteIndexRequest {
+				def.ScopeName = nil
+				return def
+			},
+			expect: codes.OK,
+		},
+		{
+			description: "BucketNotFound",
+			modifyDefault: func(def *admin_search_v1.DeleteIndexRequest) *admin_search_v1.DeleteIndexRequest {
+				def.BucketName = ptr.To("missing-bucket")
+				return def
+			},
+			resourceDetails: "bucket",
+			expect:          codes.NotFound,
+		},
+		// TODO - ING-1165
+		// {
+		// 	description: "ScopeNotFound",
+		// 	modifyDefault: func(def *admin_search_v1.DeleteIndexRequest) *admin_search_v1.DeleteIndexRequest {
+		// 		def.ScopeName = ptr.To("missing-scope")
+		// 		return def
+		// 	},
+		// 	resourceDetails: "scope",
+		// 	expect:          codes.NotFound,
+		// },
+		// TODO - ING-1166
+		// {
+		// 	description: "BadCredentials",
+		// 	modifyDefault: func(def *admin_search_v1.DeleteIndexRequest) *admin_search_v1.DeleteIndexRequest {
+		// 		return def
+		// 	},
+		// 	creds:  &s.badRpcCreds,
+		// 	expect: codes.Unauthenticated,
+		// },
+		{
+			description: "Success",
+			modifyDefault: func(def *admin_search_v1.DeleteIndexRequest) *admin_search_v1.DeleteIndexRequest {
+				return def
+			},
+			expect: codes.OK,
+		},
+	}
+
+	for i := range deleteTests {
+		t := deleteTests[i]
+		s.Run(t.description, func() {
+			defaultDeleteRequest := admin_search_v1.DeleteIndexRequest{
+				Name:       indexName,
+				BucketName: bucket,
+				ScopeName:  scope,
+			}
+			req := t.modifyDefault(&defaultDeleteRequest)
+			creds := s.basicRpcCreds
+			if t.creds != nil {
+				creds = *t.creds
+			}
+
+			resp, err := searchAdminClient.DeleteIndex(ctx, req, grpc.PerRPCCredentials(creds))
+			if t.expect == codes.OK {
+				require.NoError(s.T(), err)
+				requireRpcSuccess(s.T(), resp, err)
+
+				_, err := searchAdminClient.GetIndex(ctx, &admin_search_v1.GetIndexRequest{
+					Name:       indexName,
+					BucketName: bucket,
+					ScopeName:  scope,
+				}, grpc.PerRPCCredentials(s.basicRpcCreds))
+				assertRpcStatus(s.T(), err, codes.NotFound)
+
+				resp, err := searchAdminClient.CreateIndex(ctx, &admin_search_v1.CreateIndexRequest{
+					Name:       indexName,
+					BucketName: bucket,
+					ScopeName:  scope,
+					Type:       "fulltext-index",
+					SourceType: ptr.To("couchbase"),
+					SourceName: &s.bucketName,
+				}, grpc.PerRPCCredentials(s.basicRpcCreds))
+				requireRpcSuccess(s.T(), resp, err)
+
 				return
 			}
 
