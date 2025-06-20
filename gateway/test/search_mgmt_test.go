@@ -480,6 +480,14 @@ func (s *GatewayOpsTestSuite) TestSearchMgmtCreate() {
 		// 	creds:  &s.badRpcCreds,
 		// 	expect: codes.Unauthenticated,
 		// },
+		{
+			description: "AlreadyExists",
+			modifyDefault: func(def *admin_search_v1.CreateIndexRequest) *admin_search_v1.CreateIndexRequest {
+				return def
+			},
+			resourceDetails: "searchindex",
+			expect:          codes.AlreadyExists,
+		},
 	}
 
 	for i := range createTests {
