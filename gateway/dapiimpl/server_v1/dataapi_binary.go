@@ -35,6 +35,9 @@ func (s *DataApiServer) AppendToDocument(
 			return nil, s.errorHandler.NewGenericStatus(err).Err()
 		}
 	}
+	if len(docValue) == 0 {
+		return nil, s.errorHandler.NewEmptyContentStatus().Err()
+	}
 
 	var opts gocbcorex.AppendOptions
 	opts.OnBehalfOf = oboUser
@@ -109,6 +112,9 @@ func (s *DataApiServer) PrependToDocument(
 		} else {
 			return nil, s.errorHandler.NewGenericStatus(err).Err()
 		}
+	}
+	if len(docValue) == 0 {
+		return nil, s.errorHandler.NewEmptyContentStatus().Err()
 	}
 
 	var opts gocbcorex.PrependOptions
