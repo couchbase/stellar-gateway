@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/couchbase/gocbcorex/cbhttpx"
 	"github.com/couchbase/gocbcorex/cbmgmtx"
 	"github.com/couchbase/goprotostellar/genproto/admin_collection_v1"
 	"github.com/golang/snappy"
@@ -612,8 +613,10 @@ func (s *GatewayOpsTestSuite) getServerVersion() string {
 		Transport: http.DefaultTransport,
 		UserAgent: "useragent",
 		Endpoint:  "http://" + testConfig.CbConnStr + ":8091",
-		Username:  testConfig.CbUser,
-		Password:  testConfig.CbPass,
+		Auth: &cbhttpx.BasicAuth{
+			Username: testConfig.CbUser,
+			Password: testConfig.CbPass,
+		},
 	}
 
 	clusterInfo, err := mgmt.GetClusterInfo(context.Background(), &cbmgmtx.GetClusterConfigOptions{})
