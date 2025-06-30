@@ -1851,26 +1851,23 @@ func (s *GatewayOpsTestSuite) TestDapiIncrement() {
 		checkDocument(docId, []byte("5"))
 	})
 
-	// ING-1108
-	// s.Run("WithInitialNegative", func() {
-	// 	docId := s.randomDocId()
-	//
-	// 	resp := s.sendTestHttpRequest(&testHttpRequest{
-	// 		Method: http.MethodPost,
-	// 		Path: fmt.Sprintf(
-	// 			"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/increment",
-	// 			s.bucketName, s.scopeName, s.collectionName, docId,
-	// 		),
-	// 		Headers: map[string]string{
-	// 			"Authorization": s.basicRestCreds,
-	// 			"Content-Type":  "application/json",
-	// 		},
-	// 		Body: []byte(`{"initial": -2}`),
-	// 	})
-	// 	requireRestError(s.T(), resp, http.StatusBadRequest, &testRestError{
-	// 		Code: "InvalidArgument",
-	// 	})
-	// })
+	s.Run("WithInitialNegative", func() {
+		docId := s.randomDocId()
+
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/increment",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+				"Content-Type":  "application/json",
+			},
+			Body: []byte(`{"initial": -2}`),
+		})
+		requireRestError(s.T(), resp, http.StatusBadRequest, nil)
+	})
 
 	s.Run("DocMissing", func() {
 		docId := s.missingDocId()
@@ -2170,26 +2167,23 @@ func (s *GatewayOpsTestSuite) TestDapiDecrement() {
 		checkDocument(docId, []byte("5"))
 	})
 
-	// ING-1108
-	// s.Run("WithInitialNegative", func() {
-	// 	docId := s.randomDocId()
-	//
-	// 	resp := s.sendTestHttpRequest(&testHttpRequest{
-	// 		Method: http.MethodPost,
-	// 		Path: fmt.Sprintf(
-	// 			"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/decrement",
-	// 			s.bucketName, s.scopeName, s.collectionName, docId,
-	// 		),
-	// 		Headers: map[string]string{
-	// 			"Authorization": s.basicRestCreds,
-	// 			"Content-Type":  "application/json",
-	// 		},
-	// 		Body: []byte(`{"initial": -2}`),
-	// 	})
-	// 	requireRestError(s.T(), resp, http.StatusBadRequest, &testRestError{
-	// 		Code: "InvalidArgument",
-	// 	})
-	// })
+	s.Run("WithInitialNegative", func() {
+		docId := s.randomDocId()
+
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/decrement",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+				"Content-Type":  "application/json",
+			},
+			Body: []byte(`{"initial": -2}`),
+		})
+		requireRestError(s.T(), resp, http.StatusBadRequest, nil)
+	})
 
 	s.Run("DocMissing", func() {
 		docId := s.missingDocId()
