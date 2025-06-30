@@ -2662,42 +2662,41 @@ func (s *GatewayOpsTestSuite) TestDapiLookupIn() {
 	// 	assert.JSONEq(s.T(), string(TEST_CONTENT), string(resp.Body))
 	// })
 
-	// ING-1111
-	// s.Run("Too Many Operations", func() {
-	// 	docId := s.testDocId()
-	// 	resp := s.sendTestHttpRequest(&testHttpRequest{
-	// 		Method: http.MethodPost,
-	// 		Path: fmt.Sprintf(
-	// 			"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/lookup",
-	// 			s.bucketName, s.scopeName, s.collectionName, docId,
-	// 		),
-	// 		Headers: map[string]string{
-	// 			"Authorization": s.basicRestCreds,
-	// 		},
-	// 		Body: []byte(`{"operations":[
-	// 			{"operation":"Get","path":"obj"},
-	// 			{"operation":"Get","path":"obj"},
-	// 			{"operation":"Get","path":"obj"},
-	// 			{"operation":"Get","path":"obj"},
-	// 			{"operation":"Get","path":"obj"},
-	// 			{"operation":"Get","path":"obj"},
-	// 			{"operation":"Get","path":"obj"},
-	// 			{"operation":"Get","path":"obj"},
-	// 			{"operation":"Get","path":"obj"},
-	// 			{"operation":"Get","path":"obj"},
-	// 			{"operation":"Get","path":"obj"},
-	// 			{"operation":"Get","path":"obj"},
-	// 			{"operation":"Get","path":"obj"},
-	// 			{"operation":"Get","path":"obj"},
-	// 			{"operation":"Get","path":"obj"},
-	// 			{"operation":"Get","path":"obj"},
-	// 			{"operation":"Get","path":"obj"}
-	// 		]}`),
-	// 	})
-	// 	requireRestError(s.T(), resp, http.StatusBadRequest, &testRestError{
-	// 		Code: "InvalidArgument",
-	// 	})
-	// })
+	s.Run("Too Many Operations", func() {
+		docId := s.testDocId()
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/lookup",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+			},
+			Body: []byte(`{"operations":[
+				{"operation":"Get","path":"obj"},
+				{"operation":"Get","path":"obj"},
+				{"operation":"Get","path":"obj"},
+				{"operation":"Get","path":"obj"},
+				{"operation":"Get","path":"obj"},
+				{"operation":"Get","path":"obj"},
+				{"operation":"Get","path":"obj"},
+				{"operation":"Get","path":"obj"},
+				{"operation":"Get","path":"obj"},
+				{"operation":"Get","path":"obj"},
+				{"operation":"Get","path":"obj"},
+				{"operation":"Get","path":"obj"},
+				{"operation":"Get","path":"obj"},
+				{"operation":"Get","path":"obj"},
+				{"operation":"Get","path":"obj"},
+				{"operation":"Get","path":"obj"},
+				{"operation":"Get","path":"obj"}
+			]}`),
+		})
+		requireRestError(s.T(), resp, http.StatusBadRequest, &testRestError{
+			Code: "InvalidArgument",
+		})
+	})
 
 	// ING-1106
 	// s.Run("No Operations", func() {

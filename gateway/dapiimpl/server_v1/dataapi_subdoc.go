@@ -64,6 +64,8 @@ func (s *DataApiServer) LookupInDocument(
 			return nil, s.errorHandler.NewScopeMissingStatus(err, in.BucketName, in.ScopeName).Err()
 		} else if errors.Is(err, memdx.ErrAccessError) {
 			return nil, s.errorHandler.NewCollectionNoReadAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+		} else if errors.Is(err, memdx.ErrSubDocInvalidCombo) {
+			return nil, s.errorHandler.NewSdBadCombo(err).Err()
 		}
 
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
