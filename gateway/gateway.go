@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/couchbase/gocbcorex"
+	"github.com/couchbase/gocbcorex/cbhttpx"
 	"github.com/couchbase/gocbcorex/cbmgmtx"
 	"github.com/couchbase/stellar-gateway/contrib/cbconfig"
 	"github.com/couchbase/stellar-gateway/contrib/cbtopology"
@@ -192,8 +193,10 @@ func pingCouchbaseCluster(
 		Transport: transport,
 		UserAgent: "cloud-native-gateway-startup",
 		Endpoint:  endpoint,
-		Username:  username,
-		Password:  password,
+		Auth: &cbhttpx.BasicAuth{
+			Username: username,
+			Password: password,
+		},
 	}
 
 	clusterConfig, err := mgmt.GetClusterConfig(ctx, &cbmgmtx.GetClusterConfigOptions{})
