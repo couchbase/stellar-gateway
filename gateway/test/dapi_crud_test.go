@@ -3753,8 +3753,8 @@ func (s *GatewayOpsTestSuite) TestDapiTouch() {
 			},
 			Body: []byte(fmt.Sprintf(`{"expiry":"%s"}`, expiryTime.Format(time.RFC1123))),
 		})
-		// ING-1133
-		// requireRestSuccess(s.T(), resp)
+		require.NotNil(s.T(), resp)
+		require.Equal(s.T(), http.StatusNoContent, resp.StatusCode, "status code was not 204")
 
 		assertRestValidEtag(s.T(), resp)
 

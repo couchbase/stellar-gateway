@@ -750,7 +750,7 @@ paths:
                 type: string
                 format: binary
                 description: The contents of the document.
-        '202':
+        '204':
           description: Successful updated the expiry of the document but is not returning the content of the document.
           headers:
             ETag:

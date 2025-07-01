@@ -61,8 +61,8 @@ func (s *DataApiServer) TouchDocument(
 			return nil, s.errorHandler.NewGenericStatus(err).Err()
 		}
 
-		return dataapiv1.TouchDocument202Response{
-			Headers: dataapiv1.TouchDocument202ResponseHeaders{
+		return dataapiv1.TouchDocument204Response{
+			Headers: dataapiv1.TouchDocument204ResponseHeaders{
 				ETag: casToHttpEtag(result.Cas),
 			},
 		}, nil
