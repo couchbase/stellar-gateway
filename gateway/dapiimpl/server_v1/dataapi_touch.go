@@ -27,6 +27,10 @@ func (s *DataApiServer) TouchDocument(
 		return nil, errSt.Err()
 	}
 
+	if in.Body.Expiry == nil {
+		return nil, s.errorHandler.NewTouchMissingExpiryStatus().Err()
+	}
+
 	var newExpiry uint32
 	if in.Body.Expiry != nil {
 		expiry, errSt := parseTouchExpiry(*in.Body.Expiry)

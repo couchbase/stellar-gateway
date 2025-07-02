@@ -128,7 +128,7 @@ func (s *GatewayOpsTestSuite) RunCommonDapiErrorCases(
 
 func (s *GatewayOpsTestSuite) IterDapiDurabilityLevelTests(
 	fn func(durabilityLevel string,
-		assertFailure func(*testHttpResponse)),
+	assertFailure func(*testHttpResponse)),
 ) {
 	DurabilityLevels := []string{"None", "Majority", "MajorityAndPersistOnMaster", "PersistToMajority"}
 	for _, durabilityLevel := range DurabilityLevels {
@@ -152,8 +152,8 @@ func (s *GatewayOpsTestSuite) IterDapiDurabilityLevelTests(
 
 func (s *GatewayOpsTestSuite) IterDapiAcceptEncodingTests(
 	fn func(acceptEncoding string,
-		assertContentEncoding func(string),
-		assertFailure func(*testHttpResponse)),
+	assertContentEncoding func(string),
+	assertFailure func(*testHttpResponse)),
 ) {
 	requireIdentityEncoding := func(contentEncoding string) {
 		require.Equal(s.T(), "", contentEncoding)
@@ -197,8 +197,8 @@ func (s *GatewayOpsTestSuite) IterDapiAcceptEncodingTests(
 func (s *GatewayOpsTestSuite) IterDapiDocumentEncodingTests(
 	testContent []byte,
 	fn func(contentEncoding string,
-		encodedContent []byte,
-		assertFailure func(*testHttpResponse)),
+	encodedContent []byte,
+	assertFailure func(*testHttpResponse)),
 ) {
 	snappyContent := snappy.Encode(nil, testContent)
 
@@ -3886,45 +3886,94 @@ func (s *GatewayOpsTestSuite) TestDapiTouch() {
 	// 	})
 	// })
 
-	// ING-1136
-	// s.Run("NoExpiry", func() {
-	// 	docId := s.testDocId()
-	//
-	// 	resp := s.sendTestHttpRequest(&testHttpRequest{
-	// 		Method: http.MethodPost,
-	// 		Path: fmt.Sprintf(
-	// 			"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/touch",
-	// 			s.bucketName, s.scopeName, s.collectionName, docId,
-	// 		),
-	// 		Headers: map[string]string{
-	// 			"Authorization": s.basicRestCreds,
-	// 		},
-	// 		Body: []byte(`{"returnContent":true}`),
-	// 	})
-	// 	requireRestError(s.T(), resp, http.StatusBadRequest, &testRestError{
-	// 		Code: "InvalidArgument",
-	// 	})
-	// })
+	s.Run("ZeroExpiry", func() {
+		kvClient := kv_v1.NewKvServiceClient(s.gatewayConn)
+		expiry := 24 * time.Hour
+		docId := s.testDocId()
 
-	// ING-1136
-	// s.Run("EmptyObject", func() {
-	// 	docId := s.testDocId()
-	//
-	// 	resp := s.sendTestHttpRequest(&testHttpRequest{
-	// 		Method: http.MethodPost,
-	// 		Path: fmt.Sprintf(
-	// 			"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/touch",
-	// 			s.bucketName, s.scopeName, s.collectionName, docId,
-	// 		),
-	// 		Headers: map[string]string{
-	// 			"Authorization": s.basicRestCreds,
-	// 		},
-	// 		Body: []byte(`{}`),
-	// 	})
-	// 	requireRestError(s.T(), resp, http.StatusBadRequest, &testRestError{
-	// 		Code: "InvalidArgument",
-	// 	})
-	// })
+		upsertResp, err := kvClient.Upsert(context.Background(), &kv_v1.UpsertRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            docId,
+			Content: &kv_v1.UpsertRequest_ContentUncompressed{
+				ContentUncompressed: TEST_CONTENT,
+			},
+			ContentFlags: TEST_CONTENT_FLAGS,
+			Expiry: &kv_v1.UpsertRequest_ExpirySecs{
+				ExpirySecs: uint32(expiry.Seconds()),
+			},
+			PreserveExpiryOnExisting: nil,
+			DurabilityLevel:          nil,
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		requireRpcSuccess(s.T(), upsertResp, err)
+		assertValidCas(s.T(), upsertResp.Cas)
+		assertValidMutationToken(s.T(), upsertResp.MutationToken, s.bucketName)
+
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/touch",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+			},
+			Body: []byte(`{"expiry":"0"}`),
+		})
+		require.NotNil(s.T(), resp)
+		require.Equal(s.T(), http.StatusNoContent, resp.StatusCode, "status code was not 204")
+
+		assertRestValidEtag(s.T(), resp)
+
+		s.checkDocument(s.T(), checkDocumentOptions{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			DocId:          docId,
+			Content:        TEST_CONTENT,
+			ContentFlags:   TEST_CONTENT_FLAGS,
+			expiry:         expiryCheckType_None,
+		})
+	})
+
+	s.Run("NoExpiry", func() {
+		docId := s.testDocId()
+
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/touch",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+			},
+			Body: []byte(`{"returnContent":true}`),
+		})
+		requireRestError(s.T(), resp, http.StatusBadRequest, &testRestError{
+			Code: "InvalidArgument",
+		})
+	})
+
+	s.Run("EmptyObject", func() {
+		docId := s.testDocId()
+
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/touch",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+			},
+			Body: []byte(`{}`),
+		})
+		requireRestError(s.T(), resp, http.StatusBadRequest, &testRestError{
+			Code: "InvalidArgument",
+		})
+	})
 
 	s.Run("InvalidJson", func() {
 		docId := s.testDocId()
