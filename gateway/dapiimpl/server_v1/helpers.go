@@ -1,6 +1,7 @@
 package server_v1
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -22,16 +23,24 @@ func timeToHttpTime(when time.Time) string {
 	return when.Format(time.RFC1123)
 }
 
-func httpTimeToGocbcorexExpiry(when string) (uint32, *Status) {
-	if when == "0" || when == "" {
+func parseStringToGocbcorexExpiry(val string) (uint32, *Status) {
+	if val == "0" || val == "" {
 		return 0, nil
 	}
 
-	t, err := time.Parse(time.RFC1123, when)
+	t, err := time.Parse(time.RFC1123, val)
 	if err != nil {
+		var parseErr *time.ParseError
+		if errors.As(err, &parseErr) {
+			d, err := time.ParseDuration(val)
+			if err == nil {
+				return uint32(time.Now().Add(d).Unix()), nil
+			}
+		}
+
 		return 0, &Status{
 			StatusCode: http.StatusBadRequest,
-			Message:    "Invalid time format - expected ISO8601 format or 0.",
+			Message:    "Invalid time format - expected ISO8601 format, 0, or a Go style duration.",
 		}
 	}
 

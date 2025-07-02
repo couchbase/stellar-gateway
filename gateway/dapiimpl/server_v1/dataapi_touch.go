@@ -140,7 +140,7 @@ func (s *DataApiServer) TouchDocument(
 }
 
 func parseTouchExpiry(when string) (uint32, *Status) {
-	expiry, errSt := httpTimeToGocbcorexExpiry(when)
+	expiry, errSt := parseStringToGocbcorexExpiry(when)
 	if errSt == nil {
 		return expiry, nil
 	}
