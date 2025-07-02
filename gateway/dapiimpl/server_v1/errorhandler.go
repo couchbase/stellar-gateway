@@ -610,3 +610,12 @@ func (e ErrorHandler) NewSubDocMkDocSubDocOp(opIndex int) *Status {
 	}
 	return st
 }
+
+func (e ErrorHandler) NewTouchMissingExpiryStatus() *Status {
+	st := &Status{
+		StatusCode: http.StatusBadRequest,
+		Code:       dataapiv1.ErrorCodeInvalidArgument,
+		Message:    "Expiry not specified in request body.",
+	}
+	return st
+}

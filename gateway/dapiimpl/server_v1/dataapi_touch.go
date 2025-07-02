@@ -27,6 +27,10 @@ func (s *DataApiServer) TouchDocument(
 		return nil, errSt.Err()
 	}
 
+	if in.Body.Expiry == nil {
+		return nil, s.errorHandler.NewTouchMissingExpiryStatus().Err()
+	}
+
 	var newExpiry uint32
 	if in.Body.Expiry != nil {
 		expiry, errSt := parseTouchExpiry(*in.Body.Expiry)
@@ -61,8 +65,8 @@ func (s *DataApiServer) TouchDocument(
 			return nil, s.errorHandler.NewGenericStatus(err).Err()
 		}
 
-		return dataapiv1.TouchDocument202Response{
-			Headers: dataapiv1.TouchDocument202ResponseHeaders{
+		return dataapiv1.TouchDocument204Response{
+			Headers: dataapiv1.TouchDocument204ResponseHeaders{
 				ETag: casToHttpEtag(result.Cas),
 			},
 		}, nil
