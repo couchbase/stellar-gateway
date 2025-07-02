@@ -3490,26 +3490,23 @@ func (s *GatewayOpsTestSuite) TestDapiAppend() {
 		})
 	})
 
-	// ING-1129
-	// s.Run("MissingBody", func() {
-	// 	docId := s.binaryDocId([]byte("abcde"))
-	//
-	// 	resp := s.sendTestHttpRequest(&testHttpRequest{
-	// 		Method: http.MethodPost,
-	// 		Path: fmt.Sprintf(
-	// 			"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/append",
-	// 			s.bucketName, s.scopeName, s.collectionName, docId,
-	// 		),
-	// 		Headers: map[string]string{
-	// 			"Authorization": s.basicRestCreds,
-	// 		},
-	// 	})
-	// 	requireRestError(s.T(), resp, http.StatusBadRequest, &testRestError{
-	// 		Code: "??",
-	// 		Resource: fmt.Sprintf("/buckets/%s/scopes/%s/collections/%s/documents/%s",
-	// 			s.bucketName, s.scopeName, s.collectionName, docId),
-	// 	})
-	// })
+	s.Run("MissingBody", func() {
+		docId := s.binaryDocId([]byte("abcde"))
+
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/append",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+			},
+		})
+		requireRestError(s.T(), resp, http.StatusBadRequest, &testRestError{
+			Code: "InvalidArgument",
+		})
+	})
 
 	s.IterDapiDurabilityLevelTests(func(durabilityLevel string, assertFailure func(*testHttpResponse)) {
 		docId := s.binaryDocId([]byte(`abcde`))
@@ -3676,26 +3673,23 @@ func (s *GatewayOpsTestSuite) TestDapiPrepend() {
 		})
 	})
 
-	// ING-1129
-	// s.Run("MissingBody", func() {
-	// 	docId := s.binaryDocId([]byte("abcde"))
-	//
-	// 	resp := s.sendTestHttpRequest(&testHttpRequest{
-	// 		Method: http.MethodPost,
-	// 		Path: fmt.Sprintf(
-	// 			"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/prepend",
-	// 			s.bucketName, s.scopeName, s.collectionName, docId,
-	// 		),
-	// 		Headers: map[string]string{
-	// 			"Authorization": s.basicRestCreds,
-	// 		},
-	// 	})
-	// 	requireRestError(s.T(), resp, http.StatusBadRequest, &testRestError{
-	// 		Code: "??",
-	// 		Resource: fmt.Sprintf("/buckets/%s/scopes/%s/collections/%s/documents/%s",
-	// 			s.bucketName, s.scopeName, s.collectionName, docId),
-	// 	})
-	// })
+	s.Run("MissingBody", func() {
+		docId := s.binaryDocId([]byte("abcde"))
+
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/prepend",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+			},
+		})
+		requireRestError(s.T(), resp, http.StatusBadRequest, &testRestError{
+			Code: "InvalidArgument",
+		})
+	})
 
 	s.IterDapiDurabilityLevelTests(func(durabilityLevel string, assertFailure func(*testHttpResponse)) {
 		docId := s.binaryDocId([]byte(`fghi`))
