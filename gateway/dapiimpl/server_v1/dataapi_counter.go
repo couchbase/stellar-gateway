@@ -46,7 +46,7 @@ func (s *DataApiServer) IncrementDocument(
 	}
 
 	if in.Params.Expires != nil {
-		expiry, errSt := httpTimeToGocbcorexExpiry(*in.Params.Expires)
+		expiry, errSt := parseStringToGocbcorexExpiry(*in.Params.Expires)
 		if errSt != nil {
 			return nil, errSt.Err()
 		}
@@ -130,7 +130,7 @@ func (s *DataApiServer) DecrementDocument(
 	}
 
 	if in.Params.Expires != nil {
-		expiry, errSt := httpTimeToGocbcorexExpiry(*in.Params.Expires)
+		expiry, errSt := parseStringToGocbcorexExpiry(*in.Params.Expires)
 		if errSt != nil {
 			return nil, errSt.Err()
 		}
