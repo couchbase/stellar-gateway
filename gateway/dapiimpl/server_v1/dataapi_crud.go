@@ -175,7 +175,7 @@ func (s *DataApiServer) CreateDocument(
 	}
 
 	if in.Params.Expires != nil {
-		expiry, errSt := httpTimeToGocbcorexExpiry(*in.Params.Expires)
+		expiry, errSt := parseStringToGocbcorexExpiry(*in.Params.Expires)
 		if errSt != nil {
 			return nil, errSt.Err()
 		}
@@ -295,7 +295,7 @@ func (s *DataApiServer) UpdateDocument(
 	var preserveExpiry bool
 	var expiry uint32
 	if in.Params.Expires != nil {
-		parsedExpiry, errSt := httpTimeToGocbcorexExpiry(*in.Params.Expires)
+		parsedExpiry, errSt := parseStringToGocbcorexExpiry(*in.Params.Expires)
 		if errSt != nil {
 			return nil, errSt.Err()
 		}

@@ -568,6 +568,42 @@ func (s *GatewayOpsTestSuite) TestDapiPost() {
 		})
 	})
 
+	s.Run("RelativeExpiry", func() {
+		docId := s.randomDocId()
+		expiryTime := 1 * time.Hour
+
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+				"X-CB-Flags":    fmt.Sprintf("%d", TEST_CONTENT_FLAGS),
+				"Expires":       expiryTime.String(),
+			},
+			Body: TEST_CONTENT,
+		})
+		requireRestSuccess(s.T(), resp)
+		assertRestValidEtag(s.T(), resp)
+		assertRestValidMutationToken(s.T(), resp, s.bucketName)
+
+		s.checkDocument(s.T(), checkDocumentOptions{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			DocId:          docId,
+			Content:        TEST_CONTENT,
+			ContentFlags:   TEST_CONTENT_FLAGS,
+			expiry:         expiryCheckType_Within,
+			expiryBounds: expiryCheckTypeWithinBounds{
+				MinSecs: 59 * 60,
+				MaxSecs: 61 * 60,
+			},
+		})
+	})
+
 	s.Run("DocExists", func() {
 		docId := s.testDocId()
 
@@ -854,6 +890,42 @@ func (s *GatewayOpsTestSuite) TestDapiPut() {
 					"Authorization": s.basicRestCreds,
 					"X-CB-Flags":    fmt.Sprintf("%d", TEST_CONTENT_FLAGS),
 					"Expires":       expiryTime.Format(time.RFC1123),
+				},
+				Body: TEST_CONTENT,
+			})
+			requireRestSuccess(s.T(), resp)
+			assertRestValidEtag(s.T(), resp)
+			assertRestValidMutationToken(s.T(), resp, s.bucketName)
+
+			s.checkDocument(s.T(), checkDocumentOptions{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				DocId:          docId,
+				Content:        TEST_CONTENT,
+				ContentFlags:   TEST_CONTENT_FLAGS,
+				expiry:         expiryCheckType_Within,
+				expiryBounds: expiryCheckTypeWithinBounds{
+					MinSecs: 59 * 60,
+					MaxSecs: 61 * 60,
+				},
+			})
+		})
+
+		s.Run("RelativeExpiry", func() {
+			docId := s.randomDocId()
+			expiryTime := 1 * time.Hour
+
+			resp := s.sendTestHttpRequest(&testHttpRequest{
+				Method: http.MethodPut,
+				Path: fmt.Sprintf(
+					"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
+					s.bucketName, s.scopeName, s.collectionName, docId,
+				),
+				Headers: map[string]string{
+					"Authorization": s.basicRestCreds,
+					"X-CB-Flags":    fmt.Sprintf("%d", TEST_CONTENT_FLAGS),
+					"Expires":       expiryTime.String(),
 				},
 				Body: TEST_CONTENT,
 			})
@@ -1200,6 +1272,42 @@ func (s *GatewayOpsTestSuite) TestDapiPut() {
 				CollectionName: s.collectionName,
 				DocId:          docId,
 				Content:        newContent,
+				ContentFlags:   TEST_CONTENT_FLAGS,
+				expiry:         expiryCheckType_Within,
+				expiryBounds: expiryCheckTypeWithinBounds{
+					MinSecs: 59 * 60,
+					MaxSecs: 61 * 60,
+				},
+			})
+		})
+
+		s.Run("RelativeExpiry", func() {
+			docId := s.testDocId()
+			expiryTime := 1 * time.Hour
+
+			resp := s.sendTestHttpRequest(&testHttpRequest{
+				Method: http.MethodPut,
+				Path: fmt.Sprintf(
+					"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
+					s.bucketName, s.scopeName, s.collectionName, docId,
+				),
+				Headers: map[string]string{
+					"Authorization": s.basicRestCreds,
+					"X-CB-Flags":    fmt.Sprintf("%d", TEST_CONTENT_FLAGS),
+					"Expires":       expiryTime.String(),
+				},
+				Body: TEST_CONTENT,
+			})
+			requireRestSuccess(s.T(), resp)
+			assertRestValidEtag(s.T(), resp)
+			assertRestValidMutationToken(s.T(), resp, s.bucketName)
+
+			s.checkDocument(s.T(), checkDocumentOptions{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				DocId:          docId,
+				Content:        TEST_CONTENT,
 				ContentFlags:   TEST_CONTENT_FLAGS,
 				expiry:         expiryCheckType_Within,
 				expiryBounds: expiryCheckTypeWithinBounds{
@@ -4019,6 +4127,39 @@ func (s *GatewayOpsTestSuite) TestDapiTouch() {
 	// 		Code: "InvalidArgument",
 	// 	})
 	// })
+
+	s.Run("RelativeExpiry", func() {
+		docId := s.testDocId()
+		expiryTime := 1 * time.Hour
+
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/touch",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+			},
+			Body: []byte(fmt.Sprintf(`{"expiry":"%s"}`, expiryTime.String())),
+		})
+		require.NotNil(s.T(), resp)
+		require.Equal(s.T(), http.StatusNoContent, resp.StatusCode, "status code was not 204")
+
+		s.checkDocument(s.T(), checkDocumentOptions{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			DocId:          docId,
+			Content:        TEST_CONTENT,
+			ContentFlags:   TEST_CONTENT_FLAGS,
+			expiry:         expiryCheckType_Within,
+			expiryBounds: expiryCheckTypeWithinBounds{
+				MinSecs: 59 * 60,
+				MaxSecs: 61 * 60,
+			},
+		})
+	})
 
 	s.RunCommonDapiErrorCases(func(opts *commonDapiTestData) *testHttpResponse {
 		return s.sendTestHttpRequest(&testHttpRequest{
