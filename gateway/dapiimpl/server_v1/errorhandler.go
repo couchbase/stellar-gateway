@@ -611,6 +611,15 @@ func (e ErrorHandler) NewInvalidSnappyValueError() *Status {
 	return st
 }
 
+func (e ErrorHandler) NewIllogicalCounterExpiry() *Status {
+	st := &Status{
+		StatusCode: http.StatusBadRequest,
+		Code:       dataapiv1.ErrorCodeInvalidArgument,
+		Message:    "Expiry cannot be set when the document does not exist and Initial is not set.  Expiry is only applied to new documents that are created.",
+	}
+	return st
+}
+
 func (e ErrorHandler) NewSubDocMkDocSubDocOp(opIndex int) *Status {
 	st := &Status{
 		StatusCode: http.StatusBadRequest,
