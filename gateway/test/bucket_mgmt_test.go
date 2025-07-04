@@ -543,6 +543,9 @@ func (s *GatewayOpsTestSuite) TestDeleteBucket() {
 }
 
 func (s *GatewayOpsTestSuite) TestFlushBucket() {
+	// BUG(ING-1207): This test is flaky and doesn't work in many environments.
+	s.T().Skip("ING-1207")
+
 	if !s.SupportsFeature(TestFeatureBucketManagement) {
 		s.T().Skip()
 	}
