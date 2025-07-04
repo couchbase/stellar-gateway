@@ -2044,40 +2044,94 @@ func (s *GatewayOpsTestSuite) TestDapiIncrement() {
 		})
 	})
 
-	// ING-1109
-	// s.Run("Expiry", func() {
-	// 	docId := s.binaryDocId([]byte("5"))
-	// 	expiryTime := time.Now().Add(1 * time.Hour)
-	//
-	// 	resp := s.sendTestHttpRequest(&testHttpRequest{
-	// 		Method: http.MethodPost,
-	// 		Path: fmt.Sprintf(
-	// 			"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/increment",
-	// 			s.bucketName, s.scopeName, s.collectionName, docId,
-	// 		),
-	// 		Headers: map[string]string{
-	// 			"Authorization": s.basicRestCreds,
-	// 			"Expires":       expiryTime.Format(time.RFC1123),
-	// 		},
-	// 	})
-	// 	requireRestSuccess(s.T(), resp)
-	// 	assertRestValidEtag(s.T(), resp)
-	// 	assertRestValidMutationToken(s.T(), resp, s.bucketName)
-	//
-	// 	s.checkDocument(s.T(), checkDocumentOptions{
-	// 		BucketName:     s.bucketName,
-	// 		ScopeName:      s.scopeName,
-	// 		CollectionName: s.collectionName,
-	// 		DocId:          docId,
-	// 		Content:        []byte("6"),
-	// 		ContentFlags:   0,
-	// 		expiry:         expiryCheckType_Within,
-	// 		expiryBounds: expiryCheckTypeWithinBounds{
-	// 			MinSecs: 59 * 60,
-	// 			MaxSecs: 61 * 60,
-	// 		},
-	// 	})
-	// })
+	s.Run("Expiry", func() {
+		docId := s.randomDocId()
+		expiryTime := time.Now().Add(1 * time.Hour)
+
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/increment",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+				"Content-Type":  "application/json",
+				"Expires":       expiryTime.Format(time.RFC1123),
+			},
+			Body: []byte(`{"initial":2}`),
+		})
+		requireRestSuccess(s.T(), resp)
+		assertRestValidEtag(s.T(), resp)
+		assertRestValidMutationToken(s.T(), resp, s.bucketName)
+
+		s.checkDocument(s.T(), checkDocumentOptions{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			DocId:          docId,
+			Content:        []byte("2"),
+			ContentFlags:   0,
+			expiry:         expiryCheckType_Within,
+			expiryBounds: expiryCheckTypeWithinBounds{
+				MinSecs: 59 * 60,
+				MaxSecs: 61 * 60,
+			},
+		})
+	})
+
+	s.Run("ExpiryButExisting", func() {
+		docId := s.binaryDocId([]byte("5"))
+		expiryTime := time.Now().Add(1 * time.Hour)
+
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/increment",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+				"Content-Type":  "application/json",
+				"Expires":       expiryTime.Format(time.RFC1123),
+			},
+			Body: []byte(`{"initial":2}`),
+		})
+		requireRestSuccess(s.T(), resp)
+		assertRestValidEtag(s.T(), resp)
+		assertRestValidMutationToken(s.T(), resp, s.bucketName)
+
+		// expiry is not set on increment of an existing document
+		s.checkDocument(s.T(), checkDocumentOptions{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			DocId:          docId,
+			Content:        []byte("6"),
+			ContentFlags:   0,
+			expiry:         expiryCheckType_None,
+		})
+	})
+
+	s.Run("IllogicalExpiry", func() {
+		docId := s.binaryDocId([]byte("5"))
+		expiryTime := time.Now().Add(1 * time.Hour)
+
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/increment",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+				"Expires":       expiryTime.Format(time.RFC1123),
+			},
+		})
+		requireRestError(s.T(), resp, http.StatusBadRequest, &testRestError{
+			Code: "InvalidArgument",
+		})
+	})
 
 	s.Run("PreserveExpiry", func() {
 		kvClient := kv_v1.NewKvServiceClient(s.gatewayConn)
@@ -2360,40 +2414,94 @@ func (s *GatewayOpsTestSuite) TestDapiDecrement() {
 		})
 	})
 
-	// ING-1109
-	// s.Run("Expiry", func() {
-	// 	docId := s.binaryDocId([]byte("5"))
-	// 	expiryTime := time.Now().Add(1 * time.Hour)
-	//
-	// 	resp := s.sendTestHttpRequest(&testHttpRequest{
-	// 		Method: http.MethodPost,
-	// 		Path: fmt.Sprintf(
-	// 			"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/decrement",
-	// 			s.bucketName, s.scopeName, s.collectionName, docId,
-	// 		),
-	// 		Headers: map[string]string{
-	// 			"Authorization": s.basicRestCreds,
-	// 			"Expires":       expiryTime.Format(time.RFC1123),
-	// 		},
-	// 	})
-	// 	requireRestSuccess(s.T(), resp)
-	// 	assertRestValidEtag(s.T(), resp)
-	// 	assertRestValidMutationToken(s.T(), resp, s.bucketName)
-	//
-	// 	s.checkDocument(s.T(), checkDocumentOptions{
-	// 		BucketName:     s.bucketName,
-	// 		ScopeName:      s.scopeName,
-	// 		CollectionName: s.collectionName,
-	// 		DocId:          docId,
-	// 		Content:        []byte("5"),
-	// 		ContentFlags:   0,
-	// 		expiry:         expiryCheckType_Within,
-	// 		expiryBounds: expiryCheckTypeWithinBounds{
-	// 			MinSecs: 59 * 60,
-	// 			MaxSecs: 61 * 60,
-	// 		},
-	// 	})
-	// })
+	s.Run("Expiry", func() {
+		docId := s.randomDocId()
+		expiryTime := time.Now().Add(1 * time.Hour)
+
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/decrement",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+				"Content-Type":  "application/json",
+				"Expires":       expiryTime.Format(time.RFC1123),
+			},
+			Body: []byte(`{"initial":2}`),
+		})
+		requireRestSuccess(s.T(), resp)
+		assertRestValidEtag(s.T(), resp)
+		assertRestValidMutationToken(s.T(), resp, s.bucketName)
+
+		s.checkDocument(s.T(), checkDocumentOptions{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			DocId:          docId,
+			Content:        []byte("2"),
+			ContentFlags:   0,
+			expiry:         expiryCheckType_Within,
+			expiryBounds: expiryCheckTypeWithinBounds{
+				MinSecs: 59 * 60,
+				MaxSecs: 61 * 60,
+			},
+		})
+	})
+
+	s.Run("ExpiryButExisting", func() {
+		docId := s.binaryDocId([]byte("5"))
+		expiryTime := time.Now().Add(1 * time.Hour)
+
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/decrement",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+				"Content-Type":  "application/json",
+				"Expires":       expiryTime.Format(time.RFC1123),
+			},
+			Body: []byte(`{"initial":2}`),
+		})
+		requireRestSuccess(s.T(), resp)
+		assertRestValidEtag(s.T(), resp)
+		assertRestValidMutationToken(s.T(), resp, s.bucketName)
+
+		// expiry is not set on increment of an existing document
+		s.checkDocument(s.T(), checkDocumentOptions{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			DocId:          docId,
+			Content:        []byte("4"),
+			ContentFlags:   0,
+			expiry:         expiryCheckType_None,
+		})
+	})
+
+	s.Run("IllogicalExpiry", func() {
+		docId := s.binaryDocId([]byte("5"))
+		expiryTime := time.Now().Add(1 * time.Hour)
+
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/decrement",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+				"Expires":       expiryTime.Format(time.RFC1123),
+			},
+		})
+		requireRestError(s.T(), resp, http.StatusBadRequest, &testRestError{
+			Code: "InvalidArgument",
+		})
+	})
 
 	s.Run("PreserveExpiry", func() {
 		kvClient := kv_v1.NewKvServiceClient(s.gatewayConn)
