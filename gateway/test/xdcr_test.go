@@ -38,12 +38,16 @@ func (s *GatewayOpsTestSuite) TestXdcrGetVbucketInfo() {
 				}
 				seenVbuckets[vb.VbucketId] = true
 
-				// TODO(brett19): Turn this back on once we have a way to get the failover log
-				// assert.Greater(s.T(), len(vb.FailoverLog), 0)
-
+				assert.Greater(s.T(), len(vb.FailoverLog), 0)
+				for entryIdx, entry := range vb.FailoverLog {
+					assert.Greater(s.T(), entry.Uuid, uint64(0))
+					if entryIdx < len(vb.FailoverLog)-1 {
+						// last entry seqno is always 0
+						assert.Greater(s.T(), entry.Seqno, uint64(0))
+					}
+				}
 				assert.Greater(s.T(), vb.HighSeqno, uint64(0))
 				assert.Greater(s.T(), vb.MaxCas, uint64(0))
-
 			}
 		}
 
@@ -249,12 +253,12 @@ func (s *GatewayOpsTestSuite) TestXdcrPushDocument() {
 				CollectionName:    s.collectionName,
 				Key:               docId,
 				CheckCas:          nil,
-				StoreCas:          getResp.Cas + 1,
+				StoreCas:          getResp.Cas + 10,
 				ContentFlags:      TEST_CONTENT_FLAGS,
 				ContentType:       internal_xdcr_v1.ContentType_CONTENT_TYPE_JSON,
 				ContentCompressed: s.compressContent(TEST_CONTENT),
 				ExpiryTime:        nil, // no expiry
-				Revno:             getResp.Revno + 1,
+				Revno:             getResp.Revno + 10,
 			}, grpc.PerRPCCredentials(s.basicRpcCreds))
 			requireRpcSuccess(s.T(), setResp, err)
 			assertValidCas(s.T(), setResp.Cas)
@@ -266,7 +270,7 @@ func (s *GatewayOpsTestSuite) TestXdcrPushDocument() {
 				DocId:          docId,
 				Content:        TEST_CONTENT,
 				ContentFlags:   TEST_CONTENT_FLAGS,
-				Cas:            getResp.Cas + 1,
+				Cas:            getResp.Cas + 10,
 			})
 		})
 
@@ -346,7 +350,8 @@ func (s *GatewayOpsTestSuite) TestXdcrDeleteDocument() {
 			CollectionName: s.collectionName,
 			Key:            docId,
 			CheckCas:       nil,
-			StoreCas:       getResp.Cas + 1,
+			StoreCas:       getResp.Cas + 10,
+			Revno:          getResp.Revno + 10,
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
 		requireRpcSuccess(s.T(), delResp, err)
 	})
