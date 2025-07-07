@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/couchbase/gocbcorex"
+	"github.com/couchbase/gocbcorex/cbmgmtx"
 	"github.com/couchbase/gocbcorex/memdx"
 	"github.com/couchbase/goprotostellar/genproto/internal_xdcr_v1"
 	"github.com/couchbase/goprotostellar/genproto/kv_v1"
@@ -171,7 +172,7 @@ func (s *XdcrServer) GetDocument(
 		resp.Cas = metaRes.Cas
 		resp.Expiry = timeFromGo(expiryTime)
 		resp.IsDeleted = metaRes.IsDeleted
-		resp.Seqno = metaRes.SeqNo
+		resp.Revno = metaRes.RevNo
 		resp.Datatype = uint32(*metaRes.Datatype)
 		resp.ContentFlags = metaRes.Flags
 		metaCas = metaRes.Cas
@@ -225,8 +226,96 @@ func (s *XdcrServer) GetDocument(
 	}
 
 	return nil, s.errorHandler.NewGenericStatus(
-		errors.New("failed to retrieve document content after multiple attempts"),
+		errors.New("failed to retrieve document after multiple attempts"),
 	).Err()
+}
+
+func (s *XdcrServer) CheckDocument(
+	ctx context.Context,
+	in *internal_xdcr_v1.CheckDocumentRequest,
+) (*internal_xdcr_v1.CheckDocumentResponse, error) {
+	bucketAgent, oboUser, errSt := s.authHandler.GetMemdOboAgent(ctx, in.BucketName)
+	if errSt != nil {
+		return nil, errSt.Err()
+	}
+
+	errSt = s.checkKey(in.Key)
+	if errSt != nil {
+		return nil, errSt.Err()
+	}
+
+	var opts gocbcorex.GetMetaOptions
+	opts.OnBehalfOf = oboUser
+	opts.ScopeName = in.ScopeName
+	opts.CollectionName = in.CollectionName
+	opts.Key = []byte(in.Key)
+
+	metaRes, err := bucketAgent.GetMeta(ctx, &opts)
+	if err != nil {
+		if errors.Is(err, memdx.ErrDocNotFound) {
+			return nil, s.errorHandler.NewDocMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+		} else if errors.Is(err, memdx.ErrUnknownCollectionName) {
+			return nil, s.errorHandler.NewCollectionMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+		} else if errors.Is(err, memdx.ErrUnknownScopeName) {
+			return nil, s.errorHandler.NewScopeMissingStatus(err, in.BucketName, in.ScopeName).Err()
+		} else if errors.Is(err, memdx.ErrAccessError) {
+			return nil, s.errorHandler.NewCollectionNoReadAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+		}
+		return nil, s.errorHandler.NewGenericStatus(err).Err()
+	}
+
+	crMode, err := bucketAgent.GetConflictResolutionMode(ctx)
+	if err != nil {
+		return nil, s.errorHandler.NewGenericStatus(err).Err()
+	}
+
+	// TODO(brett19): Move this to gocbcorex instead...
+	if crMode == cbmgmtx.ConflictResolutionTypeTimestamp {
+		if in.Cas < metaRes.Cas {
+			return nil, s.errorHandler.NewDocConflictStatus(
+				errors.New("document CAS is lower than the current CAS"),
+				in.BucketName, in.ScopeName, in.CollectionName, in.Key,
+			).Err()
+		} else if in.Cas == metaRes.Cas {
+			if in.Revno < metaRes.RevNo {
+				return nil, s.errorHandler.NewDocConflictStatus(
+					errors.New("document revision number is lower than the current revision"),
+					in.BucketName, in.ScopeName, in.CollectionName, in.Key,
+				).Err()
+			} else if in.Revno == metaRes.RevNo {
+				return nil, s.errorHandler.NewDocConflictStatus(
+					errors.New("document revision number is equal and document CAS is equal to the current CAS"),
+					in.BucketName, in.ScopeName, in.CollectionName, in.Key,
+				).Err()
+			}
+		}
+	} else if crMode == cbmgmtx.ConflictResolutionTypeSequenceNumber {
+		if in.Revno < metaRes.RevNo {
+			return nil, s.errorHandler.NewDocConflictStatus(
+				errors.New("document revision number is lower than the current revision"),
+				in.BucketName, in.ScopeName, in.CollectionName, in.Key,
+			).Err()
+		} else if in.Revno == metaRes.RevNo {
+			if in.Cas < metaRes.Cas {
+				return nil, s.errorHandler.NewDocConflictStatus(
+					errors.New("document CAS is lower than the current CAS"),
+					in.BucketName, in.ScopeName, in.CollectionName, in.Key,
+				).Err()
+			} else if in.Cas == metaRes.Cas {
+				return nil, s.errorHandler.NewDocConflictStatus(
+					errors.New("document CAS is equal and document revision number is equal to the current revision"),
+					in.BucketName, in.ScopeName, in.CollectionName, in.Key,
+				).Err()
+			}
+		}
+	} else {
+		// TODO(brett19): Handle other conflict resolution modes...
+		return nil, s.errorHandler.NewGenericStatus(
+			errors.New("unsupported conflict resolution mode"),
+		).Err()
+	}
+
+	return &internal_xdcr_v1.CheckDocumentResponse{}, nil
 }
 
 func (s *XdcrServer) PushDocument(
