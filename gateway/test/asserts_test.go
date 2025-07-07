@@ -65,7 +65,8 @@ func assertRpcStatus(t *testing.T, err error, expectedCode codes.Code) {
 		t.Fatalf("expected rpc error status, but got non-status error")
 	}
 
-	assert.Equal(t, expectedCode, errSt.Code())
+	assert.Equalf(t, expectedCode, errSt.Code(), "expected rpc error status code %s, but got %s: %s",
+		expectedCode, errSt.Code(), err)
 }
 
 func requireRpcSuccess(t *testing.T, resp interface{}, err error) {
