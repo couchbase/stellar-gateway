@@ -27,7 +27,7 @@ func (s *DataApiServer) GetDocument(
 		return nil, errSt.Err()
 	}
 
-	var opts gocbcorex.GetExOptions
+	var opts gocbcorex.GetOrLookupOptions
 	opts.OnBehalfOf = oboUser
 	opts.ScopeName = in.ScopeName
 	opts.CollectionName = in.CollectionName
@@ -38,7 +38,7 @@ func (s *DataApiServer) GetDocument(
 		opts.Project = *in.Params.Project
 	}
 
-	result, err := bucketAgent.GetEx(ctx, &opts)
+	result, err := bucketAgent.GetOrLookup(ctx, &opts)
 	if err != nil {
 		var pathErr *gocbcorex.PathProjectionError
 		var path string

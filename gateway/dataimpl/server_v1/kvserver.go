@@ -44,7 +44,7 @@ func (s *KvServer) Get(ctx context.Context, in *kv_v1.GetRequest) (*kv_v1.GetRes
 		return nil, errSt.Err()
 	}
 
-	var opts gocbcorex.GetExOptions
+	var opts gocbcorex.GetOrLookupOptions
 	opts.OnBehalfOf = oboUser
 	opts.ScopeName = in.ScopeName
 	opts.CollectionName = in.CollectionName
@@ -53,7 +53,7 @@ func (s *KvServer) Get(ctx context.Context, in *kv_v1.GetRequest) (*kv_v1.GetRes
 	opts.WithFlags = true
 	opts.Project = in.Project
 
-	result, err := bucketAgent.GetEx(ctx, &opts)
+	result, err := bucketAgent.GetOrLookup(ctx, &opts)
 	if err != nil {
 		var pathErr *gocbcorex.PathProjectionError
 		var path string
