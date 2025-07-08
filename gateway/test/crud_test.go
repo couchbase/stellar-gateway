@@ -12,6 +12,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/couchbase/gocbcorex/contrib/ptr"
 	"github.com/couchbase/goprotostellar/genproto/kv_v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -19,6 +20,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	epb "google.golang.org/genproto/googleapis/rpc/errdetails"
 )
@@ -214,6 +216,22 @@ func (s *GatewayOpsTestSuite) TestGet() {
 		assert.Nil(s.T(), resp.Expiry)
 	})
 
+	s.Run("CompressionOptional", func() {
+		resp, err := kvClient.Get(context.Background(), &kv_v1.GetRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            s.testDocId(),
+			Compression:    kv_v1.CompressionEnabled_COMPRESSION_ENABLED_OPTIONAL.Enum(),
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		requireRpcSuccess(s.T(), resp, err)
+		assertValidCas(s.T(), resp.Cas)
+		assert.Equal(s.T(), resp.GetContentUncompressed(), TEST_CONTENT)
+		assert.Nil(s.T(), resp.GetContentCompressed())
+		assert.Equal(s.T(), resp.ContentFlags, TEST_CONTENT_FLAGS)
+		assert.Nil(s.T(), resp.Expiry)
+	})
+
 	s.Run("ProjectSimple", func() {
 		resp, err := kvClient.Get(context.Background(), &kv_v1.GetRequest{
 			BucketName:     s.bucketName,
@@ -226,6 +244,20 @@ func (s *GatewayOpsTestSuite) TestGet() {
 		assertValidCas(s.T(), resp.Cas)
 		assert.JSONEq(s.T(), string(resp.GetContentUncompressed()), `{"obj":{"num":14},"arr":[3,6,9,12]}`)
 		assert.Nil(s.T(), resp.GetContentCompressed())
+		assert.Equal(s.T(), resp.ContentFlags, TEST_CONTENT_FLAGS)
+	})
+
+	s.Run("ProjectMissing", func() {
+		resp, err := kvClient.Get(context.Background(), &kv_v1.GetRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            s.testDocId(),
+			Project:        []string{"obj.missing"},
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		requireRpcSuccess(s.T(), resp, err)
+		assertValidCas(s.T(), resp.Cas)
+		assert.JSONEq(s.T(), string(resp.GetContentUncompressed()), `null`)
 		assert.Equal(s.T(), resp.ContentFlags, TEST_CONTENT_FLAGS)
 	})
 
@@ -343,6 +375,26 @@ func (s *GatewayOpsTestSuite) TestInsert() {
 			ContentFlags:   TEST_CONTENT_FLAGS,
 		})
 	})
+
+	// BUG(ING-1209): incorrectly compressed content returns unhelpful error
+	// s.Run("IncorrectlyCompressedContent", func() {
+	// 	docId := s.randomDocId()
+	// 	_, err := kvClient.Insert(context.Background(), &kv_v1.InsertRequest{
+	// 		BucketName:     s.bucketName,
+	// 		ScopeName:      s.scopeName,
+	// 		CollectionName: s.collectionName,
+	// 		Key:            docId,
+	// 		Content: &kv_v1.InsertRequest_ContentCompressed{
+	// 			ContentCompressed: TEST_CONTENT,
+	// 		},
+	// 		ContentFlags: TEST_CONTENT_FLAGS,
+	// 	}, grpc.PerRPCCredentials(s.basicRpcCreds))
+	// 	fmt.Printf("JW ERR: %s\n", err)
+	// 	assertRpcStatus(s.T(), err, codes.InvalidArgument)
+	// 	assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
+	// 		assert.Equal(s.T(), d.ResourceType, "document")
+	// 	})
+	// })
 
 	s.Run("DocExists", func() {
 		_, err := kvClient.Insert(context.Background(), &kv_v1.InsertRequest{
@@ -476,6 +528,70 @@ func (s *GatewayOpsTestSuite) TestInsert() {
 		})
 	})
 
+	s.Run("ExpiryTime", func() {
+		s.Run("Future", func() {
+			docId := s.randomDocId()
+			timeStamp := &timestamppb.Timestamp{
+				Seconds: time.Now().Add(time.Minute).Unix(),
+			}
+			resp, err := kvClient.Insert(context.Background(), &kv_v1.InsertRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+				Content: &kv_v1.InsertRequest_ContentUncompressed{
+					ContentUncompressed: TEST_CONTENT,
+				},
+				ContentFlags: TEST_CONTENT_FLAGS,
+				Expiry:       &kv_v1.InsertRequest_ExpiryTime{ExpiryTime: timeStamp},
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			requireRpcSuccess(s.T(), resp, err)
+			assertValidCas(s.T(), resp.Cas)
+			assertValidMutationToken(s.T(), resp.MutationToken, s.bucketName)
+
+			s.checkDocument(s.T(), checkDocumentOptions{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				DocId:          docId,
+				Content:        TEST_CONTENT,
+				ContentFlags:   TEST_CONTENT_FLAGS,
+				expiry:         expiryCheckType_Future,
+			})
+		})
+
+		s.Run("Past", func() {
+			docId := s.randomDocId()
+			timeStamp := &timestamppb.Timestamp{
+				Seconds: time.Now().Add(-time.Minute).Unix(),
+			}
+			resp, err := kvClient.Insert(context.Background(), &kv_v1.InsertRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+				Content: &kv_v1.InsertRequest_ContentUncompressed{
+					ContentUncompressed: TEST_CONTENT,
+				},
+				ContentFlags: TEST_CONTENT_FLAGS,
+				Expiry:       &kv_v1.InsertRequest_ExpiryTime{ExpiryTime: timeStamp},
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			requireRpcSuccess(s.T(), resp, err)
+			assertValidCas(s.T(), resp.Cas)
+			assertValidMutationToken(s.T(), resp.MutationToken, s.bucketName)
+
+			s.checkDocument(s.T(), checkDocumentOptions{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				DocId:          docId,
+				Content:        nil,
+				ContentFlags:   TEST_CONTENT_FLAGS,
+				expiry:         expiryCheckType_Past,
+			})
+		})
+	})
+
 	s.Run("ValueTooLarge", func() {
 		_, err := kvClient.Insert(context.Background(), &kv_v1.InsertRequest{
 			BucketName:     s.bucketName,
@@ -484,6 +600,20 @@ func (s *GatewayOpsTestSuite) TestInsert() {
 			Key:            s.lockedDocId(),
 			Content: &kv_v1.InsertRequest_ContentUncompressed{
 				ContentUncompressed: s.largeTestContent(),
+			},
+			ContentFlags: TEST_CONTENT_FLAGS,
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		assertRpcStatus(s.T(), err, codes.InvalidArgument)
+	})
+
+	s.Run("ValueTooLargeCompressed", func() {
+		_, err := kvClient.Insert(context.Background(), &kv_v1.InsertRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            s.lockedDocId(),
+			Content: &kv_v1.InsertRequest_ContentCompressed{
+				ContentCompressed: s.compressContent(s.largeTestRandomContent()),
 			},
 			ContentFlags: TEST_CONTENT_FLAGS,
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
@@ -905,6 +1035,199 @@ func (s *GatewayOpsTestSuite) TestUpsert() {
 		})
 	})
 
+	s.Run("ExpiryTime", func() {
+		s.Run("Future", func() {
+			docId := s.randomDocId()
+			timeStamp := &timestamppb.Timestamp{
+				Seconds: time.Now().Add(time.Minute).Unix(),
+			}
+			resp, err := kvClient.Upsert(context.Background(), &kv_v1.UpsertRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+				Content: &kv_v1.UpsertRequest_ContentUncompressed{
+					ContentUncompressed: TEST_CONTENT,
+				},
+				ContentFlags: TEST_CONTENT_FLAGS,
+				Expiry:       &kv_v1.UpsertRequest_ExpiryTime{ExpiryTime: timeStamp},
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			requireRpcSuccess(s.T(), resp, err)
+			assertValidCas(s.T(), resp.Cas)
+			assertValidMutationToken(s.T(), resp.MutationToken, s.bucketName)
+
+			s.checkDocument(s.T(), checkDocumentOptions{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				DocId:          docId,
+				Content:        TEST_CONTENT,
+				ContentFlags:   TEST_CONTENT_FLAGS,
+				expiry:         expiryCheckType_Future,
+			})
+		})
+
+		s.Run("Past", func() {
+			docId := s.randomDocId()
+			timeStamp := &timestamppb.Timestamp{
+				Seconds: time.Now().Add(-time.Minute).Unix(),
+			}
+			resp, err := kvClient.Upsert(context.Background(), &kv_v1.UpsertRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+				Content: &kv_v1.UpsertRequest_ContentUncompressed{
+					ContentUncompressed: TEST_CONTENT,
+				},
+				ContentFlags: TEST_CONTENT_FLAGS,
+				Expiry:       &kv_v1.UpsertRequest_ExpiryTime{ExpiryTime: timeStamp},
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			requireRpcSuccess(s.T(), resp, err)
+			assertValidCas(s.T(), resp.Cas)
+			assertValidMutationToken(s.T(), resp.MutationToken, s.bucketName)
+
+			s.checkDocument(s.T(), checkDocumentOptions{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				DocId:          docId,
+				Content:        nil,
+				ContentFlags:   TEST_CONTENT_FLAGS,
+				expiry:         expiryCheckType_Past,
+			})
+		})
+
+		s.Run("WithExisting", func() {
+			docId := s.randomDocId()
+
+			{
+				timeStamp := &timestamppb.Timestamp{
+					Seconds: time.Now().Add(time.Minute).Unix(),
+				}
+				resp, err := kvClient.Upsert(context.Background(), &kv_v1.UpsertRequest{
+					BucketName:     s.bucketName,
+					ScopeName:      s.scopeName,
+					CollectionName: s.collectionName,
+					Key:            docId,
+					Content: &kv_v1.UpsertRequest_ContentUncompressed{
+						ContentUncompressed: TEST_CONTENT,
+					},
+					ContentFlags: TEST_CONTENT_FLAGS,
+					Expiry:       &kv_v1.UpsertRequest_ExpiryTime{ExpiryTime: timeStamp},
+				}, grpc.PerRPCCredentials(s.basicRpcCreds))
+				requireRpcSuccess(s.T(), resp, err)
+				assertValidCas(s.T(), resp.Cas)
+				assertValidMutationToken(s.T(), resp.MutationToken, s.bucketName)
+
+				s.checkDocument(s.T(), checkDocumentOptions{
+					BucketName:     s.bucketName,
+					ScopeName:      s.scopeName,
+					CollectionName: s.collectionName,
+					DocId:          docId,
+					Content:        TEST_CONTENT,
+					ContentFlags:   TEST_CONTENT_FLAGS,
+					expiry:         expiryCheckType_Future,
+				})
+			}
+
+			{
+				timeStamp := &timestamppb.Timestamp{
+					Seconds: time.Now().Add(-time.Minute).Unix(),
+				}
+				resp, err := kvClient.Upsert(context.Background(), &kv_v1.UpsertRequest{
+					BucketName:     s.bucketName,
+					ScopeName:      s.scopeName,
+					CollectionName: s.collectionName,
+					Key:            docId,
+					Content: &kv_v1.UpsertRequest_ContentUncompressed{
+						ContentUncompressed: TEST_CONTENT,
+					},
+					ContentFlags: TEST_CONTENT_FLAGS,
+					Expiry:       &kv_v1.UpsertRequest_ExpiryTime{ExpiryTime: timeStamp},
+				}, grpc.PerRPCCredentials(s.basicRpcCreds))
+				requireRpcSuccess(s.T(), resp, err)
+				assertValidCas(s.T(), resp.Cas)
+				assertValidMutationToken(s.T(), resp.MutationToken, s.bucketName)
+
+				s.checkDocument(s.T(), checkDocumentOptions{
+					BucketName:     s.bucketName,
+					ScopeName:      s.scopeName,
+					CollectionName: s.collectionName,
+					DocId:          docId,
+					Content:        nil,
+					ContentFlags:   TEST_CONTENT_FLAGS,
+					expiry:         expiryCheckType_Future,
+				})
+			}
+		})
+
+		s.Run("PreserveWithExisting", func() {
+			docId := s.randomDocId()
+
+			{
+				timeStamp := &timestamppb.Timestamp{
+					Seconds: time.Now().Add(time.Minute).Unix(),
+				}
+				resp, err := kvClient.Upsert(context.Background(), &kv_v1.UpsertRequest{
+					BucketName:     s.bucketName,
+					ScopeName:      s.scopeName,
+					CollectionName: s.collectionName,
+					Key:            docId,
+					Content: &kv_v1.UpsertRequest_ContentUncompressed{
+						ContentUncompressed: TEST_CONTENT,
+					},
+					ContentFlags: TEST_CONTENT_FLAGS,
+					Expiry:       &kv_v1.UpsertRequest_ExpiryTime{ExpiryTime: timeStamp},
+				}, grpc.PerRPCCredentials(s.basicRpcCreds))
+				requireRpcSuccess(s.T(), resp, err)
+				assertValidCas(s.T(), resp.Cas)
+				assertValidMutationToken(s.T(), resp.MutationToken, s.bucketName)
+
+				s.checkDocument(s.T(), checkDocumentOptions{
+					BucketName:     s.bucketName,
+					ScopeName:      s.scopeName,
+					CollectionName: s.collectionName,
+					DocId:          docId,
+					Content:        TEST_CONTENT,
+					ContentFlags:   TEST_CONTENT_FLAGS,
+					expiry:         expiryCheckType_Future,
+				})
+			}
+
+			{
+				timeStamp := &timestamppb.Timestamp{
+					Seconds: time.Now().Add(-time.Minute).Unix(),
+				}
+				resp, err := kvClient.Upsert(context.Background(), &kv_v1.UpsertRequest{
+					BucketName:     s.bucketName,
+					ScopeName:      s.scopeName,
+					CollectionName: s.collectionName,
+					Key:            docId,
+					Content: &kv_v1.UpsertRequest_ContentUncompressed{
+						ContentUncompressed: TEST_CONTENT,
+					},
+					ContentFlags:             TEST_CONTENT_FLAGS,
+					Expiry:                   &kv_v1.UpsertRequest_ExpiryTime{ExpiryTime: timeStamp},
+					PreserveExpiryOnExisting: ptr.To(true),
+				}, grpc.PerRPCCredentials(s.basicRpcCreds))
+				requireRpcSuccess(s.T(), resp, err)
+				assertValidCas(s.T(), resp.Cas)
+				assertValidMutationToken(s.T(), resp.MutationToken, s.bucketName)
+
+				s.checkDocument(s.T(), checkDocumentOptions{
+					BucketName:     s.bucketName,
+					ScopeName:      s.scopeName,
+					CollectionName: s.collectionName,
+					DocId:          docId,
+					Content:        TEST_CONTENT,
+					ContentFlags:   TEST_CONTENT_FLAGS,
+					expiry:         expiryCheckType_Future,
+				})
+			}
+		})
+	})
+
 	s.Run("ValueTooLarge", func() {
 		_, err := kvClient.Upsert(context.Background(), &kv_v1.UpsertRequest{
 			BucketName:     s.bucketName,
@@ -913,6 +1236,20 @@ func (s *GatewayOpsTestSuite) TestUpsert() {
 			Key:            s.lockedDocId(),
 			Content: &kv_v1.UpsertRequest_ContentUncompressed{
 				ContentUncompressed: s.largeTestContent(),
+			},
+			ContentFlags: TEST_CONTENT_FLAGS,
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		assertRpcStatus(s.T(), err, codes.InvalidArgument)
+	})
+
+	s.Run("ValueTooLargeCompressed", func() {
+		_, err := kvClient.Upsert(context.Background(), &kv_v1.UpsertRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            s.lockedDocId(),
+			Content: &kv_v1.UpsertRequest_ContentCompressed{
+				ContentCompressed: s.compressContent(s.largeTestRandomContent()),
 			},
 			ContentFlags: TEST_CONTENT_FLAGS,
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
@@ -1183,6 +1520,70 @@ func (s *GatewayOpsTestSuite) TestReplace() {
 		})
 	})
 
+	s.Run("ExpiryTime", func() {
+		s.Run("Future", func() {
+			docId := s.testDocId()
+			timeStamp := &timestamppb.Timestamp{
+				Seconds: time.Now().Add(time.Minute).Unix(),
+			}
+			resp, err := kvClient.Replace(context.Background(), &kv_v1.ReplaceRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+				Content: &kv_v1.ReplaceRequest_ContentUncompressed{
+					ContentUncompressed: TEST_CONTENT,
+				},
+				ContentFlags: TEST_CONTENT_FLAGS,
+				Expiry:       &kv_v1.ReplaceRequest_ExpiryTime{ExpiryTime: timeStamp},
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			requireRpcSuccess(s.T(), resp, err)
+			assertValidCas(s.T(), resp.Cas)
+			assertValidMutationToken(s.T(), resp.MutationToken, s.bucketName)
+
+			s.checkDocument(s.T(), checkDocumentOptions{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				DocId:          docId,
+				Content:        TEST_CONTENT,
+				ContentFlags:   TEST_CONTENT_FLAGS,
+				expiry:         expiryCheckType_Future,
+			})
+		})
+
+		s.Run("Past", func() {
+			docId := s.testDocId()
+			timeStamp := &timestamppb.Timestamp{
+				Seconds: time.Now().Add(-time.Minute).Unix(),
+			}
+			resp, err := kvClient.Replace(context.Background(), &kv_v1.ReplaceRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+				Content: &kv_v1.ReplaceRequest_ContentUncompressed{
+					ContentUncompressed: TEST_CONTENT,
+				},
+				ContentFlags: TEST_CONTENT_FLAGS,
+				Expiry:       &kv_v1.ReplaceRequest_ExpiryTime{ExpiryTime: timeStamp},
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			requireRpcSuccess(s.T(), resp, err)
+			assertValidCas(s.T(), resp.Cas)
+			assertValidMutationToken(s.T(), resp.MutationToken, s.bucketName)
+
+			s.checkDocument(s.T(), checkDocumentOptions{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				DocId:          docId,
+				Content:        nil,
+				ContentFlags:   TEST_CONTENT_FLAGS,
+				expiry:         expiryCheckType_Past,
+			})
+		})
+	})
+
 	s.Run("ValueTooLarge", func() {
 		_, err := kvClient.Replace(context.Background(), &kv_v1.ReplaceRequest{
 			BucketName:     s.bucketName,
@@ -1191,6 +1592,20 @@ func (s *GatewayOpsTestSuite) TestReplace() {
 			Key:            s.lockedDocId(),
 			Content: &kv_v1.ReplaceRequest_ContentUncompressed{
 				ContentUncompressed: s.largeTestContent(),
+			},
+			ContentFlags: TEST_CONTENT_FLAGS,
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		assertRpcStatus(s.T(), err, codes.InvalidArgument)
+	})
+
+	s.Run("ValueTooLargeCompressed", func() {
+		_, err := kvClient.Replace(context.Background(), &kv_v1.ReplaceRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            s.testDocId(),
+			Content: &kv_v1.ReplaceRequest_ContentCompressed{
+				ContentCompressed: s.compressContent(s.largeTestRandomContent()),
 			},
 			ContentFlags: TEST_CONTENT_FLAGS,
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
@@ -1408,6 +1823,60 @@ func (s *GatewayOpsTestSuite) TestTouch() {
 		})
 	})
 
+	s.Run("ExpiryTime", func() {
+		s.Run("Future", func() {
+			docId := s.testDocId()
+			timeStamp := &timestamppb.Timestamp{
+				Seconds: time.Now().Add(time.Minute).Unix(),
+			}
+			resp, err := kvClient.Touch(context.Background(), &kv_v1.TouchRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+				Expiry:         &kv_v1.TouchRequest_ExpiryTime{ExpiryTime: timeStamp},
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			requireRpcSuccess(s.T(), resp, err)
+			assertValidCas(s.T(), resp.Cas)
+
+			s.checkDocument(s.T(), checkDocumentOptions{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				DocId:          docId,
+				Content:        TEST_CONTENT,
+				ContentFlags:   TEST_CONTENT_FLAGS,
+				expiry:         expiryCheckType_Future,
+			})
+		})
+
+		s.Run("Past", func() {
+			docId := s.testDocId()
+			timeStamp := &timestamppb.Timestamp{
+				Seconds: time.Now().Add(-time.Minute).Unix(),
+			}
+			resp, err := kvClient.Touch(context.Background(), &kv_v1.TouchRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+				Expiry:         &kv_v1.TouchRequest_ExpiryTime{ExpiryTime: timeStamp},
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			requireRpcSuccess(s.T(), resp, err)
+			assertValidCas(s.T(), resp.Cas)
+
+			s.checkDocument(s.T(), checkDocumentOptions{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				DocId:          docId,
+				Content:        nil,
+				ContentFlags:   TEST_CONTENT_FLAGS,
+				expiry:         expiryCheckType_Past,
+			})
+		})
+	})
+
 	s.Run("DocMissing", func() {
 		_, err := kvClient.Touch(context.Background(), &kv_v1.TouchRequest{
 			BucketName:     s.bucketName,
@@ -1552,6 +2021,60 @@ func (s *GatewayOpsTestSuite) TestGetAndTouch() {
 				MaxSecs: int((31 * 24 * time.Hour).Seconds()) + 1,
 				MinSecs: int((30 * 24 * time.Hour).Seconds()),
 			},
+		})
+	})
+
+	s.Run("ExpiryTime", func() {
+		s.Run("Future", func() {
+			docId := s.testDocId()
+			timeStamp := &timestamppb.Timestamp{
+				Seconds: time.Now().Add(time.Minute).Unix(),
+			}
+			resp, err := kvClient.GetAndTouch(context.Background(), &kv_v1.GetAndTouchRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+				Expiry:         &kv_v1.GetAndTouchRequest_ExpiryTime{ExpiryTime: timeStamp},
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			requireRpcSuccess(s.T(), resp, err)
+			assertValidCas(s.T(), resp.Cas)
+
+			s.checkDocument(s.T(), checkDocumentOptions{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				DocId:          docId,
+				Content:        TEST_CONTENT,
+				ContentFlags:   TEST_CONTENT_FLAGS,
+				expiry:         expiryCheckType_Future,
+			})
+		})
+
+		s.Run("Past", func() {
+			docId := s.testDocId()
+			timeStamp := &timestamppb.Timestamp{
+				Seconds: time.Now().Add(-time.Minute).Unix(),
+			}
+			resp, err := kvClient.GetAndTouch(context.Background(), &kv_v1.GetAndTouchRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+				Expiry:         &kv_v1.GetAndTouchRequest_ExpiryTime{ExpiryTime: timeStamp},
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			requireRpcSuccess(s.T(), resp, err)
+			assertValidCas(s.T(), resp.Cas)
+
+			s.checkDocument(s.T(), checkDocumentOptions{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				DocId:          docId,
+				Content:        nil,
+				ContentFlags:   TEST_CONTENT_FLAGS,
+				expiry:         expiryCheckType_Past,
+			})
 		})
 	})
 
@@ -2084,6 +2607,65 @@ func (s *GatewayOpsTestSuite) TestIncrement() {
 		})
 	})
 
+	s.Run("ExpiryTime", func() {
+		var initialValue int64 = 5
+		s.Run("Future", func() {
+			docId := s.randomDocId()
+			timeStamp := &timestamppb.Timestamp{
+				Seconds: time.Now().Add(time.Minute).Unix(),
+			}
+			resp, err := kvClient.Increment(context.Background(), &kv_v1.IncrementRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+				Delta:          1,
+				Initial:        &initialValue,
+				Expiry:         &kv_v1.IncrementRequest_ExpiryTime{ExpiryTime: timeStamp},
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			requireRpcSuccess(s.T(), resp, err)
+			assertValidCas(s.T(), resp.Cas)
+
+			s.checkDocument(s.T(), checkDocumentOptions{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				DocId:          docId,
+				Content:        []byte("5"),
+				ContentFlags:   0,
+				expiry:         expiryCheckType_Future,
+			})
+		})
+
+		s.Run("Past", func() {
+			docId := s.randomDocId()
+			timeStamp := &timestamppb.Timestamp{
+				Seconds: time.Now().Add(-time.Minute).Unix(),
+			}
+			resp, err := kvClient.Increment(context.Background(), &kv_v1.IncrementRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+				Delta:          1,
+				Initial:        &initialValue,
+				Expiry:         &kv_v1.IncrementRequest_ExpiryTime{ExpiryTime: timeStamp},
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			requireRpcSuccess(s.T(), resp, err)
+			assertValidCas(s.T(), resp.Cas)
+
+			s.checkDocument(s.T(), checkDocumentOptions{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				DocId:          docId,
+				Content:        nil,
+				ContentFlags:   TEST_CONTENT_FLAGS,
+				expiry:         expiryCheckType_Past,
+			})
+		})
+	})
+
 	s.RunCommonErrorCases(func(ctx context.Context, opts *commonErrorTestData) (interface{}, error) {
 		return kvClient.Increment(ctx, &kv_v1.IncrementRequest{
 			BucketName:     opts.BucketName,
@@ -2305,6 +2887,65 @@ func (s *GatewayOpsTestSuite) TestDecrement() {
 					MaxSecs: int((31 * 24 * time.Hour).Seconds()) + 1,
 					MinSecs: int((30 * 24 * time.Hour).Seconds()),
 				},
+			})
+		})
+	})
+
+	s.Run("ExpiryTime", func() {
+		var initialValue int64 = 5
+		s.Run("Future", func() {
+			docId := s.randomDocId()
+			timeStamp := &timestamppb.Timestamp{
+				Seconds: time.Now().Add(time.Minute).Unix(),
+			}
+			resp, err := kvClient.Decrement(context.Background(), &kv_v1.DecrementRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+				Delta:          1,
+				Initial:        &initialValue,
+				Expiry:         &kv_v1.DecrementRequest_ExpiryTime{ExpiryTime: timeStamp},
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			requireRpcSuccess(s.T(), resp, err)
+			assertValidCas(s.T(), resp.Cas)
+
+			s.checkDocument(s.T(), checkDocumentOptions{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				DocId:          docId,
+				Content:        []byte("5"),
+				ContentFlags:   0,
+				expiry:         expiryCheckType_Future,
+			})
+		})
+
+		s.Run("Past", func() {
+			docId := s.randomDocId()
+			timeStamp := &timestamppb.Timestamp{
+				Seconds: time.Now().Add(-time.Minute).Unix(),
+			}
+			resp, err := kvClient.Decrement(context.Background(), &kv_v1.DecrementRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+				Delta:          1,
+				Initial:        &initialValue,
+				Expiry:         &kv_v1.DecrementRequest_ExpiryTime{ExpiryTime: timeStamp},
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			requireRpcSuccess(s.T(), resp, err)
+			assertValidCas(s.T(), resp.Cas)
+
+			s.checkDocument(s.T(), checkDocumentOptions{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				DocId:          docId,
+				Content:        nil,
+				ContentFlags:   TEST_CONTENT_FLAGS,
+				expiry:         expiryCheckType_Past,
 			})
 		})
 	})
@@ -2614,6 +3255,17 @@ func (s *GatewayOpsTestSuite) TestLookupIn() {
 			assert.Len(s.T(), resp.Specs, 1)
 			assert.Nil(s.T(), resp.Specs[0].Status)
 			assert.Equal(s.T(), []byte(`"bar"`), resp.Specs[0].Content)
+		})
+
+		s.Run("GetArrayElement", func() {
+			resp := testBasicSpec(&kv_v1.LookupInRequest_Spec{
+				Operation: kv_v1.LookupInRequest_Spec_OPERATION_GET,
+				Path:      "arr[1]",
+			})
+
+			assert.Len(s.T(), resp.Specs, 1)
+			assert.Nil(s.T(), resp.Specs[0].Status)
+			assert.Equal(s.T(), []byte(`2`), resp.Specs[0].Content)
 		})
 
 		s.Run("Count", func() {
@@ -3224,6 +3876,26 @@ func (s *GatewayOpsTestSuite) TestMutateIn() {
 		})
 	})
 
+	// BUG(ING-1211) - mutate in spec with empty path returns unhelpful error
+	// s.Run("InsertWithEmptyPath", func() {
+	// 	docId, docCas := s.testDocIdAndCas()
+	// 	_, err := kvClient.MutateIn(context.Background(), &kv_v1.MutateInRequest{
+	// 		BucketName:     s.bucketName,
+	// 		ScopeName:      s.scopeName,
+	// 		CollectionName: s.collectionName,
+	// 		Key:            docId,
+	// 		Cas:            &docCas,
+	// 		Specs: []*kv_v1.MutateInRequest_Spec{
+	// 			{
+	// 				Operation: kv_v1.MutateInRequest_Spec_OPERATION_UPSERT,
+	// 				Path:      "",
+	// 				Content:   []byte(`2`),
+	// 			},
+	// 		},
+	// 	}, grpc.PerRPCCredentials(s.basicRpcCreds))
+	// 	assertRpcStatus(s.T(), err, codes.InvalidArgument)
+	// })
+
 	s.Run("WithCas", func() {
 		docId, docCas := s.testDocIdAndCas()
 
@@ -3318,6 +3990,25 @@ func (s *GatewayOpsTestSuite) TestMutateIn() {
 		})
 	})
 
+	s.Run("ArrayAddOnNonArrayPath", func() {
+		docId := s.binaryDocId([]byte(`{"num":5}`))
+
+		_, err := kvClient.MutateIn(context.Background(), &kv_v1.MutateInRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            docId,
+			Specs: []*kv_v1.MutateInRequest_Spec{
+				{
+					Operation: kv_v1.MutateInRequest_Spec_OPERATION_ARRAY_ADD_UNIQUE,
+					Path:      "num",
+					Content:   []byte(`2`),
+				},
+			},
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		assertRpcStatus(s.T(), err, codes.FailedPrecondition)
+	})
+
 	s.Run("ValueNotJson", func() {
 		docId := s.binaryDocId([]byte(`{"a":{}}`))
 
@@ -3373,6 +4064,25 @@ func (s *GatewayOpsTestSuite) TestMutateIn() {
 			},
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
 		assertRpcStatus(s.T(), err, codes.InvalidArgument)
+	})
+
+	s.Run("CounterOpOnNonNumericField", func() {
+		docId := s.binaryDocId([]byte(`{"string":"a-string"}`))
+
+		_, err := kvClient.MutateIn(context.Background(), &kv_v1.MutateInRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            docId,
+			Specs: []*kv_v1.MutateInRequest_Spec{
+				{
+					Operation: kv_v1.MutateInRequest_Spec_OPERATION_COUNTER,
+					Path:      "string",
+					Content:   []byte(`1`),
+				},
+			},
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		assertRpcStatus(s.T(), err, codes.FailedPrecondition)
 	})
 
 	s.Run("DeltaOverflowsPathValue", func() {
@@ -3762,6 +4472,75 @@ func (s *GatewayOpsTestSuite) TestMutateIn() {
 					MaxSecs: int((31 * 24 * time.Hour).Seconds()) + 1,
 					MinSecs: int((30 * 24 * time.Hour).Seconds()),
 				},
+			})
+		})
+	})
+
+	s.Run("ExpiryTime", func() {
+		semantic := kv_v1.MutateInRequest_STORE_SEMANTIC_UPSERT
+		s.Run("Future", func() {
+			docId := s.randomDocId()
+			timeStamp := &timestamppb.Timestamp{
+				Seconds: time.Now().Add(time.Minute).Unix(),
+			}
+			_, err := kvClient.MutateIn(context.Background(), &kv_v1.MutateInRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+				Specs: []*kv_v1.MutateInRequest_Spec{
+					{
+						Operation: kv_v1.MutateInRequest_Spec_OPERATION_UPSERT,
+						Path:      "a",
+						Content:   []byte(`2`),
+					},
+				},
+				Expiry:        &kv_v1.MutateInRequest_ExpiryTime{ExpiryTime: timeStamp},
+				StoreSemantic: &semantic,
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			assertRpcStatus(s.T(), err, codes.OK)
+
+			s.checkDocument(s.T(), checkDocumentOptions{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				DocId:          docId,
+				Content:        []byte(`{"a":2}`),
+				ContentFlags:   0,
+				expiry:         expiryCheckType_Future,
+			})
+		})
+
+		s.Run("Past", func() {
+			docId := s.randomDocId()
+			timeStamp := &timestamppb.Timestamp{
+				Seconds: time.Now().Add(-time.Minute).Unix(),
+			}
+			_, err := kvClient.MutateIn(context.Background(), &kv_v1.MutateInRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+				Specs: []*kv_v1.MutateInRequest_Spec{
+					{
+						Operation: kv_v1.MutateInRequest_Spec_OPERATION_UPSERT,
+						Path:      "a",
+						Content:   []byte(`2`),
+					},
+				},
+				Expiry:        &kv_v1.MutateInRequest_ExpiryTime{ExpiryTime: timeStamp},
+				StoreSemantic: &semantic,
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			assertRpcStatus(s.T(), err, codes.OK)
+
+			s.checkDocument(s.T(), checkDocumentOptions{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				DocId:          docId,
+				Content:        nil,
+				ContentFlags:   TEST_CONTENT_FLAGS,
+				expiry:         expiryCheckType_Past,
 			})
 		})
 	})
