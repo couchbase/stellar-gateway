@@ -469,7 +469,7 @@ func (e ErrorHandler) NewDocConflictStatus(baseErr error, bucketName, scopeName,
 		fmt.Sprintf("Conflict resolution rejected '%s' in '%s/%s/%s'.",
 			docId, bucketName, scopeName, collectionName))
 	st = e.tryAttachStatusDetails(st, &epb.ErrorInfo{
-		Reason: "CONFLICT_RESOLUTION",
+		Reason: "DOC_NEWER",
 	})
 	st = e.tryAttachExtraContext(st, baseErr)
 	return st

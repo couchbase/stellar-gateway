@@ -159,7 +159,7 @@ func (s *GatewayOpsTestSuite) TestXdcrPushDocument() {
 			}, grpc.PerRPCCredentials(s.basicRpcCreds))
 			assertRpcStatus(s.T(), err, codes.AlreadyExists)
 			assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
-				assert.Equal(s.T(), d.ResourceType, "document")
+				assert.Equal(s.T(), "document", d.ResourceType)
 			})
 		})
 	})
@@ -232,7 +232,7 @@ func (s *GatewayOpsTestSuite) TestXdcrPushDocument() {
 			}, grpc.PerRPCCredentials(s.basicRpcCreds))
 			assertRpcStatus(s.T(), err, codes.Aborted)
 			assertRpcErrorDetails(s.T(), err, func(d *epb.ErrorInfo) {
-				assert.Equal(s.T(), d.Reason, "CAS_MISMATCH")
+				assert.Equal(s.T(), "CAS_MISMATCH", d.Reason)
 			})
 		})
 
@@ -296,89 +296,91 @@ func (s *GatewayOpsTestSuite) TestXdcrPushDocument() {
 				ContentType:       internal_xdcr_v1.ContentType_CONTENT_TYPE_JSON,
 				ContentCompressed: s.compressContent(TEST_CONTENT),
 				ExpiryTime:        nil, // no expiry
-				Revno:             getResp.Revno + 1,
+				Revno:             getResp.Revno - 1,
 			}, grpc.PerRPCCredentials(s.basicRpcCreds))
 			assertRpcStatus(s.T(), err, codes.Aborted)
 			assertRpcErrorDetails(s.T(), err, func(d *epb.ErrorInfo) {
-				assert.Equal(s.T(), d.Reason, "CONFLICT_RESOLUTION")
+				assert.Equal(s.T(), "DOC_NEWER", d.Reason)
 			})
 		})
 	})
-}
 
-func (s *GatewayOpsTestSuite) TestXdcrDeleteDocument() {
-	xdcrClient := internal_xdcr_v1.NewXdcrServiceClient(s.gatewayConn)
+	s.Run("Delete", func() {
+		s.Run("Basic", func() {
+			docId := s.testDocId()
 
-	s.Run("Basic", func() {
-		docId := s.testDocId()
+			getResp, err := xdcrClient.GetDocument(context.Background(), &internal_xdcr_v1.GetDocumentRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+				IncludeContent: false,
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			requireRpcSuccess(s.T(), getResp, err)
 
-		getResp, err := xdcrClient.GetDocument(context.Background(), &internal_xdcr_v1.GetDocumentRequest{
-			BucketName:     s.bucketName,
-			ScopeName:      s.scopeName,
-			CollectionName: s.collectionName,
-			Key:            docId,
-			IncludeContent: false,
-		}, grpc.PerRPCCredentials(s.basicRpcCreds))
-		requireRpcSuccess(s.T(), getResp, err)
+			delResp, err := xdcrClient.PushDocument(context.Background(), &internal_xdcr_v1.PushDocumentRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+				CheckCas:       &getResp.Cas,
+				StoreCas:       getResp.Cas + 1,
+				IsDeleted:      true,
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			requireRpcSuccess(s.T(), delResp, err)
+		})
 
-		delResp, err := xdcrClient.DeleteDocument(context.Background(), &internal_xdcr_v1.DeleteDocumentRequest{
-			BucketName:     s.bucketName,
-			ScopeName:      s.scopeName,
-			CollectionName: s.collectionName,
-			Key:            docId,
-			CheckCas:       &getResp.Cas,
-			StoreCas:       getResp.Cas + 1,
-		}, grpc.PerRPCCredentials(s.basicRpcCreds))
-		requireRpcSuccess(s.T(), delResp, err)
-	})
+		s.Run("BasicLww", func() {
+			docId := s.testDocId()
 
-	s.Run("BasicLww", func() {
-		docId := s.testDocId()
+			getResp, err := xdcrClient.GetDocument(context.Background(), &internal_xdcr_v1.GetDocumentRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+				IncludeContent: false,
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			requireRpcSuccess(s.T(), getResp, err)
 
-		getResp, err := xdcrClient.GetDocument(context.Background(), &internal_xdcr_v1.GetDocumentRequest{
-			BucketName:     s.bucketName,
-			ScopeName:      s.scopeName,
-			CollectionName: s.collectionName,
-			Key:            docId,
-			IncludeContent: false,
-		}, grpc.PerRPCCredentials(s.basicRpcCreds))
-		requireRpcSuccess(s.T(), getResp, err)
+			delResp, err := xdcrClient.PushDocument(context.Background(), &internal_xdcr_v1.PushDocumentRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+				CheckCas:       nil,
+				StoreCas:       getResp.Cas + 10,
+				Revno:          getResp.Revno + 10,
+				IsDeleted:      true,
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			requireRpcSuccess(s.T(), delResp, err)
+		})
 
-		delResp, err := xdcrClient.DeleteDocument(context.Background(), &internal_xdcr_v1.DeleteDocumentRequest{
-			BucketName:     s.bucketName,
-			ScopeName:      s.scopeName,
-			CollectionName: s.collectionName,
-			Key:            docId,
-			CheckCas:       nil,
-			StoreCas:       getResp.Cas + 10,
-			Revno:          getResp.Revno + 10,
-		}, grpc.PerRPCCredentials(s.basicRpcCreds))
-		requireRpcSuccess(s.T(), delResp, err)
-	})
+		s.Run("LwwFail", func() {
+			docId := s.testDocId()
 
-	s.Run("LwwFail", func() {
-		docId := s.testDocId()
+			getResp, err := xdcrClient.GetDocument(context.Background(), &internal_xdcr_v1.GetDocumentRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+				IncludeContent: false,
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			requireRpcSuccess(s.T(), getResp, err)
 
-		getResp, err := xdcrClient.GetDocument(context.Background(), &internal_xdcr_v1.GetDocumentRequest{
-			BucketName:     s.bucketName,
-			ScopeName:      s.scopeName,
-			CollectionName: s.collectionName,
-			Key:            docId,
-			IncludeContent: false,
-		}, grpc.PerRPCCredentials(s.basicRpcCreds))
-		requireRpcSuccess(s.T(), getResp, err)
-
-		_, err = xdcrClient.DeleteDocument(context.Background(), &internal_xdcr_v1.DeleteDocumentRequest{
-			BucketName:     s.bucketName,
-			ScopeName:      s.scopeName,
-			CollectionName: s.collectionName,
-			Key:            docId,
-			CheckCas:       nil,
-			StoreCas:       getResp.Cas - 1,
-		}, grpc.PerRPCCredentials(s.basicRpcCreds))
-		assertRpcStatus(s.T(), err, codes.Aborted)
-		assertRpcErrorDetails(s.T(), err, func(d *epb.ErrorInfo) {
-			assert.Equal(s.T(), d.Reason, "CONFLICT_RESOLUTION")
+			_, err = xdcrClient.PushDocument(context.Background(), &internal_xdcr_v1.PushDocumentRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+				CheckCas:       nil,
+				StoreCas:       getResp.Cas - 1,
+				Revno:          getResp.Revno - 1,
+				IsDeleted:      true,
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			assertRpcStatus(s.T(), err, codes.Aborted)
+			assertRpcErrorDetails(s.T(), err, func(d *epb.ErrorInfo) {
+				assert.Equal(s.T(), "DOC_NEWER", d.Reason)
+			})
 		})
 	})
 }

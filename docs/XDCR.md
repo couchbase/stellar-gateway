@@ -22,8 +22,35 @@ else:
   SetWithMeta(CheckCAS: 0, Options: 0)
 ```
 
-### DeleteDocument
+Additionally, if IsDeleted is specified on the PushDocument operation, it is assumed that this
+is an attempt to delete the document, and as such CheckCAS will optionally control whether a
+pure CAS check is performed (and 0 is an invalid value).
 
-DeleteDocument follows the same rules as PushDocument, with the exception that a CheckCAS value
-of 0 is an inherently invalid value (it does not make sense to explicitly check CAS against a
-value that is not valid).
+There are a number of conflict related errors that can be returned by the PushDocument operation
+based on a number of different factors. Namely whether or not CheckCAS is being applied as well as
+whether conflict logging is enabled for the operation.
+
+ConflictLogging=true:
+
+- Error:Aborted Code:TRUE_CONFLICT
+  This case will occur when the operation would otherwise succeed, but a true conflict was detected
+  and the client has not provided an explicit CAS value (to verify they have the existing document
+  already available to them locally). This error will also include additional error context which
+  includes the conflicted documents meta-data and contents. Note that this error can only be
+  returned if the TrueConflicts parameter is set to true.
+
+- Error:Aborted Code:CAS_MISMATCH
+  This case will occur when a CAS was explicitly provided to the operation, but the target document
+  has been updated and has a different CAS value.
+
+- Error:Aborted Code:DOC_NEWER
+  This case occurs when a new document is rejected because it is older than the document that
+  already exists. The concept of 'newer' uses the buckets configured conflict resolution mode.
+
+ConflictLogging=false:
+
+### CheckDocument
+
+CheckDocument has precisely the same mechanics as PushDocument does, with the exception that in the
+cases where a PushDocument operation would write changes to the document, CheckDocument will return
+success and do no write.
