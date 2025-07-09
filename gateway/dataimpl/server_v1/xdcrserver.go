@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/couchbase/gocbcorex"
-	"github.com/couchbase/gocbcorex/cbmgmtx"
+	"github.com/couchbase/gocbcorex/cbdoccrx"
 	"github.com/couchbase/gocbcorex/memdx"
 	"github.com/couchbase/goprotostellar/genproto/internal_xdcr_v1"
 	"github.com/couchbase/goprotostellar/genproto/kv_v1"
@@ -253,6 +253,8 @@ func (s *XdcrServer) CheckDocument(
 	metaRes, err := bucketAgent.GetMeta(ctx, &opts)
 	if err != nil {
 		if errors.Is(err, memdx.ErrDocNotFound) {
+			// TODO(brett19): Need to handle this as a conflict resolution case, rather
+			// than having it return a missing document error.
 			return nil, s.errorHandler.NewDocMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
 		} else if errors.Is(err, memdx.ErrUnknownCollectionName) {
 			return nil, s.errorHandler.NewCollectionMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
@@ -269,52 +271,49 @@ func (s *XdcrServer) CheckDocument(
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
 
-	// TODO(brett19): Move this to gocbcorex instead...
-	if crMode == cbmgmtx.ConflictResolutionTypeTimestamp {
-		if in.Cas < metaRes.Cas {
-			return nil, s.errorHandler.NewDocConflictStatus(
-				errors.New("document CAS is lower than the current CAS"),
-				in.BucketName, in.ScopeName, in.CollectionName, in.Key,
-			).Err()
-		} else if in.Cas == metaRes.Cas {
-			if in.Revno < metaRes.RevNo {
-				return nil, s.errorHandler.NewDocConflictStatus(
-					errors.New("document revision number is lower than the current revision"),
-					in.BucketName, in.ScopeName, in.CollectionName, in.Key,
-				).Err()
-			} else if in.Revno == metaRes.RevNo {
-				return nil, s.errorHandler.NewDocConflictStatus(
-					errors.New("document revision number is equal and document CAS is equal to the current CAS"),
-					in.BucketName, in.ScopeName, in.CollectionName, in.Key,
-				).Err()
-			}
-		}
-	} else if crMode == cbmgmtx.ConflictResolutionTypeSequenceNumber {
-		if in.Revno < metaRes.RevNo {
-			return nil, s.errorHandler.NewDocConflictStatus(
-				errors.New("document revision number is lower than the current revision"),
-				in.BucketName, in.ScopeName, in.CollectionName, in.Key,
-			).Err()
-		} else if in.Revno == metaRes.RevNo {
-			if in.Cas < metaRes.Cas {
-				return nil, s.errorHandler.NewDocConflictStatus(
-					errors.New("document CAS is lower than the current CAS"),
-					in.BucketName, in.ScopeName, in.CollectionName, in.Key,
-				).Err()
-			} else if in.Cas == metaRes.Cas {
-				return nil, s.errorHandler.NewDocConflictStatus(
-					errors.New("document CAS is equal and document revision number is equal to the current revision"),
-					in.BucketName, in.ScopeName, in.CollectionName, in.Key,
-				).Err()
-			}
-		}
-	} else {
-		// TODO(brett19): Handle other conflict resolution modes...
-		return nil, s.errorHandler.NewGenericStatus(
-			errors.New("unsupported conflict resolution mode"),
-		).Err()
+	var inExpiry uint32
+	if in.ExpiryTime != nil {
+		inExpiry = timeExpiryToGocbcorex(timeToGo(in.ExpiryTime))
 	}
 
+	// TODO(brett19): Handle xattrs in conflict resolution
+	crRes, err := cbdoccrx.ConflictResolver{
+		Mode: cbdoccrx.ConflictResolutionMode(crMode),
+	}.Resolve(&cbdoccrx.Document{
+		Cas:       in.Cas,
+		RevNo:     in.Revno,
+		Expiry:    inExpiry,
+		Flags:     in.ContentFlags,
+		IsDeleted: in.IsDeleted,
+		HasXattrs: false,
+	}, &cbdoccrx.Document{
+		Cas:       metaRes.Cas,
+		RevNo:     metaRes.RevNo,
+		Expiry:    metaRes.Expiry,
+		Flags:     metaRes.Flags,
+		IsDeleted: metaRes.IsDeleted,
+		HasXattrs: false,
+	})
+	if err != nil {
+		if errors.Is(err, cbdoccrx.ErrUnsupportedConflictResolutionMode) {
+			return nil, s.errorHandler.NewGenericStatus(
+				errors.New("unsupported conflict resolution mode"),
+			).Err()
+		}
+
+		return nil, s.errorHandler.NewGenericStatus(err).Err()
+	}
+
+	if crRes != cbdoccrx.ResolveResultKeepB {
+		// keep b means to not replica
+		// equality means to not replicate (ie keep the target as-is)
+		return nil, s.errorHandler.NewDocConflictStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+	}
+
+	// if there is a true conflict, we need to return an error indicating that
+	// the document will be overwritten and include the original document content.
+
+	// keep the source
 	return &internal_xdcr_v1.CheckDocumentResponse{}, nil
 }
 
@@ -342,7 +341,59 @@ func (s *XdcrServer) PushDocument(
 		docDatatype |= memdx.DatatypeFlagJSON
 	}
 
-	if in.CheckCas != nil && *in.CheckCas == 0 {
+	if in.IsDeleted {
+		var checkCas uint64
+		if in.CheckCas != nil {
+			if *in.CheckCas == 0 {
+				return nil, s.errorHandler.NewZeroCasStatus().Err()
+			}
+			checkCas = *in.CheckCas
+		} else {
+			checkCas = 0
+		}
+
+		var opts gocbcorex.DeleteWithMetaOptions
+		opts.OnBehalfOf = oboUser
+		opts.ScopeName = in.ScopeName
+		opts.CollectionName = in.CollectionName
+		opts.Key = []byte(in.Key)
+		opts.RevNo = in.Revno
+		opts.CheckCas = checkCas
+		opts.StoreCas = in.StoreCas
+
+		if checkCas != 0 {
+			opts.Options |= memdx.MetaOpFlagSkipConflictResolution
+		}
+
+		result, err := bucketAgent.DeleteWithMeta(ctx, &opts)
+		if err != nil {
+			if errors.Is(err, memdx.ErrConflictOrCasMismatch) {
+				if checkCas == 0 {
+					// if there is no checked cas, this must be a conflict
+					return nil, s.errorHandler.NewDocConflictStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+				}
+
+				// we skip conflict resolution for sets with a checked CAS, so this must be a CAS mismatch
+				return nil, s.errorHandler.NewDocCasMismatchStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+			} else if errors.Is(err, memdx.ErrDocLocked) {
+				return nil, s.errorHandler.NewDocLockedStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+			} else if errors.Is(err, memdx.ErrDocNotFound) {
+				return nil, s.errorHandler.NewDocMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+			} else if errors.Is(err, memdx.ErrUnknownCollectionName) {
+				return nil, s.errorHandler.NewCollectionMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+			} else if errors.Is(err, memdx.ErrUnknownScopeName) {
+				return nil, s.errorHandler.NewScopeMissingStatus(err, in.BucketName, in.ScopeName).Err()
+			} else if errors.Is(err, memdx.ErrAccessError) {
+				return nil, s.errorHandler.NewCollectionNoWriteAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+			}
+			return nil, s.errorHandler.NewGenericStatus(err).Err()
+		}
+
+		return &internal_xdcr_v1.PushDocumentResponse{
+			Cas:   result.Cas,
+			Seqno: result.MutationToken.SeqNo,
+		}, nil
+	} else if in.CheckCas != nil && *in.CheckCas == 0 {
 		var opts gocbcorex.AddWithMetaOptions
 		opts.OnBehalfOf = oboUser
 		opts.ScopeName = in.ScopeName
@@ -407,15 +458,14 @@ func (s *XdcrServer) PushDocument(
 
 		result, err := bucketAgent.SetWithMeta(ctx, &opts)
 		if err != nil {
-			if errors.Is(err, memdx.ErrCasMismatch) {
+			if errors.Is(err, memdx.ErrConflictOrCasMismatch) {
 				if checkCas == 0 {
-					// CAS Mismatch with zero CAS means the conflict resolution failed
+					// if there is no checked cas, this must be a conflict
 					return nil, s.errorHandler.NewDocConflictStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
-				} else {
-					// CAS mismatch with non-zero cas sets SkipConflictResolution, so this
-					// case is a real CAS mismatch
-					return nil, s.errorHandler.NewDocCasMismatchStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
 				}
+
+				// we skip conflict resolution for sets with a checked CAS, so this must be a CAS mismatch
+				return nil, s.errorHandler.NewDocCasMismatchStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
 			} else if errors.Is(err, memdx.ErrDocExists) {
 				return nil, s.errorHandler.NewDocExistsStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
 			} else if errors.Is(err, memdx.ErrUnknownCollectionName) {
@@ -435,75 +485,6 @@ func (s *XdcrServer) PushDocument(
 			Seqno: result.MutationToken.SeqNo,
 		}, nil
 	}
-}
-
-func (s *XdcrServer) DeleteDocument(
-	ctx context.Context,
-	in *internal_xdcr_v1.DeleteDocumentRequest,
-) (*internal_xdcr_v1.DeleteDocumentResponse, error) {
-	bucketAgent, oboUser, errSt := s.authHandler.GetMemdOboAgent(ctx, in.BucketName)
-	if errSt != nil {
-		return nil, errSt.Err()
-	}
-
-	errSt = s.checkKey(in.Key)
-	if errSt != nil {
-		return nil, errSt.Err()
-	}
-
-	errSt = s.checkCAS(&in.StoreCas)
-	if errSt != nil {
-		return nil, errSt.Err()
-	}
-
-	var checkCas uint64
-	if in.CheckCas != nil {
-		if *in.CheckCas == 0 {
-			return nil, s.errorHandler.NewZeroCasStatus().Err()
-		}
-
-		checkCas = *in.CheckCas
-	}
-
-	var opts gocbcorex.DeleteWithMetaOptions
-	opts.OnBehalfOf = oboUser
-	opts.ScopeName = in.ScopeName
-	opts.CollectionName = in.CollectionName
-	opts.Key = []byte(in.Key)
-	opts.RevNo = in.Revno
-	opts.CheckCas = checkCas
-	opts.StoreCas = in.StoreCas
-
-	result, err := bucketAgent.DeleteWithMeta(ctx, &opts)
-	if err != nil {
-		if errors.Is(err, memdx.ErrCasMismatch) {
-			// TODO(brett19): Figure out if we can merge this logic into gocbcorex instead...
-			if checkCas == 0 {
-				// CAS Mismatch with zero CAS means the conflict resolution failed
-				return nil, s.errorHandler.NewDocConflictStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
-			} else {
-				// CAS mismatch with non-zero cas sets SkipConflictResolution, so this
-				// case is a real CAS mismatch
-				return nil, s.errorHandler.NewDocCasMismatchStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
-			}
-		} else if errors.Is(err, memdx.ErrDocLocked) {
-			return nil, s.errorHandler.NewDocLockedStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
-		} else if errors.Is(err, memdx.ErrDocNotFound) {
-			return nil, s.errorHandler.NewDocMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
-		} else if errors.Is(err, memdx.ErrUnknownCollectionName) {
-			return nil, s.errorHandler.NewCollectionMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
-		} else if errors.Is(err, memdx.ErrUnknownScopeName) {
-			return nil, s.errorHandler.NewScopeMissingStatus(err, in.BucketName, in.ScopeName).Err()
-		} else if errors.Is(err, memdx.ErrAccessError) {
-			return nil, s.errorHandler.NewCollectionNoWriteAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
-		}
-		return nil, s.errorHandler.NewGenericStatus(err).Err()
-	}
-
-	return &internal_xdcr_v1.DeleteDocumentResponse{
-		Cas:   result.Cas,
-		Seqno: result.MutationToken.SeqNo,
-	}, nil
 }
 
 func (s *XdcrServer) checkKey(key string) *status.Status {
