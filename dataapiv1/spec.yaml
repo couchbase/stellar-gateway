@@ -1,4 +1,4 @@
-openapi: "3.0.0"
+openapi: '3.0.0'
 info:
   version: 1.0.0
   title: Couchbase Data API
@@ -46,7 +46,7 @@ paths:
                     description: The user that is making the request.
                     example: Administrator
         '403':
-          $ref: '#/components/responses/Forbidden' 
+          $ref: '#/components/responses/Forbidden'
         '500':
           $ref: '#/components/responses/InternalServerError'
   '/v1/buckets/{bucketName}/scopes/{scopeName}/collections/{collectionName}/documents/{documentKey}':
@@ -79,53 +79,56 @@ paths:
           description: Successful fetch of the document
           headers:
             Content-Encoding:
-              $ref: "#/components/headers/ContentEncoding"
+              $ref: '#/components/headers/ContentEncoding'
             ETag:
-              $ref: "#/components/headers/ETag"
+              $ref: '#/components/headers/ETag'
             Expires:
-              $ref: "#/components/headers/Expires"
+              $ref: '#/components/headers/Expires'
             X-CB-Flags:
-              $ref: "#/components/headers/DocumentFlags"
+              $ref: '#/components/headers/DocumentFlags'
           content:
             'application/json':
               schema:
                 type: object
                 description: The contents of the document.
-                example: {
-                  "title": "Brighton",
-                  "name": "Brighton Palace Pier",
-                  "alt": null,
-                  "address": "Madeira Dr, Brighton BN2 1TW",
-                  "directions": null,
-                  "phone": "01273609361",
-                  "tollfree": null,
-                  "email": "info@brightonpalacepier.co.uk",
-                  "url": "https://www.brightonpier.co.uk",
-                  "hours": "11am–6pm",
-                  "image": null,
-                  "price": "£2",
-                  "content": "The Brighton Palace Pier, commonly known as Brighton Pier or the Palace Pier, is a Grade II listed pleasure pier in Brighton, England, located in the city centre opposite the Old Steine. 
-                               Established in 1899, it was the third pier to be constructed in Brighton after the Royal Suspension Chain Pier and the West Pier, but is now the only one still in operation.",
-                  "geo": {
-                    "lat": 50.815,
-                    "lon": -0.136944,
-                    "accuracy": "RANGE_INTERPOLATED"
-                  },
-                  "activity": "do",
-                  "type": "landmark",
-                  "id": 10044,
-                  "country": "United Kingdom",
-                  "city": "Brighton",
-                  "state": null
-                }
+                example:
+                  {
+                    'title': 'Brighton',
+                    'name': 'Brighton Palace Pier',
+                    'alt': null,
+                    'address': 'Madeira Dr, Brighton BN2 1TW',
+                    'directions': null,
+                    'phone': '01273609361',
+                    'tollfree': null,
+                    'email': 'info@brightonpalacepier.co.uk',
+                    'url': 'https://www.brightonpier.co.uk',
+                    'hours': '11am–6pm',
+                    'image': null,
+                    'price': '£2',
+                    'content':
+                      'The Brighton Palace Pier, commonly known as Brighton Pier or the Palace Pier, is a Grade II listed pleasure pier in Brighton, England, located in the city centre opposite the Old Steine.
+                      Established in 1899, it was the third pier to be constructed in Brighton after the Royal Suspension Chain Pier and the West Pier, but is now the only one still in operation.',
+                    'geo':
+                      {
+                        'lat': 50.815,
+                        'lon': -0.136944,
+                        'accuracy': 'RANGE_INTERPOLATED',
+                      },
+                    'activity': 'do',
+                    'type': 'landmark',
+                    'id': 10044,
+                    'country': 'United Kingdom',
+                    'city': 'Brighton',
+                    'state': null,
+                  }
             'text/plain':
-              example: "Here is the text that was contained in the specified document."
+              example: 'Here is the text that was contained in the specified document.'
               schema:
                 type: string
                 description: The text contained within the document.
                 example: Here is the contents of your document
             'application/octet-stream':
-              example: |- 
+              example: |-
                 01001000011001010111001001100101001000000110100101110011 
                 00100000011101000110100001100101001000000110001001101001 
                 01101110011000010111001001111001001000000110001101101111 
@@ -144,17 +147,17 @@ paths:
                 format: binary
                 description: The contents of the document.
         '400':
-          $ref: '#/components/responses/BadRequest' 
+          $ref: '#/components/responses/BadRequest'
         '403':
-          $ref: '#/components/responses/Forbidden' 
+          $ref: '#/components/responses/Forbidden'
         '404':
-          $ref: '#/components/responses/NotFound' 
+          $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalServerError'
         '503':
-          $ref: '#/components/responses/ServiceUnavailable' 
+          $ref: '#/components/responses/ServiceUnavailable'
         '504':
-          $ref: '#/components/responses/GatewayTimeout' 
+          $ref: '#/components/responses/GatewayTimeout'
     post:
       operationId: createDocument
       summary: Create Document
@@ -169,7 +172,7 @@ paths:
       requestBody:
         required: true
         content:
-         '*':
+          '*':
             schema:
               type: string
               format: binary
@@ -179,25 +182,25 @@ paths:
           description: Successful creation of the document
           headers:
             ETag:
-              $ref: "#/components/headers/ETag"
+              $ref: '#/components/headers/ETag'
             X-CB-MutationToken:
-              $ref: "#/components/headers/MutationToken"
+              $ref: '#/components/headers/MutationToken'
         '400':
-          $ref: '#/components/responses/BadRequest' 
+          $ref: '#/components/responses/BadRequest'
         '403':
-          $ref: '#/components/responses/Forbidden' 
+          $ref: '#/components/responses/Forbidden'
         '404':
-          $ref: '#/components/responses/NotFound' 
+          $ref: '#/components/responses/NotFound'
         '409':
-          $ref: '#/components/responses/Conflict' 
+          $ref: '#/components/responses/Conflict'
         '413':
-          $ref: '#/components/responses/ContentTooLarge' 
+          $ref: '#/components/responses/ContentTooLarge'
         '500':
           $ref: '#/components/responses/InternalServerError'
         '503':
-          $ref: '#/components/responses/ServiceUnavailable' 
+          $ref: '#/components/responses/ServiceUnavailable'
         '504':
-          $ref: '#/components/responses/GatewayTimeout' 
+          $ref: '#/components/responses/GatewayTimeout'
     put:
       operationId: updateDocument
       summary: Update Document
@@ -223,25 +226,25 @@ paths:
           description: Successful creation of the document
           headers:
             ETag:
-              $ref: "#/components/headers/ETag"
+              $ref: '#/components/headers/ETag'
             X-CB-MutationToken:
-              $ref: "#/components/headers/MutationToken"
+              $ref: '#/components/headers/MutationToken'
         '400':
-          $ref: '#/components/responses/BadRequest' 
+          $ref: '#/components/responses/BadRequest'
         '403':
-          $ref: '#/components/responses/Forbidden' 
+          $ref: '#/components/responses/Forbidden'
         '404':
-          $ref: '#/components/responses/NotFound' 
+          $ref: '#/components/responses/NotFound'
         '409':
-          $ref: '#/components/responses/Conflict' 
+          $ref: '#/components/responses/Conflict'
         '413':
-          $ref: '#/components/responses/ContentTooLarge' 
+          $ref: '#/components/responses/ContentTooLarge'
         '500':
           $ref: '#/components/responses/InternalServerError'
         '503':
-          $ref: '#/components/responses/ServiceUnavailable' 
+          $ref: '#/components/responses/ServiceUnavailable'
         '504':
-          $ref: '#/components/responses/GatewayTimeout' 
+          $ref: '#/components/responses/GatewayTimeout'
     delete:
       operationId: deleteDocument
       summary: Delete Document
@@ -256,21 +259,21 @@ paths:
           description: Successful deletion of the document
           headers:
             ETag:
-              $ref: "#/components/headers/ETag"
+              $ref: '#/components/headers/ETag'
             X-CB-MutationToken:
-              $ref: "#/components/headers/MutationToken"
+              $ref: '#/components/headers/MutationToken'
         '400':
-          $ref: '#/components/responses/BadRequest' 
+          $ref: '#/components/responses/BadRequest'
         '403':
-          $ref: '#/components/responses/Forbidden' 
+          $ref: '#/components/responses/Forbidden'
         '404':
-          $ref: '#/components/responses/NotFound' 
+          $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/InternalServerError'
         '503':
-          $ref: '#/components/responses/ServiceUnavailable' 
+          $ref: '#/components/responses/ServiceUnavailable'
         '504':
           $ref: '#/components/responses/GatewayTimeout'
   '/v1.alpha/enabled':
@@ -306,28 +309,28 @@ paths:
       requestBody:
         required: true
         content:
-         '*':
+          '*':
             schema: {}
       responses:
         '200':
           description: Successfully appended contents to the document.
           headers:
             ETag:
-              $ref: "#/components/headers/ETag"
+              $ref: '#/components/headers/ETag'
             X-CB-MutationToken:
-              $ref: "#/components/headers/MutationToken"
+              $ref: '#/components/headers/MutationToken'
         '400':
-          $ref: '#/components/responses/BadRequest' 
+          $ref: '#/components/responses/BadRequest'
         '403':
-          $ref: '#/components/responses/Forbidden' 
+          $ref: '#/components/responses/Forbidden'
         '404':
-          $ref: '#/components/responses/NotFound' 
+          $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/InternalServerError'
         '503':
-          $ref: '#/components/responses/ServiceUnavailable' 
+          $ref: '#/components/responses/ServiceUnavailable'
         '504':
           $ref: '#/components/responses/GatewayTimeout'
   '/v1.alpha/buckets/{bucketName}/scopes/{scopeName}/collections/{collectionName}/documents/{documentKey}/prepend':
@@ -350,28 +353,28 @@ paths:
       requestBody:
         required: true
         content:
-         '*':
+          '*':
             schema: {}
       responses:
         '200':
           description: Successfully prepended contents to the document.
           headers:
             ETag:
-              $ref: "#/components/headers/ETag"
+              $ref: '#/components/headers/ETag'
             X-CB-MutationToken:
-              $ref: "#/components/headers/MutationToken"
+              $ref: '#/components/headers/MutationToken'
         '400':
-          $ref: '#/components/responses/BadRequest' 
+          $ref: '#/components/responses/BadRequest'
         '403':
-          $ref: '#/components/responses/Forbidden' 
+          $ref: '#/components/responses/Forbidden'
         '404':
-          $ref: '#/components/responses/NotFound' 
+          $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/InternalServerError'
         '503':
-          $ref: '#/components/responses/ServiceUnavailable' 
+          $ref: '#/components/responses/ServiceUnavailable'
         '504':
           $ref: '#/components/responses/GatewayTimeout'
   '/v1.alpha/buckets/{bucketName}/scopes/{scopeName}/collections/{collectionName}/documents/{documentKey}/increment':
@@ -419,9 +422,9 @@ paths:
           description: Successfully incremented the document.
           headers:
             ETag:
-              $ref: "#/components/headers/ETag"
+              $ref: '#/components/headers/ETag'
             X-CB-MutationToken:
-              $ref: "#/components/headers/MutationToken"
+              $ref: '#/components/headers/MutationToken'
           content:
             application/json:
               schema:
@@ -430,15 +433,15 @@ paths:
                 example: 10
                 description: The number stored in the document after incrementing/initializing.
         '400':
-          $ref: '#/components/responses/BadRequest' 
+          $ref: '#/components/responses/BadRequest'
         '403':
-          $ref: '#/components/responses/Forbidden' 
+          $ref: '#/components/responses/Forbidden'
         '404':
-          $ref: '#/components/responses/NotFound' 
+          $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalServerError'
         '503':
-          $ref: '#/components/responses/ServiceUnavailable' 
+          $ref: '#/components/responses/ServiceUnavailable'
         '504':
           $ref: '#/components/responses/GatewayTimeout'
   '/v1.alpha/buckets/{bucketName}/scopes/{scopeName}/collections/{collectionName}/documents/{documentKey}/decrement':
@@ -486,9 +489,9 @@ paths:
           description: Successfully incremented the document.
           headers:
             ETag:
-              $ref: "#/components/headers/ETag"
+              $ref: '#/components/headers/ETag'
             X-CB-MutationToken:
-              $ref: "#/components/headers/MutationToken"
+              $ref: '#/components/headers/MutationToken'
           content:
             application/json:
               schema:
@@ -497,15 +500,15 @@ paths:
                 example: 11
                 description: The number stored in the document after decrementing/initializing.
         '400':
-          $ref: '#/components/responses/BadRequest' 
+          $ref: '#/components/responses/BadRequest'
         '403':
-          $ref: '#/components/responses/Forbidden' 
+          $ref: '#/components/responses/Forbidden'
         '404':
-          $ref: '#/components/responses/NotFound' 
+          $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalServerError'
         '503':
-          $ref: '#/components/responses/ServiceUnavailable' 
+          $ref: '#/components/responses/ServiceUnavailable'
         '504':
           $ref: '#/components/responses/GatewayTimeout'
   '/v1.alpha/buckets/{bucketName}/scopes/{scopeName}/collections/{collectionName}/documents/{documentKey}/lock':
@@ -541,45 +544,48 @@ paths:
           description: Successfully locked the document
           headers:
             Content-Encoding:
-              $ref: "#/components/headers/ContentEncoding"
+              $ref: '#/components/headers/ContentEncoding'
             ETag:
-              $ref: "#/components/headers/ETag"
+              $ref: '#/components/headers/ETag'
             X-CB-Flags:
-              $ref: "#/components/headers/DocumentFlags"
+              $ref: '#/components/headers/DocumentFlags'
           content:
             'application/json':
               schema:
                 type: object
                 description: The contents of the document.
-                example: {
-                  "title": "Brighton",
-                  "name": "Brighton Palace Pier",
-                  "alt": null,
-                  "address": "Madeira Dr, Brighton BN2 1TW",
-                  "directions": null,
-                  "phone": "01273609361",
-                  "tollfree": null,
-                  "email": "info@brightonpalacepier.co.uk",
-                  "url": "https://www.brightonpier.co.uk",
-                  "hours": "11am–6pm",
-                  "image": null,
-                  "price": "£2",
-                  "content": "The Brighton Palace Pier, commonly known as Brighton Pier or the Palace Pier, is a Grade II listed pleasure pier in Brighton, England, located in the city centre opposite the Old Steine. 
-                               Established in 1899, it was the third pier to be constructed in Brighton after the Royal Suspension Chain Pier and the West Pier, but is now the only one still in operation.",
-                  "geo": {
-                    "lat": 50.815,
-                    "lon": -0.136944,
-                    "accuracy": "RANGE_INTERPOLATED"
-                  },
-                  "activity": "do",
-                  "type": "landmark",
-                  "id": 10044,
-                  "country": "United Kingdom",
-                  "city": "Brighton",
-                  "state": null
-                }
+                example:
+                  {
+                    'title': 'Brighton',
+                    'name': 'Brighton Palace Pier',
+                    'alt': null,
+                    'address': 'Madeira Dr, Brighton BN2 1TW',
+                    'directions': null,
+                    'phone': '01273609361',
+                    'tollfree': null,
+                    'email': 'info@brightonpalacepier.co.uk',
+                    'url': 'https://www.brightonpier.co.uk',
+                    'hours': '11am–6pm',
+                    'image': null,
+                    'price': '£2',
+                    'content':
+                      'The Brighton Palace Pier, commonly known as Brighton Pier or the Palace Pier, is a Grade II listed pleasure pier in Brighton, England, located in the city centre opposite the Old Steine.
+                      Established in 1899, it was the third pier to be constructed in Brighton after the Royal Suspension Chain Pier and the West Pier, but is now the only one still in operation.',
+                    'geo':
+                      {
+                        'lat': 50.815,
+                        'lon': -0.136944,
+                        'accuracy': 'RANGE_INTERPOLATED',
+                      },
+                    'activity': 'do',
+                    'type': 'landmark',
+                    'id': 10044,
+                    'country': 'United Kingdom',
+                    'city': 'Brighton',
+                    'state': null,
+                  }
             'text/plain':
-              example: "Here is the text that was contained in the specified document."
+              example: 'Here is the text that was contained in the specified document.'
               schema:
                 type: string
                 description: The text contained within the document.
@@ -604,17 +610,17 @@ paths:
                 format: binary
                 description: The contents of the document.
         '400':
-          $ref: '#/components/responses/BadRequest' 
+          $ref: '#/components/responses/BadRequest'
         '403':
-          $ref: '#/components/responses/Forbidden' 
+          $ref: '#/components/responses/Forbidden'
         '404':
-          $ref: '#/components/responses/NotFound' 
+          $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/InternalServerError'
         '503':
-          $ref: '#/components/responses/ServiceUnavailable' 
+          $ref: '#/components/responses/ServiceUnavailable'
         '504':
           $ref: '#/components/responses/GatewayTimeout'
   '/v1.alpha/buckets/{bucketName}/scopes/{scopeName}/collections/{collectionName}/documents/{documentKey}/unlock':
@@ -638,19 +644,19 @@ paths:
           description: Successfully unlocked the document.
           headers:
             X-CB-MutationToken:
-              $ref: "#/components/headers/MutationToken"
+              $ref: '#/components/headers/MutationToken'
         '400':
-          $ref: '#/components/responses/BadRequest' 
+          $ref: '#/components/responses/BadRequest'
         '403':
-          $ref: '#/components/responses/Forbidden' 
+          $ref: '#/components/responses/Forbidden'
         '404':
-          $ref: '#/components/responses/NotFound' 
+          $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/InternalServerError'
         '503':
-          $ref: '#/components/responses/ServiceUnavailable' 
+          $ref: '#/components/responses/ServiceUnavailable'
         '504':
           $ref: '#/components/responses/GatewayTimeout'
   '/v1.alpha/buckets/{bucketName}/scopes/{scopeName}/collections/{collectionName}/documents/{documentKey}/touch':
@@ -679,7 +685,7 @@ paths:
                 expiry:
                   description: The new expiry to set for the document, specified as an ISO8601 string.
                   type: string
-                  example: "YYYY-MM-DDTHH:MM:SS.sssZ"
+                  example: 'YYYY-MM-DDTHH:MM:SS.sssZ'
                 returnContent:
                   description: Specifies whether the document's contents should be returned in the response.
                   type: boolean
@@ -688,45 +694,48 @@ paths:
           description: Successful updated the expiry of the document and is returning the content of the document.
           headers:
             Content-Encoding:
-              $ref: "#/components/headers/ContentEncoding"
+              $ref: '#/components/headers/ContentEncoding'
             ETag:
-              $ref: "#/components/headers/ETag"
+              $ref: '#/components/headers/ETag'
             X-CB-Flags:
-              $ref: "#/components/headers/DocumentFlags"
+              $ref: '#/components/headers/DocumentFlags'
           content:
             'application/json':
               schema:
                 type: object
                 description: The contents of the document.
-                example: {
-                  "title": "Brighton",
-                  "name": "Brighton Palace Pier",
-                  "alt": null,
-                  "address": "Madeira Dr, Brighton BN2 1TW",
-                  "directions": null,
-                  "phone": "01273609361",
-                  "tollfree": null,
-                  "email": "info@brightonpalacepier.co.uk",
-                  "url": "https://www.brightonpier.co.uk",
-                  "hours": "11am–6pm",
-                  "image": null,
-                  "price": "£2",
-                  "content": "The Brighton Palace Pier, commonly known as Brighton Pier or the Palace Pier, is a Grade II listed pleasure pier in Brighton, England, located in the city centre opposite the Old Steine. 
-                               Established in 1899, it was the third pier to be constructed in Brighton after the Royal Suspension Chain Pier and the West Pier, but is now the only one still in operation.",
-                  "geo": {
-                    "lat": 50.815,
-                    "lon": -0.136944,
-                    "accuracy": "RANGE_INTERPOLATED"
-                  },
-                  "activity": "do",
-                  "type": "landmark",
-                  "id": 10044,
-                  "country": "United Kingdom",
-                  "city": "Brighton",
-                  "state": null
-                }
+                example:
+                  {
+                    'title': 'Brighton',
+                    'name': 'Brighton Palace Pier',
+                    'alt': null,
+                    'address': 'Madeira Dr, Brighton BN2 1TW',
+                    'directions': null,
+                    'phone': '01273609361',
+                    'tollfree': null,
+                    'email': 'info@brightonpalacepier.co.uk',
+                    'url': 'https://www.brightonpier.co.uk',
+                    'hours': '11am–6pm',
+                    'image': null,
+                    'price': '£2',
+                    'content':
+                      'The Brighton Palace Pier, commonly known as Brighton Pier or the Palace Pier, is a Grade II listed pleasure pier in Brighton, England, located in the city centre opposite the Old Steine.
+                      Established in 1899, it was the third pier to be constructed in Brighton after the Royal Suspension Chain Pier and the West Pier, but is now the only one still in operation.',
+                    'geo':
+                      {
+                        'lat': 50.815,
+                        'lon': -0.136944,
+                        'accuracy': 'RANGE_INTERPOLATED',
+                      },
+                    'activity': 'do',
+                    'type': 'landmark',
+                    'id': 10044,
+                    'country': 'United Kingdom',
+                    'city': 'Brighton',
+                    'state': null,
+                  }
             'text/plain':
-              example: "Here is the text that was contained in the specified document."
+              example: 'Here is the text that was contained in the specified document.'
               schema:
                 type: string
                 description: The text contained within the document.
@@ -754,17 +763,17 @@ paths:
           description: Successful updated the expiry of the document but is not returning the content of the document.
           headers:
             ETag:
-              $ref: "#/components/headers/ETag"
+              $ref: '#/components/headers/ETag'
         '400':
-          $ref: '#/components/responses/BadRequest' 
+          $ref: '#/components/responses/BadRequest'
         '403':
-          $ref: '#/components/responses/Forbidden' 
+          $ref: '#/components/responses/Forbidden'
         '404':
-          $ref: '#/components/responses/NotFound' 
+          $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalServerError'
         '503':
-          $ref: '#/components/responses/ServiceUnavailable' 
+          $ref: '#/components/responses/ServiceUnavailable'
         '504':
           $ref: '#/components/responses/GatewayTimeout'
   '/v1.alpha/buckets/{bucketName}/scopes/{scopeName}/collections/{collectionName}/documents/{documentKey}/lookup':
@@ -784,7 +793,7 @@ paths:
       requestBody:
         required: true
         content:
-         'application/json':
+          'application/json':
             schema:
               type: object
               properties:
@@ -797,7 +806,7 @@ paths:
           description: Successful performed the operation.
           headers:
             ETag:
-              $ref: "#/components/headers/ETag"
+              $ref: '#/components/headers/ETag'
           content:
             application/json:
               schema:
@@ -805,15 +814,15 @@ paths:
                 items:
                   $ref: '#/components/schemas/LookupInOperationResult'
         '400':
-          $ref: '#/components/responses/BadRequest' 
+          $ref: '#/components/responses/BadRequest'
         '403':
-          $ref: '#/components/responses/Forbidden' 
+          $ref: '#/components/responses/Forbidden'
         '404':
-          $ref: '#/components/responses/NotFound' 
+          $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalServerError'
         '503':
-          $ref: '#/components/responses/ServiceUnavailable' 
+          $ref: '#/components/responses/ServiceUnavailable'
         '504':
           $ref: '#/components/responses/GatewayTimeout'
   '/v1.alpha/buckets/{bucketName}/scopes/{scopeName}/collections/{collectionName}/documents/{documentKey}/mutate':
@@ -837,14 +846,14 @@ paths:
       requestBody:
         required: true
         content:
-         'application/json':
+          'application/json':
             schema:
               type: object
               properties:
                 operations:
                   type: array
                   items:
-                    $ref: "#/components/schemas/MutateInOperation"
+                    $ref: '#/components/schemas/MutateInOperation'
                 storeSemantic:
                   $ref: '#/components/schemas/StoreSemantic'
       responses:
@@ -852,23 +861,23 @@ paths:
           description: Successful updated the document.
           headers:
             ETag:
-              $ref: "#/components/headers/ETag"
+              $ref: '#/components/headers/ETag'
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/MutateInOperationResult"
+                  $ref: '#/components/schemas/MutateInOperationResult'
         '400':
-          $ref: '#/components/responses/BadRequest' 
+          $ref: '#/components/responses/BadRequest'
         '403':
-          $ref: '#/components/responses/Forbidden' 
+          $ref: '#/components/responses/Forbidden'
         '404':
-          $ref: '#/components/responses/NotFound' 
+          $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalServerError'
         '503':
-          $ref: '#/components/responses/ServiceUnavailable' 
+          $ref: '#/components/responses/ServiceUnavailable'
         '504':
           $ref: '#/components/responses/GatewayTimeout'
 components:
@@ -974,13 +983,13 @@ components:
         path:
           description: The path within the document where you want to perform the operation.
           type: string
-          example: "address"
+          example: 'address'
     LookupInOperationResult:
       type: object
       properties:
         value:
-          example: "Madeira Dr, Brighton BN2 1TW"
-          description: "The value contained in the specified field"
+          example: 'Madeira Dr, Brighton BN2 1TW'
+          description: 'The value contained in the specified field'
         error:
           $ref: '#/components/schemas/SubdocError'
     MutateInOperation:
@@ -991,12 +1000,12 @@ components:
         path:
           description: The path within the document where you want to perform the operation.
           type: string
-          example: "hours"
+          example: 'hours'
         value:
           description: The value to use for the sub-document operation.
           type: object
           x-go-type: json.RawMessage
-          example: "10am-8pm"
+          example: '10am-8pm'
     MutateInOperationResult:
       type: object
       properties:
