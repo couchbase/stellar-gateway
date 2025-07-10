@@ -1,0 +1,13 @@
+{
+  "semi": false,
+  "arrowParens": "always",
+  "singleQuote": true,
+  "overrides": [
+    {
+      "files": ["*.html", "*.vue"],
+      "options": {
+        "printWidth": 120
+      }
+    }
+  ]
+}
