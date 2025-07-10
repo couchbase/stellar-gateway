@@ -15,15 +15,35 @@ jobs:
         server:
           - 7.2.2
     runs-on: ubuntu-latest
-    services:
-      couchbase:
-        image: couchbase:enterprise-${{ matrix.server }}
-        ports:
-          - 8091-8096:8091-8096
-          - 18091-18096:18091-18096
-          - 11210:11210
-          - 11207:11207
     steps:
+      - name: Install cbdinocluster
+        run: |
+          mkdir -p "$HOME/bin"
+          wget -nv -O $HOME/bin/cbdinocluster https://github.com/couchbaselabs/cbdinocluster/releases/download/v0.0.79/cbdinocluster-linux-amd64
+          chmod +x $HOME/bin/cbdinocluster
+          echo "$HOME/bin" >> $GITHUB_PATH
+      - name: Initialize cbdinocluster
+        run: |
+          cbdinocluster -v init --auto
+      - name: Start couchbase cluster
+        env:
+          CLUSTERCONFIG: |
+            nodes:
+              - count: 3
+                version: ${{ matrix.server }}
+                services: [kv, n1ql, index, fts, cbas]
+            docker:
+              kv-memory: 2048
+        run: |
+          CBDC_ID=$(cbdinocluster -v alloc --def="${CLUSTERCONFIG}")
+          cbdinocluster -v buckets add ${CBDC_ID} default --ram-quota-mb=100 --flush-enabled=true --num-replicas=2
+          cbdinocluster -v collections add ${CBDC_ID} default _default test
+          # we ignore errors here because the indexer might fail this with a 'automatically trying again later'
+          cbdinocluster -v query ${CBDC_ID} "CREATE PRIMARY INDEX ON default" || true
+          CBDC_IP=$(cbdinocluster -v ip $CBDC_ID)
+          echo "CBDC_ID=$CBDC_ID" >> "$GITHUB_ENV"
+          echo "CBDC_IP=$CBDC_IP" >> "$GITHUB_ENV"
+
       - uses: actions/checkout@v4
         with:
           submodules: recursive
@@ -44,15 +64,22 @@ jobs:
       - name: Generate Files
         run: |
           go generate ./...
-      - name: Initialize Test Cluster
-        run: ./.github/bin/init-cluster
-      - name: Check Test Cluster
-        run: ./.github/bin/check-cluster
-      - name: Setup Cluster
-        run: |
-          curl -X POST -u Administrator:password http://127.0.0.1:8091/pools/default/buckets/default/scopes/_default/collections -d name=test
       - name: Run Tests
         timeout-minutes: 10
         env:
-          SGTEST_CBCONNSTR: 127.0.0.1
+          SGTEST_CBCONNSTR: ${{ env.CBDC_IP }}
         run: go test -v $(go list ./... | grep -v /contrib/)
+
+      - name: Collect couchbase logs
+        timeout-minutes: 10
+        if: failure()
+        run: |
+          mkdir -p ./logs
+          cbdinocluster -v collect-logs $CBDC_ID ./logs
+      - name: Upload couchbase logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cbcollect-logs
+          path: ./logs/*
+          retention-days: 5
