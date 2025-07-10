@@ -94,7 +94,7 @@ func (s *KvServer) Get(ctx context.Context, in *kv_v1.GetRequest) (*kv_v1.GetRes
 	}
 
 	isCompressed, respValue, errSt :=
-		CompressHandler{}.MaybeCompressContent(result.Value, 0, in.Compression)
+		CompressHandler{}.MaybeCompressContent(result.Value, result.Datatype, in.Compression)
 	if errSt != nil {
 		return nil, errSt.Err()
 	}
