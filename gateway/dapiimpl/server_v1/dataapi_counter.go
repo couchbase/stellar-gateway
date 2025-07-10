@@ -41,6 +41,10 @@ func (s *DataApiServer) IncrementDocument(
 			opts.Initial = 0xffffffffffffffff
 		}
 	} else {
+		if readerHasBytes(in.Body) {
+			return nil, s.errorHandler.NewUnexpectedContentTypeError().Err()
+		}
+
 		opts.Delta = 1
 		opts.Initial = 0xffffffffffffffff
 	}
@@ -131,6 +135,10 @@ func (s *DataApiServer) DecrementDocument(
 			opts.Initial = 0xffffffffffffffff
 		}
 	} else {
+		if readerHasBytes(in.Body) {
+			return nil, s.errorHandler.NewUnexpectedContentTypeError().Err()
+		}
+
 		opts.Delta = 1
 		opts.Initial = 0xffffffffffffffff
 	}
