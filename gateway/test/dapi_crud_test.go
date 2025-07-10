@@ -1893,27 +1893,44 @@ func (s *GatewayOpsTestSuite) TestDapiIncrement() {
 		checkDocument(docId, []byte("6"))
 	})
 
-	// ING-1107
-	// s.Run("0 Delta", func() {
-	// 	docId := s.binaryDocId([]byte("5"))
-	//
-	// 	resp := s.sendTestHttpRequest(&testHttpRequest{
-	// 		Method: http.MethodPost,
-	// 		Path: fmt.Sprintf(
-	// 			"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/increment",
-	// 			s.bucketName, s.scopeName, s.collectionName, docId,
-	// 		),
-	// 		Headers: map[string]string{
-	// 			"Authorization": s.basicRestCreds,
-	// 		},
-	// 		Body: []byte(`{"delta": 0}`),
-	// 	})
-	// 	requireRestSuccess(s.T(), resp)
-	// 	assertRestValidEtag(s.T(), resp)
-	// 	assertRestValidMutationToken(s.T(), resp, s.bucketName)
-	//
-	// 	checkDocument(docId, []byte("5"))
-	// })
+	s.Run("BadContentType", func() {
+		docId := s.binaryDocId([]byte("5"))
+
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/increment",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+			},
+			Body: []byte(`{"delta": 0}`),
+		})
+		requireRestError(s.T(), resp, http.StatusBadRequest, nil)
+	})
+
+	s.Run("ZeroDelta", func() {
+		docId := s.binaryDocId([]byte("5"))
+
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/increment",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+				"Content-Type":  "application/json",
+			},
+			Body: []byte(`{"delta": 0}`),
+		})
+		requireRestSuccess(s.T(), resp)
+		assertRestValidEtag(s.T(), resp)
+		assertRestValidMutationToken(s.T(), resp, s.bucketName)
+
+		checkDocument(docId, []byte("5"))
+	})
 
 	s.Run("WithInitialExists", func() {
 		docId := s.binaryDocId([]byte("5"))
@@ -2263,27 +2280,44 @@ func (s *GatewayOpsTestSuite) TestDapiDecrement() {
 		checkDocument(docId, []byte("4"))
 	})
 
-	// ING-1107
-	// s.Run("0 Delta", func() {
-	// 	docId := s.binaryDocId([]byte("5"))
-	//
-	// 	resp := s.sendTestHttpRequest(&testHttpRequest{
-	// 		Method: http.MethodPost,
-	// 		Path: fmt.Sprintf(
-	// 			"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/decrement",
-	// 			s.bucketName, s.scopeName, s.collectionName, docId,
-	// 		),
-	// 		Headers: map[string]string{
-	// 			"Authorization": s.basicRestCreds,
-	// 		},
-	// 		Body: []byte(`{"delta": 0}`),
-	// 	})
-	// 	requireRestSuccess(s.T(), resp)
-	// 	assertRestValidEtag(s.T(), resp)
-	// 	assertRestValidMutationToken(s.T(), resp, s.bucketName)
-	//
-	// 	checkDocument(docId, []byte("5"))
-	// })
+	s.Run("BadContentType", func() {
+		docId := s.binaryDocId([]byte("5"))
+
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/decrement",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+			},
+			Body: []byte(`{"delta": 0}`),
+		})
+		requireRestError(s.T(), resp, http.StatusBadRequest, nil)
+	})
+
+	s.Run("ZeroDelta", func() {
+		docId := s.binaryDocId([]byte("5"))
+
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/decrement",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+				"Content-Type":  "application/json",
+			},
+			Body: []byte(`{"delta": 0}`),
+		})
+		requireRestSuccess(s.T(), resp)
+		assertRestValidEtag(s.T(), resp)
+		assertRestValidMutationToken(s.T(), resp, s.bucketName)
+
+		checkDocument(docId, []byte("5"))
+	})
 
 	s.Run("WithInitialExists", func() {
 		docId := s.binaryDocId([]byte("5"))

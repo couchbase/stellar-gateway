@@ -3,6 +3,7 @@ package server_v1
 import (
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"time"
 
@@ -125,4 +126,10 @@ func mutateInOperationToMemdx(dl *dataapiv1.MutateInOperationType) (memdx.Mutate
 	}
 
 	return memdx.MutateInOpType(0), false
+}
+
+func readerHasBytes(r io.Reader) bool {
+	buf := make([]byte, 1)
+	n, _ := r.Read(buf)
+	return n > 0
 }

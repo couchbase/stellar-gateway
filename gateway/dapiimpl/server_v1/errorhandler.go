@@ -637,3 +637,12 @@ func (e ErrorHandler) NewTouchMissingExpiryStatus() *Status {
 	}
 	return st
 }
+
+func (e ErrorHandler) NewUnexpectedContentTypeError() *Status {
+	st := &Status{
+		StatusCode: http.StatusBadRequest,
+		Code:       dataapiv1.ErrorCodeInvalidArgument,
+		Message:    "Unexpected content type.",
+	}
+	return st
+}
