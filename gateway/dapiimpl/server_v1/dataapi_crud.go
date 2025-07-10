@@ -73,7 +73,7 @@ func (s *DataApiServer) GetDocument(
 	}
 
 	contentEncoding, respValue, errSt :=
-		CompressHandler{}.MaybeCompressContent(result.Value, 0, in.Params.AcceptEncoding)
+		CompressHandler{}.MaybeCompressContent(result.Value, result.Datatype, in.Params.AcceptEncoding)
 	if errSt != nil {
 		return nil, errSt.Err()
 	}
