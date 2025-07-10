@@ -415,7 +415,7 @@ paths:
                   type: integer
                   format: uint64
                   example: 1
-          '*':
+          '':
             schema: {}
       responses:
         '200':
@@ -482,7 +482,7 @@ paths:
                   format: uint64
                   description: The value to decrement the document by if it exists.
                   example: 1
-          '*':
+          '':
             schema: {}
       responses:
         '200':
