@@ -1332,13 +1332,16 @@ func (s *KvServer) GetAllReplicas(in *kv_v1.GetAllReplicasRequest, out kv_v1.KvS
 		}
 	}
 
+	var replicaError error
 	for {
 		res, err := replicaStream.Next()
 		if err != nil {
 			s.logger.Debug("error reading a replica", zap.Error(err))
-			return err
+			replicaError = err
+			continue
 		}
 
+		// If err and res both nil the stream has ended
 		if res == nil {
 			break
 		}
@@ -1353,7 +1356,7 @@ func (s *KvServer) GetAllReplicas(in *kv_v1.GetAllReplicasRequest, out kv_v1.KvS
 		}
 	}
 
-	return nil
+	return replicaError
 }
 
 func (s *KvServer) checkKey(key string) *status.Status {
