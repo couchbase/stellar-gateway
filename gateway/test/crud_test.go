@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"strings"
 	"testing"
 	"time"
 
@@ -3927,9 +3928,11 @@ func (s *GatewayOpsTestSuite) TestGetAllReplicas() {
 		requireRpcSuccess(s.T(), resp, err)
 
 		numResults := 0
+		var recieveError error
+		var itemResp *kv_v1.GetAllReplicasResponse
 		for {
-			itemResp, err := resp.Recv()
-			if err != nil {
+			itemResp, recieveError = resp.Recv()
+			if recieveError != nil {
 				break
 			}
 
@@ -3939,9 +3942,18 @@ func (s *GatewayOpsTestSuite) TestGetAllReplicas() {
 			numResults++
 		}
 
-		// since the document is at least written to the master, we must get
-		// at least a single response, and more is acceptable.
-		require.Greater(s.T(), numResults, 0)
+		// If we get a doc not found error that should be from a replica read
+		// and we should still have one result from the master.
+		if strings.Contains(recieveError.Error(), "document not found") {
+			require.Equal(s.T(), 1, numResults)
+			return
+		}
+
+		// The only other error we should get is EOF when the stream completes
+		// successfully, meaning we have got all the replicas so should have
+		// two results.
+		assert.Contains(s.T(), recieveError.Error(), "EOF")
+		require.Equal(s.T(), 2, numResults)
 	})
 
 	s.Run("DocNotFound", func() {
