@@ -4697,9 +4697,6 @@ func (s *GatewayOpsTestSuite) TestGetAllReplicas() {
 	kvClient := kv_v1.NewKvServiceClient(s.gatewayConn)
 
 	s.Run("Basic", func() {
-		// BUG(ING-1115): Disable this test until the bug is fixed.
-		s.T().Skip("This test is currently disabled due to bug ING-1115")
-
 		resp, err := kvClient.GetAllReplicas(context.Background(), &kv_v1.GetAllReplicasRequest{
 			BucketName:     s.bucketName,
 			ScopeName:      s.scopeName,
@@ -4708,22 +4705,62 @@ func (s *GatewayOpsTestSuite) TestGetAllReplicas() {
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
 		requireRpcSuccess(s.T(), resp, err)
 
-		numResults := 0
+		successful := 0
+		numResponses := 0
 		for {
 			itemResp, err := resp.Recv()
 			if err != nil {
+				// EOF is not a response, it indicates that the stream has been
+				// closed with no errors
+				if !errors.Is(err, io.EOF) {
+					numResponses++
+				}
 				break
 			}
 
 			assertValidCas(s.T(), itemResp.Cas)
 			assert.Equal(s.T(), itemResp.Content, TEST_CONTENT)
 			assert.Equal(s.T(), itemResp.ContentFlags, TEST_CONTENT_FLAGS)
-			numResults++
+			numResponses++
+			successful++
 		}
+
+		// Since we are testing with two replicas we should get at least 2 responses,
+		// in the case where both replica reads resturn an error.
+		require.GreaterOrEqual(s.T(), numResponses, 2)
 
 		// since the document is at least written to the master, we must get
 		// at least a single response, and more is acceptable.
-		require.Greater(s.T(), numResults, 0)
+		require.Greater(s.T(), successful, 0)
+	})
+
+	s.Run("WaitForAllReplicas", func() {
+		docId := s.testDocId()
+		require.Eventually(s.T(), func() bool {
+			resp, err := kvClient.GetAllReplicas(context.Background(), &kv_v1.GetAllReplicasRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			requireRpcSuccess(s.T(), resp, err)
+
+			successful := 0
+			for {
+				itemResp, err := resp.Recv()
+				if err != nil {
+					break
+				}
+
+				assertValidCas(s.T(), itemResp.Cas)
+				assert.Equal(s.T(), itemResp.Content, TEST_CONTENT)
+				assert.Equal(s.T(), itemResp.ContentFlags, TEST_CONTENT_FLAGS)
+				successful++
+			}
+			return successful == 3
+		},
+			time.Second*20,
+			time.Second)
 	})
 
 	s.Run("DocNotFound", func() {
