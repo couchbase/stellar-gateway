@@ -317,7 +317,7 @@ func (s *System) Shutdown() {
 		}()
 	}
 
-	if s.sdServer != nil {
+	if s.dapiServer != nil {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
