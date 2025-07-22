@@ -1,4 +1,7 @@
 name: Run Tests
+permissions:
+  contents: read
+  packages: read
 
 on:
   push:
@@ -14,6 +17,7 @@ jobs:
       matrix:
         server:
           - 7.2.2
+          - 7.6.5
     runs-on: ubuntu-latest
     steps:
       - name: Install cbdinocluster
@@ -25,6 +29,8 @@ jobs:
       - name: Initialize cbdinocluster
         run: |
           cbdinocluster -v init --auto
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Start couchbase cluster
         env:
           CLUSTERCONFIG: |
@@ -34,6 +40,8 @@ jobs:
                 services: [kv, n1ql, index, fts, cbas]
             docker:
               kv-memory: 2048
+              index-memory: 1024
+              fts-memory: 1024
         run: |
           CBDC_ID=$(cbdinocluster -v alloc --def="${CLUSTERCONFIG}")
           cbdinocluster -v buckets add ${CBDC_ID} default --ram-quota-mb=100 --flush-enabled=true --num-replicas=2
@@ -79,6 +87,6 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: cbcollect-logs
+          name: cbcollect-logs-${{ matrix.server }}
           path: ./logs/*
           retention-days: 5
