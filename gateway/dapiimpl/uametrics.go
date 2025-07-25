@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/couchbase/gocbcorex/contrib/buildversion"
 	"github.com/couchbase/stellar-gateway/utils/cbclientnames"
 	"github.com/oapi-codegen/runtime/strictmiddleware/nethttp"
 	"go.opentelemetry.io/otel"
@@ -12,7 +13,9 @@ import (
 )
 
 var (
-	meter = otel.Meter("github.com/couchbase/stellar-gateway/gateway/dapiimpl")
+	buildVersion = buildversion.GetVersion("github.com/couchbase/stellar-gateway")
+	meter        = otel.Meter("github.com/couchbase/stellar-gateway/gateway/dapiimpl",
+		metric.WithInstrumentationVersion(buildVersion))
 )
 
 func NewUserAgentMetricsHandler() func(f nethttp.StrictHTTPHandlerFunc, operationID string) nethttp.StrictHTTPHandlerFunc {
