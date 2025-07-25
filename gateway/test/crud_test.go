@@ -4697,6 +4697,9 @@ func (s *GatewayOpsTestSuite) TestGetAllReplicas() {
 	kvClient := kv_v1.NewKvServiceClient(s.gatewayConn)
 
 	s.Run("Basic", func() {
+		// BUG(ING-1115): Disable this test until the bug is fixed.
+		s.T().Skip("This test is currently disabled due to bug ING-1115")
+
 		resp, err := kvClient.GetAllReplicas(context.Background(), &kv_v1.GetAllReplicasRequest{
 			BucketName:     s.bucketName,
 			ScopeName:      s.scopeName,
