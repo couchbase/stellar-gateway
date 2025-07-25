@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/couchbase/gocbcorex/contrib/buildversion"
 	"github.com/oapi-codegen/runtime/strictmiddleware/nethttp"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -13,7 +14,9 @@ import (
 )
 
 var (
-	meter = otel.Meter("github.com/couchbase/stellar-gateway/contrib/oapimetrics")
+	buildVersion = buildversion.GetVersion("github.com/couchbase/stellar-gateway")
+	meter        = otel.Meter("github.com/couchbase/stellar-gateway/contrib/oapimetrics",
+		metric.WithInstrumentationVersion(buildVersion))
 )
 
 type statusCodeResponseWriter struct {

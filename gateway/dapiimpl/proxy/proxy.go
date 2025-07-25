@@ -15,6 +15,7 @@ import (
 	"go.opentelemetry.io/otel/propagation"
 
 	"github.com/couchbase/gocbcorex"
+	"github.com/couchbase/gocbcorex/contrib/buildversion"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
@@ -22,7 +23,9 @@ import (
 )
 
 var (
-	meter  = otel.Meter("github.com/couchbase/stellar-gateway/gateway/dapiimpl/proxy")
+	buildVersion = buildversion.GetVersion("github.com/couchbase/stellar-gateway")
+	meter        = otel.Meter("github.com/couchbase/stellar-gateway/gateway/dapiimpl/proxy",
+		metric.WithInstrumentationVersion(buildVersion))
 	tracer = otel.GetTracerProvider().Tracer("github.com/couchbase/stellar-gateway/gateway/dapiimpl/proxy")
 )
 
