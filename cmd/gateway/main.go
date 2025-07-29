@@ -100,6 +100,7 @@ func init() {
 	configFlags.Bool("trace-everything", false, "enables tracing of all components")
 	configFlags.String("otel-exporter-headers", "", "a comma seperated list of otlp expoter headers, e.g 'header1=value1,header2=value2'")
 	configFlags.String("dapi-proxy-services", "", "specifies services exposed via _p endpoint proxies")
+	configFlags.Bool("dapi-disable-admin", false, "disables admin endpoints through proxies")
 	configFlags.Bool("alpha-endpoints", false, "enables alpha endpoints")
 	configFlags.Bool("debug", false, "enable debug mode")
 	configFlags.String("cpuprofile", "", "write cpu profile to a file")
@@ -271,6 +272,7 @@ type config struct {
 	traceEverything       bool
 	otelExporterHeaders   string
 	dapiProxyServices     string
+	dapiDisableAdmin      bool
 	alphaEndpoints        bool
 	debug                 bool
 	cpuprofile            string
@@ -310,6 +312,7 @@ func readConfig(logger *zap.Logger) *config {
 		traceEverything:       viper.GetBool("trace-everything"),
 		otelExporterHeaders:   viper.GetString("otel-exporter-headers"),
 		dapiProxyServices:     viper.GetString("dapi-proxy-services"),
+		dapiDisableAdmin:      viper.GetBool("dapi-disable-admin"),
 		alphaEndpoints:        viper.GetBool("alpha-endpoints"),
 		debug:                 viper.GetBool("debug"),
 		cpuprofile:            viper.GetString("cpuprofile"),
@@ -348,6 +351,7 @@ func readConfig(logger *zap.Logger) *config {
 		zap.Bool("traceEverything", config.traceEverything),
 		// zap.String("honeycombKey", config.honeycombKey),
 		zap.String("dapiProxyServices", config.dapiProxyServices),
+		zap.Bool("dapiDisableAdmin", config.dapiDisableAdmin),
 		zap.Bool("alphaEndpoints", config.alphaEndpoints),
 		zap.Bool("debug", config.debug),
 		zap.String("cpuprofile", config.cpuprofile),
@@ -585,23 +589,24 @@ func startGateway() {
 	}
 
 	gatewayConfig := &gateway.Config{
-		Logger:          logger.Named("gateway"),
-		CbConnStr:       config.cbHost,
-		Username:        config.cbUser,
-		Password:        config.cbPass,
-		Daemon:          daemon,
-		Debug:           config.debug,
-		ProxyServices:   strings.Split(config.dapiProxyServices, ","),
-		AlphaEndpoints:  config.alphaEndpoints,
-		BindDataPort:    config.dataPort,
-		BindSdPort:      config.sdPort,
-		BindDapiPort:    config.dapiPort,
-		BindAddress:     config.bindAddress,
-		RateLimit:       config.rateLimit,
-		GrpcCertificate: grpcCertificate,
-		DapiCertificate: dapiCertificate,
-		ClusterCaCert:   caCertPool,
-		NumInstances:    1,
+		Logger:            logger.Named("gateway"),
+		CbConnStr:         config.cbHost,
+		Username:          config.cbUser,
+		Password:          config.cbPass,
+		Daemon:            daemon,
+		Debug:             config.debug,
+		ProxyServices:     strings.Split(config.dapiProxyServices, ","),
+		ProxyDisableAdmin: config.dapiDisableAdmin,
+		AlphaEndpoints:    config.alphaEndpoints,
+		BindDataPort:      config.dataPort,
+		BindSdPort:        config.sdPort,
+		BindDapiPort:      config.dapiPort,
+		BindAddress:       config.bindAddress,
+		RateLimit:         config.rateLimit,
+		GrpcCertificate:   grpcCertificate,
+		DapiCertificate:   dapiCertificate,
+		ClusterCaCert:     caCertPool,
+		NumInstances:      1,
 		StartupCallback: func(m *gateway.StartupInfo) {
 			webapi.MarkSystemHealthy()
 		},
@@ -672,6 +677,9 @@ func startGateway() {
 
 		if newConfig.dapiProxyServices != config.dapiProxyServices {
 			logger.Warn("config changes for dapiProxyServices require a restart")
+		}
+		if newConfig.dapiDisableAdmin != config.dapiDisableAdmin {
+			logger.Warn("config changes for dapiDisableAdmin require a restart")
 		}
 
 		if newConfig.alphaEndpoints != config.alphaEndpoints {
