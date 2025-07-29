@@ -8,6 +8,7 @@ import (
 	"net/http/httptrace"
 	"net/url"
 	"slices"
+	"strings"
 	"time"
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/httptrace/otelhttptrace"
@@ -40,10 +41,11 @@ const (
 )
 
 type DataApiProxy struct {
-	logger    *zap.Logger
-	cbClient  *gocbcorex.BucketsTrackingAgentManager
-	debugMode bool
-	mux       *http.ServeMux
+	logger       *zap.Logger
+	cbClient     *gocbcorex.BucketsTrackingAgentManager
+	disableAdmin bool
+	debugMode    bool
+	mux          *http.ServeMux
 
 	numFailures    metric.Int64Counter
 	numRequests    metric.Int64Counter
@@ -55,6 +57,7 @@ func NewDataApiProxy(
 	logger *zap.Logger,
 	cbClient *gocbcorex.BucketsTrackingAgentManager,
 	services []ServiceType,
+	disableAdmin bool,
 	debugMode bool,
 ) *DataApiProxy {
 	mux := http.NewServeMux()
@@ -82,6 +85,7 @@ func NewDataApiProxy(
 	proxy := &DataApiProxy{
 		logger:         logger,
 		cbClient:       cbClient,
+		disableAdmin:   disableAdmin,
 		debugMode:      debugMode,
 		mux:            mux,
 		numFailures:    numFailures,
@@ -202,6 +206,36 @@ func (p *DataApiProxy) proxyService(
 	relPath := r.URL.Path[len(pathPrefix):]
 	newUrl, _ := url.Parse(svcEndpoint + relPath)
 	newUrl.RawQuery = r.URL.RawQuery
+
+	if p.disableAdmin {
+		switch serviceName {
+		case ServiceTypeMgmt:
+			if r.Method != http.MethodGet {
+				p.writeError(w, err, "admin endpoints are disabled")
+				return
+			}
+		case ServiceTypeQuery:
+			if !strings.HasPrefix(relPath, "/query") {
+				p.writeError(w, err, "admin endpoints are disabled")
+				return
+			}
+		case ServiceTypeSearch:
+			if !strings.HasPrefix(relPath, "/api/index") &&
+				!strings.HasPrefix(relPath, "/api/bucket") {
+				p.writeError(w, err, "admin endpoints are disabled")
+				return
+			}
+		case ServiceTypeAnalytics:
+			if !strings.HasPrefix(relPath, "/analytics") &&
+				!strings.HasPrefix(relPath, "/query") {
+				p.writeError(w, err, "admin endpoints are disabled")
+				return
+			}
+		default:
+			p.writeError(w, nil, "unexpected service name when performing admin check")
+			return
+		}
+	}
 
 	tp := otel.GetTextMapPropagator()
 	ctx = tp.Extract(ctx, propagation.HeaderCarrier(r.Header))
