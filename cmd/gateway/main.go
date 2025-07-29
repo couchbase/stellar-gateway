@@ -100,6 +100,7 @@ func init() {
 	configFlags.Bool("trace-everything", false, "enables tracing of all components")
 	configFlags.String("otel-exporter-headers", "", "a comma seperated list of otlp expoter headers, e.g 'header1=value1,header2=value2'")
 	configFlags.String("dapi-proxy-services", "", "specifies services exposed via _p endpoint proxies")
+	configFlags.Bool("dapi-no-proxy-admin", false, "disables admin endpoints through proxies")
 	configFlags.Bool("alpha-endpoints", false, "enables alpha endpoints")
 	configFlags.Bool("debug", false, "enable debug mode")
 	configFlags.String("cpuprofile", "", "write cpu profile to a file")
@@ -271,6 +272,7 @@ type config struct {
 	traceEverything       bool
 	otelExporterHeaders   string
 	dapiProxyServices     string
+	dapiNoProxyAdmin      bool
 	alphaEndpoints        bool
 	debug                 bool
 	cpuprofile            string
@@ -310,6 +312,7 @@ func readConfig(logger *zap.Logger) *config {
 		traceEverything:       viper.GetBool("trace-everything"),
 		otelExporterHeaders:   viper.GetString("otel-exporter-headers"),
 		dapiProxyServices:     viper.GetString("dapi-proxy-services"),
+		dapiNoProxyAdmin:      viper.GetBool("dapi-no-proxy-admin"),
 		alphaEndpoints:        viper.GetBool("alpha-endpoints"),
 		debug:                 viper.GetBool("debug"),
 		cpuprofile:            viper.GetString("cpuprofile"),
@@ -348,6 +351,7 @@ func readConfig(logger *zap.Logger) *config {
 		zap.Bool("traceEverything", config.traceEverything),
 		// zap.String("honeycombKey", config.honeycombKey),
 		zap.String("dapiProxyServices", config.dapiProxyServices),
+		zap.Bool("dapiNoProxyAdmin", config.dapiNoProxyAdmin),
 		zap.Bool("alphaEndpoints", config.alphaEndpoints),
 		zap.Bool("debug", config.debug),
 		zap.String("cpuprofile", config.cpuprofile),
@@ -592,6 +596,7 @@ func startGateway() {
 		Daemon:          daemon,
 		Debug:           config.debug,
 		ProxyServices:   strings.Split(config.dapiProxyServices, ","),
+		ProxyBlockAdmin: config.dapiNoProxyAdmin,
 		AlphaEndpoints:  config.alphaEndpoints,
 		BindDataPort:    config.dataPort,
 		BindSdPort:      config.sdPort,
@@ -672,6 +677,9 @@ func startGateway() {
 
 		if newConfig.dapiProxyServices != config.dapiProxyServices {
 			logger.Warn("config changes for dapiProxyServices require a restart")
+		}
+		if newConfig.dapiNoProxyAdmin != config.dapiNoProxyAdmin {
+			logger.Warn("config changes for dapiNoProxyAdmin require a restart")
 		}
 
 		if newConfig.alphaEndpoints != config.alphaEndpoints {

@@ -51,13 +51,14 @@ type StartupInfo struct {
 }
 
 type Config struct {
-	Logger         *zap.Logger
-	NodeID         string
-	ServerGroup    string
-	Daemon         bool
-	Debug          bool
-	ProxyServices  []string
-	AlphaEndpoints bool
+	Logger          *zap.Logger
+	NodeID          string
+	ServerGroup     string
+	Daemon          bool
+	Debug           bool
+	ProxyServices   []string
+	ProxyBlockAdmin bool
+	AlphaEndpoints  bool
 
 	CbConnStr string
 	Username  string
@@ -434,11 +435,12 @@ func (g *Gateway) Run(ctx context.Context) error {
 		})
 
 		dapiImpl := dapiimpl.New(&dapiimpl.NewOptions{
-			Logger:        config.Logger.Named("dapi-impl"),
-			Debug:         config.Debug,
-			CbClient:      agentMgr,
-			Authenticator: authenticator,
-			ProxyServices: proxyServices,
+			Logger:          config.Logger.Named("dapi-impl"),
+			Debug:           config.Debug,
+			CbClient:        agentMgr,
+			Authenticator:   authenticator,
+			ProxyServices:   proxyServices,
+			ProxyBlockAdmin: config.ProxyBlockAdmin,
 		})
 
 		config.Logger.Info("initializing protostellar system")

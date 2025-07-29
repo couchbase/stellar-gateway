@@ -15,8 +15,9 @@ type NewOptions struct {
 	CbClient      *gocbcorex.BucketsTrackingAgentManager
 	Authenticator auth.Authenticator
 
-	ProxyServices []proxy.ServiceType
-	Debug         bool
+	ProxyServices   []proxy.ServiceType
+	ProxyBlockAdmin bool
+	Debug           bool
 }
 
 type Servers struct {
@@ -42,6 +43,7 @@ func New(opts *NewOptions) *Servers {
 			opts.Logger.Named("dapi-proxy"),
 			opts.CbClient,
 			opts.ProxyServices,
+			opts.ProxyBlockAdmin,
 			opts.Debug),
 		DataApiV1Server: server_v1.NewDataApiServer(
 			opts.Logger.Named("dapi-serverv1"),
