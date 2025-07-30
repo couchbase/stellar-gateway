@@ -91,7 +91,7 @@ func init() {
 	configFlags.String("grpc-key", "", "path to grpc private tls key for GRPC")
 	configFlags.String("dapi-cert", "", "path to data api tls cert for Data API")
 	configFlags.String("dapi-key", "", "path to data api private tls key for Data API")
-	configFlags.Int("rate-limit", 0, "specifies the maximum requests per second to allow")
+	configFlags.Int("rate-limit", 10000, "specifies the maximum requests per second to allow")
 	configFlags.String("otlp-endpoint", "", "opentelemetry endpoint to send telemetry to")
 	configFlags.Bool("disable-traces", false, "disable tracing")
 	configFlags.Bool("disable-metrics", false, "disable metrics")
