@@ -142,7 +142,7 @@ func (s *CollectionAdminServer) DeleteScope(
 		return nil, errSt.Err()
 	}
 
-	_, err := bucketAgent.DeleteScope(ctx, &cbmgmtx.DeleteScopeOptions{
+	resp, err := bucketAgent.DeleteScope(ctx, &cbmgmtx.DeleteScopeOptions{
 		OnBehalfOf: oboInfo,
 		BucketName: in.BucketName,
 		ScopeName:  in.ScopeName,
@@ -153,6 +153,20 @@ func (s *CollectionAdminServer) DeleteScope(
 		} else if errors.Is(err, cbmgmtx.ErrScopeNotFound) {
 			return nil, s.errorHandler.NewScopeMissingStatus(err, in.BucketName, in.ScopeName).Err()
 		}
+		return nil, s.errorHandler.NewGenericStatus(err).Err()
+	}
+
+	manifestUid, err := strconv.ParseUint(resp.ManifestUid, 16, 64)
+	if err != nil {
+		return nil, s.errorHandler.NewGenericStatus(err).Err()
+	}
+
+	opts := gocbcorex.EnsureManifestOptions{
+		BucketName:  in.BucketName,
+		ManifestUid: manifestUid,
+	}
+	err = bucketAgent.EnsureManifest(ctx, &opts)
+	if err != nil {
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
 
@@ -293,7 +307,7 @@ func (s *CollectionAdminServer) UpdateCollection(
 		}
 	}
 
-	_, err = bucketAgent.UpdateCollection(ctx, &cbmgmtx.UpdateCollectionOptions{
+	resp, err := bucketAgent.UpdateCollection(ctx, &cbmgmtx.UpdateCollectionOptions{
 		OnBehalfOf:     oboInfo,
 		BucketName:     in.BucketName,
 		ScopeName:      in.ScopeName,
@@ -301,7 +315,6 @@ func (s *CollectionAdminServer) UpdateCollection(
 		MaxTTL:         maxTTL,
 		HistoryEnabled: in.HistoryRetentionEnabled,
 	})
-
 	if err != nil {
 		if errors.Is(err, cbmgmtx.ErrBucketNotFound) {
 			return nil, s.errorHandler.NewBucketMissingStatus(err, in.BucketName).Err()
@@ -312,6 +325,20 @@ func (s *CollectionAdminServer) UpdateCollection(
 		} else if errors.Is(err, cbmgmtx.ErrServerInvalidArg) {
 			return nil, s.errorHandler.NewCollectionInvalidArgStatus(err, "", in.BucketName, in.ScopeName, in.CollectionName).Err()
 		}
+		return nil, s.errorHandler.NewGenericStatus(err).Err()
+	}
+
+	manifestUid, err := strconv.ParseUint(resp.ManifestUid, 16, 64)
+	if err != nil {
+		return nil, s.errorHandler.NewGenericStatus(err).Err()
+	}
+
+	opts := gocbcorex.EnsureManifestOptions{
+		BucketName:  in.BucketName,
+		ManifestUid: manifestUid,
+	}
+	err = bucketAgent.EnsureManifest(ctx, &opts)
+	if err != nil {
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
 
