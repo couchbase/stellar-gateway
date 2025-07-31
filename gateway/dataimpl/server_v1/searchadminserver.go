@@ -91,13 +91,24 @@ func (s *SearchIndexAdminServer) CreateIndex(ctx context.Context, in *admin_sear
 		opts.ScopeName = in.GetScopeName()
 	}
 
-	err := agent.UpsertSearchIndex(ctx, opts)
+	res, err := agent.UpsertSearchIndex(ctx, opts)
 	if err != nil {
 		if errors.Is(err, gocbcorex.ErrServiceNotAvailable) {
 			return nil, s.errorHandler.NewSearchServiceNotAvailableStatus(err, in.Name).Err()
 		} else if errors.Is(err, cbsearchx.ErrIndexExists) {
 			return nil, s.errorHandler.NewSearchIndexExistsStatus(err, in.Name).Err()
 		}
+		return nil, s.errorHandler.NewGenericStatus(err).Err()
+	}
+
+	err = agent.EnsureSearchIndex(ctx, &gocbcorex.EnsureSearchIndexOptions{
+		IndexName:  opts.Name,
+		BucketName: opts.BucketName,
+		ScopeName:  opts.ScopeName,
+		IndexUUID:  res.UUID,
+		OnBehalfOf: oboInfo,
+	})
+	if err != nil {
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
 
@@ -170,7 +181,7 @@ func (s *SearchIndexAdminServer) UpdateIndex(ctx context.Context, in *admin_sear
 		opts.ScopeName = in.GetScopeName()
 	}
 
-	err := agent.UpsertSearchIndex(ctx, opts)
+	res, err := agent.UpsertSearchIndex(ctx, opts)
 	if err != nil {
 		if errors.Is(err, gocbcorex.ErrServiceNotAvailable) {
 			return nil, s.errorHandler.NewSearchServiceNotAvailableStatus(err, in.Index.Name).Err()
@@ -179,6 +190,17 @@ func (s *SearchIndexAdminServer) UpdateIndex(ctx context.Context, in *admin_sear
 		} else if errors.Is(err, cbsearchx.ErrIndexExists) {
 			return nil, s.errorHandler.NewSearchUUIDMismatchStatus(err, in.Index.Name).Err()
 		}
+		return nil, s.errorHandler.NewGenericStatus(err).Err()
+	}
+
+	err = agent.EnsureSearchIndex(ctx, &gocbcorex.EnsureSearchIndexOptions{
+		IndexName:  opts.Name,
+		BucketName: opts.BucketName,
+		ScopeName:  opts.ScopeName,
+		IndexUUID:  res.UUID,
+		OnBehalfOf: oboInfo,
+	})
+	if err != nil {
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
 
@@ -211,6 +233,17 @@ func (s *SearchIndexAdminServer) DeleteIndex(ctx context.Context, in *admin_sear
 		} else if errors.Is(err, cbsearchx.ErrIndexNotFound) {
 			return nil, s.errorHandler.NewSearchIndexMissingStatus(err, in.Name).Err()
 		}
+		return nil, s.errorHandler.NewGenericStatus(err).Err()
+	}
+
+	err = agent.EnsureSearchIndex(ctx, &gocbcorex.EnsureSearchIndexOptions{
+		IndexName:   opts.IndexName,
+		BucketName:  opts.BucketName,
+		ScopeName:   opts.ScopeName,
+		WantMissing: true,
+		OnBehalfOf:  oboInfo,
+	})
+	if err != nil {
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
 
