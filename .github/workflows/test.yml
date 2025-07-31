@@ -19,7 +19,7 @@ jobs:
       - name: Install cbdinocluster
         run: |
           mkdir -p "$HOME/bin"
-          wget -nv -O $HOME/bin/cbdinocluster https://github.com/couchbaselabs/cbdinocluster/releases/download/v0.0.79/cbdinocluster-linux-amd64
+          wget -nv -O $HOME/bin/cbdinocluster https://github.com/couchbaselabs/cbdinocluster/releases/download/v0.0.84/cbdinocluster-linux-amd64
           chmod +x $HOME/bin/cbdinocluster
           echo "$HOME/bin" >> $GITHUB_PATH
       - name: Initialize cbdinocluster
@@ -38,8 +38,7 @@ jobs:
           CBDC_ID=$(cbdinocluster -v alloc --def="${CLUSTERCONFIG}")
           cbdinocluster -v buckets add ${CBDC_ID} default --ram-quota-mb=100 --flush-enabled=true --num-replicas=2
           cbdinocluster -v collections add ${CBDC_ID} default _default test
-          # we ignore errors here because the indexer might fail this with a 'automatically trying again later'
-          cbdinocluster -v query ${CBDC_ID} "CREATE PRIMARY INDEX ON default" || true
+          cbdinocluster -v query ${CBDC_ID} "CREATE PRIMARY INDEX ON default"
           CBDC_IP=$(cbdinocluster -v ip $CBDC_ID)
           echo "CBDC_ID=$CBDC_ID" >> "$GITHUB_ENV"
           echo "CBDC_IP=$CBDC_IP" >> "$GITHUB_ENV"
