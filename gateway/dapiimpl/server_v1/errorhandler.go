@@ -17,17 +17,33 @@ import (
 )
 
 type StatusError struct {
-	S Status
+	StatusCode int
+	Data       dataapiv1.Error
 }
 
 func (e *StatusError) Error() string {
+	resource := ""
+	if e.Data.Resource != nil {
+		resource = *e.Data.Resource
+	}
+
+	requestId := ""
+	if *e.Data.RequestId != "" {
+		requestId = *e.Data.RequestId
+	}
+
+	debug := ""
+	if e.Data.Debug != nil {
+		debug = *e.Data.Debug
+	}
+
 	return fmt.Sprintf("%s (status: %d, code: %s, resource: %s, requestId: %s, debug: %s)",
-		e.S.Message,
-		e.S.StatusCode,
-		e.S.Code,
-		e.S.Resource,
-		e.S.RequestID,
-		e.S.Debug)
+		e.Data.Message,
+		e.StatusCode,
+		e.Data.Code,
+		resource,
+		requestId,
+		debug)
 }
 
 type Status struct {
@@ -40,7 +56,16 @@ type Status struct {
 }
 
 func (e Status) Err() error {
-	return &StatusError{S: e}
+	return &StatusError{
+		StatusCode: e.StatusCode,
+		Data: dataapiv1.Error{
+			Code:      e.Code,
+			Message:   e.Message,
+			Resource:  &e.Resource,
+			RequestId: &e.RequestID,
+			Debug:     &e.Debug,
+		},
+	}
 }
 
 type ErrorHandler struct {

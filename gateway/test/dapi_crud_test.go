@@ -4084,44 +4084,42 @@ func (s *GatewayOpsTestSuite) TestDapiTouch() {
 		})
 	})
 
-	// ING-1135
-	// s.Run("NoBody", func() {
-	// 	docId := s.testDocId()
-	//
-	// 	resp := s.sendTestHttpRequest(&testHttpRequest{
-	// 		Method: http.MethodPost,
-	// 		Path: fmt.Sprintf(
-	// 			"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/touch",
-	// 			s.bucketName, s.scopeName, s.collectionName, docId,
-	// 		),
-	// 		Headers: map[string]string{
-	// 			"Authorization": s.basicRestCreds,
-	// 		},
-	// 	})
-	// 	requireRestError(s.T(), resp, http.StatusBadRequest, &testRestError{
-	// 		Code: "InvalidArgument",
-	// 	})
-	// })
+	s.Run("NoBody", func() {
+		docId := s.testDocId()
 
-	// ING-1135
-	// s.Run("StringBody", func() {
-	// 	docId := s.testDocId()
-	//
-	// 	resp := s.sendTestHttpRequest(&testHttpRequest{
-	// 		Method: http.MethodPost,
-	// 		Path: fmt.Sprintf(
-	// 			"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/touch",
-	// 			s.bucketName, s.scopeName, s.collectionName, docId,
-	// 		),
-	// 		Headers: map[string]string{
-	// 			"Authorization": s.basicRestCreds,
-	// 		},
-	// 		Body: []byte(`abcde`),
-	// 	})
-	// 	requireRestError(s.T(), resp, http.StatusBadRequest, &testRestError{
-	// 		Code: "InvalidArgument",
-	// 	})
-	// })
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/touch",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+			},
+		})
+		requireRestError(s.T(), resp, http.StatusBadRequest, &testRestError{
+			Code: "InvalidArgument",
+		})
+	})
+
+	s.Run("StringBody", func() {
+		docId := s.testDocId()
+
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/touch",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+			},
+			Body: []byte(`abcde`),
+		})
+		requireRestError(s.T(), resp, http.StatusBadRequest, &testRestError{
+			Code: "InvalidArgument",
+		})
+	})
 
 	s.Run("ZeroExpiry", func() {
 		kvClient := kv_v1.NewKvServiceClient(s.gatewayConn)
