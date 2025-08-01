@@ -161,7 +161,7 @@ func (s *GatewayOpsTestSuite) TestQuery() {
 	s.Run("InvalidQueryStatement", func() {
 		client, err := queryClient.Query(context.Background(), &query_v1.QueryRequest{
 			Statement: "FINAGLE * FROM default._default._default",
-		}, grpc.PerRPCCredentials(s.badRpcCreds))
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
 		requireRpcSuccess(s.T(), client, err)
 
 		_, _, err = readQueryStream(client)
