@@ -391,6 +391,14 @@ func (s *BucketAdminServer) UpdateBucket(
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
 
+	err = agent.EnsureBucket(ctx, &gocbcorex.EnsureBucketOptions{
+		BucketName:   in.BucketName,
+		WantSettings: &newBucket,
+	})
+	if err != nil {
+		return nil, s.errorHandler.NewGenericStatus(err).Err()
+	}
+
 	return &admin_bucket_v1.UpdateBucketResponse{}, nil
 }
 
