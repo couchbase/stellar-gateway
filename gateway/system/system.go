@@ -153,7 +153,7 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 
 	writeErrorResp := func(w http.ResponseWriter, statusCode int, code dataapiv1.ErrorCode, message string) {
 		encodedErr, _ := json.Marshal(&dataapiv1.Error{
-			Error:   code,
+			Code:    code,
 			Message: message,
 		})
 		http.Error(w, string(encodedErr), statusCode)
@@ -167,12 +167,14 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 		oapimetrics.NewStatsHandler(opts.Logger),
 	}, dataapiv1.StrictHTTPServerOptions{
 		RequestErrorHandlerFunc: func(w http.ResponseWriter, r *http.Request, err error) {
+			opts.Logger.Debug("handling unexpected data api strict error during request",
+				zap.Error(err))
 			writeErrorResp(w,
-				http.StatusBadRequest, dataapiv1.ErrorCodeInternal,
+				http.StatusBadRequest, dataapiv1.ErrorCodeInvalidArgument,
 				err.Error())
 		},
 		ResponseErrorHandlerFunc: func(w http.ResponseWriter, r *http.Request, err error) {
-			opts.Logger.Error("handling unexpected data api error",
+			opts.Logger.Debug("handling unexpected data api strict error during response",
 				zap.Error(err))
 			writeErrorResp(w,
 				http.StatusInternalServerError, dataapiv1.ErrorCodeInternal,
@@ -204,7 +206,7 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 					`failed to unmarshal parameter %s: %s`,
 					e.ParamName, e.Err.Error()))
 			default:
-				opts.Logger.Error("handling unexpected data api server error",
+				opts.Logger.Debug("handling unexpected data api server error",
 					zap.Error(err))
 				writeErrorResp(w,
 					http.StatusInternalServerError, dataapiv1.ErrorCodeInternal,

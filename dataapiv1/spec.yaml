@@ -1133,7 +1133,7 @@ components:
       description: An error response from the server.
       type: object
       properties:
-        error:
+        code:
           $ref: '#/components/schemas/ErrorCode'
         message:
           type: string
@@ -1141,8 +1141,14 @@ components:
         resource:
           type: string
           description: The resource that caused the error.
+        requestId:
+          type: string
+          description: The ID of the request that caused the error.
+        debug:
+          type: string
+          description: Debug information about the error.
       required:
-        - error
+        - code
         - message
     StoreSemantic:
       title: StoreSemantic

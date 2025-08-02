@@ -18,8 +18,8 @@ func NewErrorHandler(logger *zap.Logger) func(f nethttp.StrictHTTPHandlerFunc, o
 			if err != nil {
 				var errSt *server_v1.StatusError
 				if errors.As(err, &errSt) {
-					errBytes, _ := json.Marshal(errSt.S)
-					w.WriteHeader(errSt.S.StatusCode)
+					errBytes, _ := json.Marshal(errSt.Data)
+					w.WriteHeader(errSt.StatusCode)
 					_, _ = w.Write(errBytes)
 					return nil, nil
 				}
