@@ -289,8 +289,7 @@ paths:
           description: The alpha API is enabled
         '404':
           description: The alpha API is not enabled
-  '/v1.alpha/buckets/{bucketName}/scopes/{scopeName}/collections/{collectionName}/documents/{documentKey}/append':
-    x-internal: true
+  '/v1/buckets/{bucketName}/scopes/{scopeName}/collections/{collectionName}/documents/{documentKey}/append':
     parameters:
       - $ref: '#/components/parameters/AuthorizationHeader'
       - $ref: '#/components/parameters/BucketName'
@@ -333,8 +332,7 @@ paths:
           $ref: '#/components/responses/ServiceUnavailable'
         '504':
           $ref: '#/components/responses/GatewayTimeout'
-  '/v1.alpha/buckets/{bucketName}/scopes/{scopeName}/collections/{collectionName}/documents/{documentKey}/prepend':
-    x-internal: true
+  '/v1/buckets/{bucketName}/scopes/{scopeName}/collections/{collectionName}/documents/{documentKey}/prepend':
     parameters:
       - $ref: '#/components/parameters/AuthorizationHeader'
       - $ref: '#/components/parameters/BucketName'
@@ -377,8 +375,7 @@ paths:
           $ref: '#/components/responses/ServiceUnavailable'
         '504':
           $ref: '#/components/responses/GatewayTimeout'
-  '/v1.alpha/buckets/{bucketName}/scopes/{scopeName}/collections/{collectionName}/documents/{documentKey}/increment':
-    x-internal: true
+  '/v1/buckets/{bucketName}/scopes/{scopeName}/collections/{collectionName}/documents/{documentKey}/increment':
     parameters:
       - $ref: '#/components/parameters/AuthorizationHeader'
       - $ref: '#/components/parameters/BucketName'
@@ -444,8 +441,7 @@ paths:
           $ref: '#/components/responses/ServiceUnavailable'
         '504':
           $ref: '#/components/responses/GatewayTimeout'
-  '/v1.alpha/buckets/{bucketName}/scopes/{scopeName}/collections/{collectionName}/documents/{documentKey}/decrement':
-    x-internal: true
+  '/v1/buckets/{bucketName}/scopes/{scopeName}/collections/{collectionName}/documents/{documentKey}/decrement':
     parameters:
       - $ref: '#/components/parameters/AuthorizationHeader'
       - $ref: '#/components/parameters/BucketName'
@@ -659,8 +655,7 @@ paths:
           $ref: '#/components/responses/ServiceUnavailable'
         '504':
           $ref: '#/components/responses/GatewayTimeout'
-  '/v1.alpha/buckets/{bucketName}/scopes/{scopeName}/collections/{collectionName}/documents/{documentKey}/touch':
-    x-internal: true
+  '/v1/buckets/{bucketName}/scopes/{scopeName}/collections/{collectionName}/documents/{documentKey}/touch':
     parameters:
       - $ref: '#/components/parameters/AuthorizationHeader'
       - $ref: '#/components/parameters/BucketName'

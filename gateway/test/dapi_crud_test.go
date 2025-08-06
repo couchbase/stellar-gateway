@@ -1889,7 +1889,7 @@ func (s *GatewayOpsTestSuite) TestDapiIncrement() {
 		resp := s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
 			Path: fmt.Sprintf(
-				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/increment",
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s/increment",
 				s.bucketName, s.scopeName, s.collectionName, docId,
 			),
 			Headers: map[string]string{
@@ -1909,7 +1909,7 @@ func (s *GatewayOpsTestSuite) TestDapiIncrement() {
 		resp := s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
 			Path: fmt.Sprintf(
-				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/increment",
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s/increment",
 				s.bucketName, s.scopeName, s.collectionName, docId,
 			),
 			Headers: map[string]string{
@@ -1926,7 +1926,7 @@ func (s *GatewayOpsTestSuite) TestDapiIncrement() {
 		resp := s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
 			Path: fmt.Sprintf(
-				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/increment",
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s/increment",
 				s.bucketName, s.scopeName, s.collectionName, docId,
 			),
 			Headers: map[string]string{
@@ -1948,7 +1948,7 @@ func (s *GatewayOpsTestSuite) TestDapiIncrement() {
 		resp := s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
 			Path: fmt.Sprintf(
-				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/increment",
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s/increment",
 				s.bucketName, s.scopeName, s.collectionName, docId,
 			),
 			Headers: map[string]string{
@@ -1970,7 +1970,7 @@ func (s *GatewayOpsTestSuite) TestDapiIncrement() {
 		resp := s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
 			Path: fmt.Sprintf(
-				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/increment",
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s/increment",
 				s.bucketName, s.scopeName, s.collectionName, docId,
 			),
 			Headers: map[string]string{
@@ -1992,7 +1992,7 @@ func (s *GatewayOpsTestSuite) TestDapiIncrement() {
 		resp := s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
 			Path: fmt.Sprintf(
-				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/increment",
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s/increment",
 				s.bucketName, s.scopeName, s.collectionName, docId,
 			),
 			Headers: map[string]string{
@@ -2010,7 +2010,7 @@ func (s *GatewayOpsTestSuite) TestDapiIncrement() {
 		resp := s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
 			Path: fmt.Sprintf(
-				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/increment",
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s/increment",
 				s.bucketName, s.scopeName, s.collectionName, docId,
 			),
 			Headers: map[string]string{
@@ -2033,7 +2033,7 @@ func (s *GatewayOpsTestSuite) TestDapiIncrement() {
 		resp := s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
 			Path: fmt.Sprintf(
-				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/increment",
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s/increment",
 				s.bucketName, s.scopeName, s.collectionName, docId,
 			),
 			Headers: map[string]string{
@@ -2055,7 +2055,7 @@ func (s *GatewayOpsTestSuite) TestDapiIncrement() {
 		resp := s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
 			Path: fmt.Sprintf(
-				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/increment",
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s/increment",
 				s.bucketName, s.scopeName, s.collectionName, docId,
 			),
 			Headers: map[string]string{
@@ -2078,7 +2078,7 @@ func (s *GatewayOpsTestSuite) TestDapiIncrement() {
 		resp := s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
 			Path: fmt.Sprintf(
-				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/increment",
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s/increment",
 				s.bucketName, s.scopeName, s.collectionName, docId,
 			),
 			Headers: map[string]string{
@@ -2114,7 +2114,7 @@ func (s *GatewayOpsTestSuite) TestDapiIncrement() {
 		resp := s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
 			Path: fmt.Sprintf(
-				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/increment",
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s/increment",
 				s.bucketName, s.scopeName, s.collectionName, docId,
 			),
 			Headers: map[string]string{
@@ -2147,7 +2147,7 @@ func (s *GatewayOpsTestSuite) TestDapiIncrement() {
 		resp := s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
 			Path: fmt.Sprintf(
-				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/increment",
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s/increment",
 				s.bucketName, s.scopeName, s.collectionName, docId,
 			),
 			Headers: map[string]string{
@@ -2187,7 +2187,7 @@ func (s *GatewayOpsTestSuite) TestDapiIncrement() {
 		resp := s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
 			Path: fmt.Sprintf(
-				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/increment",
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s/increment",
 				s.bucketName, s.scopeName, s.collectionName, docId,
 			),
 			Headers: map[string]string{
@@ -2217,7 +2217,7 @@ func (s *GatewayOpsTestSuite) TestDapiIncrement() {
 		return s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
 			Path: fmt.Sprintf(
-				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/increment",
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s/increment",
 				opts.BucketName, opts.ScopeName, opts.CollectionName, opts.DocumentKey,
 			),
 			Headers: opts.Headers,
@@ -2230,7 +2230,7 @@ func (s *GatewayOpsTestSuite) TestDapiIncrement() {
 		resp := s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
 			Path: fmt.Sprintf(
-				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/increment",
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s/increment",
 				s.bucketName, s.scopeName, s.collectionName, docId,
 			),
 			Headers: map[string]string{
@@ -2276,7 +2276,7 @@ func (s *GatewayOpsTestSuite) TestDapiDecrement() {
 		resp := s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
 			Path: fmt.Sprintf(
-				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/decrement",
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s/decrement",
 				s.bucketName, s.scopeName, s.collectionName, docId,
 			),
 			Headers: map[string]string{
@@ -2296,7 +2296,7 @@ func (s *GatewayOpsTestSuite) TestDapiDecrement() {
 		resp := s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
 			Path: fmt.Sprintf(
-				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/decrement",
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s/decrement",
 				s.bucketName, s.scopeName, s.collectionName, docId,
 			),
 			Headers: map[string]string{
@@ -2313,7 +2313,7 @@ func (s *GatewayOpsTestSuite) TestDapiDecrement() {
 		resp := s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
 			Path: fmt.Sprintf(
-				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/decrement",
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s/decrement",
 				s.bucketName, s.scopeName, s.collectionName, docId,
 			),
 			Headers: map[string]string{
@@ -2335,7 +2335,7 @@ func (s *GatewayOpsTestSuite) TestDapiDecrement() {
 		resp := s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
 			Path: fmt.Sprintf(
-				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/decrement",
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s/decrement",
 				s.bucketName, s.scopeName, s.collectionName, docId,
 			),
 			Headers: map[string]string{
@@ -2357,7 +2357,7 @@ func (s *GatewayOpsTestSuite) TestDapiDecrement() {
 		resp := s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
 			Path: fmt.Sprintf(
-				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/decrement",
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s/decrement",
 				s.bucketName, s.scopeName, s.collectionName, docId,
 			),
 			Headers: map[string]string{
@@ -2379,7 +2379,7 @@ func (s *GatewayOpsTestSuite) TestDapiDecrement() {
 		resp := s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
 			Path: fmt.Sprintf(
-				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/decrement",
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s/decrement",
 				s.bucketName, s.scopeName, s.collectionName, docId,
 			),
 			Headers: map[string]string{
@@ -2397,7 +2397,7 @@ func (s *GatewayOpsTestSuite) TestDapiDecrement() {
 		resp := s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
 			Path: fmt.Sprintf(
-				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/decrement",
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s/decrement",
 				s.bucketName, s.scopeName, s.collectionName, docId,
 			),
 			Headers: map[string]string{
@@ -2420,7 +2420,7 @@ func (s *GatewayOpsTestSuite) TestDapiDecrement() {
 		resp := s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
 			Path: fmt.Sprintf(
-				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/decrement",
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s/decrement",
 				s.bucketName, s.scopeName, s.collectionName, docId,
 			),
 			Headers: map[string]string{
@@ -2442,7 +2442,7 @@ func (s *GatewayOpsTestSuite) TestDapiDecrement() {
 		resp := s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
 			Path: fmt.Sprintf(
-				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/decrement",
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s/decrement",
 				s.bucketName, s.scopeName, s.collectionName, docId,
 			),
 			Headers: map[string]string{
@@ -2465,7 +2465,7 @@ func (s *GatewayOpsTestSuite) TestDapiDecrement() {
 		resp := s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
 			Path: fmt.Sprintf(
-				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/decrement",
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s/decrement",
 				s.bucketName, s.scopeName, s.collectionName, docId,
 			),
 			Headers: map[string]string{
@@ -2501,7 +2501,7 @@ func (s *GatewayOpsTestSuite) TestDapiDecrement() {
 		resp := s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
 			Path: fmt.Sprintf(
-				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/decrement",
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s/decrement",
 				s.bucketName, s.scopeName, s.collectionName, docId,
 			),
 			Headers: map[string]string{
@@ -2534,7 +2534,7 @@ func (s *GatewayOpsTestSuite) TestDapiDecrement() {
 		resp := s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
 			Path: fmt.Sprintf(
-				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/decrement",
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s/decrement",
 				s.bucketName, s.scopeName, s.collectionName, docId,
 			),
 			Headers: map[string]string{
@@ -2574,7 +2574,7 @@ func (s *GatewayOpsTestSuite) TestDapiDecrement() {
 		resp := s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
 			Path: fmt.Sprintf(
-				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/decrement",
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s/decrement",
 				s.bucketName, s.scopeName, s.collectionName, docId,
 			),
 			Headers: map[string]string{
@@ -2606,7 +2606,7 @@ func (s *GatewayOpsTestSuite) TestDapiDecrement() {
 		resp := s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
 			Path: fmt.Sprintf(
-				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/decrement",
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s/decrement",
 				s.bucketName, s.scopeName, s.collectionName, docId,
 			),
 			Headers: map[string]string{
@@ -2637,7 +2637,7 @@ func (s *GatewayOpsTestSuite) TestDapiDecrement() {
 		return s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
 			Path: fmt.Sprintf(
-				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/decrement",
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s/decrement",
 				opts.BucketName, opts.ScopeName, opts.CollectionName, opts.DocumentKey,
 			),
 			Headers: opts.Headers,
@@ -3651,7 +3651,7 @@ func (s *GatewayOpsTestSuite) TestDapiAppend() {
 		resp := s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
 			Path: fmt.Sprintf(
-				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/append",
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s/append",
 				s.bucketName, s.scopeName, s.collectionName, docId,
 			),
 			Headers: map[string]string{
@@ -3680,7 +3680,7 @@ func (s *GatewayOpsTestSuite) TestDapiAppend() {
 		resp := s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
 			Path: fmt.Sprintf(
-				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/append",
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s/append",
 				s.bucketName, s.scopeName, s.collectionName, docId,
 			),
 			Headers: map[string]string{
@@ -3702,7 +3702,7 @@ func (s *GatewayOpsTestSuite) TestDapiAppend() {
 		resp := s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
 			Path: fmt.Sprintf(
-				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/append",
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s/append",
 				s.bucketName, s.scopeName, s.collectionName, docId,
 			),
 			Headers: map[string]string{
@@ -3724,7 +3724,7 @@ func (s *GatewayOpsTestSuite) TestDapiAppend() {
 		resp := s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
 			Path: fmt.Sprintf(
-				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/append",
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s/append",
 				s.bucketName, s.scopeName, s.collectionName, docId,
 			),
 			Headers: map[string]string{
@@ -3745,7 +3745,7 @@ func (s *GatewayOpsTestSuite) TestDapiAppend() {
 		resp := s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
 			Path: fmt.Sprintf(
-				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/append",
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s/append",
 				s.bucketName, s.scopeName, s.collectionName, docId,
 			),
 			Headers: map[string]string{
@@ -3764,7 +3764,7 @@ func (s *GatewayOpsTestSuite) TestDapiAppend() {
 		resp := s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
 			Path: fmt.Sprintf(
-				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/append",
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s/append",
 				s.bucketName, s.scopeName, s.collectionName, docId,
 			),
 			Headers: map[string]string{
@@ -3782,7 +3782,7 @@ func (s *GatewayOpsTestSuite) TestDapiAppend() {
 		resp := s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
 			Path: fmt.Sprintf(
-				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/append",
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s/append",
 				s.bucketName, s.scopeName, s.collectionName, docId,
 			),
 			Headers: map[string]string{
@@ -3807,7 +3807,7 @@ func (s *GatewayOpsTestSuite) TestDapiAppend() {
 		return s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
 			Path: fmt.Sprintf(
-				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/append",
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s/append",
 				opts.BucketName, opts.ScopeName, opts.CollectionName, opts.DocumentKey,
 			),
 			Headers: opts.Headers,
@@ -3834,7 +3834,7 @@ func (s *GatewayOpsTestSuite) TestDapiPrepend() {
 		resp := s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
 			Path: fmt.Sprintf(
-				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/prepend",
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s/prepend",
 				s.bucketName, s.scopeName, s.collectionName, docId,
 			),
 			Headers: map[string]string{
@@ -3863,7 +3863,7 @@ func (s *GatewayOpsTestSuite) TestDapiPrepend() {
 		resp := s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
 			Path: fmt.Sprintf(
-				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/prepend",
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s/prepend",
 				s.bucketName, s.scopeName, s.collectionName, docId,
 			),
 			Headers: map[string]string{
@@ -3885,7 +3885,7 @@ func (s *GatewayOpsTestSuite) TestDapiPrepend() {
 		resp := s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
 			Path: fmt.Sprintf(
-				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/prepend",
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s/prepend",
 				s.bucketName, s.scopeName, s.collectionName, docId,
 			),
 			Headers: map[string]string{
@@ -3907,7 +3907,7 @@ func (s *GatewayOpsTestSuite) TestDapiPrepend() {
 		resp := s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
 			Path: fmt.Sprintf(
-				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/prepend",
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s/prepend",
 				s.bucketName, s.scopeName, s.collectionName, docId,
 			),
 			Headers: map[string]string{
@@ -3928,7 +3928,7 @@ func (s *GatewayOpsTestSuite) TestDapiPrepend() {
 		resp := s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
 			Path: fmt.Sprintf(
-				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/prepend",
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s/prepend",
 				s.bucketName, s.scopeName, s.collectionName, docId,
 			),
 			Headers: map[string]string{
@@ -3947,7 +3947,7 @@ func (s *GatewayOpsTestSuite) TestDapiPrepend() {
 		resp := s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
 			Path: fmt.Sprintf(
-				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/prepend",
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s/prepend",
 				s.bucketName, s.scopeName, s.collectionName, docId,
 			),
 			Headers: map[string]string{
@@ -3965,7 +3965,7 @@ func (s *GatewayOpsTestSuite) TestDapiPrepend() {
 		resp := s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
 			Path: fmt.Sprintf(
-				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/prepend",
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s/prepend",
 				s.bucketName, s.scopeName, s.collectionName, docId,
 			),
 			Headers: map[string]string{
@@ -3990,7 +3990,7 @@ func (s *GatewayOpsTestSuite) TestDapiPrepend() {
 		return s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
 			Path: fmt.Sprintf(
-				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/prepend",
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s/prepend",
 				opts.BucketName, opts.ScopeName, opts.CollectionName, opts.DocumentKey,
 			),
 			Headers: opts.Headers,
@@ -4007,7 +4007,7 @@ func (s *GatewayOpsTestSuite) TestDapiTouch() {
 		resp := s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
 			Path: fmt.Sprintf(
-				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/touch",
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s/touch",
 				s.bucketName, s.scopeName, s.collectionName, docId,
 			),
 			Headers: map[string]string{
@@ -4042,7 +4042,7 @@ func (s *GatewayOpsTestSuite) TestDapiTouch() {
 		resp := s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
 			Path: fmt.Sprintf(
-				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/touch",
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s/touch",
 				s.bucketName, s.scopeName, s.collectionName, docId,
 			),
 			Headers: map[string]string{
@@ -4081,7 +4081,7 @@ func (s *GatewayOpsTestSuite) TestDapiTouch() {
 		resp := s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
 			Path: fmt.Sprintf(
-				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/touch",
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s/touch",
 				s.bucketName, s.scopeName, s.collectionName, docId,
 			),
 			Headers: map[string]string{
@@ -4108,7 +4108,7 @@ func (s *GatewayOpsTestSuite) TestDapiTouch() {
 		resp := s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
 			Path: fmt.Sprintf(
-				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/touch",
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s/touch",
 				s.bucketName, s.scopeName, s.collectionName, docId,
 			),
 			Headers: map[string]string{
@@ -4126,7 +4126,7 @@ func (s *GatewayOpsTestSuite) TestDapiTouch() {
 		resp := s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
 			Path: fmt.Sprintf(
-				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/touch",
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s/touch",
 				s.bucketName, s.scopeName, s.collectionName, docId,
 			),
 			Headers: map[string]string{
@@ -4166,7 +4166,7 @@ func (s *GatewayOpsTestSuite) TestDapiTouch() {
 		resp := s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
 			Path: fmt.Sprintf(
-				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/touch",
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s/touch",
 				s.bucketName, s.scopeName, s.collectionName, docId,
 			),
 			Headers: map[string]string{
@@ -4196,7 +4196,7 @@ func (s *GatewayOpsTestSuite) TestDapiTouch() {
 		resp := s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
 			Path: fmt.Sprintf(
-				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/touch",
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s/touch",
 				s.bucketName, s.scopeName, s.collectionName, docId,
 			),
 			Headers: map[string]string{
@@ -4215,7 +4215,7 @@ func (s *GatewayOpsTestSuite) TestDapiTouch() {
 		resp := s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
 			Path: fmt.Sprintf(
-				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/touch",
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s/touch",
 				s.bucketName, s.scopeName, s.collectionName, docId,
 			),
 			Headers: map[string]string{
@@ -4234,7 +4234,7 @@ func (s *GatewayOpsTestSuite) TestDapiTouch() {
 		resp := s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
 			Path: fmt.Sprintf(
-				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/touch",
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s/touch",
 				s.bucketName, s.scopeName, s.collectionName, docId,
 			),
 			Headers: map[string]string{
@@ -4251,7 +4251,7 @@ func (s *GatewayOpsTestSuite) TestDapiTouch() {
 		resp := s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
 			Path: fmt.Sprintf(
-				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/touch",
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s/touch",
 				s.bucketName, s.scopeName, s.collectionName, docId,
 			),
 			Headers: map[string]string{
@@ -4271,7 +4271,7 @@ func (s *GatewayOpsTestSuite) TestDapiTouch() {
 		resp := s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
 			Path: fmt.Sprintf(
-				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/touch",
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s/touch",
 				s.bucketName, s.scopeName, s.collectionName, docId,
 			),
 			Headers: map[string]string{
@@ -4291,7 +4291,7 @@ func (s *GatewayOpsTestSuite) TestDapiTouch() {
 		resp := s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
 			Path: fmt.Sprintf(
-				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/touch",
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s/touch",
 				s.bucketName, s.scopeName, s.collectionName, docId,
 			),
 			Headers: map[string]string{
