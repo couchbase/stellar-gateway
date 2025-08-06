@@ -365,11 +365,21 @@ func (s *GatewayOpsTestSuite) TestDapiGet() {
 				"Authorization": s.basicRestCreds,
 			},
 		})
-		requireRestError(s.T(), resp, http.StatusConflict, &testRestError{
-			Code: "DocumentLocked",
-			Resource: fmt.Sprintf("/buckets/%s/scopes/%s/collections/%s/documents/%s",
-				s.bucketName, s.scopeName, s.collectionName, docId),
-		})
+		if !s.IsOlderServerVersion("8.0.0") {
+			requireRestSuccess(s.T(), resp)
+			assertRestValidEtag(s.T(), resp)
+			assert.Equal(s.T(), fmt.Sprintf("%d", TEST_CONTENT_FLAGS), resp.Headers.Get("X-CB-Flags"))
+			assert.Equal(s.T(), "", resp.Headers.Get("Content-Encoding"))
+			assert.Equal(s.T(), "application/json", resp.Headers.Get("Content-Type"))
+			assert.Equal(s.T(), TEST_CONTENT, resp.Body)
+			assert.Equal(s.T(), "", resp.Headers.Get("Expires"))
+		} else {
+			requireRestError(s.T(), resp, http.StatusConflict, &testRestError{
+				Code: "DocumentLocked",
+				Resource: fmt.Sprintf("/buckets/%s/scopes/%s/collections/%s/documents/%s",
+					s.bucketName, s.scopeName, s.collectionName, docId),
+			})
+		}
 	})
 
 	s.Run("DocMissing", func() {
@@ -2777,11 +2787,19 @@ func (s *GatewayOpsTestSuite) TestDapiLookupIn() {
 			},
 			Body: []byte(`{"operations":[{"operation":"Get","path":"arr"}]}`),
 		})
-		requireRestError(s.T(), resp, http.StatusConflict, &testRestError{
-			Code: "DocumentLocked",
-			Resource: fmt.Sprintf("/buckets/%s/scopes/%s/collections/%s/documents/%s",
-				s.bucketName, s.scopeName, s.collectionName, docId),
-		})
+		if !s.IsOlderServerVersion("8.0.0") {
+			requireRestSuccess(s.T(), resp)
+			assertRestValidEtag(s.T(), resp)
+			assert.JSONEq(s.T(), `[
+				{"value":[3,6,9,12]}
+			]`, string(resp.Body))
+		} else {
+			requireRestError(s.T(), resp, http.StatusConflict, &testRestError{
+				Code: "DocumentLocked",
+				Resource: fmt.Sprintf("/buckets/%s/scopes/%s/collections/%s/documents/%s",
+					s.bucketName, s.scopeName, s.collectionName, docId),
+			})
+		}
 	})
 
 	s.Run("DocMissing", func() {

@@ -262,17 +262,26 @@ func (s *GatewayOpsTestSuite) TestGet() {
 	})
 
 	s.Run("DocLocked", func() {
-		_, err := kvClient.Get(context.Background(), &kv_v1.GetRequest{
+		resp, err := kvClient.Get(context.Background(), &kv_v1.GetRequest{
 			BucketName:     s.bucketName,
 			ScopeName:      s.scopeName,
 			CollectionName: s.collectionName,
 			Key:            s.lockedDocId(),
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
-		assertRpcStatus(s.T(), err, codes.FailedPrecondition)
-		assertRpcErrorDetails(s.T(), err, func(d *epb.PreconditionFailure) {
-			assert.Len(s.T(), d.Violations, 1)
-			assert.Equal(s.T(), d.Violations[0].Type, "LOCKED")
-		})
+		if !s.IsOlderServerVersion("8.0.0") {
+			requireRpcSuccess(s.T(), resp, err)
+			assertValidCas(s.T(), resp.Cas)
+			assert.Equal(s.T(), resp.GetContentUncompressed(), TEST_CONTENT)
+			assert.Nil(s.T(), resp.GetContentCompressed())
+			assert.Equal(s.T(), resp.ContentFlags, TEST_CONTENT_FLAGS)
+			assert.Nil(s.T(), resp.Expiry)
+		} else {
+			assertRpcStatus(s.T(), err, codes.FailedPrecondition)
+			assertRpcErrorDetails(s.T(), err, func(d *epb.PreconditionFailure) {
+				assert.Len(s.T(), d.Violations, 1)
+				assert.Equal(s.T(), d.Violations[0].Type, "LOCKED")
+			})
+		}
 	})
 
 	s.Run("DocMissing", func() {
@@ -3580,7 +3589,7 @@ func (s *GatewayOpsTestSuite) TestLookupIn() {
 	})
 
 	s.Run("DocLocked", func() {
-		_, err := kvClient.LookupIn(context.Background(), &kv_v1.LookupInRequest{
+		resp, err := kvClient.LookupIn(context.Background(), &kv_v1.LookupInRequest{
 			BucketName:     s.bucketName,
 			ScopeName:      s.scopeName,
 			CollectionName: s.collectionName,
@@ -3592,11 +3601,16 @@ func (s *GatewayOpsTestSuite) TestLookupIn() {
 				},
 			},
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
-		assertRpcStatus(s.T(), err, codes.FailedPrecondition)
-		assertRpcErrorDetails(s.T(), err, func(d *epb.PreconditionFailure) {
-			assert.Len(s.T(), d.Violations, 1)
-			assert.Equal(s.T(), d.Violations[0].Type, "LOCKED")
-		})
+		if !s.IsOlderServerVersion("8.0.0") {
+			requireRpcSuccess(s.T(), resp, err)
+			assertValidCas(s.T(), resp.Cas)
+		} else {
+			assertRpcStatus(s.T(), err, codes.FailedPrecondition)
+			assertRpcErrorDetails(s.T(), err, func(d *epb.PreconditionFailure) {
+				assert.Len(s.T(), d.Violations, 1)
+				assert.Equal(s.T(), d.Violations[0].Type, "LOCKED")
+			})
+		}
 	})
 
 	s.RunCommonErrorCases(func(ctx context.Context, opts *commonErrorTestData) (interface{}, error) {
