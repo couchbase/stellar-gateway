@@ -41,6 +41,7 @@ func parseStringToGocbcorexExpiry(val string) (uint32, *Status) {
 
 		return 0, &Status{
 			StatusCode: http.StatusBadRequest,
+			Code:       dataapiv1.ErrorCodeInvalidArgument,
 			Message:    "Invalid time format - expected ISO8601 format, 0, or a Go style duration.",
 		}
 	}
@@ -53,6 +54,7 @@ func isoTimeToGocbcorexExpiry(when string) (uint32, *Status) {
 	if err != nil {
 		return 0, &Status{
 			StatusCode: http.StatusBadRequest,
+			Code:       dataapiv1.ErrorCodeInvalidArgument,
 			Message:    "Invalid time format - expected ISO8601.",
 		}
 	}
@@ -78,6 +80,7 @@ func durabilityLevelToMemdx(dl dataapiv1.DurabilityLevel) (memdx.DurabilityLevel
 
 	return memdx.DurabilityLevel(0), &Status{
 		StatusCode: http.StatusBadRequest,
+		Code:       dataapiv1.ErrorCodeInvalidArgument,
 		Message:    "Invalid durability level specified.",
 	}
 }

@@ -152,6 +152,7 @@ func parseTouchExpiry(when string) (uint32, *Status) {
 
 	return 0, &Status{
 		StatusCode: http.StatusBadRequest,
+		Code:       dataapiv1.ErrorCodeInvalidArgument,
 		Message:    "Invalid time format - expected RFC1123 or RFC3339.",
 	}
 }
