@@ -129,9 +129,6 @@ func (s *GatewayOpsTestSuite) TestCreateCollection() {
 	})
 
 	s.Run("HistoryRetention", func() {
-		// BUG(ING-1128): HistoryRetentionEnabled is nil on listed collection
-		s.T().Skip("ING-1128")
-
 		adminClient := admin_bucket_v1.NewBucketAdminServiceClient(s.gatewayConn)
 		magmaBucket := uuid.NewString()[:6]
 		resp, err := adminClient.CreateBucket(context.Background(), &admin_bucket_v1.CreateBucketRequest{
@@ -149,18 +146,19 @@ func (s *GatewayOpsTestSuite) TestCreateCollection() {
 
 		scopeName := "_default"
 		colName := uuid.NewString()[:6]
-		historyRetentionEnabled := true
 		colResp, err := colClient.CreateCollection(context.Background(), &admin_collection_v1.CreateCollectionRequest{
-			BucketName:              bucketName,
+			BucketName:              magmaBucket,
 			ScopeName:               scopeName,
 			CollectionName:          colName,
-			HistoryRetentionEnabled: &historyRetentionEnabled,
+			HistoryRetentionEnabled: ptr.To(true),
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
 		requireRpcSuccess(s.T(), colResp, err)
-		found := s.findCollection(context.Background(), colClient, bucketName, scopeName, colName)
+		found := s.findCollection(context.Background(), colClient, magmaBucket, scopeName, colName)
 
 		if assert.NotNil(s.T(), found, "Did not find collection on cluster") {
-			assert.Equal(s.T(), *found.HistoryRetentionEnabled, historyRetentionEnabled)
+			if assert.NotNil(s.T(), found.HistoryRetentionEnabled, "HistoryRetentionEnabled should not be nil") {
+				assert.True(s.T(), *found.HistoryRetentionEnabled)
+			}
 		}
 	})
 }
@@ -272,9 +270,6 @@ func (s *GatewayOpsTestSuite) TestUpdateCollection() {
 	})
 
 	s.Run("HistoryRetention", func() {
-		// BUG(ING-1128): HistoryRetentionEnabled is nil on listed collection
-		s.T().Skip("ING-1128")
-
 		adminClient := admin_bucket_v1.NewBucketAdminServiceClient(s.gatewayConn)
 		magmaBucket := uuid.NewString()[:6]
 		resp, err := adminClient.CreateBucket(context.Background(), &admin_bucket_v1.CreateBucketRequest{
@@ -294,24 +289,25 @@ func (s *GatewayOpsTestSuite) TestUpdateCollection() {
 
 		colName := uuid.NewString()[:6]
 		createResp, err := colClient.CreateCollection(context.Background(), &admin_collection_v1.CreateCollectionRequest{
-			BucketName:     bucketName,
+			BucketName:     magmaBucket,
 			ScopeName:      scopeName,
 			CollectionName: colName,
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
 		requireRpcSuccess(s.T(), createResp, err)
 
-		historyRetentionEnabled := true
 		colResp, err := colClient.UpdateCollection(context.Background(), &admin_collection_v1.UpdateCollectionRequest{
-			BucketName:              bucketName,
+			BucketName:              magmaBucket,
 			ScopeName:               scopeName,
 			CollectionName:          colName,
-			HistoryRetentionEnabled: &historyRetentionEnabled,
+			HistoryRetentionEnabled: ptr.To(true),
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
 		requireRpcSuccess(s.T(), colResp, err)
-		found := s.findCollection(context.Background(), colClient, bucketName, scopeName, colName)
+		found := s.findCollection(context.Background(), colClient, magmaBucket, scopeName, colName)
 
 		if assert.NotNil(s.T(), found, "Did not find collection on cluster") {
-			assert.Equal(s.T(), *found.HistoryRetentionEnabled, historyRetentionEnabled)
+			if assert.NotNil(s.T(), found.HistoryRetentionEnabled, "HistoryRetentionEnabled should not be nil") {
+				assert.True(s.T(), *found.HistoryRetentionEnabled)
+			}
 		}
 	})
 }
