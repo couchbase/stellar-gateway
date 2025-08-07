@@ -80,7 +80,6 @@ func init() {
 	configFlags.String("cb-pass", "password", "the couchbase server password")
 	configFlags.String("bind-address", "0.0.0.0", "the local address to bind to")
 	configFlags.Int("data-port", 18098, "the data port")
-	configFlags.Int("sd-port", 18099, "the sd port")
 	configFlags.Int("dapi-port", -1, "the data api port")
 	configFlags.Int("web-port", 9091, "the web metrics/health port")
 	configFlags.Bool("self-sign", false, "specifies to allow a self-signed certificate")
@@ -252,7 +251,6 @@ type config struct {
 	cbPass                string
 	bindAddress           string
 	dataPort              int
-	sdPort                int
 	webPort               int
 	dapiPort              int
 	selfSign              bool
@@ -292,7 +290,6 @@ func readConfig(logger *zap.Logger) *config {
 		cbPass:                viper.GetString("cb-pass"),
 		bindAddress:           viper.GetString("bind-address"),
 		dataPort:              viper.GetInt("data-port"),
-		sdPort:                viper.GetInt("sd-port"),
 		webPort:               viper.GetInt("web-port"),
 		dapiPort:              viper.GetInt("dapi-port"),
 		selfSign:              viper.GetBool("self-sign"),
@@ -331,7 +328,6 @@ func readConfig(logger *zap.Logger) *config {
 		// zap.String("cbPass", config.cbPass),
 		zap.String("bindAddress", config.bindAddress),
 		zap.Int("dataPort", config.dataPort),
-		zap.Int("sdPort", config.sdPort),
 		zap.Int("webPort", config.webPort),
 		zap.Int("dapiPort", config.dapiPort),
 		zap.Bool("selfSign", config.selfSign),
@@ -456,7 +452,7 @@ func startGateway() {
 	}
 
 	var grpcCertificate tls.Certificate
-	if config.dataPort != -1 || config.sdPort != -1 {
+	if config.dataPort != -1 {
 		// GRPC services are enabled
 		grpcCertPath := config.grpcCertPath
 		if grpcCertPath == "" {
@@ -599,7 +595,6 @@ func startGateway() {
 		ProxyBlockAdmin: config.dapiNoProxyAdmin,
 		AlphaEndpoints:  config.alphaEndpoints,
 		BindDataPort:    config.dataPort,
-		BindSdPort:      config.sdPort,
 		BindDapiPort:    config.dapiPort,
 		BindAddress:     config.bindAddress,
 		RateLimit:       config.rateLimit,
@@ -639,9 +634,8 @@ func startGateway() {
 
 		if newConfig.bindAddress != config.bindAddress ||
 			newConfig.dataPort != config.dataPort ||
-			newConfig.sdPort != config.sdPort ||
 			newConfig.dapiPort != config.dapiPort {
-			logger.Warn("config changes for bindAddress, dataPort, sdPort, or dapiPort require a restart")
+			logger.Warn("config changes for bindAddress, dataPort or dapiPort require a restart")
 		}
 
 		if newConfig.selfSign != config.selfSign {

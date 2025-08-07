@@ -29,7 +29,6 @@ import (
 	"github.com/couchbase/goprotostellar/genproto/internal_hooks_v1"
 	"github.com/couchbase/goprotostellar/genproto/kv_v1"
 	"github.com/couchbase/goprotostellar/genproto/query_v1"
-	"github.com/couchbase/goprotostellar/genproto/routing_v1"
 	"github.com/couchbase/goprotostellar/genproto/search_v1"
 	"github.com/couchbase/stellar-gateway/contrib/oapimetrics"
 	"github.com/couchbase/stellar-gateway/dataapiv1"
@@ -38,7 +37,6 @@ import (
 	"github.com/couchbase/stellar-gateway/gateway/dataimpl"
 	"github.com/couchbase/stellar-gateway/gateway/hooks"
 	"github.com/couchbase/stellar-gateway/gateway/ratelimiting"
-	"github.com/couchbase/stellar-gateway/gateway/sdimpl"
 	"github.com/couchbase/stellar-gateway/pkg/interceptors"
 	"github.com/couchbase/stellar-gateway/pkg/metrics"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/recovery"
@@ -52,7 +50,6 @@ type SystemOptions struct {
 	Logger *zap.Logger
 
 	DataImpl *dataimpl.Servers
-	SdImpl   *sdimpl.Servers
 	DapiImpl *dapiimpl.Servers
 	Metrics  *metrics.SnMetrics
 
@@ -67,13 +64,11 @@ type System struct {
 	logger *zap.Logger
 
 	dataServer *grpc.Server
-	sdServer   *grpc.Server
 	dapiServer *http.Server
 }
 
 func NewSystem(opts *SystemOptions) (*System, error) {
 	dataImpl := opts.DataImpl
-	sdImpl := opts.SdImpl
 	dapiImpl := opts.DapiImpl
 
 	hooksManager := hooks.NewHooksManager(opts.Logger.Named("hooks-manager"))
@@ -145,11 +140,6 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 		healthServer.SetServingStatus(serviceName, grpc_health_v1.HealthCheckResponse_SERVING)
 	}
 	grpc_health_v1.RegisterHealthServer(dataSrv, healthServer)
-
-	sdSrv := grpc.NewServer(serverOpts...)
-
-	internal_hooks_v1.RegisterHooksServiceServer(sdSrv, hooksManager.Server())
-	routing_v1.RegisterRoutingServiceServer(sdSrv, sdImpl.RoutingV1Server)
 
 	writeErrorResp := func(w http.ResponseWriter, statusCode int, code dataapiv1.ErrorCode, message string) {
 		encodedErr, _ := json.Marshal(&dataapiv1.Error{
@@ -246,7 +236,6 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 	s := &System{
 		logger:     opts.Logger,
 		dataServer: dataSrv,
-		sdServer:   sdSrv,
 		dapiServer: dapiSrv,
 	}
 
@@ -259,7 +248,6 @@ func (s *System) Serve(ctx context.Context, l *Listeners) error {
 	go func() {
 		<-ctx.Done()
 		s.dataServer.Stop()
-		s.sdServer.Stop()
 		_ = s.dapiServer.Close()
 	}()
 
@@ -269,17 +257,6 @@ func (s *System) Serve(ctx context.Context, l *Listeners) error {
 			err := s.dataServer.Serve(l.dataListener)
 			if err != nil {
 				s.logger.Warn("data server serve failed", zap.Error(err))
-			}
-			wg.Done()
-		}()
-	}
-
-	if l.sdListener != nil {
-		wg.Add(1)
-		go func() {
-			err := s.sdServer.Serve(l.sdListener)
-			if err != nil {
-				s.logger.Warn("service discovery server serve failed", zap.Error(err))
 			}
 			wg.Done()
 		}()
@@ -308,14 +285,6 @@ func (s *System) Shutdown() {
 		go func() {
 			defer wg.Done()
 			s.dataServer.GracefulStop()
-		}()
-	}
-
-	if s.sdServer != nil {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			s.sdServer.GracefulStop()
 		}()
 	}
 

@@ -4,16 +4,14 @@ import (
 	"github.com/couchbase/gocbcorex"
 	"github.com/couchbase/stellar-gateway/gateway/auth"
 	"github.com/couchbase/stellar-gateway/gateway/dataimpl/server_v1"
-	"github.com/couchbase/stellar-gateway/gateway/topology"
 	"go.uber.org/zap"
 )
 
 type NewOptions struct {
 	Logger *zap.Logger
 
-	TopologyProvider topology.Provider
-	CbClient         *gocbcorex.BucketsTrackingAgentManager
-	Authenticator    auth.Authenticator
+	CbClient      *gocbcorex.BucketsTrackingAgentManager
+	Authenticator auth.Authenticator
 
 	Debug bool
 }
