@@ -62,7 +62,7 @@ func (s *GatewayOpsTestSuite) TestGracefulShutdown() {
 
 	startInfo := <-gwStartInfoCh
 
-	dapiAddr := fmt.Sprintf("%s:%d", "127.0.0.1", startInfo.AdvertisePorts.DAPI)
+	dapiAddr := fmt.Sprintf("%s:%d", "127.0.0.1", startInfo.ServicePorts.DAPI)
 	dapiCli := &http.Client{
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
