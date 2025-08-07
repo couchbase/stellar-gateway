@@ -262,7 +262,6 @@ func (s *GatewayOpsTestSuite) SetupSuite() {
 			Username:        testConfig.CbUser,
 			Password:        testConfig.CbPass,
 			BindDataPort:    0,
-			BindSdPort:      0,
 			BindDapiPort:    0,
 			GrpcCertificate: *gwCert,
 			DapiCertificate: *gwCert,
@@ -292,7 +291,7 @@ func (s *GatewayOpsTestSuite) SetupSuite() {
 
 		startInfo := <-gwStartInfoCh
 
-		connAddr := fmt.Sprintf("%s:%d", "127.0.0.1", startInfo.AdvertisePorts.PS)
+		connAddr := fmt.Sprintf("%s:%d", "127.0.0.1", startInfo.ServicePorts.PS)
 		conn, err := grpc.NewClient(connAddr,
 			grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{
 				InsecureSkipVerify: true,
@@ -301,7 +300,7 @@ func (s *GatewayOpsTestSuite) SetupSuite() {
 			s.T().Fatalf("failed to connect to test gateway: %s", err)
 		}
 
-		dapiAddr := fmt.Sprintf("%s:%d", "127.0.0.1", startInfo.AdvertisePorts.DAPI)
+		dapiAddr := fmt.Sprintf("%s:%d", "127.0.0.1", startInfo.ServicePorts.DAPI)
 		dapiCli := &http.Client{
 			Transport: &http.Transport{
 				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},

@@ -15,18 +15,12 @@ import (
 	"github.com/couchbase/gocbcorex"
 	"github.com/couchbase/gocbcorex/cbhttpx"
 	"github.com/couchbase/gocbcorex/cbmgmtx"
-	"github.com/couchbase/stellar-gateway/contrib/cbconfig"
-	"github.com/couchbase/stellar-gateway/contrib/cbtopology"
-	"github.com/couchbase/stellar-gateway/contrib/goclustering"
 	"github.com/couchbase/stellar-gateway/gateway/auth"
-	"github.com/couchbase/stellar-gateway/gateway/clustering"
 	"github.com/couchbase/stellar-gateway/gateway/dapiimpl"
 	"github.com/couchbase/stellar-gateway/gateway/dapiimpl/proxy"
 	"github.com/couchbase/stellar-gateway/gateway/dataimpl"
 	"github.com/couchbase/stellar-gateway/gateway/ratelimiting"
-	"github.com/couchbase/stellar-gateway/gateway/sdimpl"
 	"github.com/couchbase/stellar-gateway/gateway/system"
-	"github.com/couchbase/stellar-gateway/gateway/topology"
 	"github.com/couchbase/stellar-gateway/pkg/metrics"
 	"github.com/couchbase/stellar-gateway/utils/netutils"
 	"github.com/couchbaselabs/gocbconnstr"
@@ -39,15 +33,14 @@ import (
 
 type ServicePorts struct {
 	PS   int `json:"p,omitempty"`
-	SD   int `json:"s,omitempty"`
 	DAPI int `json:"d,omitempty"`
 }
 
 type StartupInfo struct {
-	MemberID       string
-	ServerGroup    string
-	AdvertiseAddr  string
-	AdvertisePorts ServicePorts
+	MemberID      string
+	ServerGroup   string
+	AdvertiseAddr string
+	ServicePorts  ServicePorts
 }
 
 type Config struct {
@@ -66,7 +59,6 @@ type Config struct {
 
 	BindAddress      string
 	BindDataPort     int
-	BindSdPort       int
 	BindDapiPort     int
 	AdvertiseAddress string
 	AdvertisePorts   ServicePorts
@@ -337,42 +329,6 @@ func (g *Gateway) Run(ctx context.Context) error {
 
 	config.Logger.Info("connected to couchbase cluster")
 
-	// TODO(brett19): We should use the gocb client to fetch the topologies.
-	cbTopologyProvider, err := cbtopology.NewPollingProvider(cbtopology.PollingProviderOptions{
-		Fetcher: cbconfig.NewFetcher(cbconfig.FetcherOptions{
-			Host:     config.CbConnStr,
-			Username: config.Username,
-			Password: config.Password,
-			Logger:   config.Logger.Named("fetcher"),
-		}),
-		Logger: config.Logger.Named("topology-provider"),
-	})
-	if err != nil {
-		config.Logger.Error("failed to initialize cb topology poller")
-		return err
-	}
-
-	goclusteringProvider, err := goclustering.NewInProcProvider(goclustering.InProcProviderOptions{})
-	if err != nil {
-		config.Logger.Error("failed to initialize in-proc clustering provider")
-		return err
-	}
-
-	clusteringManager := &clustering.Manager{
-		Provider: goclusteringProvider,
-		Logger:   config.Logger.Named("clustering-manager"),
-	}
-
-	psTopologyManager, err := topology.NewManager(&topology.ManagerOptions{
-		LocalTopologyProvider:  clusteringManager,
-		RemoteTopologyProvider: cbTopologyProvider,
-		Logger:                 config.Logger.Named("topology-manager"),
-	})
-	if err != nil {
-		config.Logger.Error("failed to initialize topology manager")
-		return err
-	}
-
 	var proxyServices []proxy.ServiceType
 	for _, serviceName := range config.ProxyServices {
 		proxyServices = append(proxyServices, proxy.ServiceType(serviceName))
@@ -422,16 +378,10 @@ func (g *Gateway) Run(ctx context.Context) error {
 		rateLimiter := ratelimiting.NewGlobalRateLimiter(uint64(config.RateLimit), time.Second)
 
 		dataImpl := dataimpl.New(&dataimpl.NewOptions{
-			Logger:           config.Logger.Named("data-impl"),
-			Debug:            config.Debug,
-			TopologyProvider: psTopologyManager,
-			CbClient:         agentMgr,
-			Authenticator:    authenticator,
-		})
-
-		sdImpl := sdimpl.New(&sdimpl.NewOptions{
-			Logger:           config.Logger.Named("sd-impl"),
-			TopologyProvider: psTopologyManager,
+			Logger:        config.Logger.Named("data-impl"),
+			Debug:         config.Debug,
+			CbClient:      agentMgr,
+			Authenticator: authenticator,
 		})
 
 		dapiImpl := dapiimpl.New(&dapiimpl.NewOptions{
@@ -447,7 +397,6 @@ func (g *Gateway) Run(ctx context.Context) error {
 		gatewaySys, err := system.NewSystem(&system.SystemOptions{
 			Logger:      config.Logger.Named("gateway-system"),
 			DataImpl:    dataImpl,
-			SdImpl:      sdImpl,
 			DapiImpl:    dapiImpl,
 			Metrics:     metrics.GetSnMetrics(),
 			RateLimiter: rateLimiter,
@@ -470,20 +419,17 @@ func (g *Gateway) Run(ctx context.Context) error {
 		}
 
 		dataPort := config.BindDataPort
-		sdPort := config.BindSdPort
 		dapiPort := config.BindDapiPort
 
 		// the non-0 instance uses randomized ports
 		if instanceIdx > 0 {
 			dataPort = 0
-			sdPort = 0
 			dapiPort = 0
 		}
 
 		gatewayLis, err := system.NewListeners(&system.ListenersOptions{
 			Address:  config.BindAddress,
 			DataPort: dataPort,
-			SdPort:   sdPort,
 			DapiPort: dapiPort,
 		})
 		if err != nil {
@@ -500,30 +446,8 @@ func (g *Gateway) Run(ctx context.Context) error {
 			}
 		}
 
-		pickPort := func(advertisePort int, boundPort int) int {
-			if advertisePort != 0 {
-				return advertisePort
-			}
-			return boundPort
-		}
-		advertisePorts := clustering.ServicePorts{
-			PS:   pickPort(config.AdvertisePorts.PS, gatewayLis.BoundDataPort()),
-			SD:   pickPort(config.AdvertisePorts.SD, gatewayLis.BoundSdPort()),
-			DAPI: pickPort(config.AdvertisePorts.DAPI, gatewayLis.BoundDapiPort()),
-		}
-
-		localMemberData := &clustering.Member{
-			MemberID:       nodeID,
-			ServerGroup:    serverGroup,
-			AdvertiseAddr:  advertiseAddr,
-			AdvertisePorts: advertisePorts,
-		}
-
-		clusterEntry, err := clusteringManager.Join(ctx, localMemberData)
-		if err != nil {
-			config.Logger.Error("failed to join cluster")
-			return err
-		}
+		boundPsPort := gatewayLis.BoundDataPort()
+		boundDapiPort := gatewayLis.BoundDapiPort()
 
 		go func() {
 			<-g.shutdownSig
@@ -535,19 +459,17 @@ func (g *Gateway) Run(ctx context.Context) error {
 		g.reconfigureLock.Unlock()
 
 		config.Logger.Info("starting to run protostellar system",
-			zap.Int("advertisedPortPS", advertisePorts.PS),
-			zap.Int("advertisedPortSD", advertisePorts.SD),
-			zap.Int("advertisedPortDAPI", advertisePorts.DAPI))
+			zap.Int("boundPsPort", boundPsPort),
+			zap.Int("boundDapiPort", boundDapiPort))
 
 		if instanceIdx == 0 && config.StartupCallback != nil {
 			config.StartupCallback(&StartupInfo{
 				MemberID:      nodeID,
 				ServerGroup:   serverGroup,
 				AdvertiseAddr: advertiseAddr,
-				AdvertisePorts: ServicePorts{
-					PS:   advertisePorts.PS,
-					SD:   advertisePorts.SD,
-					DAPI: advertisePorts.DAPI,
+				ServicePorts: ServicePorts{
+					PS:   boundPsPort,
+					DAPI: boundDapiPort,
 				},
 			})
 		}
@@ -556,13 +478,8 @@ func (g *Gateway) Run(ctx context.Context) error {
 
 		err = gatewaySys.Serve(ctx, gatewayLis)
 		if err != nil {
-			config.Logger.Error("failed to serve protostellar system")
-
-			leaveErr := clusterEntry.Leave(ctx)
-			if leaveErr != nil {
-				config.Logger.Error("failed to leave cluster")
-			}
-
+			config.Logger.Error("failed to serve protostellar system",
+				zap.Error(err))
 			return err
 		}
 
@@ -571,12 +488,6 @@ func (g *Gateway) Run(ctx context.Context) error {
 		err = gatewayLis.Close()
 		if err != nil {
 			config.Logger.Error("failed to close listener")
-			return err
-		}
-
-		err = clusterEntry.Leave(ctx)
-		if err != nil {
-			config.Logger.Error("failed to leave cluster")
 			return err
 		}
 
