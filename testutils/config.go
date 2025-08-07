@@ -20,7 +20,7 @@ var globalTestConfig *Config
 func GetTestConfig(t *testing.T) *Config {
 	if globalTestConfig == nil {
 		testConfig := &Config{
-			CbConnStr: "127.0.0.1",
+			CbConnStr: "192.168.107.128",
 			CbUser:    "Administrator",
 			CbPass:    "password",
 			SgConnStr: "",
