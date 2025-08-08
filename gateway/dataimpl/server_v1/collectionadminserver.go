@@ -79,6 +79,11 @@ func (s *CollectionAdminServer) ListCollections(
 				// are indicated with MaxExpirySecs = 0, and MaxExpirySecs = nil respectively
 				collectionSpec.MaxExpirySecs = ptr.To(uint32(0))
 			}
+
+			if collection.History {
+				collectionSpec.HistoryRetentionEnabled = &collection.History
+			}
+
 			collections = append(collections, collectionSpec)
 		}
 
@@ -207,6 +212,7 @@ func (s *CollectionAdminServer) CreateCollection(
 		CollectionName: in.CollectionName,
 		ScopeName:      in.ScopeName,
 		MaxTTL:         maxTTL,
+		HistoryEnabled: in.HistoryRetentionEnabled,
 	})
 	if err != nil {
 		if errors.Is(err, cbmgmtx.ErrBucketNotFound) {
