@@ -7,15 +7,33 @@ import (
 
 	"github.com/couchbase/goprotostellar/genproto/internal_xdcr_v1"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	epb "google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 )
 
+func (s *GatewayOpsTestSuite) TestXdcrGetBucketInfo() {
+	xdcrClient := internal_xdcr_v1.NewXdcrServiceClient(s.gatewayConn)
+
+	bucketInfoResp, err := xdcrClient.GetBucketInfo(context.Background(), &internal_xdcr_v1.GetBucketInfoRequest{
+		BucketName: s.bucketName,
+	}, grpc.PerRPCCredentials(s.basicRpcCreds))
+	requireRpcSuccess(s.T(), bucketInfoResp, err)
+	require.NotEmpty(s.T(), bucketInfoResp.BucketUuid)
+	require.Greater(s.T(), bucketInfoResp.NumVbuckets, uint32(0))
+}
+
 func (s *GatewayOpsTestSuite) TestXdcrGetVbucketInfo() {
 	xdcrClient := internal_xdcr_v1.NewXdcrServiceClient(s.gatewayConn)
 
 	s.Run("Basic", func() {
+		bucketInfoResp, err := xdcrClient.GetBucketInfo(context.Background(), &internal_xdcr_v1.GetBucketInfoRequest{
+			BucketName: s.bucketName,
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		requireRpcSuccess(s.T(), bucketInfoResp, err)
+		numVbuckets := bucketInfoResp.NumVbuckets
+
 		client, err := xdcrClient.GetVbucketInfo(context.Background(), &internal_xdcr_v1.GetVbucketInfoRequest{
 			BucketName: s.bucketName,
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
@@ -51,13 +69,48 @@ func (s *GatewayOpsTestSuite) TestXdcrGetVbucketInfo() {
 			}
 		}
 
-		numVbuckets := uint32(1024)
 		for vbIdx := uint32(0); vbIdx < numVbuckets; vbIdx++ {
 			if !seenVbuckets[vbIdx] {
 				s.T().Fatalf("Did not receive vbucket id: %d", vbIdx)
 			}
 		}
 	})
+}
+
+func (s *GatewayOpsTestSuite) TestXdcrWatchCollections() {
+	xdcrClient := internal_xdcr_v1.NewXdcrServiceClient(s.gatewayConn)
+
+	opCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	resp, err := xdcrClient.WatchCollections(opCtx, &internal_xdcr_v1.WatchCollectionsRequest{
+		BucketName: s.bucketName,
+	}, grpc.PerRPCCredentials(s.basicRpcCreds))
+	requireRpcSuccess(s.T(), resp, err)
+
+	manifest, err := resp.Recv()
+	require.NoError(s.T(), err)
+	require.Greater(s.T(), manifest.ManifestUid, uint32(0))
+	require.Greater(s.T(), len(manifest.Scopes), 0)
+
+	for _, scope := range manifest.Scopes {
+		if scope.ScopeName == "_default" {
+			require.Zero(s.T(), scope.ScopeId)
+		} else {
+			require.Greater(s.T(), scope.ScopeId, uint32(0))
+		}
+		require.NotEmpty(s.T(), scope.ScopeName)
+		require.Greater(s.T(), len(scope.Collections), 0)
+
+		for _, collection := range scope.Collections {
+			if collection.CollectionName == "_default" {
+				require.Zero(s.T(), collection.CollectionId)
+			} else {
+				require.Greater(s.T(), collection.CollectionId, uint32(0))
+			}
+			require.NotEmpty(s.T(), collection.CollectionName)
+		}
+	}
 }
 
 func (s *GatewayOpsTestSuite) TestXdcrGetDocument() {
@@ -98,6 +151,137 @@ func (s *GatewayOpsTestSuite) TestXdcrGetDocument() {
 	})
 }
 
+func (s *GatewayOpsTestSuite) TestXdcrCheckDocument() {
+	xdcrClient := internal_xdcr_v1.NewXdcrServiceClient(s.gatewayConn)
+
+	s.Run("Add", func() {
+		s.Run("Basic", func() {
+			docId := s.randomDocId()
+
+			// we just make up a cas for testing purposes
+			var docCreateCas uint64 = 1234
+
+			resp, err := xdcrClient.CheckDocument(context.Background(), &internal_xdcr_v1.CheckDocumentRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+				StoreCas:       docCreateCas,
+				ContentFlags:   TEST_CONTENT_FLAGS,
+				ExpiryTime:     nil, // no expiry
+				Revno:          1,
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			requireRpcSuccess(s.T(), resp, err)
+		})
+	})
+
+	s.Run("Set", func() {
+		s.Run("Basic", func() {
+			docId := s.testDocId()
+
+			getResp, err := xdcrClient.GetDocument(context.Background(), &internal_xdcr_v1.GetDocumentRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			requireRpcSuccess(s.T(), getResp, err)
+
+			setResp, err := xdcrClient.CheckDocument(context.Background(), &internal_xdcr_v1.CheckDocumentRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+				StoreCas:       getResp.Cas + 10,
+				ContentFlags:   TEST_CONTENT_FLAGS,
+				ExpiryTime:     nil, // no expiry
+				Revno:          getResp.Revno + 10,
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			requireRpcSuccess(s.T(), setResp, err)
+		})
+
+		s.Run("LwwFail", func() {
+			docId := s.testDocId()
+
+			getResp, err := xdcrClient.GetDocument(context.Background(), &internal_xdcr_v1.GetDocumentRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			requireRpcSuccess(s.T(), getResp, err)
+
+			_, err = xdcrClient.CheckDocument(context.Background(), &internal_xdcr_v1.CheckDocumentRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+				StoreCas:       getResp.Cas - 1,
+				ContentFlags:   TEST_CONTENT_FLAGS,
+				ExpiryTime:     nil, // no expiry
+				Revno:          getResp.Revno - 1,
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			assertRpcStatus(s.T(), err, codes.Aborted)
+			assertRpcErrorDetails(s.T(), err, func(d *epb.ErrorInfo) {
+				assert.Equal(s.T(), "DOC_NEWER", d.Reason)
+			})
+		})
+	})
+
+	s.Run("Delete", func() {
+		s.Run("Basic", func() {
+			docId := s.testDocId()
+
+			getResp, err := xdcrClient.GetDocument(context.Background(), &internal_xdcr_v1.GetDocumentRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+				IncludeContent: false,
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			requireRpcSuccess(s.T(), getResp, err)
+
+			delResp, err := xdcrClient.CheckDocument(context.Background(), &internal_xdcr_v1.CheckDocumentRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+				StoreCas:       getResp.Cas + 10,
+				Revno:          getResp.Revno + 10,
+				IsDeleted:      true,
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			requireRpcSuccess(s.T(), delResp, err)
+		})
+
+		s.Run("LwwFail", func() {
+			docId := s.testDocId()
+
+			getResp, err := xdcrClient.GetDocument(context.Background(), &internal_xdcr_v1.GetDocumentRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+				IncludeContent: false,
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			requireRpcSuccess(s.T(), getResp, err)
+
+			_, err = xdcrClient.CheckDocument(context.Background(), &internal_xdcr_v1.CheckDocumentRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+				StoreCas:       getResp.Cas - 1,
+				Revno:          getResp.Revno - 1,
+				IsDeleted:      true,
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			assertRpcStatus(s.T(), err, codes.Aborted)
+			assertRpcErrorDetails(s.T(), err, func(d *epb.ErrorInfo) {
+				assert.Equal(s.T(), "DOC_NEWER", d.Reason)
+			})
+		})
+	})
+}
+
 func (s *GatewayOpsTestSuite) TestXdcrPushDocument() {
 	xdcrClient := internal_xdcr_v1.NewXdcrServiceClient(s.gatewayConn)
 
@@ -112,17 +296,19 @@ func (s *GatewayOpsTestSuite) TestXdcrPushDocument() {
 			var docCreateCas uint64 = 1234
 
 			resp, err := xdcrClient.PushDocument(context.Background(), &internal_xdcr_v1.PushDocumentRequest{
-				BucketName:        s.bucketName,
-				ScopeName:         s.scopeName,
-				CollectionName:    s.collectionName,
-				Key:               docId,
-				CheckCas:          &docCheckCas,
-				StoreCas:          docCreateCas,
-				ContentFlags:      TEST_CONTENT_FLAGS,
-				ContentType:       internal_xdcr_v1.ContentType_CONTENT_TYPE_JSON,
-				ContentCompressed: s.compressContent(TEST_CONTENT),
-				ExpiryTime:        nil, // no expiry
-				Revno:             1,
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+				CheckCas:       &docCheckCas,
+				StoreCas:       docCreateCas,
+				ContentFlags:   TEST_CONTENT_FLAGS,
+				ContentType:    internal_xdcr_v1.ContentType_CONTENT_TYPE_JSON,
+				Content: &internal_xdcr_v1.PushDocumentRequest_ContentUncompressed{
+					ContentUncompressed: TEST_CONTENT,
+				},
+				ExpiryTime: nil, // no expiry
+				Revno:      1,
 			}, grpc.PerRPCCredentials(s.basicRpcCreds))
 			requireRpcSuccess(s.T(), resp, err)
 			assertValidCas(s.T(), resp.Cas)
@@ -138,28 +324,41 @@ func (s *GatewayOpsTestSuite) TestXdcrPushDocument() {
 			})
 		})
 
-		s.Run("DocExists", func() {
-			docId := s.testDocId()
+		s.Run("Compressed", func() {
+			docId := s.randomDocId()
 
 			// we pass a CAS of 0 to indicate that we want to create the document
 			var docCheckCas uint64 = 0
 
-			_, err := xdcrClient.PushDocument(context.Background(), &internal_xdcr_v1.PushDocumentRequest{
-				BucketName:        s.bucketName,
-				ScopeName:         s.scopeName,
-				CollectionName:    s.collectionName,
-				Key:               docId,
-				CheckCas:          &docCheckCas,
-				StoreCas:          1234,
-				ContentFlags:      TEST_CONTENT_FLAGS,
-				ContentType:       internal_xdcr_v1.ContentType_CONTENT_TYPE_JSON,
-				ContentCompressed: s.compressContent(TEST_CONTENT),
-				ExpiryTime:        nil, // no expiry
-				Revno:             1,
+			// we just make up a cas for testing purposes
+			var docCreateCas uint64 = 1234
+
+			resp, err := xdcrClient.PushDocument(context.Background(), &internal_xdcr_v1.PushDocumentRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+				CheckCas:       &docCheckCas,
+				StoreCas:       docCreateCas,
+				ContentFlags:   TEST_CONTENT_FLAGS,
+				ContentType:    internal_xdcr_v1.ContentType_CONTENT_TYPE_JSON,
+				Content: &internal_xdcr_v1.PushDocumentRequest_ContentCompressed{
+					ContentCompressed: s.compressContent(TEST_CONTENT),
+				},
+				ExpiryTime: nil, // no expiry
+				Revno:      1,
 			}, grpc.PerRPCCredentials(s.basicRpcCreds))
-			assertRpcStatus(s.T(), err, codes.AlreadyExists)
-			assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
-				assert.Equal(s.T(), "document", d.ResourceType)
+			requireRpcSuccess(s.T(), resp, err)
+			assertValidCas(s.T(), resp.Cas)
+
+			s.checkDocument(s.T(), checkDocumentOptions{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				DocId:          docId,
+				Content:        TEST_CONTENT,
+				ContentFlags:   TEST_CONTENT_FLAGS,
+				Cas:            docCreateCas,
 			})
 		})
 	})
@@ -177,17 +376,19 @@ func (s *GatewayOpsTestSuite) TestXdcrPushDocument() {
 			requireRpcSuccess(s.T(), getResp, err)
 
 			setResp, err := xdcrClient.PushDocument(context.Background(), &internal_xdcr_v1.PushDocumentRequest{
-				BucketName:        s.bucketName,
-				ScopeName:         s.scopeName,
-				CollectionName:    s.collectionName,
-				Key:               docId,
-				CheckCas:          &getResp.Cas,
-				StoreCas:          getResp.Cas - 1,
-				ContentFlags:      TEST_CONTENT_FLAGS,
-				ContentType:       internal_xdcr_v1.ContentType_CONTENT_TYPE_JSON,
-				ContentCompressed: s.compressContent(TEST_CONTENT),
-				ExpiryTime:        nil, // no expiry
-				Revno:             getResp.Revno + 1,
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+				CheckCas:       &getResp.Cas,
+				StoreCas:       getResp.Cas + 1,
+				ContentFlags:   TEST_CONTENT_FLAGS,
+				ContentType:    internal_xdcr_v1.ContentType_CONTENT_TYPE_JSON,
+				Content: &internal_xdcr_v1.PushDocumentRequest_ContentUncompressed{
+					ContentUncompressed: TEST_CONTENT,
+				},
+				ExpiryTime: nil, // no expiry
+				Revno:      getResp.Revno + 1,
 			}, grpc.PerRPCCredentials(s.basicRpcCreds))
 			requireRpcSuccess(s.T(), setResp, err)
 			assertValidCas(s.T(), setResp.Cas)
@@ -199,7 +400,47 @@ func (s *GatewayOpsTestSuite) TestXdcrPushDocument() {
 				DocId:          docId,
 				Content:        TEST_CONTENT,
 				ContentFlags:   TEST_CONTENT_FLAGS,
-				Cas:            getResp.Cas - 1,
+				Cas:            getResp.Cas + 1,
+			})
+		})
+
+		s.Run("Compressed", func() {
+			docId := s.testDocId()
+
+			getResp, err := xdcrClient.GetDocument(context.Background(), &internal_xdcr_v1.GetDocumentRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			requireRpcSuccess(s.T(), getResp, err)
+
+			setResp, err := xdcrClient.PushDocument(context.Background(), &internal_xdcr_v1.PushDocumentRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+				CheckCas:       &getResp.Cas,
+				StoreCas:       getResp.Cas + 1,
+				ContentFlags:   TEST_CONTENT_FLAGS,
+				ContentType:    internal_xdcr_v1.ContentType_CONTENT_TYPE_JSON,
+				Content: &internal_xdcr_v1.PushDocumentRequest_ContentCompressed{
+					ContentCompressed: s.compressContent(TEST_CONTENT),
+				},
+				ExpiryTime: nil, // no expiry
+				Revno:      getResp.Revno + 1,
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			requireRpcSuccess(s.T(), setResp, err)
+			assertValidCas(s.T(), setResp.Cas)
+
+			s.checkDocument(s.T(), checkDocumentOptions{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				DocId:          docId,
+				Content:        TEST_CONTENT,
+				ContentFlags:   TEST_CONTENT_FLAGS,
+				Cas:            getResp.Cas + 1,
 			})
 		})
 
@@ -218,17 +459,19 @@ func (s *GatewayOpsTestSuite) TestXdcrPushDocument() {
 			var wrongCas uint64 = getResp.Cas + 1
 
 			_, err = xdcrClient.PushDocument(context.Background(), &internal_xdcr_v1.PushDocumentRequest{
-				BucketName:        s.bucketName,
-				ScopeName:         s.scopeName,
-				CollectionName:    s.collectionName,
-				Key:               docId,
-				CheckCas:          &wrongCas,
-				StoreCas:          getResp.Cas + 1,
-				ContentFlags:      TEST_CONTENT_FLAGS,
-				ContentType:       internal_xdcr_v1.ContentType_CONTENT_TYPE_JSON,
-				ContentCompressed: s.compressContent(TEST_CONTENT),
-				ExpiryTime:        nil, // no expiry
-				Revno:             getResp.Revno + 1,
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+				CheckCas:       &wrongCas,
+				StoreCas:       getResp.Cas + 1,
+				ContentFlags:   TEST_CONTENT_FLAGS,
+				ContentType:    internal_xdcr_v1.ContentType_CONTENT_TYPE_JSON,
+				Content: &internal_xdcr_v1.PushDocumentRequest_ContentUncompressed{
+					ContentUncompressed: TEST_CONTENT,
+				},
+				ExpiryTime: nil, // no expiry
+				Revno:      getResp.Revno + 1,
 			}, grpc.PerRPCCredentials(s.basicRpcCreds))
 			assertRpcStatus(s.T(), err, codes.Aborted)
 			assertRpcErrorDetails(s.T(), err, func(d *epb.ErrorInfo) {
@@ -248,17 +491,19 @@ func (s *GatewayOpsTestSuite) TestXdcrPushDocument() {
 			requireRpcSuccess(s.T(), getResp, err)
 
 			setResp, err := xdcrClient.PushDocument(context.Background(), &internal_xdcr_v1.PushDocumentRequest{
-				BucketName:        s.bucketName,
-				ScopeName:         s.scopeName,
-				CollectionName:    s.collectionName,
-				Key:               docId,
-				CheckCas:          nil,
-				StoreCas:          getResp.Cas + 10,
-				ContentFlags:      TEST_CONTENT_FLAGS,
-				ContentType:       internal_xdcr_v1.ContentType_CONTENT_TYPE_JSON,
-				ContentCompressed: s.compressContent(TEST_CONTENT),
-				ExpiryTime:        nil, // no expiry
-				Revno:             getResp.Revno + 10,
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+				CheckCas:       nil,
+				StoreCas:       getResp.Cas + 10,
+				ContentFlags:   TEST_CONTENT_FLAGS,
+				ContentType:    internal_xdcr_v1.ContentType_CONTENT_TYPE_JSON,
+				Content: &internal_xdcr_v1.PushDocumentRequest_ContentUncompressed{
+					ContentUncompressed: TEST_CONTENT,
+				},
+				ExpiryTime: nil, // no expiry
+				Revno:      getResp.Revno + 10,
 			}, grpc.PerRPCCredentials(s.basicRpcCreds))
 			requireRpcSuccess(s.T(), setResp, err)
 			assertValidCas(s.T(), setResp.Cas)
@@ -286,17 +531,19 @@ func (s *GatewayOpsTestSuite) TestXdcrPushDocument() {
 			requireRpcSuccess(s.T(), getResp, err)
 
 			_, err = xdcrClient.PushDocument(context.Background(), &internal_xdcr_v1.PushDocumentRequest{
-				BucketName:        s.bucketName,
-				ScopeName:         s.scopeName,
-				CollectionName:    s.collectionName,
-				Key:               docId,
-				CheckCas:          nil,
-				StoreCas:          getResp.Cas - 1,
-				ContentFlags:      TEST_CONTENT_FLAGS,
-				ContentType:       internal_xdcr_v1.ContentType_CONTENT_TYPE_JSON,
-				ContentCompressed: s.compressContent(TEST_CONTENT),
-				ExpiryTime:        nil, // no expiry
-				Revno:             getResp.Revno - 1,
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+				CheckCas:       nil,
+				StoreCas:       getResp.Cas - 1,
+				ContentFlags:   TEST_CONTENT_FLAGS,
+				ContentType:    internal_xdcr_v1.ContentType_CONTENT_TYPE_JSON,
+				Content: &internal_xdcr_v1.PushDocumentRequest_ContentUncompressed{
+					ContentUncompressed: TEST_CONTENT,
+				},
+				ExpiryTime: nil, // no expiry
+				Revno:      getResp.Revno - 1,
 			}, grpc.PerRPCCredentials(s.basicRpcCreds))
 			assertRpcStatus(s.T(), err, codes.Aborted)
 			assertRpcErrorDetails(s.T(), err, func(d *epb.ErrorInfo) {

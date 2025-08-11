@@ -3,14 +3,17 @@ package server_v1
 import (
 	"context"
 	"errors"
+	"strconv"
 	"time"
 
 	"github.com/couchbase/gocbcorex"
 	"github.com/couchbase/gocbcorex/cbdoccrx"
+	"github.com/couchbase/gocbcorex/cbmgmtx"
 	"github.com/couchbase/gocbcorex/memdx"
 	"github.com/couchbase/goprotostellar/genproto/internal_xdcr_v1"
 	"github.com/couchbase/goprotostellar/genproto/kv_v1"
 	"go.uber.org/zap"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
@@ -32,6 +35,45 @@ func NewXdcrServer(
 		errorHandler: errorHandler,
 		authHandler:  authHandler,
 	}
+}
+
+func (s *XdcrServer) GetBucketInfo(ctx context.Context, in *internal_xdcr_v1.GetBucketInfoRequest) (*internal_xdcr_v1.GetBucketInfoResponse, error) {
+	bucketAgent, oboUser, errSt := s.authHandler.GetHttpOboAgent(ctx, &in.BucketName)
+	if errSt != nil {
+		return nil, errSt.Err()
+	}
+
+	bucketInfo, err := bucketAgent.GetBucket(ctx, &cbmgmtx.GetBucketOptions{
+		BucketName: in.BucketName,
+		OnBehalfOf: oboUser,
+	})
+	if err != nil {
+		if errors.Is(err, cbmgmtx.ErrBucketNotFound) {
+			return nil, s.errorHandler.NewBucketMissingStatus(err, in.BucketName).Err()
+		}
+		return nil, s.errorHandler.NewGenericStatus(err).Err()
+	}
+
+	numVbuckets := uint32(0)
+	if bucketInfo.RawConfig.VBucketServerMap != nil {
+		numVbuckets = uint32(len(bucketInfo.RawConfig.VBucketServerMap.VBucketMap))
+	}
+
+	var conflictResolutionType internal_xdcr_v1.ConflictResolutionType
+	switch bucketInfo.ConflictResolutionType {
+	case cbmgmtx.ConflictResolutionTypeSequenceNumber:
+		conflictResolutionType = internal_xdcr_v1.ConflictResolutionType_CONFLICT_RESOLUTION_TYPE_SEQUENCE_NUMBER
+	case cbmgmtx.ConflictResolutionTypeTimestamp:
+		conflictResolutionType = internal_xdcr_v1.ConflictResolutionType_CONFLICT_RESOLUTION_TYPE_TIMESTAMP
+	default:
+		return nil, status.New(codes.InvalidArgument, "invalid conflict resolution mode encountered").Err()
+	}
+
+	return &internal_xdcr_v1.GetBucketInfoResponse{
+		BucketUuid:             bucketInfo.UUID,
+		NumVbuckets:            numVbuckets,
+		ConflictResolutionType: conflictResolutionType,
+	}, nil
 }
 
 func (s *XdcrServer) GetVbucketInfo(in *internal_xdcr_v1.GetVbucketInfoRequest, out internal_xdcr_v1.XdcrService_GetVbucketInfoServer) error {
@@ -120,6 +162,68 @@ func (s *XdcrServer) GetVbucketInfo(in *internal_xdcr_v1.GetVbucketInfoRequest, 
 	}
 
 	return nil
+}
+
+func (s *XdcrServer) WatchCollections(in *internal_xdcr_v1.WatchCollectionsRequest, out internal_xdcr_v1.XdcrService_WatchCollectionsServer) error {
+	ctx := out.Context()
+	bucketAgent, oboUser, errSt := s.authHandler.GetHttpOboAgent(ctx, &in.BucketName)
+	if errSt != nil {
+		return errSt.Err()
+	}
+
+	var latestManifestUid uint64 = 0
+
+	for {
+		manifest, err := bucketAgent.GetCollectionManifest(out.Context(), &cbmgmtx.GetCollectionManifestOptions{
+			BucketName: in.BucketName,
+			OnBehalfOf: oboUser,
+		})
+		if err != nil {
+			return s.errorHandler.NewGenericStatus(err).Err()
+		}
+
+		manifestUid, _ := strconv.ParseUint(manifest.UID, 16, 64)
+		if manifestUid <= latestManifestUid {
+			select {
+			case <-time.After(5 * time.Second):
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+			continue
+		}
+
+		latestManifestUid = manifestUid
+
+		resp := &internal_xdcr_v1.WatchCollectionsResponse{
+			ManifestUid: uint32(manifestUid),
+		}
+		for _, scope := range manifest.Scopes {
+			scopeId, _ := strconv.ParseUint(scope.UID, 16, 64)
+
+			scopeOut := &internal_xdcr_v1.WatchCollectionsResponse_Scope{
+				ScopeId:   uint32(scopeId),
+				ScopeName: scope.Name,
+			}
+
+			for _, collection := range scope.Collections {
+				collectionId, _ := strconv.ParseUint(collection.UID, 16, 64)
+
+				collectionOut := &internal_xdcr_v1.WatchCollectionsResponse_Collection{
+					CollectionId:   uint32(collectionId),
+					CollectionName: collection.Name,
+				}
+
+				scopeOut.Collections = append(scopeOut.Collections, collectionOut)
+			}
+
+			resp.Scopes = append(resp.Scopes, scopeOut)
+		}
+
+		err = out.Send(resp)
+		if err != nil {
+			return err
+		}
+	}
 }
 
 func (s *XdcrServer) GetDocument(
@@ -253,8 +357,12 @@ func (s *XdcrServer) CheckDocument(
 	metaRes, err := bucketAgent.GetMeta(ctx, &opts)
 	if err != nil {
 		if errors.Is(err, memdx.ErrDocNotFound) {
-			// TODO(brett19): Need to handle this as a conflict resolution case, rather
-			// than having it return a missing document error.
+			// the document not existing means that there is nothing to conflict with,
+			// and the write should succeed as long as this is not an attempt to delete.
+			if !in.IsDeleted {
+				return &internal_xdcr_v1.CheckDocumentResponse{}, nil
+			}
+
 			return nil, s.errorHandler.NewDocMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
 		} else if errors.Is(err, memdx.ErrUnknownCollectionName) {
 			return nil, s.errorHandler.NewCollectionMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
@@ -280,7 +388,7 @@ func (s *XdcrServer) CheckDocument(
 	crRes, err := cbdoccrx.ConflictResolver{
 		Mode: cbdoccrx.ConflictResolutionMode(crMode),
 	}.Resolve(&cbdoccrx.Document{
-		Cas:       in.Cas,
+		Cas:       in.StoreCas,
 		RevNo:     in.Revno,
 		Expiry:    inExpiry,
 		Flags:     in.ContentFlags,
@@ -304,7 +412,7 @@ func (s *XdcrServer) CheckDocument(
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
 
-	if crRes != cbdoccrx.ResolveResultKeepB {
+	if crRes == cbdoccrx.ResolveResultKeepB {
 		// keep b means to not replica
 		// equality means to not replicate (ie keep the target as-is)
 		return nil, s.errorHandler.NewDocConflictStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
@@ -400,9 +508,18 @@ func (s *XdcrServer) PushDocument(
 		opts.CollectionName = in.CollectionName
 		opts.Key = []byte(in.Key)
 		opts.Flags = in.ContentFlags
-		opts.Datatype = memdx.DatatypeFlagCompressed | docDatatype
-		opts.Value = in.ContentCompressed
+		opts.Datatype = docDatatype
 		opts.StoreCas = in.StoreCas
+
+		switch content := in.Content.(type) {
+		case *internal_xdcr_v1.PushDocumentRequest_ContentUncompressed:
+			opts.Value = content.ContentUncompressed
+		case *internal_xdcr_v1.PushDocumentRequest_ContentCompressed:
+			opts.Value = content.ContentCompressed
+			opts.Datatype = opts.Datatype | memdx.DatatypeFlagCompressed
+		default:
+			return nil, status.New(codes.InvalidArgument, "CompressedContent or UncompressedContent must be specified.").Err()
+		}
 
 		if in.ExpiryTime != nil {
 			opts.Expiry = timeExpiryToGocbcorex(timeToGo(in.ExpiryTime))
@@ -442,11 +559,20 @@ func (s *XdcrServer) PushDocument(
 		opts.CollectionName = in.CollectionName
 		opts.Key = []byte(in.Key)
 		opts.Flags = in.ContentFlags
-		opts.Datatype = memdx.DatatypeFlagCompressed | docDatatype
-		opts.Value = in.ContentCompressed
+		opts.Datatype = docDatatype
 		opts.RevNo = in.Revno
 		opts.CheckCas = checkCas
 		opts.StoreCas = in.StoreCas
+
+		switch content := in.Content.(type) {
+		case *internal_xdcr_v1.PushDocumentRequest_ContentUncompressed:
+			opts.Value = content.ContentUncompressed
+		case *internal_xdcr_v1.PushDocumentRequest_ContentCompressed:
+			opts.Value = content.ContentCompressed
+			opts.Datatype = opts.Datatype | memdx.DatatypeFlagCompressed
+		default:
+			return nil, status.New(codes.InvalidArgument, "CompressedContent or UncompressedContent must be specified.").Err()
+		}
 
 		if in.ExpiryTime != nil {
 			opts.Expiry = timeExpiryToGocbcorex(timeToGo(in.ExpiryTime))
