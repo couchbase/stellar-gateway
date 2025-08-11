@@ -5,7 +5,6 @@ import (
 
 	"github.com/couchbase/goprotostellar/genproto/kv_v1"
 	"github.com/couchbase/goprotostellar/genproto/query_v1"
-	"github.com/couchbase/goprotostellar/genproto/routing_v1"
 	"github.com/couchbase/stellar-gateway/contrib/grpcheaderauth"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -19,10 +18,9 @@ type routingConnOptions struct {
 }
 
 type routingConn struct {
-	conn      *grpc.ClientConn
-	routingV1 routing_v1.RoutingServiceClient
-	kvV1      kv_v1.KvServiceClient
-	queryV1   query_v1.QueryServiceClient
+	conn    *grpc.ClientConn
+	kvV1    kv_v1.KvServiceClient
+	queryV1 query_v1.QueryServiceClient
 }
 
 // Verify that routingConn implements Conn
@@ -59,15 +57,10 @@ func dialRoutingConn(address string, opts *routingConnOptions) (*routingConn, er
 	}
 
 	return &routingConn{
-		conn:      conn,
-		routingV1: routing_v1.NewRoutingServiceClient(conn),
-		kvV1:      kv_v1.NewKvServiceClient(conn),
-		queryV1:   query_v1.NewQueryServiceClient(conn),
+		conn:    conn,
+		kvV1:    kv_v1.NewKvServiceClient(conn),
+		queryV1: query_v1.NewQueryServiceClient(conn),
 	}, nil
-}
-
-func (c *routingConn) RoutingV1() routing_v1.RoutingServiceClient {
-	return c.routingV1
 }
 
 func (c *routingConn) KvV1() kv_v1.KvServiceClient {

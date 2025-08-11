@@ -8,7 +8,6 @@ import (
 	"github.com/couchbase/goprotostellar/genproto/analytics_v1"
 	"github.com/couchbase/goprotostellar/genproto/kv_v1"
 	"github.com/couchbase/goprotostellar/genproto/query_v1"
-	"github.com/couchbase/goprotostellar/genproto/routing_v1"
 	"github.com/couchbase/goprotostellar/genproto/search_v1"
 	"github.com/couchbase/goprotostellar/genproto/view_v1"
 	"google.golang.org/grpc"
@@ -17,7 +16,6 @@ import (
 
 type Client struct {
 	conn            *grpc.ClientConn
-	routingClient   routing_v1.RoutingServiceClient
 	kvClient        kv_v1.KvServiceClient
 	queryClient     query_v1.QueryServiceClient
 	searchClient    search_v1.SearchServiceClient
@@ -76,7 +74,6 @@ func Connect(connStr string, opts *ConnectOptions) (*Client, error) {
 		return nil, err
 	}
 
-	routingClient := routing_v1.NewRoutingServiceClient(conn)
 	kvClient := kv_v1.NewKvServiceClient(conn)
 	queryClient := query_v1.NewQueryServiceClient(conn)
 	searchClient := search_v1.NewSearchServiceClient(conn)
@@ -85,7 +82,6 @@ func Connect(connStr string, opts *ConnectOptions) (*Client, error) {
 
 	return &Client{
 		conn:            conn,
-		routingClient:   routingClient,
 		kvClient:        kvClient,
 		queryClient:     queryClient,
 		searchClient:    searchClient,

@@ -8,13 +8,11 @@ import (
 
 	"github.com/couchbase/goprotostellar/genproto/kv_v1"
 	"github.com/couchbase/goprotostellar/genproto/query_v1"
-	"github.com/couchbase/goprotostellar/genproto/routing_v1"
 	"go.uber.org/zap"
 )
 
 type routingClient_Bucket struct {
 	RefCount uint
-	Watcher  *routingWatcher
 }
 
 type RoutingClient struct {
@@ -74,14 +72,8 @@ func (c *RoutingClient) OpenBucket(bucketName string) {
 		return
 	}
 
-	watcher := newRoutingWatcher(&routingWatcherOptions{
-		RoutingClient: nil,
-		BucketName:    bucketName,
-		RoutingTable:  c.routing,
-	})
 	c.buckets[bucketName] = &routingClient_Bucket{
 		RefCount: 1,
-		Watcher:  watcher,
 	}
 
 	c.lock.Unlock()
@@ -111,7 +103,6 @@ func (c *RoutingClient) CloseBucket(bucketName string) {
 		return
 	}
 
-	bucket.Watcher.Close()
 	delete(c.buckets, bucketName)
 
 	c.lock.Unlock()
@@ -132,10 +123,6 @@ func (c *RoutingClient) fetchConnForBucket(bucketName string) *routingConn {
 func (c *RoutingClient) fetchConnForKey(bucketName string, key string) *routingConn {
 	// TODO(brett19): Implement routing of key-specific requests.
 	return c.fetchConn()
-}
-
-func (c *RoutingClient) RoutingV1() routing_v1.RoutingServiceClient {
-	return &routingImpl_RoutingV1{c}
 }
 
 func (c *RoutingClient) KvV1() kv_v1.KvServiceClient {

@@ -9,7 +9,6 @@ import (
 
 	"github.com/couchbase/goprotostellar/genproto/internal_hooks_v1"
 	"github.com/couchbase/goprotostellar/genproto/kv_v1"
-	"github.com/couchbase/goprotostellar/genproto/routing_v1"
 	"github.com/couchbase/goprotostellar/genproto/transactions_v1"
 	"github.com/google/uuid"
 	"google.golang.org/grpc/metadata"
@@ -107,32 +106,6 @@ func main() {
 		}
 
 		log.Printf("got updated test document: %+v (value: %s)", getRes, getRes.Content)
-	}
-
-	// testing of some routing stuff
-	if false {
-		conn := client.GetConn()
-		rc := routing_v1.NewRoutingServiceClient(conn)
-
-		bucketName := "default"
-		wr, err := rc.WatchRouting(ctx, &routing_v1.WatchRoutingRequest{
-			BucketName: &bucketName,
-		})
-		if err != nil {
-			log.Fatalf("failed to watch routing: %s", err)
-		}
-		go func() {
-			log.Printf("starting to watch routing")
-			for {
-				routes, err := wr.Recv()
-				if err != nil {
-					log.Printf("watch routing failed: %s", err)
-					break
-				}
-
-				log.Printf("got routing: %+v", routes)
-			}
-		}()
 	}
 
 	// testing some basic CRUD operations
