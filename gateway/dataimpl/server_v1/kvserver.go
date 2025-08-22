@@ -736,6 +736,12 @@ func (s *KvServer) Increment(ctx context.Context, in *kv_v1.IncrementRequest) (*
 		opts.Initial = uint64(0xFFFFFFFFFFFFFFFF)
 	}
 
+	if opts.Expiry != 0 && opts.Initial == 0xffffffffffffffff {
+		// it doesn't make sense to set an expiry and also not want to create the document
+		// since the expiry does not get applied to existing documents being updated.
+		return nil, s.errorHandler.NewIllogicalCounterExpiry().Err()
+	}
+
 	result, err := bucketAgent.Increment(ctx, &opts)
 	if err != nil {
 		if errors.Is(err, memdx.ErrDeltaBadval) {
@@ -805,6 +811,12 @@ func (s *KvServer) Decrement(ctx context.Context, in *kv_v1.DecrementRequest) (*
 		opts.Initial = uint64(*in.Initial)
 	} else {
 		opts.Initial = uint64(0xFFFFFFFFFFFFFFFF)
+	}
+
+	if opts.Expiry != 0 && opts.Initial == 0xffffffffffffffff {
+		// it doesn't make sense to set an expiry and also not want to create the document
+		// since the expiry does not get applied to existing documents being updated.
+		return nil, s.errorHandler.NewIllogicalCounterExpiry().Err()
 	}
 
 	result, err := bucketAgent.Decrement(ctx, &opts)

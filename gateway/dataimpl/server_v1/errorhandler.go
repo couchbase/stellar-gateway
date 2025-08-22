@@ -745,6 +745,12 @@ func (e ErrorHandler) NewInvalidSnappyValueError() *status.Status {
 	return st
 }
 
+func (e ErrorHandler) NewIllogicalCounterExpiry() *status.Status {
+	st := status.New(codes.InvalidArgument,
+		"Expiry cannot be set when the document does not exist and Initial is not set.  Expiry is only applied to new documents that are created.")
+	return st
+}
+
 func (e ErrorHandler) NewUnsupportedFieldStatus(fieldPath string) *status.Status {
 	st := status.New(codes.Unimplemented,
 		fmt.Sprintf("The '%s' field is not currently supported", fieldPath))

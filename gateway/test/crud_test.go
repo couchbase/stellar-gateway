@@ -2701,6 +2701,19 @@ func (s *GatewayOpsTestSuite) TestIncrement() {
 		})
 	})
 
+	s.Run("IllogicalExpiry", func() {
+		docId := s.randomDocId()
+		_, err := kvClient.Increment(context.Background(), &kv_v1.IncrementRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            docId,
+			Delta:          1,
+			Expiry:         &kv_v1.IncrementRequest_ExpirySecs{ExpirySecs: 1},
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		assertRpcStatus(s.T(), err, codes.InvalidArgument)
+	})
+
 	s.RunCommonErrorCases(func(ctx context.Context, opts *commonErrorTestData) (interface{}, error) {
 		return kvClient.Increment(ctx, &kv_v1.IncrementRequest{
 			BucketName:     opts.BucketName,
@@ -2983,6 +2996,19 @@ func (s *GatewayOpsTestSuite) TestDecrement() {
 				expiry:         expiryCheckType_Past,
 			})
 		})
+	})
+
+	s.Run("IllogicalExpiry", func() {
+		docId := s.randomDocId()
+		_, err := kvClient.Decrement(context.Background(), &kv_v1.DecrementRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            docId,
+			Delta:          1,
+			Expiry:         &kv_v1.DecrementRequest_ExpirySecs{ExpirySecs: 1},
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		assertRpcStatus(s.T(), err, codes.InvalidArgument)
 	})
 
 	s.RunCommonErrorCases(func(ctx context.Context, opts *commonErrorTestData) (interface{}, error) {
