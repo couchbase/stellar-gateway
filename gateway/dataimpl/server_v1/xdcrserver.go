@@ -449,6 +449,11 @@ func (s *XdcrServer) PushDocument(
 		docDatatype |= memdx.DatatypeFlagJSON
 	}
 
+	crMode, err := bucketAgent.GetConflictResolutionMode(ctx)
+	if err != nil {
+		return nil, s.errorHandler.NewGenericStatus(err).Err()
+	}
+
 	if in.IsDeleted {
 		var checkCas uint64
 		if in.CheckCas != nil {
@@ -471,6 +476,9 @@ func (s *XdcrServer) PushDocument(
 
 		if checkCas != 0 {
 			opts.Options |= memdx.MetaOpFlagSkipConflictResolution
+		}
+		if crMode == cbmgmtx.ConflictResolutionTypeTimestamp {
+			opts.Options |= memdx.MetaOpFlagForceAcceptWithMetaOps
 		}
 
 		result, err := bucketAgent.DeleteWithMeta(ctx, &opts)
@@ -523,6 +531,10 @@ func (s *XdcrServer) PushDocument(
 
 		if in.ExpiryTime != nil {
 			opts.Expiry = timeExpiryToGocbcorex(timeToGo(in.ExpiryTime))
+		}
+
+		if crMode == cbmgmtx.ConflictResolutionTypeTimestamp {
+			opts.Options |= memdx.MetaOpFlagForceAcceptWithMetaOps
 		}
 
 		result, err := bucketAgent.AddWithMeta(ctx, &opts)
@@ -580,6 +592,9 @@ func (s *XdcrServer) PushDocument(
 
 		if checkCas != 0 {
 			opts.Options |= memdx.MetaOpFlagSkipConflictResolution
+		}
+		if crMode == cbmgmtx.ConflictResolutionTypeTimestamp {
+			opts.Options |= memdx.MetaOpFlagForceAcceptWithMetaOps
 		}
 
 		result, err := bucketAgent.SetWithMeta(ctx, &opts)
