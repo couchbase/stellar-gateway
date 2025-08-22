@@ -154,10 +154,12 @@ func (e ErrorHandler) NewBucketFlushDisabledStatus(baseErr error, bucketName str
 	st := status.New(codes.FailedPrecondition,
 		fmt.Sprintf("Flush is disabled for bucket '%s'.",
 			bucketName))
-	st = e.tryAttachStatusDetails(st, &epb.ResourceInfo{
-		ResourceType: "bucket",
-		ResourceName: bucketName,
-		Description:  "",
+	st = e.tryAttachStatusDetails(st, &epb.PreconditionFailure{
+		Violations: []*epb.PreconditionFailure_Violation{{
+			Type:        "FLUSH_DISABLED",
+			Subject:     bucketName,
+			Description: "",
+		}},
 	})
 	st = e.tryAttachExtraContext(st, baseErr)
 	return st
