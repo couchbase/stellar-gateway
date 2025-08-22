@@ -65,6 +65,9 @@ func assertRpcStatus(t *testing.T, err error, expectedCode codes.Code) {
 		t.Fatalf("expected rpc error status, but got non-status error")
 	}
 
+	if errSt.Code() != expectedCode {
+		t.Logf("expected rpc error status code %s, but got %s: %s", expectedCode, errSt.Code(), errSt.Message())
+	}
 	assert.Equal(t, expectedCode, errSt.Code())
 }
 
