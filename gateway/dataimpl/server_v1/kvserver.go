@@ -386,6 +386,11 @@ func (s *KvServer) Insert(ctx context.Context, in *kv_v1.InsertRequest) (*kv_v1.
 			return nil, s.errorHandler.NewDurabilityImpossibleStatus(err, in.BucketName).Err()
 		} else if errors.Is(err, memdx.ErrSyncWriteAmbiguous) {
 			return nil, s.errorHandler.NewSyncWriteAmbiguousStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+		} else if errors.Is(err, memdx.ErrInvalidArgument) {
+			errType := memdx.ParseInvalidArgsError(err)
+			if errType == memdx.InvalidArgsErrorCannotInflate {
+				return nil, s.errorHandler.NewInvalidSnappyValueError().Err()
+			}
 		}
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
@@ -520,6 +525,11 @@ func (s *KvServer) Upsert(ctx context.Context, in *kv_v1.UpsertRequest) (*kv_v1.
 			return nil, s.errorHandler.NewDurabilityImpossibleStatus(err, in.BucketName).Err()
 		} else if errors.Is(err, memdx.ErrSyncWriteAmbiguous) {
 			return nil, s.errorHandler.NewSyncWriteAmbiguousStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+		} else if errors.Is(err, memdx.ErrInvalidArgument) {
+			errType := memdx.ParseInvalidArgsError(err)
+			if errType == memdx.InvalidArgsErrorCannotInflate {
+				return nil, s.errorHandler.NewInvalidSnappyValueError().Err()
+			}
 		}
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
@@ -607,6 +617,11 @@ func (s *KvServer) Replace(ctx context.Context, in *kv_v1.ReplaceRequest) (*kv_v
 			return nil, s.errorHandler.NewDurabilityImpossibleStatus(err, in.BucketName).Err()
 		} else if errors.Is(err, memdx.ErrSyncWriteAmbiguous) {
 			return nil, s.errorHandler.NewSyncWriteAmbiguousStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+		} else if errors.Is(err, memdx.ErrInvalidArgument) {
+			errType := memdx.ParseInvalidArgsError(err)
+			if errType == memdx.InvalidArgsErrorCannotInflate {
+				return nil, s.errorHandler.NewInvalidSnappyValueError().Err()
+			}
 		}
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
