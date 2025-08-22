@@ -154,10 +154,12 @@ func (e ErrorHandler) NewBucketFlushDisabledStatus(baseErr error, bucketName str
 	st := status.New(codes.FailedPrecondition,
 		fmt.Sprintf("Flush is disabled for bucket '%s'.",
 			bucketName))
-	st = e.tryAttachStatusDetails(st, &epb.ResourceInfo{
-		ResourceType: "bucket",
-		ResourceName: bucketName,
-		Description:  "",
+	st = e.tryAttachStatusDetails(st, &epb.PreconditionFailure{
+		Violations: []*epb.PreconditionFailure_Violation{{
+			Type:        "FLUSH_DISABLED",
+			Subject:     bucketName,
+			Description: "",
+		}},
 	})
 	st = e.tryAttachExtraContext(st, baseErr)
 	return st
@@ -735,6 +737,17 @@ func (e ErrorHandler) NewSdPathInvalidStatus(baseErr error, sdPath string) *stat
 	st := status.New(codes.InvalidArgument,
 		fmt.Sprintf("Invalid subdocument path syntax '%s'.", sdPath))
 	st = e.tryAttachExtraContext(st, baseErr)
+	return st
+}
+
+func (e ErrorHandler) NewInvalidSnappyValueError() *status.Status {
+	st := status.New(codes.InvalidArgument, "Failed to snappy inflate value.")
+	return st
+}
+
+func (e ErrorHandler) NewIllogicalCounterExpiry() *status.Status {
+	st := status.New(codes.InvalidArgument,
+		"Expiry cannot be set when the document does not exist and Initial is not set.  Expiry is only applied to new documents that are created.")
 	return st
 }
 

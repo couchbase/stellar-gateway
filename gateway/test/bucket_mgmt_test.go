@@ -2,15 +2,19 @@ package test
 
 import (
 	"context"
+	"time"
 
 	"github.com/couchbase/gocbcorex/contrib/ptr"
 	"github.com/couchbase/goprotostellar/genproto/admin_bucket_v1"
 	"github.com/couchbase/goprotostellar/genproto/kv_v1"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	epb "google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/status"
 )
 
 type commonBucketMgmtErrorTestData struct {
@@ -543,38 +547,39 @@ func (s *GatewayOpsTestSuite) TestDeleteBucket() {
 }
 
 func (s *GatewayOpsTestSuite) TestFlushBucket() {
-	// BUG(ING-1207): This test is flaky and doesn't work in many environments.
-	s.T().Skip("ING-1207")
-
 	if !s.SupportsFeature(TestFeatureBucketManagement) {
 		s.T().Skip()
 	}
 
 	adminClient := admin_bucket_v1.NewBucketAdminServiceClient(s.gatewayConn)
 
-	flushEnabled := uuid.NewString()[:6]
+	bucketName := uuid.NewString()[:6]
 	resp, err := adminClient.CreateBucket(context.Background(), &admin_bucket_v1.CreateBucketRequest{
-		BucketName:   flushEnabled,
+		BucketName:   bucketName,
 		BucketType:   admin_bucket_v1.BucketType_BUCKET_TYPE_COUCHBASE,
 		FlushEnabled: ptr.To(true),
+		RamQuotaMb:   ptr.To[uint64](100),
 	}, grpc.PerRPCCredentials(s.basicRpcCreds))
 	requireRpcSuccess(s.T(), resp, err)
 
-	flushDisabled := uuid.NewString()[:6]
-	resp, err = adminClient.CreateBucket(context.Background(), &admin_bucket_v1.CreateBucketRequest{
-		BucketName:   flushDisabled,
-		BucketType:   admin_bucket_v1.BucketType_BUCKET_TYPE_COUCHBASE,
-		FlushEnabled: ptr.To(false),
-	}, grpc.PerRPCCredentials(s.basicRpcCreds))
-	requireRpcSuccess(s.T(), resp, err)
-
-	createdBuckets := &[]string{flushEnabled, flushDisabled}
 	s.T().Cleanup(func() {
-		for _, bucketName := range *createdBuckets {
-			_, _ = adminClient.DeleteBucket(context.Background(), &admin_bucket_v1.DeleteBucketRequest{
+		_, _ = adminClient.DeleteBucket(context.Background(), &admin_bucket_v1.DeleteBucketRequest{
+			BucketName: bucketName,
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+	})
+
+	s.Run("Basic", func() {
+		require.Eventually(s.T(), func() bool {
+			resp, err := adminClient.FlushBucket(context.Background(), &admin_bucket_v1.FlushBucketRequest{
 				BucketName: bucketName,
 			}, grpc.PerRPCCredentials(s.basicRpcCreds))
-		}
+			if err != nil {
+				return false
+			}
+
+			requireRpcSuccess(s.T(), resp, err)
+			return true
+		}, 10*time.Second, 500*time.Millisecond)
 	})
 
 	type flushTest struct {
@@ -592,27 +597,13 @@ func (s *GatewayOpsTestSuite) TestFlushBucket() {
 			},
 			expect: codes.NotFound,
 		},
-		{
-			description: "FlushDisabled",
-			modifyDefault: func(def *admin_bucket_v1.FlushBucketRequest) *admin_bucket_v1.FlushBucketRequest {
-				def.BucketName = flushDisabled
-				return def
-			},
-			expect: codes.FailedPrecondition,
-		},
-		{
-			description: "Success",
-			modifyDefault: func(def *admin_bucket_v1.FlushBucketRequest) *admin_bucket_v1.FlushBucketRequest {
-				return def
-			},
-		},
 	}
 
 	for i := range flushTests {
 		t := flushTests[i]
 		s.Run(t.description, func() {
 			defaultFlushRequest := admin_bucket_v1.FlushBucketRequest{
-				BucketName: flushEnabled,
+				BucketName: bucketName,
 			}
 			req := t.modifyDefault(&defaultFlushRequest)
 
@@ -631,6 +622,54 @@ func (s *GatewayOpsTestSuite) TestFlushBucket() {
 				BucketName: opts.BucketName,
 			}, grpc.PerRPCCredentials(opts.Creds))
 		})
+}
+
+func (s *GatewayOpsTestSuite) TestFlushBucket_FlushDisabled() {
+	if !s.SupportsFeature(TestFeatureBucketManagement) {
+		s.T().Skip()
+	}
+
+	adminClient := admin_bucket_v1.NewBucketAdminServiceClient(s.gatewayConn)
+
+	bucketName := uuid.NewString()[:6]
+	createResp, err := adminClient.CreateBucket(context.Background(), &admin_bucket_v1.CreateBucketRequest{
+		BucketName:   bucketName,
+		BucketType:   admin_bucket_v1.BucketType_BUCKET_TYPE_COUCHBASE,
+		FlushEnabled: ptr.To(false),
+		RamQuotaMb:   ptr.To[uint64](100),
+	}, grpc.PerRPCCredentials(s.basicRpcCreds))
+	requireRpcSuccess(s.T(), createResp, err)
+
+	s.T().Cleanup(func() {
+		_, _ = adminClient.DeleteBucket(context.Background(), &admin_bucket_v1.DeleteBucketRequest{
+			BucketName: bucketName,
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+	})
+
+	var flushErr error
+	require.Eventually(s.T(), func() bool {
+		_, err = adminClient.FlushBucket(context.Background(), &admin_bucket_v1.FlushBucketRequest{
+			BucketName: bucketName,
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		if err == nil {
+			flushErr = nil
+			return true
+		}
+
+		errSt, _ := status.FromError(err)
+		if errSt.Code() == codes.Unknown {
+			return false
+		}
+
+		flushErr = err
+		return true
+	}, 10*time.Second, 500*time.Millisecond)
+
+	assertRpcStatus(s.T(), flushErr, codes.FailedPrecondition)
+	assertRpcErrorDetails(s.T(), flushErr, func(d *epb.PreconditionFailure) {
+		assert.Len(s.T(), d.Violations, 1)
+		assert.Equal(s.T(), d.Violations[0].Type, "FLUSH_DISABLED")
+	})
 }
 
 func (s *GatewayOpsTestSuite) TestUpdateBucket() {

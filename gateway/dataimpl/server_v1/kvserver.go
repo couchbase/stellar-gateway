@@ -386,6 +386,11 @@ func (s *KvServer) Insert(ctx context.Context, in *kv_v1.InsertRequest) (*kv_v1.
 			return nil, s.errorHandler.NewDurabilityImpossibleStatus(err, in.BucketName).Err()
 		} else if errors.Is(err, memdx.ErrSyncWriteAmbiguous) {
 			return nil, s.errorHandler.NewSyncWriteAmbiguousStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+		} else if errors.Is(err, memdx.ErrInvalidArgument) {
+			errType := memdx.ParseInvalidArgsError(err)
+			if errType == memdx.InvalidArgsErrorCannotInflate {
+				return nil, s.errorHandler.NewInvalidSnappyValueError().Err()
+			}
 		}
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
@@ -520,6 +525,11 @@ func (s *KvServer) Upsert(ctx context.Context, in *kv_v1.UpsertRequest) (*kv_v1.
 			return nil, s.errorHandler.NewDurabilityImpossibleStatus(err, in.BucketName).Err()
 		} else if errors.Is(err, memdx.ErrSyncWriteAmbiguous) {
 			return nil, s.errorHandler.NewSyncWriteAmbiguousStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+		} else if errors.Is(err, memdx.ErrInvalidArgument) {
+			errType := memdx.ParseInvalidArgsError(err)
+			if errType == memdx.InvalidArgsErrorCannotInflate {
+				return nil, s.errorHandler.NewInvalidSnappyValueError().Err()
+			}
 		}
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
@@ -607,6 +617,11 @@ func (s *KvServer) Replace(ctx context.Context, in *kv_v1.ReplaceRequest) (*kv_v
 			return nil, s.errorHandler.NewDurabilityImpossibleStatus(err, in.BucketName).Err()
 		} else if errors.Is(err, memdx.ErrSyncWriteAmbiguous) {
 			return nil, s.errorHandler.NewSyncWriteAmbiguousStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+		} else if errors.Is(err, memdx.ErrInvalidArgument) {
+			errType := memdx.ParseInvalidArgsError(err)
+			if errType == memdx.InvalidArgsErrorCannotInflate {
+				return nil, s.errorHandler.NewInvalidSnappyValueError().Err()
+			}
 		}
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
@@ -721,6 +736,12 @@ func (s *KvServer) Increment(ctx context.Context, in *kv_v1.IncrementRequest) (*
 		opts.Initial = uint64(0xFFFFFFFFFFFFFFFF)
 	}
 
+	if opts.Expiry != 0 && opts.Initial == 0xffffffffffffffff {
+		// it doesn't make sense to set an expiry and also not want to create the document
+		// since the expiry does not get applied to existing documents being updated.
+		return nil, s.errorHandler.NewIllogicalCounterExpiry().Err()
+	}
+
 	result, err := bucketAgent.Increment(ctx, &opts)
 	if err != nil {
 		if errors.Is(err, memdx.ErrDeltaBadval) {
@@ -790,6 +811,12 @@ func (s *KvServer) Decrement(ctx context.Context, in *kv_v1.DecrementRequest) (*
 		opts.Initial = uint64(*in.Initial)
 	} else {
 		opts.Initial = uint64(0xFFFFFFFFFFFFFFFF)
+	}
+
+	if opts.Expiry != 0 && opts.Initial == 0xffffffffffffffff {
+		// it doesn't make sense to set an expiry and also not want to create the document
+		// since the expiry does not get applied to existing documents being updated.
+		return nil, s.errorHandler.NewIllogicalCounterExpiry().Err()
 	}
 
 	result, err := bucketAgent.Decrement(ctx, &opts)
