@@ -385,25 +385,20 @@ func (s *GatewayOpsTestSuite) TestInsert() {
 		})
 	})
 
-	// BUG(ING-1209): incorrectly compressed content returns unhelpful error
-	// s.Run("IncorrectlyCompressedContent", func() {
-	// 	docId := s.randomDocId()
-	// 	_, err := kvClient.Insert(context.Background(), &kv_v1.InsertRequest{
-	// 		BucketName:     s.bucketName,
-	// 		ScopeName:      s.scopeName,
-	// 		CollectionName: s.collectionName,
-	// 		Key:            docId,
-	// 		Content: &kv_v1.InsertRequest_ContentCompressed{
-	// 			ContentCompressed: TEST_CONTENT,
-	// 		},
-	// 		ContentFlags: TEST_CONTENT_FLAGS,
-	// 	}, grpc.PerRPCCredentials(s.basicRpcCreds))
-	// 	fmt.Printf("JW ERR: %s\n", err)
-	// 	assertRpcStatus(s.T(), err, codes.InvalidArgument)
-	// 	assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
-	// 		assert.Equal(s.T(), d.ResourceType, "document")
-	// 	})
-	// })
+	s.Run("IncorrectlyCompressedContent", func() {
+		docId := s.randomDocId()
+		_, err := kvClient.Insert(context.Background(), &kv_v1.InsertRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            docId,
+			Content: &kv_v1.InsertRequest_ContentCompressed{
+				ContentCompressed: TEST_CONTENT,
+			},
+			ContentFlags: TEST_CONTENT_FLAGS,
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		assertRpcStatus(s.T(), err, codes.InvalidArgument)
+	})
 
 	s.Run("DocExists", func() {
 		_, err := kvClient.Insert(context.Background(), &kv_v1.InsertRequest{
@@ -699,6 +694,21 @@ func (s *GatewayOpsTestSuite) TestUpsert() {
 			Content:        TEST_CONTENT,
 			ContentFlags:   TEST_CONTENT_FLAGS,
 		})
+	})
+
+	s.Run("IncorrectlyCompressedContent", func() {
+		docId := s.randomDocId()
+		_, err := kvClient.Upsert(context.Background(), &kv_v1.UpsertRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            docId,
+			Content: &kv_v1.UpsertRequest_ContentCompressed{
+				ContentCompressed: TEST_CONTENT,
+			},
+			ContentFlags: TEST_CONTENT_FLAGS,
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		assertRpcStatus(s.T(), err, codes.InvalidArgument)
 	})
 
 	s.Run("DocLocked", func() {
@@ -1338,6 +1348,22 @@ func (s *GatewayOpsTestSuite) TestReplace() {
 			Content:        newContent,
 			ContentFlags:   TEST_CONTENT_FLAGS,
 		})
+	})
+
+	s.Run("IncorrectlyCompressedContent", func() {
+		docId := s.randomDocId()
+
+		_, err := kvClient.Replace(context.Background(), &kv_v1.ReplaceRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            docId,
+			Content: &kv_v1.ReplaceRequest_ContentCompressed{
+				ContentCompressed: newContent,
+			},
+			ContentFlags: TEST_CONTENT_FLAGS,
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		assertRpcStatus(s.T(), err, codes.InvalidArgument)
 	})
 
 	s.Run("WithCas", func() {

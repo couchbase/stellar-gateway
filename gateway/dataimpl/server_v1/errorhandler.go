@@ -740,6 +740,11 @@ func (e ErrorHandler) NewSdPathInvalidStatus(baseErr error, sdPath string) *stat
 	return st
 }
 
+func (e ErrorHandler) NewInvalidSnappyValueError() *status.Status {
+	st := status.New(codes.InvalidArgument, "Failed to snappy inflate value.")
+	return st
+}
+
 func (e ErrorHandler) NewUnsupportedFieldStatus(fieldPath string) *status.Status {
 	st := status.New(codes.Unimplemented,
 		fmt.Sprintf("The '%s' field is not currently supported", fieldPath))
