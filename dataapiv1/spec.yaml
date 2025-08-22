@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://json-schema.org/draft/2020-12/schema
 openapi: '3.0.0'
 info:
   version: 1.0.0
@@ -1229,7 +1230,7 @@ components:
     ContentEncodingHeader:
       in: header
       name: Content-Encoding
-      description: The encoding of the document.
+      description: The Content-Encoding of the body of the request.
       schema:
         $ref: '#/components/schemas/DocumentEncoding'
     IfMatchHeader:
@@ -1241,13 +1242,13 @@ components:
     ExpiresHeader:
       in: header
       name: Expires
-      description: The expiry time of the document.
+      description: The expiry time to set for the document, specified as a HTTP Date header or Go Duration string.
       schema:
         type: string
     DocumentFlagsHeader:
       in: header
       name: X-CB-Flags
-      description: The flags of the document.
+      description: Overrides the document flags to a custom value rather than using values based on the Content-Type header.
       schema:
         type: integer
         format: uint32
