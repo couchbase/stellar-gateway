@@ -80,7 +80,7 @@ func (s *GatewayOpsTestSuite) TestCreateCollection() {
 		found := s.findCollection(context.Background(), colClient, bucketName, scopeName, colName)
 
 		if assert.NotNil(s.T(), found, "Did not find collection on cluster") {
-			assert.Equal(s.T(), *found.MaxExpirySecs, maxExpiry)
+			assert.Equal(s.T(), maxExpiry, *found.MaxExpirySecs)
 		}
 	})
 
@@ -101,7 +101,7 @@ func (s *GatewayOpsTestSuite) TestCreateCollection() {
 		found := s.findCollection(context.Background(), colClient, bucketName, scopeName, colName)
 
 		if assert.NotNil(s.T(), found, "Did not find collection on cluster") {
-			assert.Equal(s.T(), *found.MaxExpirySecs, maxExpiry)
+			assert.Equal(s.T(), maxExpiry, *found.MaxExpirySecs)
 		}
 	})
 
@@ -245,7 +245,7 @@ func (s *GatewayOpsTestSuite) TestUpdateCollection() {
 		found := s.findCollection(context.Background(), colClient, bucketName, scopeName, colName)
 
 		if assert.NotNil(s.T(), found, "Did not find collection on cluster") {
-			assert.Equal(s.T(), *found.MaxExpirySecs, maxExpiry)
+			assert.Equal(s.T(), maxExpiry, *found.MaxExpirySecs)
 		}
 	})
 
@@ -265,7 +265,7 @@ func (s *GatewayOpsTestSuite) TestUpdateCollection() {
 		found := s.findCollection(context.Background(), colClient, bucketName, scopeName, colName)
 
 		if assert.NotNil(s.T(), found, "Did not find collection on cluster") {
-			assert.Equal(s.T(), *found.MaxExpirySecs, maxExpiry)
+			assert.Equal(s.T(), maxExpiry, *found.MaxExpirySecs)
 		}
 	})
 
@@ -359,7 +359,7 @@ func (s *GatewayOpsTestSuite) TestListCollection() {
 		found := s.findCollection(context.Background(), colClient, bucketName, scopeName, colName)
 
 		if assert.NotNil(s.T(), found, "Did not find collection on cluster") {
-			assert.Equal(s.T(), *found.MaxExpirySecs, maxExpiry)
+			assert.Equal(s.T(), maxExpiry, *found.MaxExpirySecs)
 		}
 
 		// List collections with apiVersion before CollectionNoExpiry should result in collection being listed without maxExpiry

@@ -211,7 +211,7 @@ func (s *GatewayOpsTestSuite) TestQueryManagement() {
 				assertRpcStatus(s.T(), err, t.expect)
 				if t.resourceDetails != "" {
 					assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
-						assert.Equal(s.T(), d.ResourceType, t.resourceDetails)
+						assert.Equal(s.T(), t.resourceDetails, d.ResourceType)
 					})
 				}
 			})
@@ -429,7 +429,7 @@ func (s *GatewayOpsTestSuite) TestQueryManagement() {
 
 				if t.resourceDetails != "" {
 					assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
-						assert.Equal(s.T(), d.ResourceType, t.resourceDetails)
+						assert.Equal(s.T(), t.resourceDetails, d.ResourceType)
 					})
 				}
 			})
@@ -602,7 +602,7 @@ func (s *GatewayOpsTestSuite) TestQueryManagement() {
 				assertRpcStatus(s.T(), err, t.expect)
 				if t.resourceDetails != "" {
 					assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
-						assert.Equal(s.T(), d.ResourceType, t.resourceDetails)
+						assert.Equal(s.T(), t.resourceDetails, d.ResourceType)
 					})
 				}
 			})
@@ -821,7 +821,7 @@ func (s *GatewayOpsTestSuite) TestQueryManagement() {
 
 				if t.resourceDetails != "" {
 					assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
-						assert.Equal(s.T(), d.ResourceType, t.resourceDetails)
+						assert.Equal(s.T(), t.resourceDetails, d.ResourceType)
 					})
 				}
 			})
