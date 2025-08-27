@@ -177,7 +177,7 @@ func (s *GatewayOpsTestSuite) TestQuery() {
 		_, _, err = readQueryStream(client)
 		assertRpcStatus(s.T(), err, codes.PermissionDenied)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
-			assert.Equal(s.T(), d.ResourceType, "user")
+			assert.Equal(s.T(), "user", d.ResourceType)
 		})
 	})
 
@@ -212,7 +212,7 @@ func (s *GatewayOpsTestSuite) TestQuery() {
 		_, _, err = readQueryStream(client)
 		assertRpcStatus(s.T(), err, codes.AlreadyExists)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
-			assert.Equal(s.T(), d.ResourceType, "queryindex")
+			assert.Equal(s.T(), "queryindex", d.ResourceType)
 		})
 	})
 
@@ -228,7 +228,7 @@ func (s *GatewayOpsTestSuite) TestQuery() {
 		_, _, err = readQueryStream(client)
 		assertRpcStatus(s.T(), err, codes.NotFound)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
-			assert.Equal(s.T(), d.ResourceType, "queryindex")
+			assert.Equal(s.T(), "queryindex", d.ResourceType)
 		})
 	})
 
