@@ -42,7 +42,7 @@ func (s *GatewayOpsTestSuite) TestDapiQueryProxy() {
 		require.NoError(s.T(), err)
 
 		assert.Equal(s.T(), 1, len(queryResponse.Results))
-		assert.Equal(s.T(), queryResponse.Results[0], map[string]interface{}{"$1": true})
+		assert.Equal(s.T(), map[string]interface{}{"$1": true}, queryResponse.Results[0])
 	})
 
 	s.Run("Insert", func() {
@@ -101,9 +101,9 @@ func (s *GatewayOpsTestSuite) TestDapiQueryProxy() {
 			err := json.Unmarshal(resp.Body, &queryResponse)
 			require.NoError(s.T(), err)
 
-			require.Equal(s.T(), len(queryResponse.Errors), 1)
+			require.Equal(s.T(), 1, len(queryResponse.Errors))
 			require.NotNil(s.T(), queryResponse.Errors[0])
-			require.Equal(s.T(), queryResponse.Errors[0].Code, 13014)
+			require.Equal(s.T(), 13014, queryResponse.Errors[0].Code)
 			require.Contains(s.T(), queryResponse.Errors[0].Message, "User does not have credentials")
 		} else {
 			require.NotNil(s.T(), resp)
@@ -132,9 +132,9 @@ func (s *GatewayOpsTestSuite) TestDapiQueryProxy() {
 			err := json.Unmarshal(resp.Body, &queryResponse)
 			require.NoError(s.T(), err)
 
-			require.Equal(s.T(), len(queryResponse.Errors), 1)
+			require.Equal(s.T(), 1, len(queryResponse.Errors))
 			require.NotNil(s.T(), queryResponse.Errors[0])
-			require.Equal(s.T(), queryResponse.Errors[0].Code, 13014)
+			require.Equal(s.T(), 13014, queryResponse.Errors[0].Code)
 			require.Contains(s.T(), queryResponse.Errors[0].Message, "User does not have credentials")
 		} else {
 			require.NotNil(s.T(), resp)
@@ -166,7 +166,7 @@ func (s *GatewayOpsTestSuite) TestDapiAnalyticsProxy() {
 		require.NoError(s.T(), err)
 
 		assert.Equal(s.T(), 1, len(queryResponse.Results))
-		assert.Equal(s.T(), queryResponse.Results[0], map[string]interface{}{"$1": true})
+		assert.Equal(s.T(), map[string]interface{}{"$1": true}, queryResponse.Results[0])
 	})
 
 	s.Run("Unauthenticated", func() {

@@ -55,7 +55,7 @@ func (s *GatewayOpsTestSuite) RunCommonErrorCases(
 		})
 		assertRpcStatus(s.T(), err, codes.NotFound)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
-			assert.Equal(s.T(), d.ResourceType, "collection")
+			assert.Equal(s.T(), "collection", d.ResourceType)
 		})
 	})
 
@@ -71,7 +71,7 @@ func (s *GatewayOpsTestSuite) RunCommonErrorCases(
 		})
 		assertRpcStatus(s.T(), err, codes.NotFound)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
-			assert.Equal(s.T(), d.ResourceType, "scope")
+			assert.Equal(s.T(), "scope", d.ResourceType)
 		})
 	})
 
@@ -87,7 +87,7 @@ func (s *GatewayOpsTestSuite) RunCommonErrorCases(
 		})
 		assertRpcStatus(s.T(), err, codes.NotFound)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
-			assert.Equal(s.T(), d.ResourceType, "bucket")
+			assert.Equal(s.T(), "bucket", d.ResourceType)
 		})
 	})
 
@@ -103,7 +103,7 @@ func (s *GatewayOpsTestSuite) RunCommonErrorCases(
 		})
 		assertRpcStatus(s.T(), err, codes.PermissionDenied)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
-			assert.Equal(s.T(), d.ResourceType, "user")
+			assert.Equal(s.T(), "user", d.ResourceType)
 		})
 	})
 
@@ -194,9 +194,9 @@ func (s *GatewayOpsTestSuite) TestGet() {
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
 		requireRpcSuccess(s.T(), resp, err)
 		assertValidCas(s.T(), resp.Cas)
-		assert.Equal(s.T(), resp.GetContentUncompressed(), TEST_CONTENT)
+		assert.Equal(s.T(), TEST_CONTENT, resp.GetContentUncompressed())
 		assert.Nil(s.T(), resp.GetContentCompressed())
-		assert.Equal(s.T(), resp.ContentFlags, TEST_CONTENT_FLAGS)
+		assert.Equal(s.T(), TEST_CONTENT_FLAGS, resp.ContentFlags)
 		assert.Nil(s.T(), resp.Expiry)
 	})
 
@@ -211,8 +211,8 @@ func (s *GatewayOpsTestSuite) TestGet() {
 		requireRpcSuccess(s.T(), resp, err)
 		assertValidCas(s.T(), resp.Cas)
 		assert.Nil(s.T(), resp.GetContentUncompressed())
-		assert.Equal(s.T(), s.decompressContent(resp.GetContentCompressed()), TEST_CONTENT)
-		assert.Equal(s.T(), resp.ContentFlags, TEST_CONTENT_FLAGS)
+		assert.Equal(s.T(), TEST_CONTENT, s.decompressContent(resp.GetContentCompressed()))
+		assert.Equal(s.T(), TEST_CONTENT_FLAGS, resp.ContentFlags)
 		assert.Nil(s.T(), resp.Expiry)
 	})
 
@@ -226,9 +226,9 @@ func (s *GatewayOpsTestSuite) TestGet() {
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
 		requireRpcSuccess(s.T(), resp, err)
 		assertValidCas(s.T(), resp.Cas)
-		assert.Equal(s.T(), resp.GetContentUncompressed(), TEST_CONTENT)
+		assert.Equal(s.T(), TEST_CONTENT, resp.GetContentUncompressed())
 		assert.Nil(s.T(), resp.GetContentCompressed())
-		assert.Equal(s.T(), resp.ContentFlags, TEST_CONTENT_FLAGS)
+		assert.Equal(s.T(), TEST_CONTENT_FLAGS, resp.ContentFlags)
 		assert.Nil(s.T(), resp.Expiry)
 	})
 
@@ -242,9 +242,9 @@ func (s *GatewayOpsTestSuite) TestGet() {
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
 		requireRpcSuccess(s.T(), resp, err)
 		assertValidCas(s.T(), resp.Cas)
-		assert.JSONEq(s.T(), string(resp.GetContentUncompressed()), `{"obj":{"num":14},"arr":[3,6,9,12]}`)
+		assert.JSONEq(s.T(), `{"obj":{"num":14},"arr":[3,6,9,12]}`, string(resp.GetContentUncompressed()))
 		assert.Nil(s.T(), resp.GetContentCompressed())
-		assert.Equal(s.T(), resp.ContentFlags, TEST_CONTENT_FLAGS)
+		assert.Equal(s.T(), TEST_CONTENT_FLAGS, resp.ContentFlags)
 	})
 
 	s.Run("ProjectMissing", func() {
@@ -257,8 +257,8 @@ func (s *GatewayOpsTestSuite) TestGet() {
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
 		requireRpcSuccess(s.T(), resp, err)
 		assertValidCas(s.T(), resp.Cas)
-		assert.JSONEq(s.T(), string(resp.GetContentUncompressed()), `null`)
-		assert.Equal(s.T(), resp.ContentFlags, TEST_CONTENT_FLAGS)
+		assert.JSONEq(s.T(), `null`, string(resp.GetContentUncompressed()))
+		assert.Equal(s.T(), TEST_CONTENT_FLAGS, resp.ContentFlags)
 	})
 
 	s.Run("DocLocked", func() {
@@ -271,15 +271,15 @@ func (s *GatewayOpsTestSuite) TestGet() {
 		if !s.IsOlderServerVersion("8.0.0") {
 			requireRpcSuccess(s.T(), resp, err)
 			assertValidCas(s.T(), resp.Cas)
-			assert.Equal(s.T(), resp.GetContentUncompressed(), TEST_CONTENT)
+			assert.Equal(s.T(), TEST_CONTENT, resp.GetContentUncompressed())
 			assert.Nil(s.T(), resp.GetContentCompressed())
-			assert.Equal(s.T(), resp.ContentFlags, TEST_CONTENT_FLAGS)
+			assert.Equal(s.T(), TEST_CONTENT_FLAGS, resp.ContentFlags)
 			assert.Nil(s.T(), resp.Expiry)
 		} else {
 			assertRpcStatus(s.T(), err, codes.FailedPrecondition)
 			assertRpcErrorDetails(s.T(), err, func(d *epb.PreconditionFailure) {
 				assert.Len(s.T(), d.Violations, 1)
-				assert.Equal(s.T(), d.Violations[0].Type, "LOCKED")
+				assert.Equal(s.T(), "LOCKED", d.Violations[0].Type)
 			})
 		}
 	})
@@ -293,7 +293,7 @@ func (s *GatewayOpsTestSuite) TestGet() {
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
 		assertRpcStatus(s.T(), err, codes.NotFound)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
-			assert.Equal(s.T(), d.ResourceType, "document")
+			assert.Equal(s.T(), "document", d.ResourceType)
 		})
 	})
 
@@ -413,7 +413,7 @@ func (s *GatewayOpsTestSuite) TestInsert() {
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
 		assertRpcStatus(s.T(), err, codes.AlreadyExists)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
-			assert.Equal(s.T(), d.ResourceType, "document")
+			assert.Equal(s.T(), "document", d.ResourceType)
 		})
 	})
 
@@ -430,7 +430,7 @@ func (s *GatewayOpsTestSuite) TestInsert() {
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
 		assertRpcStatus(s.T(), err, codes.AlreadyExists)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
-			assert.Equal(s.T(), d.ResourceType, "document")
+			assert.Equal(s.T(), "document", d.ResourceType)
 		})
 	})
 
@@ -725,7 +725,7 @@ func (s *GatewayOpsTestSuite) TestUpsert() {
 		assertRpcStatus(s.T(), err, codes.FailedPrecondition)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.PreconditionFailure) {
 			assert.Len(s.T(), d.Violations, 1)
-			assert.Equal(s.T(), d.Violations[0].Type, "LOCKED")
+			assert.Equal(s.T(), "LOCKED", d.Violations[0].Type)
 		})
 	})
 
@@ -1400,7 +1400,7 @@ func (s *GatewayOpsTestSuite) TestReplace() {
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
 		assertRpcStatus(s.T(), err, codes.Aborted)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.ErrorInfo) {
-			assert.Equal(s.T(), d.Reason, "CAS_MISMATCH")
+			assert.Equal(s.T(), "CAS_MISMATCH", d.Reason)
 		})
 	})
 
@@ -1435,7 +1435,7 @@ func (s *GatewayOpsTestSuite) TestReplace() {
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
 		assertRpcStatus(s.T(), err, codes.NotFound)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
-			assert.Equal(s.T(), d.ResourceType, "document")
+			assert.Equal(s.T(), "document", d.ResourceType)
 		})
 	})
 
@@ -1453,7 +1453,7 @@ func (s *GatewayOpsTestSuite) TestReplace() {
 		assertRpcStatus(s.T(), err, codes.FailedPrecondition)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.PreconditionFailure) {
 			assert.Len(s.T(), d.Violations, 1)
-			assert.Equal(s.T(), d.Violations[0].Type, "LOCKED")
+			assert.Equal(s.T(), "LOCKED", d.Violations[0].Type)
 		})
 	})
 
@@ -1714,7 +1714,7 @@ func (s *GatewayOpsTestSuite) TestRemove() {
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
 		assertRpcStatus(s.T(), err, codes.Aborted)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.ErrorInfo) {
-			assert.Equal(s.T(), d.Reason, "CAS_MISMATCH")
+			assert.Equal(s.T(), "CAS_MISMATCH", d.Reason)
 		})
 	})
 
@@ -1741,7 +1741,7 @@ func (s *GatewayOpsTestSuite) TestRemove() {
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
 		assertRpcStatus(s.T(), err, codes.NotFound)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
-			assert.Equal(s.T(), d.ResourceType, "document")
+			assert.Equal(s.T(), "document", d.ResourceType)
 		})
 	})
 
@@ -1755,7 +1755,7 @@ func (s *GatewayOpsTestSuite) TestRemove() {
 		assertRpcStatus(s.T(), err, codes.FailedPrecondition)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.PreconditionFailure) {
 			assert.Len(s.T(), d.Violations, 1)
-			assert.Equal(s.T(), d.Violations[0].Type, "LOCKED")
+			assert.Equal(s.T(), "LOCKED", d.Violations[0].Type)
 		})
 	})
 
@@ -1922,7 +1922,7 @@ func (s *GatewayOpsTestSuite) TestTouch() {
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
 		assertRpcStatus(s.T(), err, codes.NotFound)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
-			assert.Equal(s.T(), d.ResourceType, "document")
+			assert.Equal(s.T(), "document", d.ResourceType)
 		})
 	})
 
@@ -1937,7 +1937,7 @@ func (s *GatewayOpsTestSuite) TestTouch() {
 		assertRpcStatus(s.T(), err, codes.FailedPrecondition)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.PreconditionFailure) {
 			assert.Len(s.T(), d.Violations, 1)
-			assert.Equal(s.T(), d.Violations[0].Type, "LOCKED")
+			assert.Equal(s.T(), "LOCKED", d.Violations[0].Type)
 		})
 	})
 
@@ -2123,7 +2123,7 @@ func (s *GatewayOpsTestSuite) TestGetAndTouch() {
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
 		assertRpcStatus(s.T(), err, codes.NotFound)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
-			assert.Equal(s.T(), d.ResourceType, "document")
+			assert.Equal(s.T(), "document", d.ResourceType)
 		})
 	})
 
@@ -2138,7 +2138,7 @@ func (s *GatewayOpsTestSuite) TestGetAndTouch() {
 		assertRpcStatus(s.T(), err, codes.FailedPrecondition)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.PreconditionFailure) {
 			assert.Len(s.T(), d.Violations, 1)
-			assert.Equal(s.T(), d.Violations[0].Type, "LOCKED")
+			assert.Equal(s.T(), "LOCKED", d.Violations[0].Type)
 		})
 	})
 
@@ -2188,7 +2188,7 @@ func (s *GatewayOpsTestSuite) TestGetAndLock() {
 		assertRpcStatus(s.T(), err, codes.FailedPrecondition)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.PreconditionFailure) {
 			assert.Len(s.T(), d.Violations, 1)
-			assert.Equal(s.T(), d.Violations[0].Type, "LOCKED")
+			assert.Equal(s.T(), "LOCKED", d.Violations[0].Type)
 		})
 	})
 
@@ -2220,7 +2220,7 @@ func (s *GatewayOpsTestSuite) TestGetAndLock() {
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
 		assertRpcStatus(s.T(), err, codes.NotFound)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
-			assert.Equal(s.T(), d.ResourceType, "document")
+			assert.Equal(s.T(), "document", d.ResourceType)
 		})
 	})
 
@@ -2235,7 +2235,7 @@ func (s *GatewayOpsTestSuite) TestGetAndLock() {
 		assertRpcStatus(s.T(), err, codes.FailedPrecondition)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.PreconditionFailure) {
 			assert.Len(s.T(), d.Violations, 1)
-			assert.Equal(s.T(), d.Violations[0].Type, "LOCKED")
+			assert.Equal(s.T(), "LOCKED", d.Violations[0].Type)
 		})
 	})
 
@@ -2299,7 +2299,7 @@ func (s *GatewayOpsTestSuite) TestUnlock() {
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
 		assertRpcStatus(s.T(), err, codes.Aborted)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.ErrorInfo) {
-			assert.Equal(s.T(), d.Reason, "CAS_MISMATCH")
+			assert.Equal(s.T(), "CAS_MISMATCH", d.Reason)
 		})
 	})
 
@@ -2334,7 +2334,7 @@ func (s *GatewayOpsTestSuite) TestUnlock() {
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
 		assertRpcStatus(s.T(), err, codes.NotFound)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
-			assert.Equal(s.T(), d.ResourceType, "document")
+			assert.Equal(s.T(), "document", d.ResourceType)
 		})
 	})
 
@@ -2362,7 +2362,7 @@ func (s *GatewayOpsTestSuite) TestUnlock() {
 			assertRpcStatus(s.T(), err, codes.FailedPrecondition)
 			assertRpcErrorDetails(s.T(), err, func(d *epb.PreconditionFailure) {
 				assert.Len(s.T(), d.Violations, 1)
-				assert.Equal(s.T(), d.Violations[0].Type, "NOT_LOCKED")
+				assert.Equal(s.T(), "NOT_LOCKED", d.Violations[0].Type)
 			})
 		}
 	})
@@ -2510,7 +2510,7 @@ func (s *GatewayOpsTestSuite) TestIncrement() {
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
 		assertRpcStatus(s.T(), err, codes.NotFound)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
-			assert.Equal(s.T(), d.ResourceType, "document")
+			assert.Equal(s.T(), "document", d.ResourceType)
 		})
 	})
 
@@ -2528,7 +2528,7 @@ func (s *GatewayOpsTestSuite) TestIncrement() {
 		assertRpcStatus(s.T(), err, codes.FailedPrecondition)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.PreconditionFailure) {
 			assert.Len(s.T(), d.Violations, 1)
-			assert.Equal(s.T(), d.Violations[0].Type, "LOCKED")
+			assert.Equal(s.T(), "LOCKED", d.Violations[0].Type)
 		})
 	})
 
@@ -2545,7 +2545,7 @@ func (s *GatewayOpsTestSuite) TestIncrement() {
 		assertRpcStatus(s.T(), err, codes.FailedPrecondition)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.PreconditionFailure) {
 			assert.Len(s.T(), d.Violations, 1)
-			assert.Equal(s.T(), d.Violations[0].Type, "DOC_NOT_NUMERIC")
+			assert.Equal(s.T(), "DOC_NOT_NUMERIC", d.Violations[0].Type)
 		})
 	})
 
@@ -2807,7 +2807,7 @@ func (s *GatewayOpsTestSuite) TestDecrement() {
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
 		assertRpcStatus(s.T(), err, codes.NotFound)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
-			assert.Equal(s.T(), d.ResourceType, "document")
+			assert.Equal(s.T(), "document", d.ResourceType)
 		})
 	})
 
@@ -2825,7 +2825,7 @@ func (s *GatewayOpsTestSuite) TestDecrement() {
 		assertRpcStatus(s.T(), err, codes.FailedPrecondition)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.PreconditionFailure) {
 			assert.Len(s.T(), d.Violations, 1)
-			assert.Equal(s.T(), d.Violations[0].Type, "LOCKED")
+			assert.Equal(s.T(), "LOCKED", d.Violations[0].Type)
 		})
 	})
 
@@ -2842,7 +2842,7 @@ func (s *GatewayOpsTestSuite) TestDecrement() {
 		assertRpcStatus(s.T(), err, codes.FailedPrecondition)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.PreconditionFailure) {
 			assert.Len(s.T(), d.Violations, 1)
-			assert.Equal(s.T(), d.Violations[0].Type, "DOC_NOT_NUMERIC")
+			assert.Equal(s.T(), "DOC_NOT_NUMERIC", d.Violations[0].Type)
 		})
 	})
 
@@ -3079,7 +3079,7 @@ func (s *GatewayOpsTestSuite) TestAppend() {
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
 		assertRpcStatus(s.T(), err, codes.Aborted)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.ErrorInfo) {
-			assert.Equal(s.T(), d.Reason, "CAS_MISMATCH")
+			assert.Equal(s.T(), "CAS_MISMATCH", d.Reason)
 		})
 	})
 
@@ -3108,7 +3108,7 @@ func (s *GatewayOpsTestSuite) TestAppend() {
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
 		assertRpcStatus(s.T(), err, codes.NotFound)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
-			assert.Equal(s.T(), d.ResourceType, "document")
+			assert.Equal(s.T(), "document", d.ResourceType)
 		})
 	})
 
@@ -3123,7 +3123,7 @@ func (s *GatewayOpsTestSuite) TestAppend() {
 		assertRpcStatus(s.T(), err, codes.FailedPrecondition)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.PreconditionFailure) {
 			assert.Len(s.T(), d.Violations, 1)
-			assert.Equal(s.T(), d.Violations[0].Type, "LOCKED")
+			assert.Equal(s.T(), "LOCKED", d.Violations[0].Type)
 		})
 	})
 
@@ -3210,7 +3210,7 @@ func (s *GatewayOpsTestSuite) TestPrepend() {
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
 		assertRpcStatus(s.T(), err, codes.Aborted)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.ErrorInfo) {
-			assert.Equal(s.T(), d.Reason, "CAS_MISMATCH")
+			assert.Equal(s.T(), "CAS_MISMATCH", d.Reason)
 		})
 	})
 
@@ -3239,7 +3239,7 @@ func (s *GatewayOpsTestSuite) TestPrepend() {
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
 		assertRpcStatus(s.T(), err, codes.NotFound)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
-			assert.Equal(s.T(), d.ResourceType, "document")
+			assert.Equal(s.T(), "document", d.ResourceType)
 		})
 	})
 
@@ -3254,7 +3254,7 @@ func (s *GatewayOpsTestSuite) TestPrepend() {
 		assertRpcStatus(s.T(), err, codes.FailedPrecondition)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.PreconditionFailure) {
 			assert.Len(s.T(), d.Violations, 1)
-			assert.Equal(s.T(), d.Violations[0].Type, "LOCKED")
+			assert.Equal(s.T(), "LOCKED", d.Violations[0].Type)
 		})
 	})
 
@@ -3269,7 +3269,7 @@ func (s *GatewayOpsTestSuite) TestPrepend() {
 		assertRpcStatus(s.T(), err, codes.FailedPrecondition)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.PreconditionFailure) {
 			assert.Len(s.T(), d.Violations, 1)
-			assert.Equal(s.T(), d.Violations[0].Type, "VALUE_TOO_LARGE")
+			assert.Equal(s.T(), "VALUE_TOO_LARGE", d.Violations[0].Type)
 		})
 	})
 
@@ -3452,7 +3452,7 @@ func (s *GatewayOpsTestSuite) TestLookupIn() {
 		assertStatusProto(s.T(), resp.Specs[0].Status, codes.FailedPrecondition)
 		assertStatusProtoDetails(s.T(), resp.Specs[0].Status, func(d *epb.PreconditionFailure) {
 			assert.Len(s.T(), d.Violations, 1)
-			assert.Equal(s.T(), d.Violations[0].Type, "DOC_TOO_DEEP")
+			assert.Equal(s.T(), "DOC_TOO_DEEP", d.Violations[0].Type)
 		})
 	})
 
@@ -3478,7 +3478,7 @@ func (s *GatewayOpsTestSuite) TestLookupIn() {
 		assertStatusProto(s.T(), resp.Specs[0].Status, codes.FailedPrecondition)
 		assertStatusProtoDetails(s.T(), resp.Specs[0].Status, func(d *epb.PreconditionFailure) {
 			assert.Len(s.T(), d.Violations, 1)
-			assert.Equal(s.T(), d.Violations[0].Type, "DOC_NOT_JSON")
+			assert.Equal(s.T(), "DOC_NOT_JSON", d.Violations[0].Type)
 		})
 	})
 
@@ -3503,7 +3503,7 @@ func (s *GatewayOpsTestSuite) TestLookupIn() {
 		assert.Len(s.T(), resp.Specs, 1)
 		assertStatusProto(s.T(), resp.Specs[0].Status, codes.NotFound)
 		assertStatusProtoDetails(s.T(), resp.Specs[0].Status, func(d *epb.ResourceInfo) {
-			assert.Equal(s.T(), d.ResourceType, "path")
+			assert.Equal(s.T(), "path", d.ResourceType)
 		})
 	})
 
@@ -3529,7 +3529,7 @@ func (s *GatewayOpsTestSuite) TestLookupIn() {
 		assertStatusProto(s.T(), resp.Specs[0].Status, codes.FailedPrecondition)
 		assertStatusProtoDetails(s.T(), resp.Specs[0].Status, func(d *epb.PreconditionFailure) {
 			assert.Len(s.T(), d.Violations, 1)
-			assert.Equal(s.T(), d.Violations[0].Type, "PATH_MISMATCH")
+			assert.Equal(s.T(), "PATH_MISMATCH", d.Violations[0].Type)
 		})
 	})
 
@@ -3636,7 +3636,7 @@ func (s *GatewayOpsTestSuite) TestLookupIn() {
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
 		assertRpcStatus(s.T(), err, codes.NotFound)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
-			assert.Equal(s.T(), d.ResourceType, "document")
+			assert.Equal(s.T(), "document", d.ResourceType)
 		})
 	})
 
@@ -3660,7 +3660,7 @@ func (s *GatewayOpsTestSuite) TestLookupIn() {
 			assertRpcStatus(s.T(), err, codes.FailedPrecondition)
 			assertRpcErrorDetails(s.T(), err, func(d *epb.PreconditionFailure) {
 				assert.Len(s.T(), d.Violations, 1)
-				assert.Equal(s.T(), d.Violations[0].Type, "LOCKED")
+				assert.Equal(s.T(), "LOCKED", d.Violations[0].Type)
 			})
 		}
 	})
@@ -4052,7 +4052,7 @@ func (s *GatewayOpsTestSuite) TestMutateIn() {
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
 		assertRpcStatus(s.T(), err, codes.AlreadyExists)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
-			assert.Equal(s.T(), d.ResourceType, "path")
+			assert.Equal(s.T(), "path", d.ResourceType)
 		})
 	})
 
@@ -4173,7 +4173,7 @@ func (s *GatewayOpsTestSuite) TestMutateIn() {
 		assertRpcStatus(s.T(), err, codes.FailedPrecondition)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.PreconditionFailure) {
 			assert.Len(s.T(), d.Violations, 1)
-			assert.Equal(s.T(), d.Violations[0].Type, "VALUE_OUT_OF_RANGE")
+			assert.Equal(s.T(), "VALUE_OUT_OF_RANGE", d.Violations[0].Type)
 		})
 	})
 
@@ -4198,7 +4198,7 @@ func (s *GatewayOpsTestSuite) TestMutateIn() {
 		assertRpcStatus(s.T(), err, codes.FailedPrecondition)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.PreconditionFailure) {
 			assert.Len(s.T(), d.Violations, 1)
-			assert.Equal(s.T(), d.Violations[0].Type, "PATH_VALUE_OUT_OF_RANGE")
+			assert.Equal(s.T(), "PATH_VALUE_OUT_OF_RANGE", d.Violations[0].Type)
 		})
 	})
 
@@ -4221,7 +4221,7 @@ func (s *GatewayOpsTestSuite) TestMutateIn() {
 		assertRpcStatus(s.T(), err, codes.FailedPrecondition)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.PreconditionFailure) {
 			assert.Len(s.T(), d.Violations, 1)
-			assert.Equal(s.T(), d.Violations[0].Type, "DOC_TOO_DEEP")
+			assert.Equal(s.T(), "DOC_TOO_DEEP", d.Violations[0].Type)
 		})
 	})
 
@@ -4244,7 +4244,7 @@ func (s *GatewayOpsTestSuite) TestMutateIn() {
 		assertRpcStatus(s.T(), err, codes.FailedPrecondition)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.PreconditionFailure) {
 			assert.Len(s.T(), d.Violations, 1)
-			assert.Equal(s.T(), d.Violations[0].Type, "DOC_NOT_JSON")
+			assert.Equal(s.T(), "DOC_NOT_JSON", d.Violations[0].Type)
 		})
 	})
 
@@ -4266,7 +4266,7 @@ func (s *GatewayOpsTestSuite) TestMutateIn() {
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
 		assertRpcStatus(s.T(), err, codes.AlreadyExists)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
-			assert.Equal(s.T(), d.ResourceType, "path")
+			assert.Equal(s.T(), "path", d.ResourceType)
 		})
 	})
 
@@ -4288,7 +4288,7 @@ func (s *GatewayOpsTestSuite) TestMutateIn() {
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
 		assertRpcStatus(s.T(), err, codes.NotFound)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
-			assert.Equal(s.T(), d.ResourceType, "path")
+			assert.Equal(s.T(), "path", d.ResourceType)
 		})
 	})
 
@@ -4311,7 +4311,7 @@ func (s *GatewayOpsTestSuite) TestMutateIn() {
 		assertRpcStatus(s.T(), err, codes.FailedPrecondition)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.PreconditionFailure) {
 			assert.Len(s.T(), d.Violations, 1)
-			assert.Equal(s.T(), d.Violations[0].Type, "PATH_MISMATCH")
+			assert.Equal(s.T(), "PATH_MISMATCH", d.Violations[0].Type)
 		})
 	})
 
@@ -4392,7 +4392,7 @@ func (s *GatewayOpsTestSuite) TestMutateIn() {
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
 		assertRpcStatus(s.T(), err, codes.Aborted)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.ErrorInfo) {
-			assert.Equal(s.T(), d.Reason, "CAS_MISMATCH")
+			assert.Equal(s.T(), "CAS_MISMATCH", d.Reason)
 		})
 	})
 
@@ -4412,7 +4412,7 @@ func (s *GatewayOpsTestSuite) TestMutateIn() {
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
 		assertRpcStatus(s.T(), err, codes.NotFound)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
-			assert.Equal(s.T(), d.ResourceType, "document")
+			assert.Equal(s.T(), "document", d.ResourceType)
 		})
 	})
 
@@ -4433,7 +4433,7 @@ func (s *GatewayOpsTestSuite) TestMutateIn() {
 		assertRpcStatus(s.T(), err, codes.FailedPrecondition)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.PreconditionFailure) {
 			assert.Len(s.T(), d.Violations, 1)
-			assert.Equal(s.T(), d.Violations[0].Type, "LOCKED")
+			assert.Equal(s.T(), "LOCKED", d.Violations[0].Type)
 		})
 	})
 
@@ -4660,7 +4660,7 @@ func (s *GatewayOpsTestSuite) TestMutateIn() {
 		assertRpcStatus(s.T(), err, codes.FailedPrecondition)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.PreconditionFailure) {
 			assert.Len(s.T(), d.Violations, 1)
-			assert.Equal(s.T(), d.Violations[0].Type, "VALUE_TOO_LARGE")
+			assert.Equal(s.T(), "VALUE_TOO_LARGE", d.Violations[0].Type)
 		})
 	})
 
@@ -4682,7 +4682,7 @@ func (s *GatewayOpsTestSuite) TestMutateIn() {
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
 		assertRpcStatus(s.T(), err, codes.AlreadyExists)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
-			assert.Equal(s.T(), d.ResourceType, "document")
+			assert.Equal(s.T(), "document", d.ResourceType)
 		})
 	})
 
@@ -4785,8 +4785,8 @@ func (s *GatewayOpsTestSuite) TestGetAllReplicas() {
 			}
 
 			assertValidCas(s.T(), itemResp.Cas)
-			assert.Equal(s.T(), itemResp.Content, TEST_CONTENT)
-			assert.Equal(s.T(), itemResp.ContentFlags, TEST_CONTENT_FLAGS)
+			assert.Equal(s.T(), TEST_CONTENT, itemResp.Content)
+			assert.Equal(s.T(), TEST_CONTENT_FLAGS, itemResp.ContentFlags)
 			numResponses++
 			successful++
 		}
@@ -4819,8 +4819,8 @@ func (s *GatewayOpsTestSuite) TestGetAllReplicas() {
 				}
 
 				assertValidCas(s.T(), itemResp.Cas)
-				assert.Equal(s.T(), itemResp.Content, TEST_CONTENT)
-				assert.Equal(s.T(), itemResp.ContentFlags, TEST_CONTENT_FLAGS)
+				assert.Equal(s.T(), TEST_CONTENT, itemResp.Content)
+				assert.Equal(s.T(), TEST_CONTENT_FLAGS, itemResp.ContentFlags)
 				successful++
 			}
 			return successful == 3
