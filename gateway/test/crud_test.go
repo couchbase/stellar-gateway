@@ -179,6 +179,22 @@ func (s *GatewayOpsTestSuite) RunCommonErrorCases(
 	})
 }
 
+func (s *GatewayOpsTestSuite) IterDurabilityLevelTests(
+	fn func(durabilityLevel *kv_v1.DurabilityLevel),
+) {
+	DurabilityLevels := []*kv_v1.DurabilityLevel{
+		ptr.To(kv_v1.DurabilityLevel_DURABILITY_LEVEL_MAJORITY),
+		ptr.To(kv_v1.DurabilityLevel_DURABILITY_LEVEL_MAJORITY_AND_PERSIST_TO_ACTIVE),
+		ptr.To(kv_v1.DurabilityLevel_DURABILITY_LEVEL_PERSIST_TO_MAJORITY),
+	}
+
+	for _, durabilityLevel := range DurabilityLevels {
+		s.Run(kv_v1.DurabilityLevel_name[int32(*durabilityLevel)], func() {
+			fn(durabilityLevel)
+		})
+	}
+}
+
 func (s *GatewayOpsTestSuite) TestGet() {
 	if !s.SupportsFeature(TestFeatureKV) {
 		s.T().Skip()
@@ -259,6 +275,17 @@ func (s *GatewayOpsTestSuite) TestGet() {
 		assertValidCas(s.T(), resp.Cas)
 		assert.JSONEq(s.T(), string(resp.GetContentUncompressed()), `null`)
 		assert.Equal(s.T(), resp.ContentFlags, TEST_CONTENT_FLAGS)
+	})
+
+	s.Run("ProjectNestedMissing", func() {
+		_, err := kvClient.Get(context.Background(), &kv_v1.GetRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            s.testDocId(),
+			Project:        []string{"obj.num.nest"},
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		assertRpcStatus(s.T(), err, codes.FailedPrecondition)
 	})
 
 	s.Run("DocLocked", func() {
@@ -635,6 +662,33 @@ func (s *GatewayOpsTestSuite) TestInsert() {
 			},
 			ContentFlags: TEST_CONTENT_FLAGS,
 		}, opts.CallOptions...)
+	})
+
+	s.IterDurabilityLevelTests(func(durabilityLevel *kv_v1.DurabilityLevel) {
+		docId := s.randomDocId()
+		resp, err := kvClient.Insert(context.Background(), &kv_v1.InsertRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            docId,
+			Content: &kv_v1.InsertRequest_ContentUncompressed{
+				ContentUncompressed: TEST_CONTENT,
+			},
+			ContentFlags:    TEST_CONTENT_FLAGS,
+			DurabilityLevel: durabilityLevel,
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		requireRpcSuccess(s.T(), resp, err)
+		assertValidCas(s.T(), resp.Cas)
+		assertValidMutationToken(s.T(), resp.MutationToken, s.bucketName)
+
+		s.checkDocument(s.T(), checkDocumentOptions{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			DocId:          docId,
+			Content:        TEST_CONTENT,
+			ContentFlags:   TEST_CONTENT_FLAGS,
+		})
 	})
 }
 
@@ -1287,6 +1341,33 @@ func (s *GatewayOpsTestSuite) TestUpsert() {
 			ContentFlags: TEST_CONTENT_FLAGS,
 		}, opts.CallOptions...)
 	})
+
+	s.IterDurabilityLevelTests(func(durabilityLevel *kv_v1.DurabilityLevel) {
+		docId := s.randomDocId()
+		resp, err := kvClient.Upsert(context.Background(), &kv_v1.UpsertRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            docId,
+			Content: &kv_v1.UpsertRequest_ContentUncompressed{
+				ContentUncompressed: TEST_CONTENT,
+			},
+			ContentFlags:    TEST_CONTENT_FLAGS,
+			DurabilityLevel: durabilityLevel,
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		requireRpcSuccess(s.T(), resp, err)
+		assertValidCas(s.T(), resp.Cas)
+		assertValidMutationToken(s.T(), resp.MutationToken, s.bucketName)
+
+		s.checkDocument(s.T(), checkDocumentOptions{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			DocId:          docId,
+			Content:        TEST_CONTENT,
+			ContentFlags:   TEST_CONTENT_FLAGS,
+		})
+	})
 }
 
 func (s *GatewayOpsTestSuite) TestReplace() {
@@ -1659,6 +1740,33 @@ func (s *GatewayOpsTestSuite) TestReplace() {
 			ContentFlags: TEST_CONTENT_FLAGS,
 		}, opts.CallOptions...)
 	})
+
+	s.IterDurabilityLevelTests(func(durabilityLevel *kv_v1.DurabilityLevel) {
+		docId := s.testDocId()
+		resp, err := kvClient.Replace(context.Background(), &kv_v1.ReplaceRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            docId,
+			Content: &kv_v1.ReplaceRequest_ContentUncompressed{
+				ContentUncompressed: TEST_CONTENT,
+			},
+			ContentFlags:    TEST_CONTENT_FLAGS,
+			DurabilityLevel: durabilityLevel,
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		requireRpcSuccess(s.T(), resp, err)
+		assertValidCas(s.T(), resp.Cas)
+		assertValidMutationToken(s.T(), resp.MutationToken, s.bucketName)
+
+		s.checkDocument(s.T(), checkDocumentOptions{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			DocId:          docId,
+			Content:        TEST_CONTENT,
+			ContentFlags:   TEST_CONTENT_FLAGS,
+		})
+	})
 }
 
 func (s *GatewayOpsTestSuite) TestRemove() {
@@ -1768,6 +1876,28 @@ func (s *GatewayOpsTestSuite) TestRemove() {
 			Cas:             nil,
 			DurabilityLevel: nil,
 		}, opts.CallOptions...)
+	})
+
+	s.IterDurabilityLevelTests(func(durabilityLevel *kv_v1.DurabilityLevel) {
+		docId := s.testDocId()
+		resp, err := kvClient.Remove(context.Background(), &kv_v1.RemoveRequest{
+			BucketName:      s.bucketName,
+			ScopeName:       s.scopeName,
+			CollectionName:  s.collectionName,
+			Key:             docId,
+			DurabilityLevel: durabilityLevel,
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		requireRpcSuccess(s.T(), resp, err)
+		assertValidCas(s.T(), resp.Cas)
+		assertValidMutationToken(s.T(), resp.MutationToken, s.bucketName)
+
+		s.checkDocument(s.T(), checkDocumentOptions{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			DocId:          docId,
+			Content:        nil,
+		})
 	})
 }
 
@@ -2500,6 +2630,42 @@ func (s *GatewayOpsTestSuite) TestIncrement() {
 		checkDocument(docId, []byte("5"))
 	})
 
+	// BUG(ING-1278): Negative Initial values should be rejected
+	// s.Run("WithInitialNegative", func() {
+	// 	docId := s.randomDocId()
+	// 	initialValue := int64(-2)
+
+	// 	_, err := kvClient.Increment(context.Background(), &kv_v1.IncrementRequest{
+	// 		BucketName:     s.bucketName,
+	// 		ScopeName:      s.scopeName,
+	// 		CollectionName: s.collectionName,
+	// 		Key:            docId,
+	// 		Delta:          1,
+	// 		Initial:        &initialValue,
+	// 	}, grpc.PerRPCCredentials(s.basicRpcCreds))
+	// 	assertRpcStatus(s.T(), err, codes.InvalidArgument)
+	// 	assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
+	// 		assert.Equal(s.T(), d.ResourceType, "document")
+	// 	})
+	// })
+
+	s.Run("ZeroDelta", func() {
+		docId := s.binaryDocId([]byte("5"))
+
+		resp, err := kvClient.Increment(context.Background(), &kv_v1.IncrementRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            docId,
+			Delta:          0,
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		requireRpcSuccess(s.T(), resp, err)
+		assertValidCas(s.T(), resp.Cas)
+		assert.Equal(s.T(), int64(5), resp.Content)
+
+		checkDocument(docId, []byte("5"))
+	})
+
 	s.Run("DocMissing", func() {
 		_, err := kvClient.Increment(context.Background(), &kv_v1.IncrementRequest{
 			BucketName:     s.bucketName,
@@ -2723,6 +2889,24 @@ func (s *GatewayOpsTestSuite) TestIncrement() {
 			Delta:          1,
 		}, opts.CallOptions...)
 	})
+
+	s.IterDurabilityLevelTests(func(durabilityLevel *kv_v1.DurabilityLevel) {
+		docId := s.binaryDocId([]byte("5"))
+
+		resp, err := kvClient.Increment(context.Background(), &kv_v1.IncrementRequest{
+			BucketName:      s.bucketName,
+			ScopeName:       s.scopeName,
+			CollectionName:  s.collectionName,
+			Key:             docId,
+			Delta:           1,
+			DurabilityLevel: durabilityLevel,
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		requireRpcSuccess(s.T(), resp, err)
+		assertValidCas(s.T(), resp.Cas)
+		assert.Equal(s.T(), int64(6), resp.Content)
+
+		checkDocument(docId, []byte("6"))
+	})
 }
 
 func (s *GatewayOpsTestSuite) TestDecrement() {
@@ -2789,6 +2973,42 @@ func (s *GatewayOpsTestSuite) TestDecrement() {
 			Key:            docId,
 			Delta:          1,
 			Initial:        &initialValue,
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		requireRpcSuccess(s.T(), resp, err)
+		assertValidCas(s.T(), resp.Cas)
+		assert.Equal(s.T(), int64(5), resp.Content)
+
+		checkDocument(docId, []byte("5"))
+	})
+
+	// BUG(ING-1278): Negative Initial values should be rejected
+	// s.Run("WithInitialNegative", func() {
+	// 	docId := s.randomDocId()
+	// 	initialValue := int64(-5)
+
+	// 	_, err := kvClient.Decrement(context.Background(), &kv_v1.DecrementRequest{
+	// 		BucketName:     s.bucketName,
+	// 		ScopeName:      s.scopeName,
+	// 		CollectionName: s.collectionName,
+	// 		Key:            docId,
+	// 		Delta:          1,
+	// 		Initial:        &initialValue,
+	// 	}, grpc.PerRPCCredentials(s.basicRpcCreds))
+	// 	assertRpcStatus(s.T(), err, codes.InvalidArgument)
+	// 	assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
+	// 		assert.Equal(s.T(), d.ResourceType, "document")
+	// 	})
+	// })
+
+	s.Run("ZeroDelta", func() {
+		docId := s.binaryDocId([]byte("5"))
+
+		resp, err := kvClient.Decrement(context.Background(), &kv_v1.DecrementRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            docId,
+			Delta:          0,
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
 		requireRpcSuccess(s.T(), resp, err)
 		assertValidCas(s.T(), resp.Cas)
@@ -3020,6 +3240,24 @@ func (s *GatewayOpsTestSuite) TestDecrement() {
 			Delta:          1,
 		}, opts.CallOptions...)
 	})
+
+	s.IterDurabilityLevelTests(func(durabilityLevel *kv_v1.DurabilityLevel) {
+		docId := s.binaryDocId([]byte("7"))
+
+		resp, err := kvClient.Decrement(context.Background(), &kv_v1.DecrementRequest{
+			BucketName:      s.bucketName,
+			ScopeName:       s.scopeName,
+			CollectionName:  s.collectionName,
+			Key:             docId,
+			Delta:           1,
+			DurabilityLevel: durabilityLevel,
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		requireRpcSuccess(s.T(), resp, err)
+		assertValidCas(s.T(), resp.Cas)
+		assert.Equal(s.T(), int64(6), resp.Content)
+
+		checkDocument(docId, []byte("6"))
+	})
 }
 
 func (s *GatewayOpsTestSuite) TestAppend() {
@@ -3151,6 +3389,30 @@ func (s *GatewayOpsTestSuite) TestAppend() {
 			Content:        []byte("world"),
 		}, opts.CallOptions...)
 	})
+
+	s.IterDurabilityLevelTests(func(durabilityLevel *kv_v1.DurabilityLevel) {
+		docId := s.binaryDocId([]byte("hello"))
+
+		resp, err := kvClient.Append(context.Background(), &kv_v1.AppendRequest{
+			BucketName:      s.bucketName,
+			ScopeName:       s.scopeName,
+			CollectionName:  s.collectionName,
+			Key:             docId,
+			Content:         []byte("world"),
+			DurabilityLevel: durabilityLevel,
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		requireRpcSuccess(s.T(), resp, err)
+		assertValidCas(s.T(), resp.Cas)
+
+		s.checkDocument(s.T(), checkDocumentOptions{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			DocId:          docId,
+			Content:        []byte("helloworld"),
+			ContentFlags:   0,
+		})
+	})
 }
 
 func (s *GatewayOpsTestSuite) TestPrepend() {
@@ -3281,6 +3543,30 @@ func (s *GatewayOpsTestSuite) TestPrepend() {
 			Key:            opts.Key,
 			Content:        []byte("world"),
 		}, opts.CallOptions...)
+	})
+
+	s.IterDurabilityLevelTests(func(durabilityLevel *kv_v1.DurabilityLevel) {
+		docId := s.binaryDocId([]byte("world"))
+
+		resp, err := kvClient.Prepend(context.Background(), &kv_v1.PrependRequest{
+			BucketName:      s.bucketName,
+			ScopeName:       s.scopeName,
+			CollectionName:  s.collectionName,
+			Key:             docId,
+			Content:         []byte("hello"),
+			DurabilityLevel: durabilityLevel,
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		requireRpcSuccess(s.T(), resp, err)
+		assertValidCas(s.T(), resp.Cas)
+
+		s.checkDocument(s.T(), checkDocumentOptions{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			DocId:          docId,
+			Content:        []byte("helloworld"),
+			ContentFlags:   0,
+		})
 	})
 }
 
@@ -4753,6 +5039,28 @@ func (s *GatewayOpsTestSuite) TestMutateIn() {
 				},
 			},
 		}, opts.CallOptions...)
+	})
+
+	s.IterDurabilityLevelTests(func(durabilityLevel *kv_v1.DurabilityLevel) {
+		docId := s.binaryDocId([]byte(`{"foo": 14}`))
+
+		resp, err := kvClient.MutateIn(context.Background(), &kv_v1.MutateInRequest{
+			BucketName:      s.bucketName,
+			ScopeName:       s.scopeName,
+			CollectionName:  s.collectionName,
+			Key:             docId,
+			DurabilityLevel: durabilityLevel,
+			Specs: []*kv_v1.MutateInRequest_Spec{{
+				Operation: kv_v1.MutateInRequest_Spec_OPERATION_INSERT,
+				Path:      "newfoo",
+				Content:   []byte(`"baz"`),
+			}},
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+
+		requireRpcSuccess(s.T(), resp, err)
+		assertValidCas(s.T(), resp.Cas)
+		assertValidMutationToken(s.T(), resp.MutationToken, s.bucketName)
+		checkDocumentPath(docId, "newfoo", []byte(`"baz"`))
 	})
 }
 
