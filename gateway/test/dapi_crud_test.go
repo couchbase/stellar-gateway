@@ -234,6 +234,66 @@ func (s *GatewayOpsTestSuite) IterDapiDocumentEncodingTests(
 	})
 }
 
+func (s *GatewayOpsTestSuite) IterDapiExpiryHeaderTests(fn func(expiry string, fn func(*checkDocumentOptions))) {
+	s.Run("ExpiryTime", func() {
+		s.Run("Future", func() {
+			fn(
+				time.Now().Add(time.Minute).Format(time.RFC1123),
+				func(opts *checkDocumentOptions) {
+					opts.expiry = expiryCheckType_Future
+				},
+			)
+		})
+
+		s.Run("Past", func() {
+			fn(time.Now().Add(-time.Minute).Format(time.RFC1123),
+				func(opts *checkDocumentOptions) {
+					opts.expiry = expiryCheckType_Past
+					opts.Content = nil
+				},
+			)
+		})
+	})
+
+	s.Run("ExpirySecs", func() {
+		s.Run("ConversionUnder30Days", func() {
+			fn((time.Second * 5).String(),
+				func(opts *checkDocumentOptions) {
+					opts.expiry = expiryCheckType_Within
+					opts.expiryBounds = expiryCheckTypeWithinBounds{
+						MaxSecs: 5 + 1,
+						MinSecs: 0,
+					}
+				},
+			)
+		})
+
+		s.Run("Conversion30Days", func() {
+			fn((time.Hour * 24 * 30).String(),
+				func(opts *checkDocumentOptions) {
+					opts.expiry = expiryCheckType_Within
+					opts.expiryBounds = expiryCheckTypeWithinBounds{
+						MaxSecs: int((30 * 24 * time.Hour).Seconds()) + 1,
+						MinSecs: int((29 * 24 * time.Hour).Seconds()),
+					}
+				},
+			)
+		})
+
+		s.Run("ConversionOver30Days", func() {
+			fn((time.Hour * 24 * 31).String(),
+				func(opts *checkDocumentOptions) {
+					opts.expiry = expiryCheckType_Within
+					opts.expiryBounds = expiryCheckTypeWithinBounds{
+						MaxSecs: int((31 * 24 * time.Hour).Seconds()) + 1,
+						MinSecs: int((20 * 24 * time.Hour).Seconds()),
+					}
+				},
+			)
+		})
+	})
+}
+
 func (s *GatewayOpsTestSuite) TestDapiGet() {
 	s.Run("Basic", func() {
 		resp := s.sendTestHttpRequest(&testHttpRequest{
@@ -580,182 +640,6 @@ func (s *GatewayOpsTestSuite) TestDapiPost() {
 		requireRestError(s.T(), resp, http.StatusBadRequest, nil)
 	})
 
-	s.Run("ExpirySecs", func() {
-		s.Run("ConversionUnder30Days", func() {
-			docId := s.randomDocId()
-			expiryTime := time.Second * 5
-
-			resp := s.sendTestHttpRequest(&testHttpRequest{
-				Method: http.MethodPost,
-				Path: fmt.Sprintf(
-					"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
-					s.bucketName, s.scopeName, s.collectionName, docId,
-				),
-				Headers: map[string]string{
-					"Authorization": s.basicRestCreds,
-					"X-CB-Flags":    fmt.Sprintf("%d", TEST_CONTENT_FLAGS),
-					"Expires":       expiryTime.String(),
-				},
-				Body: TEST_CONTENT,
-			})
-			requireRestSuccess(s.T(), resp)
-			assertRestValidEtag(s.T(), resp)
-			assertRestValidMutationToken(s.T(), resp, s.bucketName)
-
-			s.checkDocument(s.T(), checkDocumentOptions{
-				BucketName:     s.bucketName,
-				ScopeName:      s.scopeName,
-				CollectionName: s.collectionName,
-				DocId:          docId,
-				Content:        TEST_CONTENT,
-				ContentFlags:   TEST_CONTENT_FLAGS,
-				expiry:         expiryCheckType_Within,
-				expiryBounds: expiryCheckTypeWithinBounds{
-					MaxSecs: 5 + 1,
-					MinSecs: 0,
-				},
-			})
-		})
-
-		s.Run("Conversion30Days", func() {
-			docId := s.randomDocId()
-			expiryTime := 30 * 24 * time.Hour
-
-			resp := s.sendTestHttpRequest(&testHttpRequest{
-				Method: http.MethodPost,
-				Path: fmt.Sprintf(
-					"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
-					s.bucketName, s.scopeName, s.collectionName, docId,
-				),
-				Headers: map[string]string{
-					"Authorization": s.basicRestCreds,
-					"X-CB-Flags":    fmt.Sprintf("%d", TEST_CONTENT_FLAGS),
-					"Expires":       expiryTime.String(),
-				},
-				Body: TEST_CONTENT,
-			})
-			requireRestSuccess(s.T(), resp)
-			assertRestValidEtag(s.T(), resp)
-			assertRestValidMutationToken(s.T(), resp, s.bucketName)
-
-			s.checkDocument(s.T(), checkDocumentOptions{
-				BucketName:     s.bucketName,
-				ScopeName:      s.scopeName,
-				CollectionName: s.collectionName,
-				DocId:          docId,
-				Content:        TEST_CONTENT,
-				ContentFlags:   TEST_CONTENT_FLAGS,
-				expiry:         expiryCheckType_Within,
-				expiryBounds: expiryCheckTypeWithinBounds{
-					MaxSecs: int((30 * 24 * time.Hour).Seconds()) + 1,
-					MinSecs: int((29 * 24 * time.Hour).Seconds()),
-				},
-			})
-		})
-
-		s.Run("ConversionOver30Days", func() {
-			docId := s.randomDocId()
-			expiryTime := 31 * 24 * time.Hour
-
-			resp := s.sendTestHttpRequest(&testHttpRequest{
-				Method: http.MethodPost,
-				Path: fmt.Sprintf(
-					"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
-					s.bucketName, s.scopeName, s.collectionName, docId,
-				),
-				Headers: map[string]string{
-					"Authorization": s.basicRestCreds,
-					"X-CB-Flags":    fmt.Sprintf("%d", TEST_CONTENT_FLAGS),
-					"Expires":       expiryTime.String(),
-				},
-				Body: TEST_CONTENT,
-			})
-			requireRestSuccess(s.T(), resp)
-			assertRestValidEtag(s.T(), resp)
-			assertRestValidMutationToken(s.T(), resp, s.bucketName)
-
-			s.checkDocument(s.T(), checkDocumentOptions{
-				BucketName:     s.bucketName,
-				ScopeName:      s.scopeName,
-				CollectionName: s.collectionName,
-				DocId:          docId,
-				Content:        TEST_CONTENT,
-				ContentFlags:   TEST_CONTENT_FLAGS,
-				expiry:         expiryCheckType_Within,
-				expiryBounds: expiryCheckTypeWithinBounds{
-					MaxSecs: int((31 * 24 * time.Hour).Seconds()) + 1,
-					MinSecs: int((30 * 24 * time.Hour).Seconds()),
-				},
-			})
-		})
-	})
-
-	s.Run("ExpiryTime", func() {
-		s.Run("Future", func() {
-			docId := s.randomDocId()
-			expiryTime := time.Now().Add(time.Minute)
-
-			resp := s.sendTestHttpRequest(&testHttpRequest{
-				Method: http.MethodPost,
-				Path: fmt.Sprintf(
-					"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
-					s.bucketName, s.scopeName, s.collectionName, docId,
-				),
-				Headers: map[string]string{
-					"Authorization": s.basicRestCreds,
-					"X-CB-Flags":    fmt.Sprintf("%d", TEST_CONTENT_FLAGS),
-					"Expires":       expiryTime.Format(time.RFC1123),
-				},
-				Body: TEST_CONTENT,
-			})
-			requireRestSuccess(s.T(), resp)
-			assertRestValidEtag(s.T(), resp)
-			assertRestValidMutationToken(s.T(), resp, s.bucketName)
-
-			s.checkDocument(s.T(), checkDocumentOptions{
-				BucketName:     s.bucketName,
-				ScopeName:      s.scopeName,
-				CollectionName: s.collectionName,
-				DocId:          docId,
-				Content:        TEST_CONTENT,
-				ContentFlags:   TEST_CONTENT_FLAGS,
-				expiry:         expiryCheckType_Future,
-			})
-		})
-
-		s.Run("Past", func() {
-			docId := s.randomDocId()
-			expiryTime := time.Now().Add(-time.Minute)
-
-			resp := s.sendTestHttpRequest(&testHttpRequest{
-				Method: http.MethodPost,
-				Path: fmt.Sprintf(
-					"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
-					s.bucketName, s.scopeName, s.collectionName, docId,
-				),
-				Headers: map[string]string{
-					"Authorization": s.basicRestCreds,
-					"X-CB-Flags":    fmt.Sprintf("%d", TEST_CONTENT_FLAGS),
-					"Expires":       expiryTime.Format(time.RFC1123),
-				},
-				Body: TEST_CONTENT,
-			})
-			requireRestSuccess(s.T(), resp)
-			assertRestValidEtag(s.T(), resp)
-			assertRestValidMutationToken(s.T(), resp, s.bucketName)
-
-			s.checkDocument(s.T(), checkDocumentOptions{
-				BucketName:     s.bucketName,
-				ScopeName:      s.scopeName,
-				CollectionName: s.collectionName,
-				DocId:          docId,
-				Content:        nil,
-				ContentFlags:   TEST_CONTENT_FLAGS,
-				expiry:         expiryCheckType_Past,
-			})
-		})
-	})
-
 	s.Run("DocExists", func() {
 		docId := s.testDocId()
 
@@ -953,6 +837,40 @@ func (s *GatewayOpsTestSuite) TestDapiPost() {
 		})
 	})
 
+	s.IterDapiExpiryHeaderTests(func(expiry string, modifyOpts func(*checkDocumentOptions)) {
+		docId := s.randomDocId()
+
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+				"X-CB-Flags":    fmt.Sprintf("%d", TEST_CONTENT_FLAGS),
+				"Expires":       expiry,
+			},
+			Body: TEST_CONTENT,
+		})
+		requireRestSuccess(s.T(), resp)
+		assertRestValidEtag(s.T(), resp)
+		assertRestValidMutationToken(s.T(), resp, s.bucketName)
+
+		defaultOpts := checkDocumentOptions{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			DocId:          docId,
+			Content:        TEST_CONTENT,
+			ContentFlags:   TEST_CONTENT_FLAGS,
+			expiry:         expiryCheckType_Future,
+		}
+		modifyOpts(&defaultOpts)
+
+		s.checkDocument(s.T(), defaultOpts)
+	})
+
 	s.RunCommonDapiErrorCases(func(opts *commonDapiTestData) *testHttpResponse {
 		return s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
@@ -1045,182 +963,6 @@ func (s *GatewayOpsTestSuite) TestDapiPut() {
 				Body: TEST_CONTENT,
 			})
 			requireRestError(s.T(), resp, http.StatusBadRequest, nil)
-		})
-
-		s.Run("ExpirySecs", func() {
-			s.Run("ConversionUnder30Days", func() {
-				docId := s.randomDocId()
-				expiryTime := time.Second * 5
-
-				resp := s.sendTestHttpRequest(&testHttpRequest{
-					Method: http.MethodPut,
-					Path: fmt.Sprintf(
-						"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
-						s.bucketName, s.scopeName, s.collectionName, docId,
-					),
-					Headers: map[string]string{
-						"Authorization": s.basicRestCreds,
-						"X-CB-Flags":    fmt.Sprintf("%d", TEST_CONTENT_FLAGS),
-						"Expires":       expiryTime.String(),
-					},
-					Body: TEST_CONTENT,
-				})
-				requireRestSuccess(s.T(), resp)
-				assertRestValidEtag(s.T(), resp)
-				assertRestValidMutationToken(s.T(), resp, s.bucketName)
-
-				s.checkDocument(s.T(), checkDocumentOptions{
-					BucketName:     s.bucketName,
-					ScopeName:      s.scopeName,
-					CollectionName: s.collectionName,
-					DocId:          docId,
-					Content:        TEST_CONTENT,
-					ContentFlags:   TEST_CONTENT_FLAGS,
-					expiry:         expiryCheckType_Within,
-					expiryBounds: expiryCheckTypeWithinBounds{
-						MaxSecs: 5 + 1,
-						MinSecs: 0,
-					},
-				})
-			})
-
-			s.Run("Conversion30Days", func() {
-				docId := s.randomDocId()
-				expiryTime := 30 * 24 * time.Hour
-
-				resp := s.sendTestHttpRequest(&testHttpRequest{
-					Method: http.MethodPut,
-					Path: fmt.Sprintf(
-						"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
-						s.bucketName, s.scopeName, s.collectionName, docId,
-					),
-					Headers: map[string]string{
-						"Authorization": s.basicRestCreds,
-						"X-CB-Flags":    fmt.Sprintf("%d", TEST_CONTENT_FLAGS),
-						"Expires":       expiryTime.String(),
-					},
-					Body: TEST_CONTENT,
-				})
-				requireRestSuccess(s.T(), resp)
-				assertRestValidEtag(s.T(), resp)
-				assertRestValidMutationToken(s.T(), resp, s.bucketName)
-
-				s.checkDocument(s.T(), checkDocumentOptions{
-					BucketName:     s.bucketName,
-					ScopeName:      s.scopeName,
-					CollectionName: s.collectionName,
-					DocId:          docId,
-					Content:        TEST_CONTENT,
-					ContentFlags:   TEST_CONTENT_FLAGS,
-					expiry:         expiryCheckType_Within,
-					expiryBounds: expiryCheckTypeWithinBounds{
-						MaxSecs: int((30 * 24 * time.Hour).Seconds()) + 1,
-						MinSecs: int((29 * 24 * time.Hour).Seconds()),
-					},
-				})
-			})
-
-			s.Run("ConversionOver30Days", func() {
-				docId := s.randomDocId()
-				expiryTime := 31 * 24 * time.Hour
-
-				resp := s.sendTestHttpRequest(&testHttpRequest{
-					Method: http.MethodPut,
-					Path: fmt.Sprintf(
-						"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
-						s.bucketName, s.scopeName, s.collectionName, docId,
-					),
-					Headers: map[string]string{
-						"Authorization": s.basicRestCreds,
-						"X-CB-Flags":    fmt.Sprintf("%d", TEST_CONTENT_FLAGS),
-						"Expires":       expiryTime.String(),
-					},
-					Body: TEST_CONTENT,
-				})
-				requireRestSuccess(s.T(), resp)
-				assertRestValidEtag(s.T(), resp)
-				assertRestValidMutationToken(s.T(), resp, s.bucketName)
-
-				s.checkDocument(s.T(), checkDocumentOptions{
-					BucketName:     s.bucketName,
-					ScopeName:      s.scopeName,
-					CollectionName: s.collectionName,
-					DocId:          docId,
-					Content:        TEST_CONTENT,
-					ContentFlags:   TEST_CONTENT_FLAGS,
-					expiry:         expiryCheckType_Within,
-					expiryBounds: expiryCheckTypeWithinBounds{
-						MaxSecs: int((31 * 24 * time.Hour).Seconds()) + 1,
-						MinSecs: int((30 * 24 * time.Hour).Seconds()),
-					},
-				})
-			})
-		})
-
-		s.Run("ExpiryTime", func() {
-			s.Run("Future", func() {
-				docId := s.randomDocId()
-				expiryTime := time.Now().Add(time.Minute)
-
-				resp := s.sendTestHttpRequest(&testHttpRequest{
-					Method: http.MethodPut,
-					Path: fmt.Sprintf(
-						"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
-						s.bucketName, s.scopeName, s.collectionName, docId,
-					),
-					Headers: map[string]string{
-						"Authorization": s.basicRestCreds,
-						"X-CB-Flags":    fmt.Sprintf("%d", TEST_CONTENT_FLAGS),
-						"Expires":       expiryTime.Format(time.RFC1123),
-					},
-					Body: TEST_CONTENT,
-				})
-				requireRestSuccess(s.T(), resp)
-				assertRestValidEtag(s.T(), resp)
-				assertRestValidMutationToken(s.T(), resp, s.bucketName)
-
-				s.checkDocument(s.T(), checkDocumentOptions{
-					BucketName:     s.bucketName,
-					ScopeName:      s.scopeName,
-					CollectionName: s.collectionName,
-					DocId:          docId,
-					Content:        TEST_CONTENT,
-					ContentFlags:   TEST_CONTENT_FLAGS,
-					expiry:         expiryCheckType_Future,
-				})
-			})
-
-			s.Run("Past", func() {
-				docId := s.randomDocId()
-				expiryTime := time.Now().Add(-time.Minute)
-
-				resp := s.sendTestHttpRequest(&testHttpRequest{
-					Method: http.MethodPut,
-					Path: fmt.Sprintf(
-						"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
-						s.bucketName, s.scopeName, s.collectionName, docId,
-					),
-					Headers: map[string]string{
-						"Authorization": s.basicRestCreds,
-						"X-CB-Flags":    fmt.Sprintf("%d", TEST_CONTENT_FLAGS),
-						"Expires":       expiryTime.Format(time.RFC1123),
-					},
-					Body: TEST_CONTENT,
-				})
-				requireRestSuccess(s.T(), resp)
-				assertRestValidEtag(s.T(), resp)
-				assertRestValidMutationToken(s.T(), resp, s.bucketName)
-
-				s.checkDocument(s.T(), checkDocumentOptions{
-					BucketName:     s.bucketName,
-					ScopeName:      s.scopeName,
-					CollectionName: s.collectionName,
-					DocId:          docId,
-					Content:        nil,
-					ContentFlags:   TEST_CONTENT_FLAGS,
-					expiry:         expiryCheckType_Past,
-				})
-			})
 		})
 
 		s.Run("DocLocked", func() {
@@ -1535,6 +1277,40 @@ func (s *GatewayOpsTestSuite) TestDapiPut() {
 		})
 	})
 
+	s.IterDapiExpiryHeaderTests(func(expiry string, modifyOpts func(*checkDocumentOptions)) {
+		docId := s.randomDocId()
+
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPut,
+			Path: fmt.Sprintf(
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+				"X-CB-Flags":    fmt.Sprintf("%d", TEST_CONTENT_FLAGS),
+				"Expires":       expiry,
+			},
+			Body: TEST_CONTENT,
+		})
+		requireRestSuccess(s.T(), resp)
+		assertRestValidEtag(s.T(), resp)
+		assertRestValidMutationToken(s.T(), resp, s.bucketName)
+
+		defaultOpts := checkDocumentOptions{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			DocId:          docId,
+			Content:        TEST_CONTENT,
+			ContentFlags:   TEST_CONTENT_FLAGS,
+			expiry:         expiryCheckType_Future,
+		}
+		modifyOpts(&defaultOpts)
+
+		s.checkDocument(s.T(), defaultOpts)
+	})
+
 	// These are all the test-cases with If-Match
 	s.Run("Replace", func() {
 		newContent := []byte(`{"boo": "baz"}`)
@@ -1618,187 +1394,6 @@ func (s *GatewayOpsTestSuite) TestDapiPut() {
 				Body: TEST_CONTENT,
 			})
 			requireRestError(s.T(), resp, http.StatusBadRequest, nil)
-		})
-
-		s.Run("ExpirySecs", func() {
-			s.Run("ConversionUnder30Days", func() {
-				docId := s.testDocId()
-				expiryTime := time.Second * 5
-
-				resp := s.sendTestHttpRequest(&testHttpRequest{
-					Method: http.MethodPut,
-					Path: fmt.Sprintf(
-						"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
-						s.bucketName, s.scopeName, s.collectionName, docId,
-					),
-					Headers: map[string]string{
-						"Authorization": s.basicRestCreds,
-						"If-Match":      "*",
-						"X-CB-Flags":    fmt.Sprintf("%d", TEST_CONTENT_FLAGS),
-						"Expires":       expiryTime.String(),
-					},
-					Body: TEST_CONTENT,
-				})
-				requireRestSuccess(s.T(), resp)
-				assertRestValidEtag(s.T(), resp)
-				assertRestValidMutationToken(s.T(), resp, s.bucketName)
-
-				s.checkDocument(s.T(), checkDocumentOptions{
-					BucketName:     s.bucketName,
-					ScopeName:      s.scopeName,
-					CollectionName: s.collectionName,
-					DocId:          docId,
-					Content:        TEST_CONTENT,
-					ContentFlags:   TEST_CONTENT_FLAGS,
-					expiry:         expiryCheckType_Within,
-					expiryBounds: expiryCheckTypeWithinBounds{
-						MaxSecs: 5 + 1,
-						MinSecs: 0,
-					},
-				})
-			})
-
-			s.Run("Conversion30Days", func() {
-				docId := s.testDocId()
-				expiryTime := 30 * 24 * time.Hour
-
-				resp := s.sendTestHttpRequest(&testHttpRequest{
-					Method: http.MethodPut,
-					Path: fmt.Sprintf(
-						"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
-						s.bucketName, s.scopeName, s.collectionName, docId,
-					),
-					Headers: map[string]string{
-						"Authorization": s.basicRestCreds,
-						"If-Match":      "*",
-						"X-CB-Flags":    fmt.Sprintf("%d", TEST_CONTENT_FLAGS),
-						"Expires":       expiryTime.String(),
-					},
-					Body: TEST_CONTENT,
-				})
-				requireRestSuccess(s.T(), resp)
-				assertRestValidEtag(s.T(), resp)
-				assertRestValidMutationToken(s.T(), resp, s.bucketName)
-
-				s.checkDocument(s.T(), checkDocumentOptions{
-					BucketName:     s.bucketName,
-					ScopeName:      s.scopeName,
-					CollectionName: s.collectionName,
-					DocId:          docId,
-					Content:        TEST_CONTENT,
-					ContentFlags:   TEST_CONTENT_FLAGS,
-					expiry:         expiryCheckType_Within,
-					expiryBounds: expiryCheckTypeWithinBounds{
-						MaxSecs: int((30 * 24 * time.Hour).Seconds()) + 1,
-						MinSecs: int((29 * 24 * time.Hour).Seconds()),
-					},
-				})
-			})
-
-			s.Run("ConversionOver30Days", func() {
-				docId := s.testDocId()
-				expiryTime := 31 * 24 * time.Hour
-
-				resp := s.sendTestHttpRequest(&testHttpRequest{
-					Method: http.MethodPut,
-					Path: fmt.Sprintf(
-						"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
-						s.bucketName, s.scopeName, s.collectionName, docId,
-					),
-					Headers: map[string]string{
-						"Authorization": s.basicRestCreds,
-						"If-Match":      "*",
-						"X-CB-Flags":    fmt.Sprintf("%d", TEST_CONTENT_FLAGS),
-						"Expires":       expiryTime.String(),
-					},
-					Body: TEST_CONTENT,
-				})
-				requireRestSuccess(s.T(), resp)
-				assertRestValidEtag(s.T(), resp)
-				assertRestValidMutationToken(s.T(), resp, s.bucketName)
-
-				s.checkDocument(s.T(), checkDocumentOptions{
-					BucketName:     s.bucketName,
-					ScopeName:      s.scopeName,
-					CollectionName: s.collectionName,
-					DocId:          docId,
-					Content:        TEST_CONTENT,
-					ContentFlags:   TEST_CONTENT_FLAGS,
-					expiry:         expiryCheckType_Within,
-					expiryBounds: expiryCheckTypeWithinBounds{
-						MaxSecs: int((31 * 24 * time.Hour).Seconds()) + 1,
-						MinSecs: int((30 * 24 * time.Hour).Seconds()),
-					},
-				})
-			})
-		})
-
-		s.Run("ExpiryTime", func() {
-			s.Run("Future", func() {
-				docId := s.testDocId()
-				expiryTime := time.Now().Add(time.Minute)
-
-				resp := s.sendTestHttpRequest(&testHttpRequest{
-					Method: http.MethodPut,
-					Path: fmt.Sprintf(
-						"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
-						s.bucketName, s.scopeName, s.collectionName, docId,
-					),
-					Headers: map[string]string{
-						"Authorization": s.basicRestCreds,
-						"If-Match":      "*",
-						"X-CB-Flags":    fmt.Sprintf("%d", TEST_CONTENT_FLAGS),
-						"Expires":       expiryTime.Format(time.RFC1123),
-					},
-					Body: TEST_CONTENT,
-				})
-				requireRestSuccess(s.T(), resp)
-				assertRestValidEtag(s.T(), resp)
-				assertRestValidMutationToken(s.T(), resp, s.bucketName)
-
-				s.checkDocument(s.T(), checkDocumentOptions{
-					BucketName:     s.bucketName,
-					ScopeName:      s.scopeName,
-					CollectionName: s.collectionName,
-					DocId:          docId,
-					Content:        TEST_CONTENT,
-					ContentFlags:   TEST_CONTENT_FLAGS,
-					expiry:         expiryCheckType_Future,
-				})
-			})
-
-			s.Run("Past", func() {
-				docId := s.testDocId()
-				expiryTime := time.Now().Add(-time.Minute)
-
-				resp := s.sendTestHttpRequest(&testHttpRequest{
-					Method: http.MethodPut,
-					Path: fmt.Sprintf(
-						"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
-						s.bucketName, s.scopeName, s.collectionName, docId,
-					),
-					Headers: map[string]string{
-						"Authorization": s.basicRestCreds,
-						"If-Match":      "*",
-						"X-CB-Flags":    fmt.Sprintf("%d", TEST_CONTENT_FLAGS),
-						"Expires":       expiryTime.Format(time.RFC1123),
-					},
-					Body: TEST_CONTENT,
-				})
-				requireRestSuccess(s.T(), resp)
-				assertRestValidEtag(s.T(), resp)
-				assertRestValidMutationToken(s.T(), resp, s.bucketName)
-
-				s.checkDocument(s.T(), checkDocumentOptions{
-					BucketName:     s.bucketName,
-					ScopeName:      s.scopeName,
-					CollectionName: s.collectionName,
-					DocId:          docId,
-					Content:        nil,
-					ContentFlags:   TEST_CONTENT_FLAGS,
-					expiry:         expiryCheckType_Past,
-				})
-			})
 		})
 
 		s.Run("WithCas", func() {
@@ -2083,6 +1678,41 @@ func (s *GatewayOpsTestSuite) TestDapiPut() {
 				Content:        newContent,
 				ContentFlags:   TEST_CONTENT_FLAGS,
 			})
+		})
+
+		s.IterDapiExpiryHeaderTests(func(expiry string, modifyOpts func(*checkDocumentOptions)) {
+			docId := s.testDocId()
+
+			resp := s.sendTestHttpRequest(&testHttpRequest{
+				Method: http.MethodPut,
+				Path: fmt.Sprintf(
+					"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
+					s.bucketName, s.scopeName, s.collectionName, docId,
+				),
+				Headers: map[string]string{
+					"Authorization": s.basicRestCreds,
+					"If-Match":      "*",
+					"X-CB-Flags":    fmt.Sprintf("%d", TEST_CONTENT_FLAGS),
+					"Expires":       expiry,
+				},
+				Body: TEST_CONTENT,
+			})
+			requireRestSuccess(s.T(), resp)
+			assertRestValidEtag(s.T(), resp)
+			assertRestValidMutationToken(s.T(), resp, s.bucketName)
+
+			defaultOpts := checkDocumentOptions{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				DocId:          docId,
+				Content:        TEST_CONTENT,
+				ContentFlags:   TEST_CONTENT_FLAGS,
+				expiry:         expiryCheckType_Future,
+			}
+			modifyOpts(&defaultOpts)
+
+			s.checkDocument(s.T(), defaultOpts)
 		})
 	})
 
@@ -2489,184 +2119,6 @@ func (s *GatewayOpsTestSuite) TestDapiIncrement() {
 		})
 	})
 
-	s.Run("ExpirySecs", func() {
-		initialBody := []byte(`{"initial": 5}`)
-		s.Run("ConversionUnder30Days", func() {
-			docId := s.randomDocId()
-			expiryTime := time.Second * 5
-
-			resp := s.sendTestHttpRequest(&testHttpRequest{
-				Method: http.MethodPost,
-				Path: fmt.Sprintf(
-					"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s/increment",
-					s.bucketName, s.scopeName, s.collectionName, docId,
-				),
-				Headers: map[string]string{
-					"Authorization": s.basicRestCreds,
-					"Content-Type":  "application/json",
-					"Expires":       expiryTime.String(),
-				},
-				Body: initialBody,
-			})
-			requireRestSuccess(s.T(), resp)
-			assertRestValidEtag(s.T(), resp)
-			assertRestValidMutationToken(s.T(), resp, s.bucketName)
-
-			s.checkDocument(s.T(), checkDocumentOptions{
-				BucketName:     s.bucketName,
-				ScopeName:      s.scopeName,
-				CollectionName: s.collectionName,
-				DocId:          docId,
-				Content:        []byte("5"),
-				ContentFlags:   0,
-				expiry:         expiryCheckType_Within,
-				expiryBounds: expiryCheckTypeWithinBounds{
-					MaxSecs: 5 + 1,
-					MinSecs: 0,
-				},
-			})
-		})
-
-		s.Run("Conversion30Days", func() {
-			docId := s.randomDocId()
-			expiryTime := 30 * 24 * time.Hour
-
-			resp := s.sendTestHttpRequest(&testHttpRequest{
-				Method: http.MethodPost,
-				Path: fmt.Sprintf(
-					"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s/increment",
-					s.bucketName, s.scopeName, s.collectionName, docId,
-				),
-				Headers: map[string]string{
-					"Authorization": s.basicRestCreds,
-					"Content-Type":  "application/json",
-					"Expires":       expiryTime.String(),
-				},
-				Body: initialBody,
-			})
-			requireRestSuccess(s.T(), resp)
-			assertRestValidEtag(s.T(), resp)
-			assertRestValidMutationToken(s.T(), resp, s.bucketName)
-
-			s.checkDocument(s.T(), checkDocumentOptions{
-				BucketName:     s.bucketName,
-				ScopeName:      s.scopeName,
-				CollectionName: s.collectionName,
-				DocId:          docId,
-				Content:        []byte("5"),
-				ContentFlags:   0,
-				expiry:         expiryCheckType_Within,
-				expiryBounds: expiryCheckTypeWithinBounds{
-					MaxSecs: int((30 * 24 * time.Hour).Seconds()) + 1,
-					MinSecs: int((29 * 24 * time.Hour).Seconds()),
-				},
-			})
-		})
-
-		s.Run("ConversionOver30Days", func() {
-			docId := s.randomDocId()
-			expiryTime := 31 * 24 * time.Hour
-
-			resp := s.sendTestHttpRequest(&testHttpRequest{
-				Method: http.MethodPost,
-				Path: fmt.Sprintf(
-					"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s/increment",
-					s.bucketName, s.scopeName, s.collectionName, docId,
-				),
-				Headers: map[string]string{
-					"Authorization": s.basicRestCreds,
-					"Content-Type":  "application/json",
-					"Expires":       expiryTime.String(),
-				},
-				Body: initialBody,
-			})
-			requireRestSuccess(s.T(), resp)
-			assertRestValidEtag(s.T(), resp)
-			assertRestValidMutationToken(s.T(), resp, s.bucketName)
-
-			s.checkDocument(s.T(), checkDocumentOptions{
-				BucketName:     s.bucketName,
-				ScopeName:      s.scopeName,
-				CollectionName: s.collectionName,
-				DocId:          docId,
-				Content:        []byte("5"),
-				ContentFlags:   0,
-				expiry:         expiryCheckType_Within,
-				expiryBounds: expiryCheckTypeWithinBounds{
-					MaxSecs: int((31 * 24 * time.Hour).Seconds()) + 1,
-					MinSecs: int((30 * 24 * time.Hour).Seconds()),
-				},
-			})
-		})
-	})
-
-	s.Run("ExpiryTime", func() {
-		var initialBody []byte = []byte(`{"initial": 5}`)
-		s.Run("Future", func() {
-			docId := s.randomDocId()
-			expiryTime := time.Now().Add(time.Minute)
-
-			resp := s.sendTestHttpRequest(&testHttpRequest{
-				Method: http.MethodPost,
-				Path: fmt.Sprintf(
-					"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s/increment",
-					s.bucketName, s.scopeName, s.collectionName, docId,
-				),
-				Headers: map[string]string{
-					"Authorization": s.basicRestCreds,
-					"Content-Type":  "application/json",
-					"Expires":       expiryTime.Format(time.RFC1123),
-				},
-				Body: initialBody,
-			})
-			requireRestSuccess(s.T(), resp)
-			assertRestValidEtag(s.T(), resp)
-			assertRestValidMutationToken(s.T(), resp, s.bucketName)
-
-			s.checkDocument(s.T(), checkDocumentOptions{
-				BucketName:     s.bucketName,
-				ScopeName:      s.scopeName,
-				CollectionName: s.collectionName,
-				DocId:          docId,
-				Content:        []byte("5"),
-				ContentFlags:   0,
-				expiry:         expiryCheckType_Future,
-			})
-		})
-
-		s.Run("Past", func() {
-			docId := s.randomDocId()
-			expiryTime := time.Now().Add(-time.Minute)
-
-			resp := s.sendTestHttpRequest(&testHttpRequest{
-				Method: http.MethodPost,
-				Path: fmt.Sprintf(
-					"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s/increment",
-					s.bucketName, s.scopeName, s.collectionName, docId,
-				),
-				Headers: map[string]string{
-					"Authorization": s.basicRestCreds,
-					"Content-Type":  "application/json",
-					"Expires":       expiryTime.Format(time.RFC1123),
-				},
-				Body: initialBody,
-			})
-			requireRestSuccess(s.T(), resp)
-			assertRestValidEtag(s.T(), resp)
-			assertRestValidMutationToken(s.T(), resp, s.bucketName)
-
-			s.checkDocument(s.T(), checkDocumentOptions{
-				BucketName:     s.bucketName,
-				ScopeName:      s.scopeName,
-				CollectionName: s.collectionName,
-				DocId:          docId,
-				Content:        nil,
-				ContentFlags:   TEST_CONTENT_FLAGS,
-				expiry:         expiryCheckType_Past,
-			})
-		})
-	})
-
 	s.Run("PreserveExistingExpiry", func() {
 		docId := s.binaryDocId([]byte("5"))
 		expiryTime := time.Now().Add(1 * time.Hour)
@@ -2771,6 +2223,39 @@ func (s *GatewayOpsTestSuite) TestDapiIncrement() {
 				MinSecs: int((23 * time.Hour).Seconds()),
 			},
 		})
+	})
+
+	s.IterDapiExpiryHeaderTests(func(expiry string, modifyOpts func(*checkDocumentOptions)) {
+		docId := s.randomDocId()
+
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s/increment",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+				"Content-Type":  "application/json",
+				"Expires":       expiry,
+			},
+			Body: []byte(`{"initial": 5}`),
+		})
+		requireRestSuccess(s.T(), resp)
+		assertRestValidEtag(s.T(), resp)
+		assertRestValidMutationToken(s.T(), resp, s.bucketName)
+
+		defaultOpts := checkDocumentOptions{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			DocId:          docId,
+			Content:        []byte("5"),
+			ContentFlags:   0,
+		}
+		modifyOpts(&defaultOpts)
+
+		s.checkDocument(s.T(), defaultOpts)
 	})
 
 	s.RunCommonDapiErrorCases(func(opts *commonDapiTestData) *testHttpResponse {
@@ -3018,184 +2503,6 @@ func (s *GatewayOpsTestSuite) TestDapiDecrement() {
 		})
 	})
 
-	s.Run("ExpirySecs", func() {
-		initialBody := []byte(`{"initial": 5}`)
-		s.Run("ConversionUnder30Days", func() {
-			docId := s.randomDocId()
-			expiryTime := time.Second * 5
-
-			resp := s.sendTestHttpRequest(&testHttpRequest{
-				Method: http.MethodPost,
-				Path: fmt.Sprintf(
-					"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s/decrement",
-					s.bucketName, s.scopeName, s.collectionName, docId,
-				),
-				Headers: map[string]string{
-					"Authorization": s.basicRestCreds,
-					"Content-Type":  "application/json",
-					"Expires":       expiryTime.String(),
-				},
-				Body: initialBody,
-			})
-			requireRestSuccess(s.T(), resp)
-			assertRestValidEtag(s.T(), resp)
-			assertRestValidMutationToken(s.T(), resp, s.bucketName)
-
-			s.checkDocument(s.T(), checkDocumentOptions{
-				BucketName:     s.bucketName,
-				ScopeName:      s.scopeName,
-				CollectionName: s.collectionName,
-				DocId:          docId,
-				Content:        []byte("5"),
-				ContentFlags:   0,
-				expiry:         expiryCheckType_Within,
-				expiryBounds: expiryCheckTypeWithinBounds{
-					MaxSecs: 5 + 1,
-					MinSecs: 0,
-				},
-			})
-		})
-
-		s.Run("Conversion30Days", func() {
-			docId := s.randomDocId()
-			expiryTime := 30 * 24 * time.Hour
-
-			resp := s.sendTestHttpRequest(&testHttpRequest{
-				Method: http.MethodPost,
-				Path: fmt.Sprintf(
-					"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s/decrement",
-					s.bucketName, s.scopeName, s.collectionName, docId,
-				),
-				Headers: map[string]string{
-					"Authorization": s.basicRestCreds,
-					"Content-Type":  "application/json",
-					"Expires":       expiryTime.String(),
-				},
-				Body: initialBody,
-			})
-			requireRestSuccess(s.T(), resp)
-			assertRestValidEtag(s.T(), resp)
-			assertRestValidMutationToken(s.T(), resp, s.bucketName)
-
-			s.checkDocument(s.T(), checkDocumentOptions{
-				BucketName:     s.bucketName,
-				ScopeName:      s.scopeName,
-				CollectionName: s.collectionName,
-				DocId:          docId,
-				Content:        []byte("5"),
-				ContentFlags:   0,
-				expiry:         expiryCheckType_Within,
-				expiryBounds: expiryCheckTypeWithinBounds{
-					MaxSecs: int((30 * 24 * time.Hour).Seconds()) + 1,
-					MinSecs: int((29 * 24 * time.Hour).Seconds()),
-				},
-			})
-		})
-
-		s.Run("ConversionOver30Days", func() {
-			docId := s.randomDocId()
-			expiryTime := 31 * 24 * time.Hour
-
-			resp := s.sendTestHttpRequest(&testHttpRequest{
-				Method: http.MethodPost,
-				Path: fmt.Sprintf(
-					"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s/decrement",
-					s.bucketName, s.scopeName, s.collectionName, docId,
-				),
-				Headers: map[string]string{
-					"Authorization": s.basicRestCreds,
-					"Content-Type":  "application/json",
-					"Expires":       expiryTime.String(),
-				},
-				Body: initialBody,
-			})
-			requireRestSuccess(s.T(), resp)
-			assertRestValidEtag(s.T(), resp)
-			assertRestValidMutationToken(s.T(), resp, s.bucketName)
-
-			s.checkDocument(s.T(), checkDocumentOptions{
-				BucketName:     s.bucketName,
-				ScopeName:      s.scopeName,
-				CollectionName: s.collectionName,
-				DocId:          docId,
-				Content:        []byte("5"),
-				ContentFlags:   0,
-				expiry:         expiryCheckType_Within,
-				expiryBounds: expiryCheckTypeWithinBounds{
-					MaxSecs: int((31 * 24 * time.Hour).Seconds()) + 1,
-					MinSecs: int((30 * 24 * time.Hour).Seconds()),
-				},
-			})
-		})
-	})
-
-	s.Run("ExpiryTime", func() {
-		initialBody := []byte(`{"initial": 5}`)
-		s.Run("Future", func() {
-			docId := s.randomDocId()
-			expiryTime := time.Now().Add(time.Minute)
-
-			resp := s.sendTestHttpRequest(&testHttpRequest{
-				Method: http.MethodPost,
-				Path: fmt.Sprintf(
-					"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s/decrement",
-					s.bucketName, s.scopeName, s.collectionName, docId,
-				),
-				Headers: map[string]string{
-					"Authorization": s.basicRestCreds,
-					"Content-Type":  "application/json",
-					"Expires":       expiryTime.Format(time.RFC1123),
-				},
-				Body: initialBody,
-			})
-			requireRestSuccess(s.T(), resp)
-			assertRestValidEtag(s.T(), resp)
-			assertRestValidMutationToken(s.T(), resp, s.bucketName)
-
-			s.checkDocument(s.T(), checkDocumentOptions{
-				BucketName:     s.bucketName,
-				ScopeName:      s.scopeName,
-				CollectionName: s.collectionName,
-				DocId:          docId,
-				Content:        []byte("5"),
-				ContentFlags:   0,
-				expiry:         expiryCheckType_Future,
-			})
-		})
-
-		s.Run("Past", func() {
-			docId := s.randomDocId()
-			expiryTime := time.Now().Add(-time.Minute)
-
-			resp := s.sendTestHttpRequest(&testHttpRequest{
-				Method: http.MethodPost,
-				Path: fmt.Sprintf(
-					"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s/decrement",
-					s.bucketName, s.scopeName, s.collectionName, docId,
-				),
-				Headers: map[string]string{
-					"Authorization": s.basicRestCreds,
-					"Content-Type":  "application/json",
-					"Expires":       expiryTime.Format(time.RFC1123),
-				},
-				Body: initialBody,
-			})
-			requireRestSuccess(s.T(), resp)
-			assertRestValidEtag(s.T(), resp)
-			assertRestValidMutationToken(s.T(), resp, s.bucketName)
-
-			s.checkDocument(s.T(), checkDocumentOptions{
-				BucketName:     s.bucketName,
-				ScopeName:      s.scopeName,
-				CollectionName: s.collectionName,
-				DocId:          docId,
-				Content:        nil,
-				ContentFlags:   TEST_CONTENT_FLAGS,
-				expiry:         expiryCheckType_Past,
-			})
-		})
-	})
-
 	s.Run("PreserveExistingExpiry", func() {
 		docId := s.binaryDocId([]byte("5"))
 		expiryTime := time.Now().Add(1 * time.Hour)
@@ -3333,6 +2640,39 @@ func (s *GatewayOpsTestSuite) TestDapiDecrement() {
 			Content:        []byte("4"),
 			ContentFlags:   0,
 		})
+	})
+
+	s.IterDapiExpiryHeaderTests(func(expiry string, modifyOpts func(*checkDocumentOptions)) {
+		docId := s.randomDocId()
+
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s/decrement",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+				"Content-Type":  "application/json",
+				"Expires":       expiry,
+			},
+			Body: []byte(`{"initial": 5}`),
+		})
+		requireRestSuccess(s.T(), resp)
+		assertRestValidEtag(s.T(), resp)
+		assertRestValidMutationToken(s.T(), resp, s.bucketName)
+
+		defaultOpts := checkDocumentOptions{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			DocId:          docId,
+			Content:        []byte("5"),
+			ContentFlags:   0,
+		}
+		modifyOpts(&defaultOpts)
+
+		s.checkDocument(s.T(), defaultOpts)
 	})
 
 	s.RunCommonDapiErrorCases(func(opts *commonDapiTestData) *testHttpResponse {
@@ -4426,176 +3766,6 @@ func (s *GatewayOpsTestSuite) TestDapiMutateIn() {
 		})
 	})
 
-	// BUG(ING-1283) - Data API mutate in ignores Expires header
-	// s.Run("ExpirySecs", func() {
-	// 	body := []byte(`{"operations":[{"operation":"DictAdd","path":"add", "value": 43}]}`)
-	// 	s.Run("ConversionUnder30Days", func() {
-	// 		docId := s.binaryDocId([]byte(`{}`))
-	// 		expiryTime := time.Second * 5
-
-	// 		resp := s.sendTestHttpRequest(&testHttpRequest{
-	// 			Method: http.MethodPost,
-	// 			Path: fmt.Sprintf(
-	// 				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/mutate",
-	// 				s.bucketName, s.scopeName, s.collectionName, docId,
-	// 			),
-	// 			Headers: map[string]string{
-	// 				"Authorization": s.basicRestCreds,
-	// 				"Expires":       expiryTime.String(),
-	// 			},
-	// 			Body: body,
-	// 		})
-	// 		requireRestSuccess(s.T(), resp)
-	// 		assertRestValidEtag(s.T(), resp)
-
-	// 		s.checkDocument(s.T(), checkDocumentOptions{
-	// 			BucketName:     s.bucketName,
-	// 			ScopeName:      s.scopeName,
-	// 			CollectionName: s.collectionName,
-	// 			DocId:          docId,
-	// 			Content:        []byte(`{"add":43}`),
-	// 			ContentFlags:   0,
-	// 			expiry:         expiryCheckType_Within,
-	// 			expiryBounds: expiryCheckTypeWithinBounds{
-	// 				MaxSecs: 5 + 1,
-	// 				MinSecs: 0,
-	// 			},
-	// 		})
-	// 	})
-
-	// 	s.Run("Conversion30Days", func() {
-	// 		docId := s.binaryDocId([]byte(`{}`))
-	// 		expiryTime := 30 * 24 * time.Hour
-
-	// 		resp := s.sendTestHttpRequest(&testHttpRequest{
-	// 			Method: http.MethodPost,
-	// 			Path: fmt.Sprintf(
-	// 				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/mutate",
-	// 				s.bucketName, s.scopeName, s.collectionName, docId,
-	// 			),
-	// 			Headers: map[string]string{
-	// 				"Authorization": s.basicRestCreds,
-	// 				"Expires":       expiryTime.String(),
-	// 			},
-	// 			Body: body,
-	// 		})
-	// 		requireRestSuccess(s.T(), resp)
-	// 		assertRestValidEtag(s.T(), resp)
-
-	// 		s.checkDocument(s.T(), checkDocumentOptions{
-	// 			BucketName:     s.bucketName,
-	// 			ScopeName:      s.scopeName,
-	// 			CollectionName: s.collectionName,
-	// 			DocId:          docId,
-	// 			Content:        []byte(`{"add":43}`),
-	// 			ContentFlags:   0,
-	// 			expiry:         expiryCheckType_Within,
-	// 			expiryBounds: expiryCheckTypeWithinBounds{
-	// 				MaxSecs: int((30 * 24 * time.Hour).Seconds()) + 1,
-	// 				MinSecs: int((29 * 24 * time.Hour).Seconds()),
-	// 			},
-	// 		})
-	// 	})
-
-	// 	s.Run("ConversionOver30Days", func() {
-	// 		docId := s.binaryDocId([]byte(`{}`))
-	// 		expiryTime := 31 * 24 * time.Hour
-
-	// 		resp := s.sendTestHttpRequest(&testHttpRequest{
-	// 			Method: http.MethodPost,
-	// 			Path: fmt.Sprintf(
-	// 				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/mutate",
-	// 				s.bucketName, s.scopeName, s.collectionName, docId,
-	// 			),
-	// 			Headers: map[string]string{
-	// 				"Authorization": s.basicRestCreds,
-	// 				"Expires":       expiryTime.String(),
-	// 			},
-	// 			Body: body,
-	// 		})
-	// 		requireRestSuccess(s.T(), resp)
-	// 		assertRestValidEtag(s.T(), resp)
-
-	// 		s.checkDocument(s.T(), checkDocumentOptions{
-	// 			BucketName:     s.bucketName,
-	// 			ScopeName:      s.scopeName,
-	// 			CollectionName: s.collectionName,
-	// 			DocId:          docId,
-	// 			Content:        []byte(`{"add":43}`),
-	// 			ContentFlags:   0,
-	// 			expiry:         expiryCheckType_Within,
-	// 			expiryBounds: expiryCheckTypeWithinBounds{
-	// 				MaxSecs: int((31 * 24 * time.Hour).Seconds()) + 1,
-	// 				MinSecs: int((30 * 24 * time.Hour).Seconds()),
-	// 			},
-	// 		})
-	// 	})
-	// })
-
-	// BUG(ING-1283) - Data API mutate in ignores Expires header
-	// s.Run("ExpiryTime", func() {
-	// 	body := []byte(`{"operations":[{"operation":"DictAdd","path":"add", "value": 43}]}`)
-	// 	s.Run("Future", func() {
-	// 		docId := s.binaryDocId([]byte(`{}`))
-	// 		expiryTime := time.Now().Add(time.Minute)
-
-	// 		resp := s.sendTestHttpRequest(&testHttpRequest{
-	// 			Method: http.MethodPost,
-	// 			Path: fmt.Sprintf(
-	// 				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/mutate",
-	// 				s.bucketName, s.scopeName, s.collectionName, docId,
-	// 			),
-	// 			Headers: map[string]string{
-	// 				"Authorization": s.basicRestCreds,
-	// 				"Expires":       expiryTime.Format(time.RFC1123),
-	// 			},
-	// 			Body: body,
-	// 		})
-	// 		requireRestSuccess(s.T(), resp)
-	// 		assertRestValidEtag(s.T(), resp)
-
-	// 		s.checkDocument(s.T(), checkDocumentOptions{
-	// 			BucketName:     s.bucketName,
-	// 			ScopeName:      s.scopeName,
-	// 			CollectionName: s.collectionName,
-	// 			DocId:          docId,
-	// 			Content:        []byte(`{"add":43}`),
-	// 			ContentFlags:   0,
-	// 			expiry:         expiryCheckType_Future,
-	// 		})
-	// 	})
-
-	// 	s.Run("Past", func() {
-	// 		docId := s.binaryDocId([]byte(`{}`))
-	// 		expiryTime := time.Now().Add(-time.Minute)
-
-	// 		resp := s.sendTestHttpRequest(&testHttpRequest{
-	// 			Method: http.MethodPost,
-	// 			Path: fmt.Sprintf(
-	// 				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/mutate",
-	// 				s.bucketName, s.scopeName, s.collectionName, docId,
-	// 			),
-	// 			Headers: map[string]string{
-	// 				"Authorization": s.basicRestCreds,
-	// 				"Expires":       expiryTime.Format(time.RFC1123),
-	// 			},
-	// 			Body: body,
-	// 		})
-	// 		requireRestSuccess(s.T(), resp)
-	// 		assertRestValidEtag(s.T(), resp)
-
-	// 		s.checkDocument(s.T(), checkDocumentOptions{
-	// 			BucketName:     s.bucketName,
-	// 			ScopeName:      s.scopeName,
-	// 			CollectionName: s.collectionName,
-	// 			DocId:          docId,
-	// 			Content:        nil,
-	// 			ContentFlags:   0,
-	// 			expiry:         expiryCheckType_Past,
-	// 		})
-	// 	})
-	// })
-
 	s.Run("ValueTooLargeNewDoc", func() {
 		b, err := json.Marshal(s.largeTestContent())
 		require.NoError(s.T(), err)
@@ -4687,6 +3857,37 @@ func (s *GatewayOpsTestSuite) TestDapiMutateIn() {
 					"rem":true
 				}`))
 	})
+
+	// BUG(ING-1283) - Data API mutate in ignores Expires header
+	// s.IterDapiExpiryHeaderTests(func(expiry string, modifyOpts func(*checkDocumentOptions)) {
+	// 	docId := s.binaryDocId([]byte(`{}`))
+
+	// 	resp := s.sendTestHttpRequest(&testHttpRequest{
+	// 		Method: http.MethodPost,
+	// 		Path: fmt.Sprintf(
+	// 			"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/mutate",
+	// 			s.bucketName, s.scopeName, s.collectionName, docId,
+	// 		),
+	// 		Headers: map[string]string{
+	// 			"Authorization": s.basicRestCreds,
+	// 			"Expires":       expiry,
+	// 		},
+	// 		Body: []byte(`{"operations":[{"operation":"DictAdd","path":"add", "value": 43}]}`),
+	// 	})
+	// 	requireRestSuccess(s.T(), resp)
+	// 	assertRestValidEtag(s.T(), resp)
+
+	// 	defaultOpts := checkDocumentOptions{
+	// 		BucketName:     s.bucketName,
+	// 		ScopeName:      s.scopeName,
+	// 		CollectionName: s.collectionName,
+	// 		DocId:          docId,
+	// 		Content:        []byte(`{"add":43}`),
+	// 	}
+	// 	modifyOpts(&defaultOpts)
+
+	// 	s.checkDocument(s.T(), defaultOpts)
+	// })
 
 	s.RunCommonDapiErrorCases(func(opts *commonDapiTestData) *testHttpResponse {
 		return s.sendTestHttpRequest(&testHttpRequest{
