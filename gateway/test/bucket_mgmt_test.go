@@ -668,7 +668,7 @@ func (s *GatewayOpsTestSuite) TestFlushBucket_FlushDisabled() {
 	assertRpcStatus(s.T(), flushErr, codes.FailedPrecondition)
 	assertRpcErrorDetails(s.T(), flushErr, func(d *epb.PreconditionFailure) {
 		assert.Len(s.T(), d.Violations, 1)
-		assert.Equal(s.T(), d.Violations[0].Type, "FLUSH_DISABLED")
+		assert.Equal(s.T(), "FLUSH_DISABLED", d.Violations[0].Type)
 	})
 }
 
