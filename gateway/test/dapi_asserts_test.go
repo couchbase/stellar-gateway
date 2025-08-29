@@ -77,3 +77,9 @@ func assertRestValidMutationToken(t *testing.T, resp *testHttpResponse, bucketNa
 		}
 	}
 }
+
+func assertValidSuccessfulResponse(t *testing.T, resp *testHttpResponse, bucketName string) {
+	requireRestSuccess(t, resp)
+	assertRestValidEtag(t, resp)
+	assertRestValidMutationToken(t, resp, bucketName)
+}

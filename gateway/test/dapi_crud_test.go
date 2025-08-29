@@ -577,9 +577,7 @@ func (s *GatewayOpsTestSuite) TestDapiPost() {
 			},
 			Body: TEST_CONTENT,
 		})
-		requireRestSuccess(s.T(), resp)
-		assertRestValidEtag(s.T(), resp)
-		assertRestValidMutationToken(s.T(), resp, s.bucketName)
+		assertValidSuccessfulResponse(s.T(), resp, s.bucketName)
 
 		s.checkDocument(s.T(), checkDocumentOptions{
 			BucketName:     s.bucketName,
@@ -607,9 +605,7 @@ func (s *GatewayOpsTestSuite) TestDapiPost() {
 			},
 			Body: s.compressContent(TEST_CONTENT),
 		})
-		requireRestSuccess(s.T(), resp)
-		assertRestValidEtag(s.T(), resp)
-		assertRestValidMutationToken(s.T(), resp, s.bucketName)
+		assertValidSuccessfulResponse(s.T(), resp, s.bucketName)
 
 		s.checkDocument(s.T(), checkDocumentOptions{
 			BucketName:     s.bucketName,
@@ -785,9 +781,7 @@ func (s *GatewayOpsTestSuite) TestDapiPost() {
 			return
 		}
 
-		requireRestSuccess(s.T(), resp)
-		assertRestValidEtag(s.T(), resp)
-		assertRestValidMutationToken(s.T(), resp, s.bucketName)
+		assertValidSuccessfulResponse(s.T(), resp, s.bucketName)
 
 		s.checkDocument(s.T(), checkDocumentOptions{
 			BucketName:     s.bucketName,
@@ -823,9 +817,7 @@ func (s *GatewayOpsTestSuite) TestDapiPost() {
 			return
 		}
 
-		requireRestSuccess(s.T(), resp)
-		assertRestValidEtag(s.T(), resp)
-		assertRestValidMutationToken(s.T(), resp, s.bucketName)
+		assertValidSuccessfulResponse(s.T(), resp, s.bucketName)
 
 		s.checkDocument(s.T(), checkDocumentOptions{
 			BucketName:     s.bucketName,
@@ -853,10 +845,7 @@ func (s *GatewayOpsTestSuite) TestDapiPost() {
 			},
 			Body: TEST_CONTENT,
 		})
-		requireRestSuccess(s.T(), resp)
-		assertRestValidEtag(s.T(), resp)
-		assertRestValidMutationToken(s.T(), resp, s.bucketName)
-
+		assertValidSuccessfulResponse(s.T(), resp, s.bucketName)
 		defaultOpts := checkDocumentOptions{
 			BucketName:     s.bucketName,
 			ScopeName:      s.scopeName,
@@ -902,9 +891,7 @@ func (s *GatewayOpsTestSuite) TestDapiPut() {
 				},
 				Body: TEST_CONTENT,
 			})
-			requireRestSuccess(s.T(), resp)
-			assertRestValidEtag(s.T(), resp)
-			assertRestValidMutationToken(s.T(), resp, s.bucketName)
+			assertValidSuccessfulResponse(s.T(), resp, s.bucketName)
 
 			s.checkDocument(s.T(), checkDocumentOptions{
 				BucketName:     s.bucketName,
@@ -932,9 +919,7 @@ func (s *GatewayOpsTestSuite) TestDapiPut() {
 				},
 				Body: s.compressContent(TEST_CONTENT),
 			})
-			requireRestSuccess(s.T(), resp)
-			assertRestValidEtag(s.T(), resp)
-			assertRestValidMutationToken(s.T(), resp, s.bucketName)
+			assertValidSuccessfulResponse(s.T(), resp, s.bucketName)
 
 			s.checkDocument(s.T(), checkDocumentOptions{
 				BucketName:     s.bucketName,
@@ -1046,9 +1031,7 @@ func (s *GatewayOpsTestSuite) TestDapiPut() {
 				},
 				Body: TEST_CONTENT,
 			})
-			requireRestSuccess(s.T(), resp)
-			assertRestValidEtag(s.T(), resp)
-			assertRestValidMutationToken(s.T(), resp, s.bucketName)
+			assertValidSuccessfulResponse(s.T(), resp, s.bucketName)
 
 			s.checkDocument(s.T(), checkDocumentOptions{
 				BucketName:     s.bucketName,
@@ -1146,9 +1129,7 @@ func (s *GatewayOpsTestSuite) TestDapiPut() {
 					},
 					Body: TEST_CONTENT,
 				})
-				requireRestSuccess(s.T(), resp)
-				assertRestValidEtag(s.T(), resp)
-				assertRestValidMutationToken(s.T(), resp, s.bucketName)
+				assertValidSuccessfulResponse(s.T(), resp, s.bucketName)
 
 				s.checkDocument(s.T(), checkDocumentOptions{
 					BucketName:     s.bucketName,
@@ -1223,9 +1204,7 @@ func (s *GatewayOpsTestSuite) TestDapiPut() {
 				return
 			}
 
-			requireRestSuccess(s.T(), resp)
-			assertRestValidEtag(s.T(), resp)
-			assertRestValidMutationToken(s.T(), resp, s.bucketName)
+			assertValidSuccessfulResponse(s.T(), resp, s.bucketName)
 
 			s.checkDocument(s.T(), checkDocumentOptions{
 				BucketName:     s.bucketName,
@@ -1262,9 +1241,7 @@ func (s *GatewayOpsTestSuite) TestDapiPut() {
 				return
 			}
 
-			requireRestSuccess(s.T(), resp)
-			assertRestValidEtag(s.T(), resp)
-			assertRestValidMutationToken(s.T(), resp, s.bucketName)
+			assertValidSuccessfulResponse(s.T(), resp, s.bucketName)
 
 			s.checkDocument(s.T(), checkDocumentOptions{
 				BucketName:     s.bucketName,
@@ -1293,9 +1270,7 @@ func (s *GatewayOpsTestSuite) TestDapiPut() {
 			},
 			Body: TEST_CONTENT,
 		})
-		requireRestSuccess(s.T(), resp)
-		assertRestValidEtag(s.T(), resp)
-		assertRestValidMutationToken(s.T(), resp, s.bucketName)
+		assertValidSuccessfulResponse(s.T(), resp, s.bucketName)
 
 		defaultOpts := checkDocumentOptions{
 			BucketName:     s.bucketName,
@@ -1331,9 +1306,7 @@ func (s *GatewayOpsTestSuite) TestDapiPut() {
 				},
 				Body: newContent,
 			})
-			requireRestSuccess(s.T(), resp)
-			assertRestValidEtag(s.T(), resp)
-			assertRestValidMutationToken(s.T(), resp, s.bucketName)
+			assertValidSuccessfulResponse(s.T(), resp, s.bucketName)
 
 			s.checkDocument(s.T(), checkDocumentOptions{
 				BucketName:     s.bucketName,
@@ -1362,9 +1335,7 @@ func (s *GatewayOpsTestSuite) TestDapiPut() {
 				},
 				Body: s.compressContent(newContent),
 			})
-			requireRestSuccess(s.T(), resp)
-			assertRestValidEtag(s.T(), resp)
-			assertRestValidMutationToken(s.T(), resp, s.bucketName)
+			assertValidSuccessfulResponse(s.T(), resp, s.bucketName)
 
 			s.checkDocument(s.T(), checkDocumentOptions{
 				BucketName:     s.bucketName,
@@ -1412,9 +1383,7 @@ func (s *GatewayOpsTestSuite) TestDapiPut() {
 				},
 				Body: newContent,
 			})
-			requireRestSuccess(s.T(), resp)
-			assertRestValidEtag(s.T(), resp)
-			assertRestValidMutationToken(s.T(), resp, s.bucketName)
+			assertValidSuccessfulResponse(s.T(), resp, s.bucketName)
 
 			s.checkDocument(s.T(), checkDocumentOptions{
 				BucketName:     s.bucketName,
@@ -1626,9 +1595,7 @@ func (s *GatewayOpsTestSuite) TestDapiPut() {
 				return
 			}
 
-			requireRestSuccess(s.T(), resp)
-			assertRestValidEtag(s.T(), resp)
-			assertRestValidMutationToken(s.T(), resp, s.bucketName)
+			assertValidSuccessfulResponse(s.T(), resp, s.bucketName)
 
 			s.checkDocument(s.T(), checkDocumentOptions{
 				BucketName:     s.bucketName,
@@ -1666,9 +1633,7 @@ func (s *GatewayOpsTestSuite) TestDapiPut() {
 				return
 			}
 
-			requireRestSuccess(s.T(), resp)
-			assertRestValidEtag(s.T(), resp)
-			assertRestValidMutationToken(s.T(), resp, s.bucketName)
+			assertValidSuccessfulResponse(s.T(), resp, s.bucketName)
 
 			s.checkDocument(s.T(), checkDocumentOptions{
 				BucketName:     s.bucketName,
@@ -1697,9 +1662,7 @@ func (s *GatewayOpsTestSuite) TestDapiPut() {
 				},
 				Body: TEST_CONTENT,
 			})
-			requireRestSuccess(s.T(), resp)
-			assertRestValidEtag(s.T(), resp)
-			assertRestValidMutationToken(s.T(), resp, s.bucketName)
+			assertValidSuccessfulResponse(s.T(), resp, s.bucketName)
 
 			defaultOpts := checkDocumentOptions{
 				BucketName:     s.bucketName,
@@ -1744,9 +1707,7 @@ func (s *GatewayOpsTestSuite) TestDapiDelete() {
 			},
 			Body: nil,
 		})
-		requireRestSuccess(s.T(), resp)
-		assertRestValidEtag(s.T(), resp)
-		assertRestValidMutationToken(s.T(), resp, s.bucketName)
+		assertValidSuccessfulResponse(s.T(), resp, s.bucketName)
 
 		s.checkDocument(s.T(), checkDocumentOptions{
 			BucketName:     s.bucketName,
@@ -1772,9 +1733,7 @@ func (s *GatewayOpsTestSuite) TestDapiDelete() {
 			},
 			Body: nil,
 		})
-		requireRestSuccess(s.T(), resp)
-		assertRestValidEtag(s.T(), resp)
-		assertRestValidMutationToken(s.T(), resp, s.bucketName)
+		assertValidSuccessfulResponse(s.T(), resp, s.bucketName)
 
 		s.checkDocument(s.T(), checkDocumentOptions{
 			BucketName:     s.bucketName,
@@ -1894,9 +1853,7 @@ func (s *GatewayOpsTestSuite) TestDapiDelete() {
 			return
 		}
 
-		requireRestSuccess(s.T(), resp)
-		assertRestValidEtag(s.T(), resp)
-		assertRestValidMutationToken(s.T(), resp, s.bucketName)
+		assertValidSuccessfulResponse(s.T(), resp, s.bucketName)
 
 		s.checkDocument(s.T(), checkDocumentOptions{
 			BucketName:     s.bucketName,
@@ -1944,9 +1901,7 @@ func (s *GatewayOpsTestSuite) TestDapiIncrement() {
 				"Authorization": s.basicRestCreds,
 			},
 		})
-		requireRestSuccess(s.T(), resp)
-		assertRestValidEtag(s.T(), resp)
-		assertRestValidMutationToken(s.T(), resp, s.bucketName)
+		assertValidSuccessfulResponse(s.T(), resp, s.bucketName)
 
 		checkDocument(docId, []byte("6"))
 	})
@@ -1983,9 +1938,7 @@ func (s *GatewayOpsTestSuite) TestDapiIncrement() {
 			},
 			Body: []byte(`{"delta": 0}`),
 		})
-		requireRestSuccess(s.T(), resp)
-		assertRestValidEtag(s.T(), resp)
-		assertRestValidMutationToken(s.T(), resp, s.bucketName)
+		assertValidSuccessfulResponse(s.T(), resp, s.bucketName)
 
 		checkDocument(docId, []byte("5"))
 	})
@@ -2005,9 +1958,7 @@ func (s *GatewayOpsTestSuite) TestDapiIncrement() {
 			},
 			Body: []byte(`{"initial": 5}`),
 		})
-		requireRestSuccess(s.T(), resp)
-		assertRestValidEtag(s.T(), resp)
-		assertRestValidMutationToken(s.T(), resp, s.bucketName)
+		assertValidSuccessfulResponse(s.T(), resp, s.bucketName)
 
 		checkDocument(docId, []byte("6"))
 	})
@@ -2027,9 +1978,7 @@ func (s *GatewayOpsTestSuite) TestDapiIncrement() {
 			},
 			Body: []byte(`{"initial": 5}`),
 		})
-		requireRestSuccess(s.T(), resp)
-		assertRestValidEtag(s.T(), resp)
-		assertRestValidMutationToken(s.T(), resp, s.bucketName)
+		assertValidSuccessfulResponse(s.T(), resp, s.bucketName)
 
 		checkDocument(docId, []byte("5"))
 	})
@@ -2136,9 +2085,7 @@ func (s *GatewayOpsTestSuite) TestDapiIncrement() {
 			},
 			Body: []byte(`{"initial":2}`),
 		})
-		requireRestSuccess(s.T(), resp)
-		assertRestValidEtag(s.T(), resp)
-		assertRestValidMutationToken(s.T(), resp, s.bucketName)
+		assertValidSuccessfulResponse(s.T(), resp, s.bucketName)
 
 		// expiry is not set on increment of an existing document
 		s.checkDocument(s.T(), checkDocumentOptions{
@@ -2206,9 +2153,7 @@ func (s *GatewayOpsTestSuite) TestDapiIncrement() {
 				"Authorization": s.basicRestCreds,
 			},
 		})
-		requireRestSuccess(s.T(), resp)
-		assertRestValidEtag(s.T(), resp)
-		assertRestValidMutationToken(s.T(), resp, s.bucketName)
+		assertValidSuccessfulResponse(s.T(), resp, s.bucketName)
 
 		s.checkDocument(s.T(), checkDocumentOptions{
 			BucketName:     s.bucketName,
@@ -2241,9 +2186,7 @@ func (s *GatewayOpsTestSuite) TestDapiIncrement() {
 			},
 			Body: []byte(`{"initial": 5}`),
 		})
-		requireRestSuccess(s.T(), resp)
-		assertRestValidEtag(s.T(), resp)
-		assertRestValidMutationToken(s.T(), resp, s.bucketName)
+		assertValidSuccessfulResponse(s.T(), resp, s.bucketName)
 
 		defaultOpts := checkDocumentOptions{
 			BucketName:     s.bucketName,
@@ -2288,9 +2231,7 @@ func (s *GatewayOpsTestSuite) TestDapiIncrement() {
 			return
 		}
 
-		requireRestSuccess(s.T(), resp)
-		assertRestValidEtag(s.T(), resp)
-		assertRestValidMutationToken(s.T(), resp, s.bucketName)
+		assertValidSuccessfulResponse(s.T(), resp, s.bucketName)
 
 		s.checkDocument(s.T(), checkDocumentOptions{
 			BucketName:     s.bucketName,
@@ -2328,9 +2269,7 @@ func (s *GatewayOpsTestSuite) TestDapiDecrement() {
 				"Authorization": s.basicRestCreds,
 			},
 		})
-		requireRestSuccess(s.T(), resp)
-		assertRestValidEtag(s.T(), resp)
-		assertRestValidMutationToken(s.T(), resp, s.bucketName)
+		assertValidSuccessfulResponse(s.T(), resp, s.bucketName)
 
 		checkDocument(docId, []byte("4"))
 	})
@@ -2367,9 +2306,7 @@ func (s *GatewayOpsTestSuite) TestDapiDecrement() {
 			},
 			Body: []byte(`{"delta": 0}`),
 		})
-		requireRestSuccess(s.T(), resp)
-		assertRestValidEtag(s.T(), resp)
-		assertRestValidMutationToken(s.T(), resp, s.bucketName)
+		assertValidSuccessfulResponse(s.T(), resp, s.bucketName)
 
 		checkDocument(docId, []byte("5"))
 	})
@@ -2389,9 +2326,7 @@ func (s *GatewayOpsTestSuite) TestDapiDecrement() {
 			},
 			Body: []byte(`{"initial": 5}`),
 		})
-		requireRestSuccess(s.T(), resp)
-		assertRestValidEtag(s.T(), resp)
-		assertRestValidMutationToken(s.T(), resp, s.bucketName)
+		assertValidSuccessfulResponse(s.T(), resp, s.bucketName)
 
 		checkDocument(docId, []byte("4"))
 	})
@@ -2411,9 +2346,7 @@ func (s *GatewayOpsTestSuite) TestDapiDecrement() {
 			},
 			Body: []byte(`{"initial": 5}`),
 		})
-		requireRestSuccess(s.T(), resp)
-		assertRestValidEtag(s.T(), resp)
-		assertRestValidMutationToken(s.T(), resp, s.bucketName)
+		assertValidSuccessfulResponse(s.T(), resp, s.bucketName)
 
 		checkDocument(docId, []byte("5"))
 	})
@@ -2520,9 +2453,7 @@ func (s *GatewayOpsTestSuite) TestDapiDecrement() {
 			},
 			Body: []byte(`{"initial":2}`),
 		})
-		requireRestSuccess(s.T(), resp)
-		assertRestValidEtag(s.T(), resp)
-		assertRestValidMutationToken(s.T(), resp, s.bucketName)
+		assertValidSuccessfulResponse(s.T(), resp, s.bucketName)
 
 		// expiry is not set on increment of an existing document
 		s.checkDocument(s.T(), checkDocumentOptions{
@@ -2590,9 +2521,7 @@ func (s *GatewayOpsTestSuite) TestDapiDecrement() {
 				"Authorization": s.basicRestCreds,
 			},
 		})
-		requireRestSuccess(s.T(), resp)
-		assertRestValidEtag(s.T(), resp)
-		assertRestValidMutationToken(s.T(), resp, s.bucketName)
+		assertValidSuccessfulResponse(s.T(), resp, s.bucketName)
 
 		s.checkDocument(s.T(), checkDocumentOptions{
 			BucketName:     s.bucketName,
@@ -2628,9 +2557,7 @@ func (s *GatewayOpsTestSuite) TestDapiDecrement() {
 			return
 		}
 
-		requireRestSuccess(s.T(), resp)
-		assertRestValidEtag(s.T(), resp)
-		assertRestValidMutationToken(s.T(), resp, s.bucketName)
+		assertValidSuccessfulResponse(s.T(), resp, s.bucketName)
 
 		s.checkDocument(s.T(), checkDocumentOptions{
 			BucketName:     s.bucketName,
@@ -2658,9 +2585,7 @@ func (s *GatewayOpsTestSuite) TestDapiDecrement() {
 			},
 			Body: []byte(`{"initial": 5}`),
 		})
-		requireRestSuccess(s.T(), resp)
-		assertRestValidEtag(s.T(), resp)
-		assertRestValidMutationToken(s.T(), resp, s.bucketName)
+		assertValidSuccessfulResponse(s.T(), resp, s.bucketName)
 
 		defaultOpts := checkDocumentOptions{
 			BucketName:     s.bucketName,
@@ -3982,10 +3907,7 @@ func (s *GatewayOpsTestSuite) TestDapiAppend() {
 			},
 			Body: []byte(`fghi`),
 		})
-		requireRestSuccess(s.T(), resp)
-		assertRestValidEtag(s.T(), resp)
-		assertRestValidMutationToken(s.T(), resp, s.bucketName)
-
+		assertValidSuccessfulResponse(s.T(), resp, s.bucketName)
 		checkDocument(docId, []byte("abcdefghi"))
 	})
 
@@ -4012,10 +3934,7 @@ func (s *GatewayOpsTestSuite) TestDapiAppend() {
 			},
 			Body: []byte(`fghi`),
 		})
-		requireRestSuccess(s.T(), resp)
-		assertRestValidEtag(s.T(), resp)
-		assertRestValidMutationToken(s.T(), resp, s.bucketName)
-
+		assertValidSuccessfulResponse(s.T(), resp, s.bucketName)
 		checkDocument(docId, []byte("abcdefghi"))
 	})
 
@@ -4162,10 +4081,7 @@ func (s *GatewayOpsTestSuite) TestDapiAppend() {
 			return
 		}
 
-		requireRestSuccess(s.T(), resp)
-		assertRestValidEtag(s.T(), resp)
-		assertRestValidMutationToken(s.T(), resp, s.bucketName)
-
+		assertValidSuccessfulResponse(s.T(), resp, s.bucketName)
 		checkDocument(docId, []byte(`abcdefghi`))
 	})
 
@@ -4208,10 +4124,7 @@ func (s *GatewayOpsTestSuite) TestDapiPrepend() {
 			},
 			Body: []byte(`abcde`),
 		})
-		requireRestSuccess(s.T(), resp)
-		assertRestValidEtag(s.T(), resp)
-		assertRestValidMutationToken(s.T(), resp, s.bucketName)
-
+		assertValidSuccessfulResponse(s.T(), resp, s.bucketName)
 		checkDocument(docId, []byte("abcdefghi"))
 	})
 
@@ -4238,10 +4151,7 @@ func (s *GatewayOpsTestSuite) TestDapiPrepend() {
 			},
 			Body: []byte(`abcde`),
 		})
-		requireRestSuccess(s.T(), resp)
-		assertRestValidEtag(s.T(), resp)
-		assertRestValidMutationToken(s.T(), resp, s.bucketName)
-
+		assertValidSuccessfulResponse(s.T(), resp, s.bucketName)
 		checkDocument(docId, []byte("abcdefghi"))
 	})
 
@@ -4388,10 +4298,7 @@ func (s *GatewayOpsTestSuite) TestDapiPrepend() {
 			return
 		}
 
-		requireRestSuccess(s.T(), resp)
-		assertRestValidEtag(s.T(), resp)
-		assertRestValidMutationToken(s.T(), resp, s.bucketName)
-
+		assertValidSuccessfulResponse(s.T(), resp, s.bucketName)
 		checkDocument(docId, []byte(`abcdefghi`))
 	})
 
