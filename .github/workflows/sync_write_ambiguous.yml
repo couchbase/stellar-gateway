@@ -1,4 +1,4 @@
-name: Run Integration Tests
+name: Run SyncWriteAmbiguous Tests
 permissions:
   contents: read
   packages: read
@@ -32,6 +32,7 @@ jobs:
       - name: Start couchbase cluster
         id: start-cluster
         uses: ./.github/actions/start-couchbase-cluster
+
       - uses: actions/setup-go@v5
         with:
           go-version: 1.24
@@ -49,22 +50,22 @@ jobs:
       - name: Generate Files
         run: |
           go generate ./...
-      - name: Run Tests
-        timeout-minutes: 10
+      - name: Run Test
         env:
-          SGTEST_CBCONNSTR:  ${{ steps.start-cluster.outputs.node-ip }}
-        run: go test -v $(go list ./... | grep -v /contrib/)
+          SGTEST_CBCONNSTR: ${{ steps.start-cluster.outputs.node-ip }}
+          SGTEST_DINOID: ${{ steps.start-cluster.outputs.dino-id }}
+        run: go test ./gateway/test -run TestGatewayOps -v -testify.m TestSyncWriteAmbiguous
 
       - name: Collect couchbase logs
         timeout-minutes: 10
         if: failure()
         run: |
-          mkdir -p ./logs
-          cbdinocluster -v collect-logs ${{ steps.start-cluster.outputs.dino-id }} ./logs
+          mkdir -p ./sync-write-ambiguous-logs
+          cbdinocluster -v collect-logs  ${{ steps.start-cluster.outputs.dino-id }} ./sync-write-ambiguous-logs
       - name: Upload couchbase logs
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: cbcollect-logs-${{ matrix.server }}
-          path: ./logs/*
+          path: ./sync-write-ambiguous-logs/*
           retention-days: 5
