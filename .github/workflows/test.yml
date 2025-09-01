@@ -74,10 +74,16 @@ jobs:
         run: |
           go generate ./...
       - name: Run Tests
-        timeout-minutes: 10
+        timeout-minutes: 15
         env:
           SGTEST_CBCONNSTR: ${{ env.CBDC_IP }}
-        run: go test -v $(go list ./... | grep -v /contrib/)
+          SGTEST_DINOID: ${{ env.CBDC_ID }}
+        run: go test -v -timeout 15m $(go list ./... | grep -v /contrib/)
+      - name: Run SyncWriteAmbiguous Tests
+        env:
+          SGTEST_CBCONNSTR: ${{ env.CBDC_IP }}
+          SGTEST_DINOID: ${{ env.CBDC_ID }}
+        run: go test -tags syncWriteAmbiguous ./gateway/test -run TestGatewayOps -v -testify.m TestSyncWriteAmbiguous
 
       - name: Collect couchbase logs
         timeout-minutes: 10
