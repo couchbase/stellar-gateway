@@ -929,14 +929,13 @@ func (s *GatewayOpsTestSuite) TestGetIndexedDocCount() {
 	}
 
 	indexedCountTests := []indexedCountTest{
-		// TODO - ING-1171
-		// {
-		// 	description: "Basic",
-		// 	modifyDefault: func(def *admin_search_v1.GetIndexedDocumentsCountRequest) *admin_search_v1.GetIndexedDocumentsCountRequest {
-		// 		return def
-		// 	},
-		// 	expect: codes.OK,
-		// },
+		{
+			description: "Basic",
+			modifyDefault: func(def *admin_search_v1.GetIndexedDocumentsCountRequest) *admin_search_v1.GetIndexedDocumentsCountRequest {
+				return def
+			},
+			expect: codes.OK,
+		},
 		{
 			description: "IndexNotFound",
 			modifyDefault: func(def *admin_search_v1.GetIndexedDocumentsCountRequest) *admin_search_v1.GetIndexedDocumentsCountRequest {
@@ -951,28 +950,29 @@ func (s *GatewayOpsTestSuite) TestGetIndexedDocCount() {
 	for i := range indexedCountTests {
 		t := indexedCountTests[i]
 		s.Run(t.description, func() {
-			defaultIndexedCountRequest := admin_search_v1.GetIndexedDocumentsCountRequest{
-				Name:       indexName,
-				BucketName: bucket,
-				ScopeName:  scope,
-			}
-			req := t.modifyDefault(&defaultIndexedCountRequest)
-			creds := s.basicRpcCreds
-			if t.creds != nil {
-				creds = *t.creds
-			}
+			require.Eventually(s.T(), func() bool {
+				defaultIndexedCountRequest := admin_search_v1.GetIndexedDocumentsCountRequest{
+					Name:       indexName,
+					BucketName: bucket,
+					ScopeName:  scope,
+				}
+				req := t.modifyDefault(&defaultIndexedCountRequest)
+				creds := s.basicRpcCreds
+				if t.creds != nil {
+					creds = *t.creds
+				}
 
-			resp, err := searchAdminClient.GetIndexedDocumentsCount(ctx, req, grpc.PerRPCCredentials(creds))
-			if t.expect == codes.OK {
-				require.NoError(s.T(), err)
-				requireRpcSuccess(s.T(), resp, err)
-				return
-			}
+				_, err := searchAdminClient.GetIndexedDocumentsCount(ctx, req, grpc.PerRPCCredentials(creds))
+				if t.expect == codes.OK {
+					return err == nil
+				}
 
-			assertRpcStatus(s.T(), err, t.expect)
-			assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
-				assert.Equal(s.T(), t.resourceDetails, d.ResourceType)
-			})
+				assertRpcStatus(s.T(), err, t.expect)
+				assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
+					assert.Equal(s.T(), t.resourceDetails, d.ResourceType)
+				})
+				return true
+			}, time.Second*30, time.Second*5)
 		})
 	}
 
