@@ -2460,24 +2460,20 @@ func (s *GatewayOpsTestSuite) TestIncrement() {
 		checkDocument(docId, []byte("5"))
 	})
 
-	// BUG(ING-1278): Negative Initial values should be rejected
-	// s.Run("WithInitialNegative", func() {
-	// 	docId := s.randomDocId()
-	// 	initialValue := int64(-2)
+	s.Run("WithInitialNegative", func() {
+		docId := s.randomDocId()
+		initialValue := int64(-2)
 
-	// 	_, err := kvClient.Increment(context.Background(), &kv_v1.IncrementRequest{
-	// 		BucketName:     s.bucketName,
-	// 		ScopeName:      s.scopeName,
-	// 		CollectionName: s.collectionName,
-	// 		Key:            docId,
-	// 		Delta:          1,
-	// 		Initial:        &initialValue,
-	// 	}, grpc.PerRPCCredentials(s.basicRpcCreds))
-	// 	assertRpcStatus(s.T(), err, codes.InvalidArgument)
-	// 	assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
-	// 		assert.Equal(s.T(), d.ResourceType, "document")
-	// 	})
-	// })
+		_, err := kvClient.Increment(context.Background(), &kv_v1.IncrementRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            docId,
+			Delta:          1,
+			Initial:        &initialValue,
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		assertRpcStatus(s.T(), err, codes.InvalidArgument)
+	})
 
 	s.Run("ZeroDelta", func() {
 		docId := s.binaryDocId([]byte("5"))
@@ -2699,24 +2695,20 @@ func (s *GatewayOpsTestSuite) TestDecrement() {
 		checkDocument(docId, []byte("5"))
 	})
 
-	// BUG(ING-1278): Negative Initial values should be rejected
-	// s.Run("WithInitialNegative", func() {
-	// 	docId := s.randomDocId()
-	// 	initialValue := int64(-5)
+	s.Run("WithInitialNegative", func() {
+		docId := s.randomDocId()
+		initialValue := int64(-5)
 
-	// 	_, err := kvClient.Decrement(context.Background(), &kv_v1.DecrementRequest{
-	// 		BucketName:     s.bucketName,
-	// 		ScopeName:      s.scopeName,
-	// 		CollectionName: s.collectionName,
-	// 		Key:            docId,
-	// 		Delta:          1,
-	// 		Initial:        &initialValue,
-	// 	}, grpc.PerRPCCredentials(s.basicRpcCreds))
-	// 	assertRpcStatus(s.T(), err, codes.InvalidArgument)
-	// 	assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
-	// 		assert.Equal(s.T(), d.ResourceType, "document")
-	// 	})
-	// })
+		_, err := kvClient.Decrement(context.Background(), &kv_v1.DecrementRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            docId,
+			Delta:          1,
+			Initial:        &initialValue,
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		assertRpcStatus(s.T(), err, codes.InvalidArgument)
+	})
 
 	s.Run("ZeroDelta", func() {
 		docId := s.binaryDocId([]byte("5"))
