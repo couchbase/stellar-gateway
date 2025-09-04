@@ -731,6 +731,10 @@ func (s *KvServer) Increment(ctx context.Context, in *kv_v1.IncrementRequest) (*
 	}
 
 	if in.Initial != nil {
+		if *in.Initial < 0 {
+			return nil, status.New(codes.InvalidArgument, "Initial cannot be negative.").Err()
+		}
+
 		opts.Initial = uint64(*in.Initial)
 	} else {
 		opts.Initial = uint64(0xFFFFFFFFFFFFFFFF)
@@ -808,6 +812,10 @@ func (s *KvServer) Decrement(ctx context.Context, in *kv_v1.DecrementRequest) (*
 	}
 
 	if in.Initial != nil {
+		if *in.Initial < 0 {
+			return nil, status.New(codes.InvalidArgument, "Initial cannot be negative.").Err()
+		}
+
 		opts.Initial = uint64(*in.Initial)
 	} else {
 		opts.Initial = uint64(0xFFFFFFFFFFFFFFFF)
