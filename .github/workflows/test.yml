@@ -84,6 +84,11 @@ jobs:
           SGTEST_CBCONNSTR: ${{ env.CBDC_IP }}
           SGTEST_DINOID: ${{ env.CBDC_ID }}
         run: go test -tags syncWriteAmbiguous ./gateway/test -run TestGatewayOps -v -testify.m TestSyncWriteAmbiguous
+      - name: Run DurabilityImpossible Tests
+        env:
+          SGTEST_CBCONNSTR: ${{ env.CBDC_IP }}
+          SGTEST_DINOID: ${{ env.CBDC_ID }}
+        run: go test -tags durabilityImpossible ./gateway/test -run TestGatewayOps -v -testify.m TestDurabilityImpossible
 
       - name: Collect couchbase logs
         timeout-minutes: 10

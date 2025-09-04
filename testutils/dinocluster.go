@@ -89,6 +89,10 @@ func runDinoAllowTraffic(node string) error {
 	return runNoResDinoCmd([]string{"chaos", "allow-traffic", globalTestConfig.DinoId, node})
 }
 
+func runDinoRemoveNode(node string) error {
+	return runNoResDinoCmd([]string{"nodes", "rm", globalTestConfig.DinoId, node})
+}
+
 type DinoController struct {
 	t             *testing.T
 	oldFoSettings *cbmgmtx.GetAutoFailoverSettingsResponse
@@ -172,4 +176,9 @@ func (c *DinoController) AllowTraffic(node string) {
 	if hostIdx >= 0 {
 		c.blockedNodes = slices.Delete(c.blockedNodes, hostIdx, hostIdx+1)
 	}
+}
+
+func (c *DinoController) RemoveNode(node string) {
+	err := runDinoRemoveNode(node)
+	require.NoError(c.t, err)
 }
