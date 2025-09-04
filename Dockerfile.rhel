@@ -1,34 +1,27 @@
-FROM registry.access.redhat.com/ubi8/ubi-minimal
+# This is an exact copy of the Dockerfile except that it defaults
+# to using the Red Hat UBI base image.  In the future we can switch
+# to use the standard Dockerfile for all builds using BASE_IMAGE.
+
+ARG BASE_IMAGE=registry.access.redhat.com/ubi8/ubi-micro
+
+FROM ${BASE_IMAGE}
 
 ARG TARGETARCH
+ARG PROD_VERSION=0.0.0
+ARG OS_BUILD=
 
-# ubi-minimal updates frequently and has very few packages installed,
-# so no need for a "security-only" update.
-RUN microdnf update && microdnf clean all
+COPY LICENSE /licenses/couchbase-cloud-native-gateway.txt
+COPY bin/linux/cloud-native-gateway-${TARGETARCH} /cloud-native-gateway
 
-# Add licenses and help file
-RUN mkdir /license
-COPY LICENSE /licenses/LICENSE.txt
-COPY README.md /help.1
-
-ARG PROD_VERSION
-ARG PROD_BUILD
-ARG OS_BUILD
-
-# Install Couchbase Stellar Nebula
-COPY bin/linux/cloud-native-gateway-${TARGETARCH} /usr/local/bin/cloud-native-gateway
+USER 8459
 
 LABEL name="couchbase/cloud-native-gateway" \
       vendor="Couchbase" \
       maintainer="Couchbase" \
       version="${PROD_VERSION}" \
-      openshift_build="${OS_BUILD}" \
-      exporter_build="${PROD_BUILD}" \
-      release="Latest" \
+      release="${OS_BUILD}" \
       summary="Couchbase Cloud Native Gateway ${PROD_VERSION}" \
       description="Couchbase Cloud Native Gateway ${PROD_VERSION}" \
-      architecture="${TARGETARCH}" \
-      run="docker run --rm cloud-native-gateway registry.connect.redhat.com/couchbase/cloud-native-gateway:${PROD_VERSION}-${OS_BUILD} --help" \
-      io.k8s.description="The Couchbase Cloud Native Gateway description goes here."
+      io.k8s.description="The Couchbase Cloud Native Gateway."
 
-ENTRYPOINT ["cloud-native-gateway"]
+ENTRYPOINT ["/cloud-native-gateway"]
