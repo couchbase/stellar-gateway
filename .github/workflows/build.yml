@@ -1,0 +1,95 @@
+name: Validate Build
+
+on:
+  push:
+    tags:
+      - v*
+    branches:
+      - master
+  pull_request:
+
+jobs:
+  docker-validate:
+    name: Validate Build
+    runs-on: ubuntu-latest
+    services:
+      registry:
+        image: docker.io/library/registry
+        ports:
+          - 5000:5000
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-go@v5
+        with:
+          go-version: 1.24
+      - uses: arduino/setup-protoc@v3
+        with:
+          version: 31.1
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install Tools
+        run: |
+          go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36
+          go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.5
+          go install github.com/matryer/moq@v0.5
+      - name: Install Dependencies
+        run: go get ./...
+      - name: Generate Files
+        run: |
+          go generate ./...
+      - name: Build Binary
+        run: |
+          GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o bin/linux/cloud-native-gateway-amd64 -ldflags="-s -w -X github.com/couchbase/gocbcorex/contrib/buildversion.MainPkgVersion=v99.99.99-99999" ./cmd/gateway
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver-opts: network=host
+      - name: Build Standard Docker Image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: localhost:5000/cloud-native-gateway:v99.99.99
+          build-args:  |
+            PROD_VERSION=99.99.99
+            OS_BUILD=99999
+      - name: Print Standard Image Details
+        run: |
+          docker pull localhost:5000/cloud-native-gateway:v99.99.99
+          docker image inspect localhost:5000/cloud-native-gateway:v99.99.99
+      - name: Build RHEL Docker Image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.rhel
+          push: true
+          tags: localhost:5000/cloud-native-gateway-rhel:v99.99.99
+          build-args:  |
+            PROD_VERSION=99.99.99
+            OS_BUILD=99999
+      - name: Print RHEL Image Details
+        run: |
+          docker pull localhost:5000/cloud-native-gateway-rhel:v99.99.99
+          docker image inspect localhost:5000/cloud-native-gateway-rhel:v99.99.99
+      - name: Download RHEL Preflight
+        uses: robinraju/release-downloader@v1
+        with:
+          repository: 'redhat-openshift-ecosystem/openshift-preflight'
+          tag: '1.14.1'
+          fileName: preflight-linux-amd64
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install RHEL Preflight
+        run: |
+          chmod +x preflight-linux-amd64
+          mv preflight-linux-amd64 preflight
+      - name: Run RHEL Preflight
+        run: |
+          ./preflight check container --insecure localhost:5000/cloud-native-gateway-rhel:v99.99.99
+      - name: Save RHEL Preflight Log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rhel-preflight-log
+          path: preflight.log
+          retention-days: 1
