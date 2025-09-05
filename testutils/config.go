@@ -13,6 +13,7 @@ type Config struct {
 	SgConnStr string
 	SgPort    int
 	DapiPort  int
+	DinoId    string
 }
 
 var globalTestConfig *Config
@@ -66,6 +67,11 @@ func GetTestConfig(t *testing.T) *Config {
 			testConfig.DapiPort = portNum
 		}
 
+		envDinoId := os.Getenv("SGTEST_DINOID")
+		if envDinoId != "" {
+			testConfig.DinoId = envDinoId
+		}
+
 		t.Logf("initialized test configuration")
 		t.Logf("  cbconnstr: %s", testConfig.CbConnStr)
 		t.Logf("  cbuser: %s", testConfig.CbUser)
@@ -73,6 +79,7 @@ func GetTestConfig(t *testing.T) *Config {
 		t.Logf("  sgconnstr: %s", testConfig.SgConnStr)
 		t.Logf("  sgport: %d", testConfig.SgPort)
 		t.Logf("  dapiport: %d", testConfig.DapiPort)
+		t.Logf("  dinoid: %s", testConfig.DinoId)
 
 		globalTestConfig = testConfig
 	}
