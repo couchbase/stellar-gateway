@@ -1,0 +1,22 @@
+name: Install cbdinocluster
+
+inputs: 
+  github-token:
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install cbdinocluster
+      shell: bash
+      run: |
+        mkdir -p "$HOME/bin"
+        wget -nv -O $HOME/bin/cbdinocluster https://github.com/couchbaselabs/cbdinocluster/releases/download/v0.0.86/cbdinocluster-linux-amd64
+        chmod +x $HOME/bin/cbdinocluster
+        echo "$HOME/bin" >> $GITHUB_PATH
+    - name: Initialize cbdinocluster
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+      run: |
+        cbdinocluster -v init --auto

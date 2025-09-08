@@ -1,6 +1,3 @@
-//go:build durabilityImpossible
-// +build durabilityImpossible
-
 package test
 
 import (
