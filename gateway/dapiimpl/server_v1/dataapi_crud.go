@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"time"
 	"unicode/utf8"
 
@@ -120,10 +121,14 @@ func (s *DataApiServer) GetDocument(
 func (s *DataApiServer) CreateDocument(
 	ctx context.Context, in dataapiv1.CreateDocumentRequestObject,
 ) (dataapiv1.CreateDocumentResponseObject, error) {
+	fmt.Println("JW CREATING")
+
 	bucketAgent, oboUser, errSt := s.authHandler.GetMemdOboAgent(ctx, in.Params.Authorization, in.BucketName)
 	if errSt != nil {
 		return nil, errSt.Err()
 	}
+
+	fmt.Println("JW CREATING 1")
 
 	key, errSt := s.parseKey(in.DocumentKey)
 	if errSt != nil {
@@ -143,6 +148,8 @@ func (s *DataApiServer) CreateDocument(
 	if in.Params.XCBFlags != nil {
 		flags = *in.Params.XCBFlags
 	}
+
+	fmt.Println("JW CREATING 2")
 
 	docValue, err := readDocFromHttpBody(in.Body)
 	if err != nil {
@@ -174,6 +181,8 @@ func (s *DataApiServer) CreateDocument(
 		opts.Value = docValue
 	}
 
+	fmt.Println("JW CREATING 3")
+
 	if in.Params.Expires != nil {
 		expiry, errSt := parseStringToGocbcorexExpiry(*in.Params.Expires)
 		if errSt != nil {
@@ -182,6 +191,8 @@ func (s *DataApiServer) CreateDocument(
 
 		opts.Expiry = expiry
 	}
+
+	fmt.Println("JW CREATING 4")
 
 	if in.Params.XCBDurabilityLevel != nil {
 		dl, errSt := durabilityLevelToMemdx(*in.Params.XCBDurabilityLevel)

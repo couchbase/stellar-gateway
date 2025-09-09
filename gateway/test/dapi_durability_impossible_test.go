@@ -19,6 +19,8 @@ func (s *GatewayOpsTestSuite) TestDapiDurabilityImpossible() {
 		}
 	}
 
+	fmt.Println("JW HERE 0")
+
 	type testCase struct {
 		name string
 		fn   func() *testHttpResponse
@@ -202,7 +204,9 @@ func (s *GatewayOpsTestSuite) TestDapiDurabilityImpossible() {
 
 	for _, tc := range tests {
 		s.Run(tc.name, func() {
+			fmt.Println("JW HERE 1")
 			resp := tc.fn()
+			fmt.Println("JW HERE 2")
 			requireRestError(s.T(), resp, http.StatusBadRequest, &testRestError{
 				Code: "DurabilityImpossible",
 			})
