@@ -27,6 +27,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
+	"golang.org/x/mod/semver"
 
 	cbconfigx "github.com/couchbase/gocbcorex/contrib/cbconfig"
 )
@@ -164,6 +165,7 @@ func pingCouchbaseCluster(
 	mgmtHostPort,
 	username, password string,
 	tlsConfig *tls.Config,
+	logger *zap.Logger,
 ) (string, error) {
 	var endpoint string
 	if tlsConfig != nil {
@@ -212,6 +214,13 @@ func pingCouchbaseCluster(
 		return "", errors.New("bootstrap node is not part of a cluster yet")
 	}
 
+	serverVersion := strings.Split(thisNode.Version, "-")[0]
+	if semver.Compare("v"+serverVersion, "v7.2.2") < 0 {
+		logger.Warn("stellar-gateway does not support cluster server version",
+			zap.String("minimum supported", "v7.2.2"),
+			zap.String("cluster server version", "v"+serverVersion))
+	}
+
 	clusterInfo, err := mgmt.GetTerseClusterConfig(ctx, &cbmgmtx.GetTerseClusterConfigOptions{})
 	if err != nil {
 		return "", errors.Wrap(err, "failed to get cluster info")
@@ -255,7 +264,7 @@ func (g *Gateway) Run(ctx context.Context) error {
 
 	var clusterUUID string
 	for {
-		currentUUID, err := pingCouchbaseCluster(ctx, mgmtHostPort, config.Username, config.Password, tlsConfig)
+		currentUUID, err := pingCouchbaseCluster(ctx, mgmtHostPort, config.Username, config.Password, tlsConfig, config.Logger)
 		if err != nil {
 			config.Logger.Warn("failed to ping cluster", zap.Error(err))
 
