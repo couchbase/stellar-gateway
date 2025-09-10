@@ -929,14 +929,13 @@ func (s *GatewayOpsTestSuite) TestGetIndexedDocCount() {
 	}
 
 	indexedCountTests := []indexedCountTest{
-		// TODO - ING-1171
-		// {
-		// 	description: "Basic",
-		// 	modifyDefault: func(def *admin_search_v1.GetIndexedDocumentsCountRequest) *admin_search_v1.GetIndexedDocumentsCountRequest {
-		// 		return def
-		// 	},
-		// 	expect: codes.OK,
-		// },
+		{
+			description: "Basic",
+			modifyDefault: func(def *admin_search_v1.GetIndexedDocumentsCountRequest) *admin_search_v1.GetIndexedDocumentsCountRequest {
+				return def
+			},
+			expect: codes.OK,
+		},
 		{
 			description: "IndexNotFound",
 			modifyDefault: func(def *admin_search_v1.GetIndexedDocumentsCountRequest) *admin_search_v1.GetIndexedDocumentsCountRequest {
