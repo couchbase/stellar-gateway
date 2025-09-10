@@ -1,4 +1,4 @@
-name: Run Integration Tests
+name: Run GRPC Durability Impossible Tests
 permissions:
   contents: read
   packages: read
@@ -49,22 +49,22 @@ jobs:
       - name: Generate Files
         run: |
           go generate ./...
-      - name: Run Tests
-        timeout-minutes: 10
+      - name: Run Test
         env:
-          SGTEST_CBCONNSTR:  ${{ steps.start-cluster.outputs.node-ip }}
-        run: go test -v $(go list ./... | grep -v /contrib/)
+          SGTEST_CBCONNSTR: ${{ steps.start-cluster.outputs.node-ip }}
+          SGTEST_DINOID: ${{ steps.start-cluster.outputs.dino-id }}
+        run: go test ./gateway/test -run TestGatewayOps -v -testify.m TestDurabilityImpossible
 
       - name: Collect couchbase logs
         timeout-minutes: 10
         if: failure()
         run: |
-          mkdir -p ./logs
-          cbdinocluster -v collect-logs ${{ steps.start-cluster.outputs.dino-id }} ./logs
+          mkdir -p ./durability-impossible-logs
+          cbdinocluster -v collect-logs ${{ steps.start-cluster.outputs.dino-id }} ./durability-impossible-logs
       - name: Upload couchbase logs
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: cbcollect-logs-${{ matrix.server }}
-          path: ./logs/*
+          path: ./durability-impossible-logs/*
           retention-days: 5

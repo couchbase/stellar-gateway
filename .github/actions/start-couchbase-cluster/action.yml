@@ -1,0 +1,34 @@
+name: Start Couchbase Cluster
+
+outputs:
+  dino-id:
+    description: "Dinocluster ID of the Couchbase Cluster"
+    value: ${{ steps.start-couchbase-cluster.outputs.dino-id }}
+  node-ip:
+    description: "Ip address of a node"
+    value: ${{ steps.start-couchbase-cluster.outputs.node-ip }}
+
+runs: 
+  using: "composite"
+  steps:
+    - name: Start Couchbase Cluster
+      id: start-couchbase-cluster
+      shell: bash
+      env:
+        CLUSTERCONFIG: |
+          nodes:
+            - count: 3
+              version: ${{ matrix.server }}
+              services: [kv, n1ql, index, fts, cbas]
+          docker:
+            kv-memory: 2048
+            index-memory: 1024
+            fts-memory: 1024
+      run: |
+        CBDC_ID=$(cbdinocluster -v alloc --def="${CLUSTERCONFIG}")
+        cbdinocluster -v buckets add ${CBDC_ID} default --ram-quota-mb=100 --flush-enabled=true --num-replicas=2
+        cbdinocluster -v collections add ${CBDC_ID} default _default test
+        cbdinocluster -v query ${CBDC_ID} "CREATE PRIMARY INDEX ON default"
+        CBDC_IP=$(cbdinocluster -v ip $CBDC_ID)
+        echo "dino-id=$(echo $CBDC_ID)" >> $GITHUB_OUTPUT
+        echo "node-ip=$(echo $CBDC_IP)" >> $GITHUB_OUTPUT

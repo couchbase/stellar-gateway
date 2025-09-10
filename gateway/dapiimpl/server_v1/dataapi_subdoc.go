@@ -261,6 +261,8 @@ func (s *DataApiServer) MutateInDocument(
 			return nil, s.errorHandler.NewSdBadCombo(err).Err()
 		} else if errors.Is(err, memdx.ErrDocExists) {
 			return nil, s.errorHandler.NewDocExistsStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.DocumentKey).Err()
+		} else if errors.Is(err, memdx.ErrDurabilityImpossible) {
+			return nil, s.errorHandler.NewDurabilityImpossibleStatus(err, in.BucketName).Err()
 		} else {
 			var subdocErr *memdx.SubDocError
 			if errors.As(err, &subdocErr) {
