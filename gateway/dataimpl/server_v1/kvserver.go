@@ -435,7 +435,7 @@ func (s *KvServer) Exists(ctx context.Context, in *kv_v1.ExistsRequest) (*kv_v1.
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
 
-	if result.Deleted {
+	if result.IsDeleted {
 		return &kv_v1.ExistsResponse{
 			Result: false,
 		}, nil
