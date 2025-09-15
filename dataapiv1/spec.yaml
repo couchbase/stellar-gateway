@@ -5,23 +5,21 @@ info:
   title: Couchbase Data API
   description: |-
     # Introduction
-    The Couchbase Capella Data API provides a set of REST APIs for working with data.
-    It enables users to perform operations such as creating, reading, updating, or deleting data.
-    It also provides passthrough access to the Couchbase Services REST APIs, which enable you to query your data with SQL++, use vector search for AI applications, and more.
+    The Capella Data API provides a RESTful interface for working with data.
+    It enables users to perform operations such as creating, reading, updating, or deleting data directly against your cluster.
+    It also provides passthrough access to the Couchbase Services REST APIs, which enable you to query your data with SQL+&NoBreak;+, use vector search for AI applications, and more.
 externalDocs:
   description: Data API Overview
   url: https://docs.couchbase.com/cloud/data-api-guide/data-api-intro.html
 tags:
-  - name: Tools
+  - name: Health Check
     description: General utilities for the Data API.
-  - name: Single Document Operations
+  - name: Basic Document Operations
     description: Create, read, update, and delete operations for single documents.
   - name: Binary Operations
     description: Append, prepend, increment, and decrement operations for binary documents.
   - name: Locking Operations
     description: Operations that apply to document locking.
-  - name: Expiry Operations
-    description: Operations that apply to document expiry.
   - name: Sub-Document Operations
     description: Lookup and mutate operations for fields within a document.
 paths:
@@ -33,7 +31,7 @@ paths:
       summary: Get Caller Identity
       description: Retrieves the identity of the user making the current request.
       tags:
-        - Tools
+        - Health Check
       responses:
         '200':
           description: Successfully fetched the current caller's identity.
@@ -62,7 +60,7 @@ paths:
       summary: Get Document
       description: Retrieves the specified document.
       tags:
-        - Single Document Operations
+        - Basic Document Operations
       parameters:
         - $ref: '#/components/parameters/AcceptEncodingHeader'
         - in: query
@@ -164,7 +162,7 @@ paths:
       summary: Create Document
       description: Creates a document with the given ID and contents.
       tags:
-        - Single Document Operations
+        - Basic Document Operations
       parameters:
         - $ref: '#/components/parameters/ContentEncodingHeader'
         - $ref: '#/components/parameters/ExpiresHeader'
@@ -207,7 +205,7 @@ paths:
       summary: Update Document
       description: Updates the specified document with the given contents.
       tags:
-        - Single Document Operations
+        - Basic Document Operations
       parameters:
         - $ref: '#/components/parameters/ContentEncodingHeader'
         - $ref: '#/components/parameters/IfMatchHeader'
@@ -251,7 +249,7 @@ paths:
       summary: Delete Document
       description: Deletes the specified document.
       tags:
-        - Single Document Operations
+        - Basic Document Operations
       parameters:
         - $ref: '#/components/parameters/IfMatchHeader'
         - $ref: '#/components/parameters/DurabilityLevelHeader'
@@ -284,7 +282,7 @@ paths:
       summary: Check Alpha API
       description: Checks whether the alpha API is enabled.
       tags:
-        - Tools
+        - Health Check
       responses:
         '200':
           description: The alpha API is enabled
@@ -666,9 +664,11 @@ paths:
     post:
       operationId: touchDocument
       summary: Touch Document
-      description: Updates the expiry of a document.
+      description: |-
+        Updates the expiry of a document.
+        For details, see [Expiration](https://docs.couchbase.com/server/current/learn/data/expiration.html).
       tags:
-        - Expiry Operations
+        - Basic Document Operations
       parameters:
         - $ref: '#/components/parameters/AcceptEncodingHeader'
       requestBody:
