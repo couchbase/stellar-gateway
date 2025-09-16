@@ -491,7 +491,6 @@ func (s *GatewayOpsTestSuite) TestUpdateIndex() {
 			},
 			expect: codes.OK,
 		},
-		// TODO - ING-1185
 		{
 			description: "SourceParams",
 			modifyDefault: func(def *admin_search_v1.UpdateIndexRequest) *admin_search_v1.UpdateIndexRequest {
