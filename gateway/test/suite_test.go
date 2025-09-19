@@ -15,6 +15,7 @@ import (
 
 	"github.com/couchbase/gocbcorex/cbhttpx"
 	"github.com/couchbase/gocbcorex/cbmgmtx"
+	"github.com/couchbase/gocbcorex/contrib/ptr"
 	"github.com/couchbase/goprotostellar/genproto/admin_collection_v1"
 	"github.com/golang/snappy"
 	"golang.org/x/mod/semver"
@@ -75,7 +76,7 @@ func (s *GatewayOpsTestSuite) randomDocId() string {
 	return "test-doc" + "_" + uuid.NewString()
 }
 
-func (s *GatewayOpsTestSuite) testDocIdAndCas() (string, uint64) {
+func (s *GatewayOpsTestSuite) _testDocIdAndCas(withXattrs bool) (string, uint64) {
 	docId := s.randomDocId()
 	docCas := s.createDocument(createDocumentOptions{
 		BucketName:     s.bucketName,
@@ -84,12 +85,26 @@ func (s *GatewayOpsTestSuite) testDocIdAndCas() (string, uint64) {
 		DocId:          docId,
 		Content:        TEST_CONTENT,
 		ContentFlags:   TEST_CONTENT_FLAGS,
+		WithXattrs:     withXattrs,
 	})
 	return docId, docCas
 }
 
+func (s *GatewayOpsTestSuite) testDocIdAndCas() (string, uint64) {
+	return s._testDocIdAndCas(false)
+}
+
+func (s *GatewayOpsTestSuite) testDocIdAndCasWithXattrs() (string, uint64) {
+	return s._testDocIdAndCas(true)
+}
+
 func (s *GatewayOpsTestSuite) testDocId() string {
 	docId, _ := s.testDocIdAndCas()
+	return docId
+}
+
+func (s *GatewayOpsTestSuite) testDocIdWithXattrs() string {
+	docId, _ := s.testDocIdAndCasWithXattrs()
 	return docId
 }
 
@@ -421,6 +436,7 @@ type createDocumentOptions struct {
 	DocId          string
 	Content        []byte
 	ContentFlags   uint32
+	WithXattrs     bool
 }
 
 func (s *GatewayOpsTestSuite) createDocument(opts createDocumentOptions) uint64 {
@@ -439,6 +455,27 @@ func (s *GatewayOpsTestSuite) createDocument(opts createDocumentOptions) uint64 
 	requireRpcSuccess(s.T(), upsertResp, err)
 	assertValidCas(s.T(), upsertResp.Cas)
 	assertValidMutationToken(s.T(), upsertResp.MutationToken, s.bucketName)
+
+	if !opts.WithXattrs {
+		return upsertResp.Cas
+	}
+
+	mutateResp, err := kvClient.MutateIn(context.Background(), &kv_v1.MutateInRequest{
+		BucketName:     opts.BucketName,
+		ScopeName:      opts.ScopeName,
+		CollectionName: opts.CollectionName,
+		Key:            opts.DocId,
+		Specs: []*kv_v1.MutateInRequest_Spec{
+			{
+				Operation: kv_v1.MutateInRequest_Spec_OPERATION_UPSERT,
+				Path:      "test",
+				Content:   []byte(`{"hello":"world"}`),
+				Flags: &kv_v1.MutateInRequest_Spec_Flags{
+					Xattr: ptr.To(true)},
+			},
+		},
+	}, grpc.PerRPCCredentials(s.basicRpcCreds))
+	requireRpcSuccess(s.T(), mutateResp, err)
 
 	return upsertResp.Cas
 }

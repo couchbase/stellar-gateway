@@ -240,6 +240,7 @@ func (s *GatewayOpsTestSuite) TestXdcrGetDocument() {
 		assert.Equal(s.T(), []byte(nil), resp.ContentCompressed)
 		assert.Equal(s.T(), TEST_CONTENT_FLAGS, resp.ContentFlags)
 		assert.Nil(s.T(), resp.Expiry)
+		assert.Len(s.T(), resp.Xattrs, 0)
 	})
 
 	s.Run("WithMeta", func() {
@@ -257,6 +258,27 @@ func (s *GatewayOpsTestSuite) TestXdcrGetDocument() {
 		assert.Equal(s.T(), TEST_CONTENT, s.decompressContent(resp.ContentCompressed))
 		assert.Equal(s.T(), TEST_CONTENT_FLAGS, resp.ContentFlags)
 		assert.Nil(s.T(), resp.Expiry)
+		assert.Len(s.T(), resp.Xattrs, 0)
+	})
+
+	s.Run("WithXattrs", func() {
+		docId := s.testDocIdWithXattrs()
+
+		resp, err := xdcrClient.GetDocument(context.Background(), &internal_xdcr_v1.GetDocumentRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            docId,
+			IncludeContent: true,
+			IncludeXattrs:  ptr.To(true),
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		requireRpcSuccess(s.T(), resp, err)
+		assertValidCas(s.T(), resp.Cas)
+		assert.Equal(s.T(), TEST_CONTENT, s.decompressContent(resp.ContentCompressed))
+		assert.Equal(s.T(), TEST_CONTENT_FLAGS, resp.ContentFlags)
+		assert.Nil(s.T(), resp.Expiry)
+		assert.Len(s.T(), resp.Xattrs, 1)
+		assert.Equal(s.T(), []byte(`{"hello":"world"}`), resp.Xattrs["test"])
 	})
 }
 
@@ -433,6 +455,60 @@ func (s *GatewayOpsTestSuite) TestXdcrPushDocument() {
 			})
 		})
 
+		s.Run("WithXattrs", func() {
+			docId := s.randomDocId()
+
+			// we pass a CAS of 0 to indicate that we want to create the document
+			var docCheckCas uint64 = 0
+
+			// we just make up a cas for testing purposes
+			var docCreateCas uint64 = 1234
+
+			resp, err := xdcrClient.PushDocument(context.Background(), &internal_xdcr_v1.PushDocumentRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+				CheckCas:       &docCheckCas,
+				StoreCas:       docCreateCas,
+				ContentFlags:   TEST_CONTENT_FLAGS,
+				ContentType:    internal_xdcr_v1.ContentType_CONTENT_TYPE_JSON,
+				Content: &internal_xdcr_v1.PushDocumentRequest_ContentUncompressed{
+					ContentUncompressed: TEST_CONTENT,
+				},
+				ExpiryTime: nil, // no expiry
+				Revno:      1,
+				Xattrs: map[string][]byte{
+					"test": []byte(`{"hello":"world"}`),
+				},
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			requireRpcSuccess(s.T(), resp, err)
+			assertValidCas(s.T(), resp.Cas)
+
+			s.checkDocument(s.T(), checkDocumentOptions{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				DocId:          docId,
+				Content:        TEST_CONTENT,
+				ContentFlags:   TEST_CONTENT_FLAGS,
+				Cas:            docCreateCas,
+			})
+
+			xattrGetResp, err := xdcrClient.GetDocument(context.Background(), &internal_xdcr_v1.GetDocumentRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+				IncludeContent: true,
+				IncludeXattrs:  ptr.To(true),
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			requireRpcSuccess(s.T(), xattrGetResp, err)
+			assert.Equal(s.T(), map[string][]byte{
+				"test": []byte(`{"hello":"world"}`),
+			}, xattrGetResp.Xattrs)
+		})
+
 		s.Run("Compressed", func() {
 			docId := s.randomDocId()
 
@@ -511,6 +587,62 @@ func (s *GatewayOpsTestSuite) TestXdcrPushDocument() {
 				ContentFlags:   TEST_CONTENT_FLAGS,
 				Cas:            getResp.Cas + 1,
 			})
+		})
+
+		s.Run("WithXattrs", func() {
+			docId := s.testDocId()
+
+			getResp, err := xdcrClient.GetDocument(context.Background(), &internal_xdcr_v1.GetDocumentRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			requireRpcSuccess(s.T(), getResp, err)
+
+			setResp, err := xdcrClient.PushDocument(context.Background(), &internal_xdcr_v1.PushDocumentRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+				CheckCas:       &getResp.Cas,
+				StoreCas:       getResp.Cas + 1,
+				ContentFlags:   TEST_CONTENT_FLAGS,
+				ContentType:    internal_xdcr_v1.ContentType_CONTENT_TYPE_JSON,
+				Content: &internal_xdcr_v1.PushDocumentRequest_ContentUncompressed{
+					ContentUncompressed: TEST_CONTENT,
+				},
+				ExpiryTime: nil, // no expiry
+				Revno:      getResp.Revno + 1,
+				Xattrs: map[string][]byte{
+					"test": []byte(`{"hello":"world"}`),
+				},
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			requireRpcSuccess(s.T(), setResp, err)
+			assertValidCas(s.T(), setResp.Cas)
+
+			s.checkDocument(s.T(), checkDocumentOptions{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				DocId:          docId,
+				Content:        TEST_CONTENT,
+				ContentFlags:   TEST_CONTENT_FLAGS,
+				Cas:            getResp.Cas + 1,
+			})
+
+			xattrGetResp, err := xdcrClient.GetDocument(context.Background(), &internal_xdcr_v1.GetDocumentRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+				IncludeContent: true,
+				IncludeXattrs:  ptr.To(true),
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			requireRpcSuccess(s.T(), xattrGetResp, err)
+			assert.Equal(s.T(), map[string][]byte{
+				"test": []byte(`{"hello":"world"}`),
+			}, xattrGetResp.Xattrs)
 		})
 
 		s.Run("Compressed", func() {

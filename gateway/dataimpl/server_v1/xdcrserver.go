@@ -313,6 +313,10 @@ func (s *XdcrServer) GetDocument(
 		return nil, errSt.Err()
 	}
 
+	if !in.IncludeContent && (in.IncludeXattrs != nil && *in.IncludeXattrs) {
+		return nil, status.New(codes.InvalidArgument, "IncludeXattrs cannot be true when IncludeContent is false").Err()
+	}
+
 	resp := &internal_xdcr_v1.GetDocumentResponse{}
 	var metaCas uint64
 	var dataCas uint64
@@ -360,42 +364,101 @@ func (s *XdcrServer) GetDocument(
 			return resp, nil
 		}
 
-		var dataOpts gocbcorex.GetOptions
-		dataOpts.OnBehalfOf = oboUser
-		dataOpts.ScopeName = in.ScopeName
-		dataOpts.CollectionName = in.CollectionName
-		dataOpts.Key = []byte(in.Key)
+		if in.IncludeXattrs == nil || !*in.IncludeXattrs {
+			var dataOpts gocbcorex.GetOptions
+			dataOpts.OnBehalfOf = oboUser
+			dataOpts.ScopeName = in.ScopeName
+			dataOpts.CollectionName = in.CollectionName
+			dataOpts.Key = []byte(in.Key)
 
-		dataRes, err := bucketAgent.Get(ctx, &dataOpts)
-		if err != nil {
-			if errors.Is(err, memdx.ErrDocLocked) {
-				return nil, s.errorHandler.NewDocLockedStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
-			} else if errors.Is(err, memdx.ErrDocNotFound) {
-				return nil, s.errorHandler.NewDocMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
-			} else if errors.Is(err, memdx.ErrUnknownCollectionName) {
-				return nil, s.errorHandler.NewCollectionMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
-			} else if errors.Is(err, memdx.ErrUnknownScopeName) {
-				return nil, s.errorHandler.NewScopeMissingStatus(err, in.BucketName, in.ScopeName).Err()
-			} else if errors.Is(err, memdx.ErrAccessError) {
-				return nil, s.errorHandler.NewCollectionNoReadAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+			dataRes, err := bucketAgent.Get(ctx, &dataOpts)
+			if err != nil {
+				if errors.Is(err, memdx.ErrDocLocked) {
+					return nil, s.errorHandler.NewDocLockedStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+				} else if errors.Is(err, memdx.ErrDocNotFound) {
+					return nil, s.errorHandler.NewDocMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+				} else if errors.Is(err, memdx.ErrUnknownCollectionName) {
+					return nil, s.errorHandler.NewCollectionMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+				} else if errors.Is(err, memdx.ErrUnknownScopeName) {
+					return nil, s.errorHandler.NewScopeMissingStatus(err, in.BucketName, in.ScopeName).Err()
+				} else if errors.Is(err, memdx.ErrAccessError) {
+					return nil, s.errorHandler.NewCollectionNoReadAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+				}
+				return nil, s.errorHandler.NewGenericStatus(err).Err()
 			}
-			return nil, s.errorHandler.NewGenericStatus(err).Err()
-		}
 
-		alwaysCompress := kv_v1.CompressionEnabled_COMPRESSION_ENABLED_ALWAYS
-		isCompressed, respValue, errSt :=
-			CompressHandler{}.MaybeCompressContent(dataRes.Value, dataRes.Datatype, &alwaysCompress)
-		if errSt != nil {
-			return nil, errSt.Err()
-		}
-		if !isCompressed {
-			return nil, s.errorHandler.NewGenericStatus(
-				errors.New("document content is not compressed, but compression was expected"),
-			).Err()
-		}
+			alwaysCompress := kv_v1.CompressionEnabled_COMPRESSION_ENABLED_ALWAYS
+			isCompressed, respValue, errSt :=
+				CompressHandler{}.MaybeCompressContent(dataRes.Value, dataRes.Datatype, &alwaysCompress)
+			if errSt != nil {
+				return nil, errSt.Err()
+			}
+			if !isCompressed {
+				return nil, s.errorHandler.NewGenericStatus(
+					errors.New("document content is not compressed, but compression was expected"),
+				).Err()
+			}
 
-		resp.ContentCompressed = respValue
-		dataCas = dataRes.Cas
+			resp.ContentCompressed = respValue
+			dataCas = dataRes.Cas
+		} else {
+			var dataOpts gocbcorex.GetExOptions
+			dataOpts.OnBehalfOf = oboUser
+			dataOpts.ScopeName = in.ScopeName
+			dataOpts.CollectionName = in.CollectionName
+			dataOpts.Key = []byte(in.Key)
+
+			dataRes, err := bucketAgent.GetEx(ctx, &dataOpts)
+			if err != nil {
+				if errors.Is(err, memdx.ErrDocLocked) {
+					return nil, s.errorHandler.NewDocLockedStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+				} else if errors.Is(err, memdx.ErrDocNotFound) {
+					return nil, s.errorHandler.NewDocMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+				} else if errors.Is(err, memdx.ErrUnknownCollectionName) {
+					return nil, s.errorHandler.NewCollectionMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+				} else if errors.Is(err, memdx.ErrUnknownScopeName) {
+					return nil, s.errorHandler.NewScopeMissingStatus(err, in.BucketName, in.ScopeName).Err()
+				} else if errors.Is(err, memdx.ErrAccessError) {
+					return nil, s.errorHandler.NewCollectionNoReadAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+				}
+				return nil, s.errorHandler.NewGenericStatus(err).Err()
+			}
+
+			decompValue, errSt := CompressHandler{}.UncompressContent(dataRes.Value, dataRes.Datatype)
+			if errSt != nil {
+				return nil, errSt.Err()
+			}
+
+			xattrBlob, docValue, err := memdx.SplitXattrBlob(decompValue)
+			if err != nil {
+				return nil, s.errorHandler.NewGenericStatus(
+					errors.New("failed to parse xattr data"),
+				).Err()
+			}
+
+			memdx.IterXattrBlobEntries(xattrBlob, func(key, value string) {
+				if resp.Xattrs == nil {
+					resp.Xattrs = make(map[string][]byte)
+				}
+
+				resp.Xattrs[key] = []byte(value)
+			})
+
+			alwaysCompress := kv_v1.CompressionEnabled_COMPRESSION_ENABLED_ALWAYS
+			isCompressed, respValue, errSt :=
+				CompressHandler{}.MaybeCompressContent(docValue, 0, &alwaysCompress)
+			if errSt != nil {
+				return nil, errSt.Err()
+			}
+			if !isCompressed {
+				return nil, s.errorHandler.NewGenericStatus(
+					errors.New("document content is not compressed, but compression was expected"),
+				).Err()
+			}
+
+			resp.ContentCompressed = respValue
+			dataCas = dataRes.Cas
+		}
 
 		if dataCas == metaCas {
 			return resp, nil
@@ -518,8 +581,50 @@ func (s *XdcrServer) PushDocument(
 	}
 
 	var docDatatype memdx.DatatypeFlag
-	if in.ContentType == internal_xdcr_v1.ContentType_CONTENT_TYPE_JSON {
-		docDatatype |= memdx.DatatypeFlagJSON
+	var docContent []byte
+	if !in.IsDeleted {
+		if in.ContentType == internal_xdcr_v1.ContentType_CONTENT_TYPE_JSON {
+			docDatatype |= memdx.DatatypeFlagJSON
+		}
+
+		switch content := in.Content.(type) {
+		case *internal_xdcr_v1.PushDocumentRequest_ContentUncompressed:
+			docContent = content.ContentUncompressed
+		case *internal_xdcr_v1.PushDocumentRequest_ContentCompressed:
+			docContent = content.ContentCompressed
+			docDatatype |= memdx.DatatypeFlagCompressed
+		default:
+			return nil, status.New(codes.InvalidArgument, "CompressedContent or UncompressedContent must be specified.").Err()
+		}
+
+		var xattrBlob []byte
+		if in.Xattrs != nil {
+			for key, value := range in.Xattrs {
+				xattrBlob = memdx.AppendXattrBlobEntry(xattrBlob, key, string(value))
+			}
+		}
+		if len(xattrBlob) > 0 {
+			// if we need to add xattrs, we need to uncompress the document content first
+			uncompressedContent, errSt := CompressHandler{}.UncompressContent(docContent, docDatatype)
+			if errSt != nil {
+				return nil, errSt.Err()
+			}
+
+			// join the xattr blob and the document content
+			joinedContent := memdx.JoinXattrBlob(xattrBlob, uncompressedContent)
+
+			// now update the document content, and mark it as include xattrs
+			docContent = joinedContent
+			docDatatype &^= memdx.DatatypeFlagCompressed
+			docDatatype |= memdx.DatatypeFlagXattrs
+		}
+	} else {
+		if in.Content != nil {
+			return nil, status.New(codes.InvalidArgument, "Content cannot be specified when IsDeleted is true.").Err()
+		}
+		if in.Xattrs != nil {
+			return nil, status.New(codes.InvalidArgument, "Xattrs cannot be specified when IsDeleted is true.").Err()
+		}
 	}
 
 	crMode, err := bucketAgent.GetConflictResolutionMode(ctx)
@@ -590,17 +695,8 @@ func (s *XdcrServer) PushDocument(
 		opts.Key = []byte(in.Key)
 		opts.Flags = in.ContentFlags
 		opts.Datatype = docDatatype
+		opts.Value = docContent
 		opts.StoreCas = in.StoreCas
-
-		switch content := in.Content.(type) {
-		case *internal_xdcr_v1.PushDocumentRequest_ContentUncompressed:
-			opts.Value = content.ContentUncompressed
-		case *internal_xdcr_v1.PushDocumentRequest_ContentCompressed:
-			opts.Value = content.ContentCompressed
-			opts.Datatype = opts.Datatype | memdx.DatatypeFlagCompressed
-		default:
-			return nil, status.New(codes.InvalidArgument, "CompressedContent or UncompressedContent must be specified.").Err()
-		}
 
 		if in.ExpiryTime != nil {
 			opts.Expiry = timeExpiryToGocbcorex(timeToGo(in.ExpiryTime))
@@ -645,19 +741,10 @@ func (s *XdcrServer) PushDocument(
 		opts.Key = []byte(in.Key)
 		opts.Flags = in.ContentFlags
 		opts.Datatype = docDatatype
+		opts.Value = docContent
 		opts.RevNo = in.Revno
 		opts.CheckCas = checkCas
 		opts.StoreCas = in.StoreCas
-
-		switch content := in.Content.(type) {
-		case *internal_xdcr_v1.PushDocumentRequest_ContentUncompressed:
-			opts.Value = content.ContentUncompressed
-		case *internal_xdcr_v1.PushDocumentRequest_ContentCompressed:
-			opts.Value = content.ContentCompressed
-			opts.Datatype = opts.Datatype | memdx.DatatypeFlagCompressed
-		default:
-			return nil, status.New(codes.InvalidArgument, "CompressedContent or UncompressedContent must be specified.").Err()
-		}
 
 		if in.ExpiryTime != nil {
 			opts.Expiry = timeExpiryToGocbcorex(timeToGo(in.ExpiryTime))
