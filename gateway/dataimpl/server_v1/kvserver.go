@@ -192,7 +192,7 @@ func (s *KvServer) GetAndLock(ctx context.Context, in *kv_v1.GetAndLockRequest) 
 	opts.ScopeName = in.ScopeName
 	opts.CollectionName = in.CollectionName
 	opts.Key = []byte(in.Key)
-	opts.LockTime = in.LockTime
+	opts.LockTime = in.LockTimeSecs
 
 	result, err := bucketAgent.GetAndLock(ctx, &opts)
 	if err != nil {

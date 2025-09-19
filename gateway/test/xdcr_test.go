@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 
+	"github.com/couchbase/gocbcorex/contrib/ptr"
 	"github.com/couchbase/goprotostellar/genproto/internal_xdcr_v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -12,6 +13,16 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 )
+
+func (s *GatewayOpsTestSuite) TestXdcrGetClusterInfo() {
+	xdcrClient := internal_xdcr_v1.NewXdcrServiceClient(s.gatewayConn)
+
+	clusterInfoResp, err := xdcrClient.GetClusterInfo(context.Background(),
+		&internal_xdcr_v1.GetClusterInfoRequest{},
+		grpc.PerRPCCredentials(s.basicRpcCreds))
+	requireRpcSuccess(s.T(), clusterInfoResp, err)
+	require.NotEmpty(s.T(), clusterInfoResp.ClusterUuid)
+}
 
 func (s *GatewayOpsTestSuite) TestXdcrGetBucketInfo() {
 	xdcrClient := internal_xdcr_v1.NewXdcrServiceClient(s.gatewayConn)
@@ -28,6 +39,111 @@ func (s *GatewayOpsTestSuite) TestXdcrGetVbucketInfo() {
 	xdcrClient := internal_xdcr_v1.NewXdcrServiceClient(s.gatewayConn)
 
 	s.Run("Basic", func() {
+		bucketInfoResp, err := xdcrClient.GetBucketInfo(context.Background(), &internal_xdcr_v1.GetBucketInfoRequest{
+			BucketName: s.bucketName,
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		requireRpcSuccess(s.T(), bucketInfoResp, err)
+		numVbuckets := bucketInfoResp.NumVbuckets
+
+		// need to have at least 10 for this test
+		require.Greater(s.T(), numVbuckets, uint32(10))
+
+		client, err := xdcrClient.GetVbucketInfo(context.Background(), &internal_xdcr_v1.GetVbucketInfoRequest{
+			BucketName:     s.bucketName,
+			VbucketIds:     []uint32{0, 1, 2},
+			IncludeHistory: ptr.To(true),
+			IncludeMaxCas:  ptr.To(true),
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		requireRpcSuccess(s.T(), client, err)
+
+		seenVbuckets := make(map[uint32]bool)
+		for {
+			resp, err := client.Recv()
+			if errors.Is(err, io.EOF) {
+				break
+			}
+
+			if err != nil {
+				s.T().Fatalf("Failed to receive response: %v", err)
+			}
+
+			for _, vb := range resp.Vbuckets {
+				if seenVbuckets[vb.VbucketId] {
+					s.T().Fatalf("Received duplicate vbucket id: %d", vb.VbucketId)
+				}
+				seenVbuckets[vb.VbucketId] = true
+
+				assert.Greater(s.T(), vb.HighSeqno, uint64(0))
+
+				require.NotNil(s.T(), vb.History)
+				assert.Greater(s.T(), len(vb.History), 0)
+				for entryIdx, entry := range vb.History {
+					assert.Greater(s.T(), entry.Uuid, uint64(0))
+					if entryIdx < len(vb.History)-1 {
+						// last entry seqno is always 0
+						assert.Greater(s.T(), entry.Seqno, uint64(0))
+					}
+				}
+
+				require.NotNil(s.T(), vb.MaxCas)
+				assert.Greater(s.T(), *vb.MaxCas, uint64(0))
+			}
+		}
+
+		for vbIdx := uint32(0); vbIdx < 3; vbIdx++ {
+			if !seenVbuckets[vbIdx] {
+				s.T().Fatalf("Did not receive vbucket id: %d", vbIdx)
+			}
+		}
+	})
+
+	s.Run("NoHistoryNoMaxCas", func() {
+		bucketInfoResp, err := xdcrClient.GetBucketInfo(context.Background(), &internal_xdcr_v1.GetBucketInfoRequest{
+			BucketName: s.bucketName,
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		requireRpcSuccess(s.T(), bucketInfoResp, err)
+		numVbuckets := bucketInfoResp.NumVbuckets
+
+		// need to have at least 10 for this test
+		require.Greater(s.T(), numVbuckets, uint32(10))
+
+		client, err := xdcrClient.GetVbucketInfo(context.Background(), &internal_xdcr_v1.GetVbucketInfoRequest{
+			BucketName: s.bucketName,
+			VbucketIds: []uint32{0, 1, 2},
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		requireRpcSuccess(s.T(), client, err)
+
+		seenVbuckets := make(map[uint32]bool)
+		for {
+			resp, err := client.Recv()
+			if errors.Is(err, io.EOF) {
+				break
+			}
+
+			if err != nil {
+				s.T().Fatalf("Failed to receive response: %v", err)
+			}
+
+			for _, vb := range resp.Vbuckets {
+				if seenVbuckets[vb.VbucketId] {
+					s.T().Fatalf("Received duplicate vbucket id: %d", vb.VbucketId)
+				}
+				seenVbuckets[vb.VbucketId] = true
+
+				assert.Greater(s.T(), vb.HighSeqno, uint64(0))
+				assert.Nil(s.T(), vb.History)
+				assert.Nil(s.T(), vb.MaxCas)
+			}
+		}
+
+		for vbIdx := uint32(0); vbIdx < 3; vbIdx++ {
+			if !seenVbuckets[vbIdx] {
+				s.T().Fatalf("Did not receive vbucket id: %d", vbIdx)
+			}
+		}
+	})
+
+	s.Run("AllVbuckets", func() {
 		bucketInfoResp, err := xdcrClient.GetBucketInfo(context.Background(), &internal_xdcr_v1.GetBucketInfoRequest{
 			BucketName: s.bucketName,
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
@@ -56,16 +172,9 @@ func (s *GatewayOpsTestSuite) TestXdcrGetVbucketInfo() {
 				}
 				seenVbuckets[vb.VbucketId] = true
 
-				assert.Greater(s.T(), len(vb.FailoverLog), 0)
-				for entryIdx, entry := range vb.FailoverLog {
-					assert.Greater(s.T(), entry.Uuid, uint64(0))
-					if entryIdx < len(vb.FailoverLog)-1 {
-						// last entry seqno is always 0
-						assert.Greater(s.T(), entry.Seqno, uint64(0))
-					}
-				}
 				assert.Greater(s.T(), vb.HighSeqno, uint64(0))
-				assert.Greater(s.T(), vb.MaxCas, uint64(0))
+				assert.Nil(s.T(), vb.History)
+				assert.Nil(s.T(), vb.MaxCas)
 			}
 		}
 

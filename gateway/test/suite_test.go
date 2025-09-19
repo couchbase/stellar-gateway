@@ -147,7 +147,7 @@ func (s *GatewayOpsTestSuite) lockDoc(docId string) {
 		ScopeName:      s.scopeName,
 		CollectionName: s.collectionName,
 		Key:            docId,
-		LockTime:       30,
+		LockTimeSecs:   30,
 	}, grpc.PerRPCCredentials(s.basicRpcCreds))
 	requireRpcSuccess(s.T(), galResp, err)
 	assertValidCas(s.T(), galResp.Cas)
@@ -624,7 +624,7 @@ func (s *GatewayOpsTestSuite) getServerVersion() string {
 		},
 	}
 
-	clusterInfo, err := mgmt.GetClusterInfo(context.Background(), &cbmgmtx.GetClusterConfigOptions{})
+	clusterInfo, err := mgmt.GetClusterInfo(context.Background(), &cbmgmtx.GetClusterInfoOptions{})
 	require.NoError(s.T(), err)
 
 	// strip the meta-info like -enterprise or build numbers

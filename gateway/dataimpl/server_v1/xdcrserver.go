@@ -3,12 +3,14 @@ package server_v1
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strconv"
 	"time"
 
 	"github.com/couchbase/gocbcorex"
 	"github.com/couchbase/gocbcorex/cbdoccrx"
 	"github.com/couchbase/gocbcorex/cbmgmtx"
+	"github.com/couchbase/gocbcorex/contrib/ptr"
 	"github.com/couchbase/gocbcorex/memdx"
 	"github.com/couchbase/goprotostellar/genproto/internal_xdcr_v1"
 	"github.com/couchbase/goprotostellar/genproto/kv_v1"
@@ -35,6 +37,24 @@ func NewXdcrServer(
 		errorHandler: errorHandler,
 		authHandler:  authHandler,
 	}
+}
+
+func (s *XdcrServer) GetClusterInfo(ctx context.Context, in *internal_xdcr_v1.GetClusterInfoRequest) (*internal_xdcr_v1.GetClusterInfoResponse, error) {
+	clusterAgent, oboUser, errSt := s.authHandler.GetHttpOboAgent(ctx, nil)
+	if errSt != nil {
+		return nil, errSt.Err()
+	}
+
+	clusterInfo, err := clusterAgent.GetClusterInfo(ctx, &cbmgmtx.GetClusterInfoOptions{
+		OnBehalfOf: oboUser,
+	})
+	if err != nil {
+		return nil, s.errorHandler.NewGenericStatus(err).Err()
+	}
+
+	return &internal_xdcr_v1.GetClusterInfoResponse{
+		ClusterUuid: clusterInfo.Uuid,
+	}, nil
 }
 
 func (s *XdcrServer) GetBucketInfo(ctx context.Context, in *internal_xdcr_v1.GetBucketInfoRequest) (*internal_xdcr_v1.GetBucketInfoResponse, error) {
@@ -83,57 +103,110 @@ func (s *XdcrServer) GetVbucketInfo(in *internal_xdcr_v1.GetVbucketInfoRequest, 
 	}
 
 	getOneVbucketState := func(vbId uint16) (*internal_xdcr_v1.GetVbucketInfoResponse_VbucketState, error) {
-		statsParser := memdx.VbucketDetailsStatsParser{
-			VbucketID: &vbId,
-		}
-		_, err := bucketAgent.StatsByVbucket(out.Context(), &gocbcorex.StatsByVbucketOptions{
-			VbucketID:  vbId,
-			GroupName:  statsParser.GroupName(),
-			OnBehalfOf: oboUser,
-		}, func(resp gocbcorex.StatsDataResult) {
-			statsParser.HandleEntry(resp.Key, resp.Value)
-		})
-		if err != nil {
-			return nil, err
+		var vbUuid uint64
+		var highSeqno uint64
+		var maxCas *uint64
+
+		if in.IncludeMaxCas != nil && *in.IncludeMaxCas {
+			statsParser := memdx.VbucketDetailsStatsParser{
+				VbucketID: &vbId,
+			}
+			_, err := bucketAgent.StatsByVbucket(out.Context(), &gocbcorex.StatsByVbucketOptions{
+				VbucketID:  vbId,
+				GroupName:  statsParser.GroupName(),
+				OnBehalfOf: oboUser,
+			}, func(resp gocbcorex.StatsDataResult) {
+				statsParser.HandleEntry(resp.Key, resp.Value)
+			})
+			if err != nil {
+				return nil, err
+			}
+
+			vbStatsResp := statsParser.Vbuckets[vbId]
+
+			vbUuid = vbStatsResp.Uuid
+			highSeqno = vbStatsResp.HighSeqno
+			maxCas = ptr.To(vbStatsResp.MaxCas)
+		} else {
+			statsParser := memdx.VbucketSeqNoStatsParser{
+				VbucketID: &vbId,
+			}
+			_, err := bucketAgent.StatsByVbucket(out.Context(), &gocbcorex.StatsByVbucketOptions{
+				VbucketID:  vbId,
+				GroupName:  statsParser.GroupName(),
+				OnBehalfOf: oboUser,
+			}, func(resp gocbcorex.StatsDataResult) {
+				statsParser.HandleEntry(resp.Key, resp.Value)
+			})
+			if err != nil {
+				return nil, err
+			}
+
+			vbStatsResp := statsParser.Vbuckets[vbId]
+
+			vbUuid = vbStatsResp.Uuid
+			highSeqno = vbStatsResp.HighSeqno
+			maxCas = nil
 		}
 
-		vbStatsResp := statsParser.Vbuckets[vbId]
+		var historyEntries []*internal_xdcr_v1.GetVbucketInfoResponse_HistoryEntry
+		if in.IncludeHistory != nil && *in.IncludeHistory {
+			flogParser := memdx.FailoverStatsParser{
+				VbucketID: &vbId,
+			}
+			_, err := bucketAgent.StatsByVbucket(out.Context(), &gocbcorex.StatsByVbucketOptions{
+				VbucketID:  vbId,
+				GroupName:  flogParser.GroupName(),
+				OnBehalfOf: oboUser,
+			}, func(resp gocbcorex.StatsDataResult) {
+				flogParser.HandleEntry(resp.Key, resp.Value)
+			})
+			if err != nil {
+				return nil, err
+			}
 
-		flogParser := memdx.FailoverStatsParser{
-			VbucketID: &vbId,
-		}
-		_, err = bucketAgent.StatsByVbucket(out.Context(), &gocbcorex.StatsByVbucketOptions{
-			VbucketID:  vbId,
-			GroupName:  flogParser.GroupName(),
-			OnBehalfOf: oboUser,
-		}, func(resp gocbcorex.StatsDataResult) {
-			flogParser.HandleEntry(resp.Key, resp.Value)
-		})
-		if err != nil {
-			return nil, err
-		}
+			vbFlogResp := flogParser.Vbuckets[vbId]
 
-		vbFlogResp := flogParser.Vbuckets[vbId]
-
-		flogEntries := make([]*internal_xdcr_v1.GetVbucketInfoResponse_FailoverEntry, len(vbFlogResp.FailoverLog))
-		for i, entry := range vbFlogResp.FailoverLog {
-			flogEntries[i] = &internal_xdcr_v1.GetVbucketInfoResponse_FailoverEntry{
-				Uuid:  entry.VbUuid,
-				Seqno: entry.SeqNo,
+			historyEntries = make([]*internal_xdcr_v1.GetVbucketInfoResponse_HistoryEntry, len(vbFlogResp.FailoverLog))
+			for i, entry := range vbFlogResp.FailoverLog {
+				historyEntries[i] = &internal_xdcr_v1.GetVbucketInfoResponse_HistoryEntry{
+					Uuid:  entry.VbUuid,
+					Seqno: entry.SeqNo,
+				}
 			}
 		}
 
 		return &internal_xdcr_v1.GetVbucketInfoResponse_VbucketState{
-			VbucketId:   uint32(vbId),
-			FailoverLog: flogEntries,
-			HighSeqno:   vbStatsResp.HighSeqno,
-			MaxCas:      vbStatsResp.MaxCas,
+			VbucketId: uint32(vbId),
+			Uuid:      vbUuid,
+			History:   historyEntries,
+			HighSeqno: highSeqno,
+			MaxCas:    maxCas,
 		}, nil
 	}
 
-	numVbuckets := bucketAgent.NumVbuckets()
-	waitCh := make(chan error, numVbuckets)
-	for vbId := uint16(0); vbId < uint16(numVbuckets); vbId++ {
+	numBucketVbuckets := bucketAgent.NumVbuckets()
+
+	// convert the uint32 vbucket ids to uint16, and validate they are in range
+	fetchVbs := make([]uint16, 0, numBucketVbuckets)
+	for _, vbId := range in.VbucketIds {
+		if vbId >= uint32(numBucketVbuckets) {
+			return status.New(codes.InvalidArgument,
+				fmt.Sprintf("vbucket id must be between 0 and %d", numBucketVbuckets)).Err()
+		}
+
+		fetchVbs = append(fetchVbs, uint16(vbId))
+	}
+
+	// if the user did not specify any vbuckets, we return them all
+	if len(fetchVbs) == 0 {
+		for vbId := uint16(0); vbId < uint16(numBucketVbuckets); vbId++ {
+			fetchVbs = append(fetchVbs, vbId)
+		}
+	}
+
+	waitCh := make(chan error, len(fetchVbs))
+	for _, vbId := range fetchVbs {
 		go func() {
 			vbState, err := getOneVbucketState(vbId)
 			if err != nil {
@@ -148,7 +221,7 @@ func (s *XdcrServer) GetVbucketInfo(in *internal_xdcr_v1.GetVbucketInfoRequest, 
 		}()
 	}
 
-	for vbId := uint16(0); vbId < uint16(numVbuckets); vbId++ {
+	for _, vbId := range fetchVbs {
 		err := <-waitCh
 		if err != nil {
 			// TODO(brett19): Handle this error better...
