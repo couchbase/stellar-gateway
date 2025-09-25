@@ -8,6 +8,20 @@ info:
     The Capella Data API provides a RESTful interface for working with data.
     It enables users to perform operations such as creating, reading, updating, or deleting data directly against your cluster.
     It also provides passthrough access to the Couchbase Services REST APIs, which enable you to query your data with SQL+&NoBreak;+, use vector search for AI applications, and more.
+
+    ## Base URL
+
+    The base URL for the Data API is as follows:
+
+    `https://{clusterId}.data.cloud.couchbase.com`
+
+    where `{clusterId}` is unique to your Couchbase Capella cluster.
+    For details, see [Get Started with the Data API](https://docs.couchbase.com/cloud/data-api-guide/data-api-start.html).
+servers:
+  - url: https://{clusterId}.data.cloud.couchbase.com
+    variables:
+      clusterId:
+        default: clusterId
 externalDocs:
   description: Data API Overview
   url: https://docs.couchbase.com/cloud/data-api-guide/data-api-intro.html
