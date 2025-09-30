@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"time"
@@ -12,6 +13,7 @@ import (
 
 var (
 	ErrInvalidCredentials = errors.New("invalid credentials")
+	ErrInvalidCertificate = errors.New("invalid certificate")
 )
 
 type CbAuthAuthenticator struct {
@@ -92,6 +94,19 @@ func (a *CbAuthAuthenticator) ValidateUserForObo(ctx context.Context, user, pass
 	}
 
 	return user, info.Domain, nil
+}
+
+func (a *CbAuthAuthenticator) ValidateConnStateForObo(ctx context.Context, connState *tls.ConnectionState) (string, string, error) {
+	info, err := a.Authenticator.CheckCertificate(ctx, connState)
+	if err != nil {
+		if errors.Is(err, cbauthx.ErrInvalidAuth) {
+			return "", "", ErrInvalidCertificate
+		}
+
+		return "", "", fmt.Errorf("failed to check certificate with cbauth: %s", err.Error())
+	}
+
+	return info.User, info.Domain, nil
 }
 
 func (a *CbAuthAuthenticator) Close() error {

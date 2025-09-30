@@ -869,6 +869,26 @@ func (e ErrorHandler) NewInvalidCredentialsStatus() *status.Status {
 	return st
 }
 
+func (e ErrorHandler) NewInvalidCertificateStatus() *status.Status {
+	st := status.New(codes.PermissionDenied, "Your certificate is invalid.")
+	st = e.tryAttachStatusDetails(st, &epb.ResourceInfo{
+		ResourceType: "user",
+		ResourceName: "",
+		Description:  "",
+	})
+	return st
+}
+
+func (e ErrorHandler) NewUnexpectedAuthTypeStatus() *status.Status {
+	st := status.New(codes.InvalidArgument, "Unexpected auth type.")
+	return st
+}
+
+func (e ErrorHandler) NewCredentialsAndCertStatus() *status.Status {
+	st := status.New(codes.InvalidArgument, "Authorization header and client certificate provided.")
+	return st
+}
+
 func (e ErrorHandler) NewInvalidQueryStatus(baseErr error, queryErrStr string) *status.Status {
 	st := status.New(codes.InvalidArgument,
 		fmt.Sprintf("Query parsing failed: %s", queryErrStr))
