@@ -306,7 +306,8 @@ func (s *DataApiServer) MutateInDocument(
 
 	resp := dataapiv1.MutateInDocument200JSONResponse{
 		Headers: dataapiv1.MutateInDocument200ResponseHeaders{
-			ETag: casToHttpEtag(result.Cas),
+			ETag:             casToHttpEtag(result.Cas),
+			XCBMutationToken: tokenFromGocbcorex(in.BucketName, result.MutationToken),
 		},
 	}
 

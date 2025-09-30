@@ -3771,8 +3771,7 @@ func (s *GatewayOpsTestSuite) TestDapiMutateIn() {
 
 		requireRestSuccess(s.T(), resp)
 		assertRestValidEtag(s.T(), resp)
-		// ING-1104
-		// assertRestValidMutationToken(s.T(), resp, s.bucketName)
+		assertRestValidMutationToken(s.T(), resp, s.bucketName)
 
 		checkDocument(docId, []byte(`{
 					"num":42,

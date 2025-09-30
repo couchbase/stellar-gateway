@@ -858,6 +858,8 @@ paths:
           headers:
             ETag:
               $ref: '#/components/headers/ETag'
+            X-CB-MutationToken:
+              $ref: '#/components/headers/MutationToken'
           content:
             application/json:
               schema:
