@@ -2,6 +2,7 @@ package server_v1
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 
 	"github.com/couchbase/gocbcorex"
@@ -10,7 +11,9 @@ import (
 	"github.com/couchbase/stellar-gateway/gateway/auth"
 	"github.com/couchbase/stellar-gateway/utils/authhdr"
 	"go.uber.org/zap"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
 )
 
@@ -45,14 +48,55 @@ func (a AuthHandler) MaybeGetUserPassFromContext(ctx context.Context) (string, s
 	return username, password, nil
 }
 
+func (a AuthHandler) MaybeGetConnStateFromContext(ctx context.Context) (*tls.ConnectionState, *status.Status) {
+	p, ok := peer.FromContext(ctx)
+	if !ok {
+		return nil, nil
+	}
+
+	tlsInfo, ok := p.AuthInfo.(credentials.TLSInfo)
+	if !ok {
+		a.Logger.Debug("unexpected auth type", zap.String("authType", p.AuthInfo.AuthType()))
+		return nil, a.ErrorHandler.NewUnexpectedAuthTypeStatus()
+	}
+
+	return &tlsInfo.State, nil
+}
+
 func (a AuthHandler) MaybeGetOboUserFromContext(ctx context.Context) (string, string, *status.Status) {
 	username, password, errSt := a.MaybeGetUserPassFromContext(ctx)
 	if errSt != nil {
 		return "", "", errSt
 	}
 
-	if username == "" && password == "" {
+	connState, errSt := a.MaybeGetConnStateFromContext(ctx)
+	if errSt != nil {
+		return "", "", errSt
+	}
+
+	credsFound := username != "" && password != ""
+	certFound := connState != nil && len(connState.PeerCertificates) != 0
+
+	if credsFound && certFound {
+		return "", "", a.ErrorHandler.NewCredentialsAndCertStatus()
+	}
+
+	if !credsFound && !certFound {
 		return "", "", nil
+	}
+
+	if certFound {
+		oboUser, oboDomain, err := a.Authenticator.ValidateConnStateForObo(ctx, connState)
+		if err != nil {
+			if errors.Is(err, auth.ErrInvalidCertificate) {
+				return "", "", a.ErrorHandler.NewInvalidCertificateStatus()
+			}
+
+			a.Logger.Error("received an unexpected cert authentication error", zap.Error(err))
+			return "", "", a.ErrorHandler.NewInternalStatus()
+		}
+
+		return oboUser, oboDomain, nil
 	}
 
 	oboUser, oboDomain, err := a.Authenticator.ValidateUserForObo(ctx, username, password)
