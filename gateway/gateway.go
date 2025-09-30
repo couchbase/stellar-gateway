@@ -410,6 +410,8 @@ func (g *Gateway) Run(ctx context.Context) error {
 			Metrics:     metrics.GetSnMetrics(),
 			RateLimiter: rateLimiter,
 			GrpcTlsConfig: &tls.Config{
+				ClientCAs:  config.ClusterCaCert,
+				ClientAuth: tls.VerifyClientCertIfGiven,
 				GetCertificate: func(chi *tls.ClientHelloInfo) (*tls.Certificate, error) {
 					return g.atomicGrpcCert.Load(), nil
 				},
