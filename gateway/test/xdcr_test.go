@@ -563,6 +563,40 @@ func (s *GatewayOpsTestSuite) TestXdcrPushDocument() {
 				Cas:            docCreateCas,
 			})
 		})
+
+		s.Run("VbUuidMismatch", func() {
+			docId := s.randomDocId()
+
+			// we pass a CAS of 0 to indicate that we want to create the document
+			var docCheckCas uint64 = 0
+
+			// we just make up a cas for testing purposes
+			var docCreateCas uint64 = 1234
+
+			// we just make up a vbuuid that won't match
+			var vbuuidMismatch string = "99999"
+
+			_, err := xdcrClient.PushDocument(context.Background(), &internal_xdcr_v1.PushDocumentRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+				CheckCas:       &docCheckCas,
+				StoreCas:       docCreateCas,
+				ContentFlags:   TEST_CONTENT_FLAGS,
+				ContentType:    internal_xdcr_v1.ContentType_CONTENT_TYPE_JSON,
+				Content: &internal_xdcr_v1.PushDocumentRequest_ContentUncompressed{
+					ContentUncompressed: TEST_CONTENT,
+				},
+				ExpiryTime: nil, // no expiry
+				Revno:      1,
+				VbUuid:     &vbuuidMismatch,
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			assertRpcStatus(s.T(), err, codes.Aborted)
+			assertRpcErrorDetails(s.T(), err, func(d *epb.ErrorInfo) {
+				assert.Equal(s.T(), "VBUUID_MISMATCH", d.Reason)
+			})
+		})
 	})
 
 	s.Run("Set", func() {
@@ -808,6 +842,42 @@ func (s *GatewayOpsTestSuite) TestXdcrPushDocument() {
 				assert.Equal(s.T(), "DOC_NEWER", d.Reason)
 			})
 		})
+
+		s.Run("VbUuidMismatch", func() {
+			docId := s.randomDocId()
+
+			getResp, err := xdcrClient.GetDocument(context.Background(), &internal_xdcr_v1.GetDocumentRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			requireRpcSuccess(s.T(), getResp, err)
+
+			// we just make up a vbuuid that won't match
+			var vbuuidMismatch string = "99999"
+
+			_, err = xdcrClient.PushDocument(context.Background(), &internal_xdcr_v1.PushDocumentRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+				CheckCas:       &getResp.Cas,
+				StoreCas:       getResp.Cas + 1,
+				ContentFlags:   TEST_CONTENT_FLAGS,
+				ContentType:    internal_xdcr_v1.ContentType_CONTENT_TYPE_JSON,
+				Content: &internal_xdcr_v1.PushDocumentRequest_ContentUncompressed{
+					ContentUncompressed: TEST_CONTENT,
+				},
+				ExpiryTime: nil, // no expiry
+				Revno:      getResp.Revno + 1,
+				VbUuid:     &vbuuidMismatch,
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			assertRpcStatus(s.T(), err, codes.Aborted)
+			assertRpcErrorDetails(s.T(), err, func(d *epb.ErrorInfo) {
+				assert.Equal(s.T(), "VBUUID_MISMATCH", d.Reason)
+			})
+		})
 	})
 
 	s.Run("Delete", func() {
@@ -885,6 +955,36 @@ func (s *GatewayOpsTestSuite) TestXdcrPushDocument() {
 			assertRpcStatus(s.T(), err, codes.Aborted)
 			assertRpcErrorDetails(s.T(), err, func(d *epb.ErrorInfo) {
 				assert.Equal(s.T(), "DOC_NEWER", d.Reason)
+			})
+		})
+
+		s.Run("VbUuidMismatch", func() {
+			docId := s.testDocId()
+
+			getResp, err := xdcrClient.GetDocument(context.Background(), &internal_xdcr_v1.GetDocumentRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+				IncludeContent: false,
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			requireRpcSuccess(s.T(), getResp, err)
+
+			var vbuuidMismatch string = "99999"
+
+			_, err = xdcrClient.PushDocument(context.Background(), &internal_xdcr_v1.PushDocumentRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+				CheckCas:       &getResp.Cas,
+				StoreCas:       getResp.Cas + 1,
+				IsDeleted:      true,
+				VbUuid:         &vbuuidMismatch,
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			assertRpcStatus(s.T(), err, codes.Aborted)
+			assertRpcErrorDetails(s.T(), err, func(d *epb.ErrorInfo) {
+				assert.Equal(s.T(), "VBUUID_MISMATCH", d.Reason)
 			})
 		})
 	})
