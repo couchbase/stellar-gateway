@@ -659,6 +659,14 @@ func (s *XdcrServer) PushDocument(
 			opts.Options |= memdx.MetaOpFlagForceAcceptWithMetaOps
 		}
 
+		if in.VbUuid != nil {
+			vbuuid, errSt := s.parseVbUuid(in)
+			if errSt != nil {
+				return nil, errSt.Err()
+			}
+			opts.VBUUID = uint64(vbuuid)
+		}
+
 		result, err := bucketAgent.DeleteWithMeta(ctx, &opts)
 		if err != nil {
 			if errors.Is(err, memdx.ErrConflictOrCasMismatch) {
@@ -679,6 +687,8 @@ func (s *XdcrServer) PushDocument(
 				return nil, s.errorHandler.NewScopeMissingStatus(err, in.BucketName, in.ScopeName).Err()
 			} else if errors.Is(err, memdx.ErrAccessError) {
 				return nil, s.errorHandler.NewCollectionNoWriteAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+			} else if errors.Is(err, gocbcorex.ErrVbucketUUIDMismatch) {
+				return nil, s.errorHandler.NewVbUuidDivergenceStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
 			}
 			return nil, s.errorHandler.NewGenericStatus(err).Err()
 		}
@@ -706,6 +716,14 @@ func (s *XdcrServer) PushDocument(
 			opts.Options |= memdx.MetaOpFlagForceAcceptWithMetaOps
 		}
 
+		if in.VbUuid != nil {
+			vbuuid, errSt := s.parseVbUuid(in)
+			if errSt != nil {
+				return nil, errSt.Err()
+			}
+			opts.VBUUID = uint64(vbuuid)
+		}
+
 		result, err := bucketAgent.AddWithMeta(ctx, &opts)
 		if err != nil {
 			if errors.Is(err, memdx.ErrDocExists) {
@@ -718,6 +736,8 @@ func (s *XdcrServer) PushDocument(
 				return nil, s.errorHandler.NewCollectionNoWriteAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
 			} else if errors.Is(err, memdx.ErrValueTooLarge) {
 				return nil, s.errorHandler.NewValueTooLargeStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key, false).Err()
+			} else if errors.Is(err, gocbcorex.ErrVbucketUUIDMismatch) {
+				return nil, s.errorHandler.NewVbUuidDivergenceStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
 			}
 			return nil, s.errorHandler.NewGenericStatus(err).Err()
 		}
@@ -757,6 +777,14 @@ func (s *XdcrServer) PushDocument(
 			opts.Options |= memdx.MetaOpFlagForceAcceptWithMetaOps
 		}
 
+		if in.VbUuid != nil {
+			vbuuid, errSt := s.parseVbUuid(in)
+			if errSt != nil {
+				return nil, errSt.Err()
+			}
+			opts.VBUUID = uint64(vbuuid)
+		}
+
 		result, err := bucketAgent.SetWithMeta(ctx, &opts)
 		if err != nil {
 			if errors.Is(err, memdx.ErrConflictOrCasMismatch) {
@@ -777,6 +805,8 @@ func (s *XdcrServer) PushDocument(
 				return nil, s.errorHandler.NewCollectionNoWriteAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
 			} else if errors.Is(err, memdx.ErrValueTooLarge) {
 				return nil, s.errorHandler.NewValueTooLargeStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key, false).Err()
+			} else if errors.Is(err, gocbcorex.ErrVbucketUUIDMismatch) {
+				return nil, s.errorHandler.NewVbUuidDivergenceStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
 			}
 			return nil, s.errorHandler.NewGenericStatus(err).Err()
 		}
@@ -786,6 +816,14 @@ func (s *XdcrServer) PushDocument(
 			Seqno: result.MutationToken.SeqNo,
 		}, nil
 	}
+}
+
+func (s *XdcrServer) parseVbUuid(in *internal_xdcr_v1.PushDocumentRequest) (int, *status.Status) {
+	vbuuid, err := strconv.Atoi(*in.VbUuid)
+	if err != nil {
+		return 0, status.New(codes.InvalidArgument, "VbUuid must be parseable as a uint64.")
+	}
+	return vbuuid, nil
 }
 
 func (s *XdcrServer) checkKey(key string) *status.Status {
