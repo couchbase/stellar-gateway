@@ -860,3 +860,14 @@ func (e ErrorHandler) NewInvalidKeyLengthStatus(key string) *status.Status {
 		fmt.Sprintf("Length of document key '%s' must be between 1 and 251 characters.", key))
 	return st
 }
+
+func (e ErrorHandler) NewVbUuidDivergenceStatus(baseErr error, bucketName, scopeName, collectionName, docId string) *status.Status {
+	st := status.New(codes.Aborted,
+		fmt.Sprintf("The specified vbuuid for '%s' in '%s/%s/%s' did not match.",
+			docId, bucketName, scopeName, collectionName))
+	st = e.tryAttachStatusDetails(st, &epb.ErrorInfo{
+		Reason: "VBUUID_MISMATCH",
+	})
+	st = e.tryAttachExtraContext(st, baseErr)
+	return st
+}
