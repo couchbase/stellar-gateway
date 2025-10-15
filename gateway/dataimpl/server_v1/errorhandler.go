@@ -414,12 +414,103 @@ func (e ErrorHandler) NewSearchIndexExistsStatus(baseErr error, indexName string
 	return st
 }
 
+func (e ErrorHandler) NewSearchIndexNameInvalidStatus(baseErr error, indexName string) *status.Status {
+	st := status.New(codes.InvalidArgument,
+		fmt.Sprintf("Name for search index '%s' is invalid.",
+			indexName))
+	st = e.tryAttachStatusDetails(st, &epb.ResourceInfo{
+		ResourceType: "searchindex",
+		ResourceName: indexName,
+		Description:  "",
+	})
+	st = e.tryAttachExtraContext(st, baseErr)
+	return st
+}
+
+func (e ErrorHandler) NewSearchIndexNameTooLongStatus(baseErr error, indexName string) *status.Status {
+	st := status.New(codes.InvalidArgument,
+		fmt.Sprintf("Search index name '%s' is too long.",
+			indexName))
+	st = e.tryAttachStatusDetails(st, &epb.ResourceInfo{
+		ResourceType: "searchindex",
+		ResourceName: indexName,
+		Description:  "",
+	})
+	st = e.tryAttachExtraContext(st, baseErr)
+	return st
+}
+
+func (e ErrorHandler) NewSearchIndexNameEmptyStatus(baseErr error) *status.Status {
+	st := status.New(codes.InvalidArgument, "Must specify an index name when performing this operation.")
+	st = e.tryAttachStatusDetails(st, &epb.ResourceInfo{
+		ResourceType: "searchindex",
+		ResourceName: "",
+		Description:  "",
+	})
+	st = e.tryAttachExtraContext(st, baseErr)
+	return st
+}
+
+func (e ErrorHandler) NewUnknownSearchIndexTypeStatus(baseErr error, indexName string, indexType string) *status.Status {
+	st := status.New(codes.InvalidArgument,
+		fmt.Sprintf("Search index type '%s' is unknown.",
+			indexType))
+	st = e.tryAttachStatusDetails(st, &epb.ResourceInfo{
+		ResourceType: "searchindex",
+		ResourceName: indexName,
+		Description:  "",
+	})
+	st = e.tryAttachExtraContext(st, baseErr)
+	return st
+}
+
 func (e ErrorHandler) NewSearchUUIDMismatchStatus(baseErr error, indexName string) *status.Status {
 	st := status.New(codes.Aborted,
 		fmt.Sprintf("Search index '%s' already existed with a different UUID.",
 			indexName))
 	st = e.tryAttachStatusDetails(st, &epb.ResourceInfo{
 		ResourceType: "searchindex",
+		ResourceName: indexName,
+		Description:  "",
+	})
+	st = e.tryAttachExtraContext(st, baseErr)
+	return st
+}
+
+func (e ErrorHandler) NewOnlyBucketOrScopeSetStatus(baseErr error, indexName string) *status.Status {
+	st := status.New(codes.InvalidArgument, "Must specify both or neither of scope and bucket names.")
+	st = e.tryAttachStatusDetails(st, &epb.ResourceInfo{
+		ResourceType: "searchindex",
+		ResourceName: indexName,
+		Description:  "",
+	})
+	st = e.tryAttachExtraContext(st, baseErr)
+	return st
+}
+
+func (e ErrorHandler) NewIncorrectSearchSourceTypeStatus(baseErr error, indexName string, sourceType *string) *status.Status {
+	var sT string
+	if sourceType != nil {
+		sT = *sourceType
+	}
+	st := status.New(codes.InvalidArgument, fmt.Sprintf("'%s' is not a valid source type.", sT))
+	st = e.tryAttachStatusDetails(st, &epb.ResourceInfo{
+		ResourceType: "searchindex",
+		ResourceName: indexName,
+		Description:  "",
+	})
+	st = e.tryAttachExtraContext(st, baseErr)
+	return st
+}
+
+func (e ErrorHandler) NewSearchSourceNotFoundStatus(baseErr error, indexName string, sourceName *string) *status.Status {
+	var sN string
+	if sourceName != nil {
+		sN = *sourceName
+	}
+	st := status.New(codes.NotFound, fmt.Sprintf("Source bucket '%s' for search index was not found.", sN))
+	st = e.tryAttachStatusDetails(st, &epb.ResourceInfo{
+		ResourceType: "bucket",
 		ResourceName: indexName,
 		Description:  "",
 	})

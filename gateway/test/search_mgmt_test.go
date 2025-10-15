@@ -29,7 +29,6 @@ func (s *GatewayOpsTestSuite) RunCommonIndexErrorCases(
 	indexName string,
 	fn func(ctx context.Context, opts *commonIndexErrorTestData) (interface{}, error),
 ) {
-	/*bucket*/
 	_, scope := s.initialiseBucketAndScope()
 
 	s.Run("BucketNotFound", func() {
@@ -45,19 +44,18 @@ func (s *GatewayOpsTestSuite) RunCommonIndexErrorCases(
 		})
 	})
 
-	// TODO - ING-1186
-	// s.Run("ScopeNamedWithoutBucket", func() {
-	// 	_, err := fn(ctx, &commonIndexErrorTestData{
-	// 		IndexName:  indexName,
-	// 		BucketName: nil,
-	// 		ScopeName:  ptr.To("some-scope"),
-	// 		Creds:      s.basicRpcCreds,
-	// 	})
-	// 	assertRpcStatus(s.T(), err, codes.InvalidArgument)
-	// 	assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
-	// 		assert.Equal(s.T(), "scope", d.ResourceType)
-	// 	})
-	// })
+	s.Run("ScopeNamedWithoutBucket", func() {
+		_, err := fn(ctx, &commonIndexErrorTestData{
+			IndexName:  indexName,
+			BucketName: nil,
+			ScopeName:  ptr.To("some-scope"),
+			Creds:      s.basicRpcCreds,
+		})
+		assertRpcStatus(s.T(), err, codes.InvalidArgument)
+		assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
+			assert.Equal(s.T(), "searchindex", d.ResourceType)
+		})
+	})
 
 	// TODO - ING-1187
 	// s.Run("BadCredentials", func() {
@@ -103,16 +101,15 @@ func (s *GatewayOpsTestSuite) TestGetIndex() {
 			},
 			expect: codes.OK,
 		},
-		// TODO - ING-1151
-		// {
-		// 	description: "IndexNameBlank",
-		// 	modifyDefault: func(def *admin_search_v1.GetIndexRequest) *admin_search_v1.GetIndexRequest {
-		// 		def.Name = ""
-		// 		return def
-		// 	},
-		// 	resourceDetails: "search-index",
-		// 	expect:          codes.InvalidArgument,
-		// },
+		{
+			description: "IndexNameBlank",
+			modifyDefault: func(def *admin_search_v1.GetIndexRequest) *admin_search_v1.GetIndexRequest {
+				def.Name = ""
+				return def
+			},
+			resourceDetails: "searchindex",
+			expect:          codes.InvalidArgument,
+		},
 		{
 			description: "IndexNotFound",
 			modifyDefault: func(def *admin_search_v1.GetIndexRequest) *admin_search_v1.GetIndexRequest {
@@ -318,78 +315,60 @@ func (s *GatewayOpsTestSuite) TestCreateIndex() {
 			},
 			expect: codes.OK,
 		},
-		// TODO - ING-1134
-		// {
-		// 	description: "BlankBucketName",
-		// 	modifyDefault: func(def *admin_search_v1.CreateIndexRequest) *admin_search_v1.CreateIndexRequest {
-		// 		def.Name = newIndexName()
-		// 		def.BucketName = ptr.To("")
-		// 		return def
-		// 	},
-		// 	expect: codes.InvalidArgument,
-		// },
-		// TODO - ING-1148
-		// {
-		// 	description: "ScopeNamedWithoutBucket",
-		// 	modifyDefault: func(def *admin_search_v1.CreateIndexRequest) *admin_search_v1.CreateIndexRequest {
-		// 		def.Name = newIndexName()
-		// 		def.ScopeName = ptr.To("some-scope")
-		// 		return def
-		// 	},
-		// 	resourceDetails: "scope",
-		// 	expect:          codes.InvalidArgument,
-		// },
-		// TODO - ING-1144
-		// {
-		// 	description: "SpecialCharInIndexName",
-		// 	modifyDefault: func(def *admin_search_v1.CreateIndexRequest) *admin_search_v1.CreateIndexRequest {
-		// 		def.Name = "special-char-name!"
-		// 		return def
-		// 	},
-		//  resourceDetails: "searchindex",
-		// 	expect: codes.InvalidArgument,
-		// },
-		// TODO - ING-1145
-		// {
-		// 	description: "IndexNameTooLong",
-		// 	modifyDefault: func(def *admin_search_v1.CreateIndexRequest) *admin_search_v1.CreateIndexRequest {
-		// 		def.Name = s.docIdOfLen(260)
-		// 		return def
-		// 	},
-		//  resourceDetails: "searchindex",
-		// 	expect: codes.InvalidArgument,
-		// },
-		// TODO - ING-1147
-		// {
-		// 	description: "InvalidSourceType",
-		// 	modifyDefault: func(def *admin_search_v1.CreateIndexRequest) *admin_search_v1.CreateIndexRequest {
-		// 		def.SourceType = ptr.To("not-a-source-type")
-		// 		return def
-		// 	},
-		//  resourceDetails: "searchindex",
-		// 	expect: codes.InvalidArgument,
-		// },
-		//
-		// TODO - ING-1149
-		// {
-		// 	description: "NamedSourceMissing",
-		// 	modifyDefault: func(def *admin_search_v1.CreateIndexRequest) *admin_search_v1.CreateIndexRequest {
-		// 		def.SourceName = ptr.To("some-bucket")
-		// 		return def
-		// 	},
-		//  resourceDetails: "searchindex",
-		// 	expect: codes.NotFound || codes.InvalidArgument,
-		// },
-		// TODO - ING-1150
-		// {
-		// 	description: "InvalidType",
-		// 	modifyDefault: func(def *admin_search_v1.CreateIndexRequest) *admin_search_v1.CreateIndexRequest {
-		// 		def.Type = "not-a-type"
-		// 		return def
-		// 	},
-		//  resourceDetails: "searchindex",
-		// 	expect: codes.InvalidArgument,
-		// },
+		{
+			description: "SpecialCharInIndexName",
+			modifyDefault: func(def *admin_search_v1.CreateIndexRequest) *admin_search_v1.CreateIndexRequest {
+				def.Name = "special-char-name!"
+				return def
+			},
+			resourceDetails: "searchindex",
+			expect:          codes.InvalidArgument,
+		},
+		{
+			description: "IndexNameTooLong",
+			modifyDefault: func(def *admin_search_v1.CreateIndexRequest) *admin_search_v1.CreateIndexRequest {
+				def.Name = s.docIdOfLen(260)
+				return def
+			},
+			resourceDetails: "searchindex",
+			expect:          codes.InvalidArgument,
+		},
+		{
+			description: "IndexNameBlank",
+			modifyDefault: func(def *admin_search_v1.CreateIndexRequest) *admin_search_v1.CreateIndexRequest {
+				def.Name = ""
+				return def
+			},
+			resourceDetails: "searchindex",
+			expect:          codes.InvalidArgument,
+		},
+		{
+			description: "InvalidSourceType",
+			modifyDefault: func(def *admin_search_v1.CreateIndexRequest) *admin_search_v1.CreateIndexRequest {
+				def.SourceType = ptr.To("not-a-source-type")
+				return def
+			},
+			resourceDetails: "searchindex",
+			expect:          codes.InvalidArgument,
+		},
+		{
+			description: "SourceNameNotFound",
+			modifyDefault: func(def *admin_search_v1.CreateIndexRequest) *admin_search_v1.CreateIndexRequest {
+				def.SourceName = ptr.To("some-bucket")
+				return def
+			},
+			resourceDetails: "bucket",
+			expect:          codes.NotFound,
+		},
+		{
+			description: "InvalidType",
+			modifyDefault: func(def *admin_search_v1.CreateIndexRequest) *admin_search_v1.CreateIndexRequest {
+				def.Type = "not-a-type"
+				return def
+			},
+			resourceDetails: "searchindex",
+			expect:          codes.InvalidArgument,
+		},
 		{
 			description: "AlreadyExists",
 			modifyDefault: func(def *admin_search_v1.CreateIndexRequest) *admin_search_v1.CreateIndexRequest {
@@ -437,6 +416,10 @@ func (s *GatewayOpsTestSuite) TestCreateIndex() {
 		basicIndexName,
 		func(ctx context.Context, opts *commonIndexErrorTestData) (interface{}, error) {
 			return searchAdminClient.CreateIndex(ctx, &admin_search_v1.CreateIndexRequest{
+				Name:       opts.IndexName,
+				Type:       "fulltext-index",
+				SourceType: &sourceType,
+				SourceName: &s.bucketName,
 				BucketName: opts.BucketName,
 				ScopeName:  opts.ScopeName,
 			}, grpc.PerRPCCredentials(opts.Creds))
@@ -502,6 +485,24 @@ func (s *GatewayOpsTestSuite) TestUpdateIndex() {
 			},
 			expect: codes.OK,
 		},
+		{
+			description: "IndexNameTooLong",
+			modifyDefault: func(def *admin_search_v1.UpdateIndexRequest) *admin_search_v1.UpdateIndexRequest {
+				def.Index.Name = s.docIdOfLen(260)
+				return def
+			},
+			resourceDetails: "searchindex",
+			expect:          codes.InvalidArgument,
+		},
+		{
+			description: "IndexNameBlank",
+			modifyDefault: func(def *admin_search_v1.UpdateIndexRequest) *admin_search_v1.UpdateIndexRequest {
+				def.Index.Name = ""
+				return def
+			},
+			resourceDetails: "searchindex",
+			expect:          codes.InvalidArgument,
+		},
 		// TODO - ING-1155
 		// {
 		// 	description: "PlanParams",
@@ -514,36 +515,42 @@ func (s *GatewayOpsTestSuite) TestUpdateIndex() {
 		// 	},
 		// 	expect: codes.OK,
 		// },
-		// TODO - ING-1156
-		// {
-		// 	description: "InvalidSourceType",
-		// 	modifyDefault: func(def *admin_search_v1.UpdateIndexRequest) *admin_search_v1.UpdateIndexRequest {
-		// 		def.Index.SourceType = ptr.To("notASourceType")
-		// 		return def
-		// 	},
-		//  resourceDetails: "searchindex",
-		// 	expect: codes.InvalidArgument,
-		// },
-		// TODO - ING-1157
-		// {
-		// 	description: "SourceNameNotFound",
-		// 	modifyDefault: func(def *admin_search_v1.UpdateIndexRequest) *admin_search_v1.UpdateIndexRequest {
-		// 		def.Index.SourceName = ptr.To("missing-source")
-		// 		return def
-		// 	},
-		//  resourceDetails: "searchindex",
-		// 	expect: codes.NotFound,
-		// },
-		// TODO - ING-1558
-		// {
-		// 	description: "IndexNotFound",
-		// 	modifyDefault: func(def *admin_search_v1.UpdateIndexRequest) *admin_search_v1.UpdateIndexRequest {
-		// 		def.Index.Name = "missing-index"
-		// 		return def
-		// 	},
-		// 	resourceDetails: "searchindex",
-		// 	expect:          codes.NotFound,
-		// },
+		{
+			description: "InvalidType",
+			modifyDefault: func(def *admin_search_v1.UpdateIndexRequest) *admin_search_v1.UpdateIndexRequest {
+				def.Index.Type = "not-a-type"
+				return def
+			},
+			resourceDetails: "searchindex",
+			expect:          codes.InvalidArgument,
+		},
+		{
+			description: "InvalidSourceType",
+			modifyDefault: func(def *admin_search_v1.UpdateIndexRequest) *admin_search_v1.UpdateIndexRequest {
+				def.Index.SourceType = ptr.To("notASourceType")
+				return def
+			},
+			resourceDetails: "searchindex",
+			expect:          codes.InvalidArgument,
+		},
+		{
+			description: "SourceNameNotFound",
+			modifyDefault: func(def *admin_search_v1.UpdateIndexRequest) *admin_search_v1.UpdateIndexRequest {
+				def.Index.SourceName = ptr.To("missing-source")
+				return def
+			},
+			resourceDetails: "bucket",
+			expect:          codes.NotFound,
+		},
+		{
+			description: "IndexNotFound",
+			modifyDefault: func(def *admin_search_v1.UpdateIndexRequest) *admin_search_v1.UpdateIndexRequest {
+				def.Index.Name = "missing-index"
+				return def
+			},
+			resourceDetails: "searchindex",
+			expect:          codes.NotFound,
+		},
 		{
 			description: "UuidMismatch",
 			modifyDefault: func(def *admin_search_v1.UpdateIndexRequest) *admin_search_v1.UpdateIndexRequest {
@@ -609,11 +616,19 @@ func (s *GatewayOpsTestSuite) TestUpdateIndex() {
 		})
 	}
 
+	getResp, err := searchAdminClient.GetIndex(ctx, &admin_search_v1.GetIndexRequest{
+		Name:       indexName,
+		BucketName: bucket,
+		ScopeName:  scope,
+	}, grpc.PerRPCCredentials(s.basicRpcCreds))
+	requireRpcSuccess(s.T(), getResp, err)
+
 	s.RunCommonIndexErrorCases(
 		ctx,
 		indexName,
 		func(ctx context.Context, opts *commonIndexErrorTestData) (interface{}, error) {
 			return searchAdminClient.UpdateIndex(ctx, &admin_search_v1.UpdateIndexRequest{
+				Index:      getResp.Index,
 				BucketName: opts.BucketName,
 				ScopeName:  opts.ScopeName,
 			}, grpc.PerRPCCredentials(opts.Creds))
@@ -650,6 +665,15 @@ func (s *GatewayOpsTestSuite) TestDeleteIndex() {
 			},
 			resourceDetails: "searchindex",
 			expect:          codes.NotFound,
+		},
+		{
+			description: "IndexNameBlank",
+			modifyDefault: func(def *admin_search_v1.DeleteIndexRequest) *admin_search_v1.DeleteIndexRequest {
+				def.Name = ""
+				return def
+			},
+			resourceDetails: "searchindex",
+			expect:          codes.InvalidArgument,
 		},
 		// TODO-ING-1164
 		// {
@@ -721,6 +745,7 @@ func (s *GatewayOpsTestSuite) TestDeleteIndex() {
 		indexName,
 		func(ctx context.Context, opts *commonIndexErrorTestData) (interface{}, error) {
 			return searchAdminClient.DeleteIndex(ctx, &admin_search_v1.DeleteIndexRequest{
+				Name:       opts.IndexName,
 				BucketName: opts.BucketName,
 				ScopeName:  opts.ScopeName,
 			}, grpc.PerRPCCredentials(opts.Creds))
@@ -772,6 +797,15 @@ func (s *GatewayOpsTestSuite) TestPauseIndexIngest() {
 			resourceDetails: "searchindex",
 			expect:          codes.NotFound,
 		},
+		{
+			description: "IndexNameBlank",
+			modifyDefault: func(def *admin_search_v1.PauseIndexIngestRequest) *admin_search_v1.PauseIndexIngestRequest {
+				def.Name = ""
+				return def
+			},
+			resourceDetails: "searchindex",
+			expect:          codes.InvalidArgument,
+		},
 	}
 
 	for i := range pauseTests {
@@ -807,6 +841,7 @@ func (s *GatewayOpsTestSuite) TestPauseIndexIngest() {
 		indexName,
 		func(ctx context.Context, opts *commonIndexErrorTestData) (interface{}, error) {
 			return searchAdminClient.PauseIndexIngest(ctx, &admin_search_v1.PauseIndexIngestRequest{
+				Name:       opts.IndexName,
 				BucketName: opts.BucketName,
 				ScopeName:  opts.ScopeName,
 			}, grpc.PerRPCCredentials(opts.Creds))
@@ -865,6 +900,15 @@ func (s *GatewayOpsTestSuite) TestResumeIndexIngest() {
 			resourceDetails: "searchindex",
 			expect:          codes.NotFound,
 		},
+		{
+			description: "IndexNameBlank",
+			modifyDefault: func(def *admin_search_v1.ResumeIndexIngestRequest) *admin_search_v1.ResumeIndexIngestRequest {
+				def.Name = ""
+				return def
+			},
+			resourceDetails: "searchindex",
+			expect:          codes.InvalidArgument,
+		},
 	}
 
 	for i := range resumeTests {
@@ -900,6 +944,7 @@ func (s *GatewayOpsTestSuite) TestResumeIndexIngest() {
 		indexName,
 		func(ctx context.Context, opts *commonIndexErrorTestData) (interface{}, error) {
 			return searchAdminClient.ResumeIndexIngest(ctx, &admin_search_v1.ResumeIndexIngestRequest{
+				Name:       opts.IndexName,
 				BucketName: opts.BucketName,
 				ScopeName:  opts.ScopeName,
 			}, grpc.PerRPCCredentials(opts.Creds))
@@ -944,6 +989,15 @@ func (s *GatewayOpsTestSuite) TestGetIndexedDocCount() {
 			resourceDetails: "searchindex",
 			expect:          codes.NotFound,
 		},
+		{
+			description: "IndexNameBlank",
+			modifyDefault: func(def *admin_search_v1.GetIndexedDocumentsCountRequest) *admin_search_v1.GetIndexedDocumentsCountRequest {
+				def.Name = ""
+				return def
+			},
+			resourceDetails: "searchindex",
+			expect:          codes.InvalidArgument,
+		},
 	}
 
 	for i := range indexedCountTests {
@@ -979,6 +1033,7 @@ func (s *GatewayOpsTestSuite) TestGetIndexedDocCount() {
 		indexName,
 		func(ctx context.Context, opts *commonIndexErrorTestData) (interface{}, error) {
 			return searchAdminClient.GetIndexedDocumentsCount(ctx, &admin_search_v1.GetIndexedDocumentsCountRequest{
+				Name:       opts.IndexName,
 				BucketName: opts.BucketName,
 				ScopeName:  opts.ScopeName,
 			}, grpc.PerRPCCredentials(opts.Creds))
@@ -1028,6 +1083,15 @@ func (s *GatewayOpsTestSuite) TestAnalyzeDocument() {
 			resourceDetails: "searchindex",
 			expect:          codes.NotFound,
 		},
+		{
+			description: "IndexNameBlank",
+			modifyDefault: func(def *admin_search_v1.AnalyzeDocumentRequest) *admin_search_v1.AnalyzeDocumentRequest {
+				def.Name = ""
+				return def
+			},
+			resourceDetails: "searchindex",
+			expect:          codes.InvalidArgument,
+		},
 	}
 
 	for i := range analyzeTests {
@@ -1064,6 +1128,7 @@ func (s *GatewayOpsTestSuite) TestAnalyzeDocument() {
 		indexName,
 		func(ctx context.Context, opts *commonIndexErrorTestData) (interface{}, error) {
 			return searchAdminClient.AnalyzeDocument(ctx, &admin_search_v1.AnalyzeDocumentRequest{
+				Name:       opts.IndexName,
 				BucketName: opts.BucketName,
 				ScopeName:  opts.ScopeName,
 			}, grpc.PerRPCCredentials(opts.Creds))
@@ -1115,6 +1180,15 @@ func (s *GatewayOpsTestSuite) TestFreezeIndexPlan() {
 			resourceDetails: "searchindex",
 			expect:          codes.NotFound,
 		},
+		{
+			description: "IndexNameBlank",
+			modifyDefault: func(def *admin_search_v1.FreezeIndexPlanRequest) *admin_search_v1.FreezeIndexPlanRequest {
+				def.Name = ""
+				return def
+			},
+			resourceDetails: "searchindex",
+			expect:          codes.InvalidArgument,
+		},
 	}
 
 	for i := range freezeTests {
@@ -1150,6 +1224,7 @@ func (s *GatewayOpsTestSuite) TestFreezeIndexPlan() {
 		indexName,
 		func(ctx context.Context, opts *commonIndexErrorTestData) (interface{}, error) {
 			return searchAdminClient.FreezeIndexPlan(ctx, &admin_search_v1.FreezeIndexPlanRequest{
+				Name:       opts.IndexName,
 				BucketName: opts.BucketName,
 				ScopeName:  opts.ScopeName,
 			}, grpc.PerRPCCredentials(opts.Creds))
@@ -1208,6 +1283,15 @@ func (s *GatewayOpsTestSuite) TestUnfreezeIndexPlan() {
 			resourceDetails: "searchindex",
 			expect:          codes.NotFound,
 		},
+		{
+			description: "IndexNameBlank",
+			modifyDefault: func(def *admin_search_v1.UnfreezeIndexPlanRequest) *admin_search_v1.UnfreezeIndexPlanRequest {
+				def.Name = ""
+				return def
+			},
+			resourceDetails: "searchindex",
+			expect:          codes.InvalidArgument,
+		},
 	}
 
 	for i := range freezeTests {
@@ -1243,6 +1327,7 @@ func (s *GatewayOpsTestSuite) TestUnfreezeIndexPlan() {
 		indexName,
 		func(ctx context.Context, opts *commonIndexErrorTestData) (interface{}, error) {
 			return searchAdminClient.UnfreezeIndexPlan(ctx, &admin_search_v1.UnfreezeIndexPlanRequest{
+				Name:       opts.IndexName,
 				BucketName: opts.BucketName,
 				ScopeName:  opts.ScopeName,
 			}, grpc.PerRPCCredentials(opts.Creds))
@@ -1301,6 +1386,15 @@ func (s *GatewayOpsTestSuite) TestAllowIndexQuerying() {
 			resourceDetails: "searchindex",
 			expect:          codes.NotFound,
 		},
+		{
+			description: "IndexNameBlank",
+			modifyDefault: func(def *admin_search_v1.AllowIndexQueryingRequest) *admin_search_v1.AllowIndexQueryingRequest {
+				def.Name = ""
+				return def
+			},
+			resourceDetails: "searchindex",
+			expect:          codes.InvalidArgument,
+		},
 	}
 
 	for i := range allowTests {
@@ -1336,6 +1430,7 @@ func (s *GatewayOpsTestSuite) TestAllowIndexQuerying() {
 		indexName,
 		func(ctx context.Context, opts *commonIndexErrorTestData) (interface{}, error) {
 			return searchAdminClient.AllowIndexQuerying(ctx, &admin_search_v1.AllowIndexQueryingRequest{
+				Name:       opts.IndexName,
 				BucketName: opts.BucketName,
 				ScopeName:  opts.ScopeName,
 			}, grpc.PerRPCCredentials(opts.Creds))
@@ -1387,6 +1482,15 @@ func (s *GatewayOpsTestSuite) TestDisallowIndexQuerying() {
 			resourceDetails: "searchindex",
 			expect:          codes.NotFound,
 		},
+		{
+			description: "IndexNameBlank",
+			modifyDefault: func(def *admin_search_v1.DisallowIndexQueryingRequest) *admin_search_v1.DisallowIndexQueryingRequest {
+				def.Name = ""
+				return def
+			},
+			resourceDetails: "searchindex",
+			expect:          codes.InvalidArgument,
+		},
 	}
 
 	for i := range disallowTests {
@@ -1422,6 +1526,7 @@ func (s *GatewayOpsTestSuite) TestDisallowIndexQuerying() {
 		indexName,
 		func(ctx context.Context, opts *commonIndexErrorTestData) (interface{}, error) {
 			return searchAdminClient.DisallowIndexQuerying(ctx, &admin_search_v1.DisallowIndexQueryingRequest{
+				Name:       opts.IndexName,
 				BucketName: opts.BucketName,
 				ScopeName:  opts.ScopeName,
 			}, grpc.PerRPCCredentials(opts.Creds))
