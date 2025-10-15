@@ -619,7 +619,7 @@ func (s *GatewayOpsTestSuite) getServerVersion() string {
 		},
 	}
 
-	clusterInfo, err := mgmt.GetClusterInfo(context.Background(), &cbmgmtx.GetClusterConfigOptions{})
+	clusterInfo, err := mgmt.GetClusterInfo(context.Background(), &cbmgmtx.GetClusterInfoOptions{})
 	require.NoError(s.T(), err)
 
 	// strip the meta-info like -enterprise or build numbers
