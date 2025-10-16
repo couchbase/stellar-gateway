@@ -382,6 +382,10 @@ func (s *GatewayOpsTestSuite) TestCreateIndex() {
 	for i := range createTests {
 		t := createTests[i]
 		s.Run(t.description, func() {
+			if t.description == "IndexNameTooLong" && s.IsOlderServerVersion("7.5.0") {
+				s.T().Skip("skipping because cluster version allows index names of any length")
+			}
+
 			defaultCreateReq := admin_search_v1.CreateIndexRequest{
 				Name:       basicIndexName,
 				BucketName: bucket,
@@ -565,6 +569,10 @@ func (s *GatewayOpsTestSuite) TestUpdateIndex() {
 	for i := range updateTests {
 		t := updateTests[i]
 		s.Run(t.description, func() {
+			if t.description == "IndexNameTooLong" && s.IsOlderServerVersion("7.5.0") {
+				s.T().Skip("skipping because cluster version allows index names of any length")
+			}
+
 			getResp, err := searchAdminClient.GetIndex(ctx, &admin_search_v1.GetIndexRequest{
 				Name:       indexName,
 				BucketName: bucket,
