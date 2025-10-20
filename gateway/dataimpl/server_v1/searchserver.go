@@ -197,6 +197,8 @@ func (s *SearchServer) SearchQuery(in *search_v1.SearchQueryRequest, out search_
 	if err != nil {
 		if errors.Is(err, cbsearchx.ErrIndexNotFound) {
 			return s.errorHandler.NewSearchIndexMissingStatus(err, in.IndexName).Err()
+		} else if errors.Is(err, cbsearchx.ErrIndexNameInvalid) {
+			return s.errorHandler.NewSearchIndexNameInvalidStatus(err, in.IndexName).Err()
 		}
 		return s.errorHandler.NewGenericStatus(err).Err()
 	}

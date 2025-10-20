@@ -120,6 +120,15 @@ func (s *GatewayOpsTestSuite) TestGetIndex() {
 			expect:          codes.NotFound,
 		},
 		{
+			description: "UrlEscapeInIndexName",
+			modifyDefault: func(def *admin_search_v1.GetIndexRequest) *admin_search_v1.GetIndexRequest {
+				def.Name = "escape-me-%"
+				return def
+			},
+			resourceDetails: "searchindex",
+			expect:          codes.InvalidArgument,
+		},
+		{
 			description: "EmptyScopeName",
 			modifyDefault: func(def *admin_search_v1.GetIndexRequest) *admin_search_v1.GetIndexRequest {
 				def.ScopeName = nil
@@ -319,6 +328,15 @@ func (s *GatewayOpsTestSuite) TestCreateIndex() {
 			description: "SpecialCharInIndexName",
 			modifyDefault: func(def *admin_search_v1.CreateIndexRequest) *admin_search_v1.CreateIndexRequest {
 				def.Name = "special-char-name!"
+				return def
+			},
+			resourceDetails: "searchindex",
+			expect:          codes.InvalidArgument,
+		},
+		{
+			description: "UrlEscapeInIndexName",
+			modifyDefault: func(def *admin_search_v1.CreateIndexRequest) *admin_search_v1.CreateIndexRequest {
+				def.Name = "escape-me-%"
 				return def
 			},
 			resourceDetails: "searchindex",
@@ -683,16 +701,15 @@ func (s *GatewayOpsTestSuite) TestDeleteIndex() {
 			resourceDetails: "searchindex",
 			expect:          codes.InvalidArgument,
 		},
-		// TODO-ING-1164
-		// {
-		// 	description: "SpecialCharsInIndexName",
-		// 	modifyDefault: func(def *admin_search_v1.DeleteIndexRequest) *admin_search_v1.DeleteIndexRequest {
-		// 		def.Name = "special-char-name@£$%"
-		// 		return def
-		// 	},
-		// 	resourceDetails: "searchindex",
-		// 	expect:          codes.InvalidArgument,
-		// },
+		{
+			description: "UrlEscapeInIndexName",
+			modifyDefault: func(def *admin_search_v1.DeleteIndexRequest) *admin_search_v1.DeleteIndexRequest {
+				def.Name = "escape-me-%"
+				return def
+			},
+			resourceDetails: "searchindex",
+			expect:          codes.InvalidArgument,
+		},
 		{
 			description: "Success",
 			modifyDefault: func(def *admin_search_v1.DeleteIndexRequest) *admin_search_v1.DeleteIndexRequest {
@@ -814,6 +831,15 @@ func (s *GatewayOpsTestSuite) TestPauseIndexIngest() {
 			resourceDetails: "searchindex",
 			expect:          codes.InvalidArgument,
 		},
+		{
+			description: "UrlEscapeInIndexName",
+			modifyDefault: func(def *admin_search_v1.PauseIndexIngestRequest) *admin_search_v1.PauseIndexIngestRequest {
+				def.Name = "escape-me-%"
+				return def
+			},
+			resourceDetails: "searchindex",
+			expect:          codes.InvalidArgument,
+		},
 	}
 
 	for i := range pauseTests {
@@ -917,6 +943,15 @@ func (s *GatewayOpsTestSuite) TestResumeIndexIngest() {
 			resourceDetails: "searchindex",
 			expect:          codes.InvalidArgument,
 		},
+		{
+			description: "UrlEscapeInIndexName",
+			modifyDefault: func(def *admin_search_v1.ResumeIndexIngestRequest) *admin_search_v1.ResumeIndexIngestRequest {
+				def.Name = "escape-me-%"
+				return def
+			},
+			resourceDetails: "searchindex",
+			expect:          codes.InvalidArgument,
+		},
 	}
 
 	for i := range resumeTests {
@@ -1001,6 +1036,15 @@ func (s *GatewayOpsTestSuite) TestGetIndexedDocCount() {
 			description: "IndexNameBlank",
 			modifyDefault: func(def *admin_search_v1.GetIndexedDocumentsCountRequest) *admin_search_v1.GetIndexedDocumentsCountRequest {
 				def.Name = ""
+				return def
+			},
+			resourceDetails: "searchindex",
+			expect:          codes.InvalidArgument,
+		},
+		{
+			description: "UrlEscapeInIndexName",
+			modifyDefault: func(def *admin_search_v1.GetIndexedDocumentsCountRequest) *admin_search_v1.GetIndexedDocumentsCountRequest {
+				def.Name = "escape-me-%"
 				return def
 			},
 			resourceDetails: "searchindex",
@@ -1100,6 +1144,15 @@ func (s *GatewayOpsTestSuite) TestAnalyzeDocument() {
 			resourceDetails: "searchindex",
 			expect:          codes.InvalidArgument,
 		},
+		{
+			description: "UrlEscapeInIndexName",
+			modifyDefault: func(def *admin_search_v1.AnalyzeDocumentRequest) *admin_search_v1.AnalyzeDocumentRequest {
+				def.Name = "escape-me-%"
+				return def
+			},
+			resourceDetails: "searchindex",
+			expect:          codes.InvalidArgument,
+		},
 	}
 
 	for i := range analyzeTests {
@@ -1192,6 +1245,15 @@ func (s *GatewayOpsTestSuite) TestFreezeIndexPlan() {
 			description: "IndexNameBlank",
 			modifyDefault: func(def *admin_search_v1.FreezeIndexPlanRequest) *admin_search_v1.FreezeIndexPlanRequest {
 				def.Name = ""
+				return def
+			},
+			resourceDetails: "searchindex",
+			expect:          codes.InvalidArgument,
+		},
+		{
+			description: "UrlEscapeInIndexName",
+			modifyDefault: func(def *admin_search_v1.FreezeIndexPlanRequest) *admin_search_v1.FreezeIndexPlanRequest {
+				def.Name = "escape-me-%"
 				return def
 			},
 			resourceDetails: "searchindex",
@@ -1300,6 +1362,15 @@ func (s *GatewayOpsTestSuite) TestUnfreezeIndexPlan() {
 			resourceDetails: "searchindex",
 			expect:          codes.InvalidArgument,
 		},
+		{
+			description: "UrlEscapeInIndexName",
+			modifyDefault: func(def *admin_search_v1.UnfreezeIndexPlanRequest) *admin_search_v1.UnfreezeIndexPlanRequest {
+				def.Name = "escape-me-%"
+				return def
+			},
+			resourceDetails: "searchindex",
+			expect:          codes.InvalidArgument,
+		},
 	}
 
 	for i := range freezeTests {
@@ -1403,6 +1474,15 @@ func (s *GatewayOpsTestSuite) TestAllowIndexQuerying() {
 			resourceDetails: "searchindex",
 			expect:          codes.InvalidArgument,
 		},
+		{
+			description: "UrlEscapeInIndexName",
+			modifyDefault: func(def *admin_search_v1.AllowIndexQueryingRequest) *admin_search_v1.AllowIndexQueryingRequest {
+				def.Name = "escape-me-%"
+				return def
+			},
+			resourceDetails: "searchindex",
+			expect:          codes.InvalidArgument,
+		},
 	}
 
 	for i := range allowTests {
@@ -1494,6 +1574,15 @@ func (s *GatewayOpsTestSuite) TestDisallowIndexQuerying() {
 			description: "IndexNameBlank",
 			modifyDefault: func(def *admin_search_v1.DisallowIndexQueryingRequest) *admin_search_v1.DisallowIndexQueryingRequest {
 				def.Name = ""
+				return def
+			},
+			resourceDetails: "searchindex",
+			expect:          codes.InvalidArgument,
+		},
+		{
+			description: "UrlEscapeInIndexName",
+			modifyDefault: func(def *admin_search_v1.DisallowIndexQueryingRequest) *admin_search_v1.DisallowIndexQueryingRequest {
+				def.Name = "escape-me-%"
 				return def
 			},
 			resourceDetails: "searchindex",

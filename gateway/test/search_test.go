@@ -11,8 +11,11 @@ import (
 	"github.com/couchbase/goprotostellar/genproto/admin_search_v1"
 	"github.com/couchbase/goprotostellar/genproto/search_v1"
 	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
 
+	epb "google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 )
 
 func (s *GatewayOpsTestSuite) TestSearchBasic() {
@@ -66,6 +69,8 @@ func (s *GatewayOpsTestSuite) TestSearchBasic() {
 		s.Run("TestGeoBoundingBoxQuery", helper.TestGeoBoundingBoxQuery)
 
 		s.Run("TestGeoPolygonQuery", helper.TestGeoPolygonQuery)
+
+		s.Run("TestEscapeCharInUrl", helper.TestEscapeCharInUrl)
 
 		s.Run("Cleanup", helper.testCleanupSearch)
 
@@ -827,6 +832,29 @@ func (s *testSearchServiceHelper) testSetupSearch() {
 
 	resp, err := s.IndexClient.CreateIndex(context.Background(), opts, grpc.PerRPCCredentials(s.basicRpcCreds))
 	requireRpcSuccess(s.T(), resp, err)
+}
+
+func (s *testSearchServiceHelper) TestEscapeCharInUrl() {
+	client := search_v1.NewSearchServiceClient(s.gatewayConn)
+	query := &search_v1.Query_QueryStringQuery{
+		QueryStringQuery: &search_v1.QueryStringQuery{
+			QueryString: "microbrewery",
+		},
+	}
+
+	queryResult, err := client.SearchQuery(context.Background(), &search_v1.SearchQueryRequest{
+		IndexName: "escape-me-%",
+		Query: &search_v1.Query{
+			Query: query,
+		},
+	}, grpc.PerRPCCredentials(s.basicRpcCreds))
+	s.Require().NoError(err, "Failed to query index")
+
+	_, err = queryResult.Recv()
+	assertRpcStatus(s.T(), err, codes.InvalidArgument)
+	assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
+		assert.Equal(s.T(), "searchindex", d.ResourceType)
+	})
 }
 
 type testBreweryGeoJson struct {

@@ -262,6 +262,8 @@ func (s *SearchIndexAdminServer) DeleteIndex(ctx context.Context, in *admin_sear
 			return nil, s.errorHandler.NewSearchIndexMissingStatus(err, in.Name).Err()
 		} else if errors.Is(err, cbsearchx.ErrIndexNameEmpty) {
 			return nil, s.errorHandler.NewSearchIndexNameEmptyStatus(err).Err()
+		} else if errors.Is(err, cbsearchx.ErrIndexNameInvalid) {
+			return nil, s.errorHandler.NewSearchIndexNameInvalidStatus(err, in.Name).Err()
 		} else if errors.Is(err, cbsearchx.ErrOnlyBucketOrScopeSet) {
 			return nil, s.errorHandler.NewOnlyBucketOrScopeSetStatus(err, in.Name).Err()
 		}
@@ -309,6 +311,8 @@ func (s *SearchIndexAdminServer) GetIndex(ctx context.Context, in *admin_search_
 			return nil, s.errorHandler.NewSearchIndexMissingStatus(err, in.Name).Err()
 		} else if errors.Is(err, cbsearchx.ErrIndexNameEmpty) {
 			return nil, s.errorHandler.NewSearchIndexNameEmptyStatus(err).Err()
+		} else if errors.Is(err, cbsearchx.ErrIndexNameInvalid) {
+			return nil, s.errorHandler.NewSearchIndexNameInvalidStatus(err, in.Name).Err()
 		} else if errors.Is(err, cbsearchx.ErrOnlyBucketOrScopeSet) {
 			return nil, s.errorHandler.NewOnlyBucketOrScopeSetStatus(err, in.Name).Err()
 		}
@@ -389,6 +393,8 @@ func (s *SearchIndexAdminServer) AnalyzeDocument(ctx context.Context, in *admin_
 			return nil, s.errorHandler.NewSearchIndexMissingStatus(err, in.Name).Err()
 		} else if errors.Is(err, cbsearchx.ErrIndexNameEmpty) {
 			return nil, s.errorHandler.NewSearchIndexNameEmptyStatus(err).Err()
+		} else if errors.Is(err, cbsearchx.ErrIndexNameInvalid) {
+			return nil, s.errorHandler.NewSearchIndexNameInvalidStatus(err, in.Name).Err()
 		} else if errors.Is(err, cbsearchx.ErrOnlyBucketOrScopeSet) {
 			return nil, s.errorHandler.NewOnlyBucketOrScopeSetStatus(err, in.Name).Err()
 		}
@@ -428,6 +434,8 @@ func (s *SearchIndexAdminServer) GetIndexedDocumentsCount(ctx context.Context, i
 			return nil, s.errorHandler.NewSearchIndexMissingStatus(err, in.Name).Err()
 		} else if errors.Is(err, cbsearchx.ErrIndexNameEmpty) {
 			return nil, s.errorHandler.NewSearchIndexNameEmptyStatus(err).Err()
+		} else if errors.Is(err, cbsearchx.ErrIndexNameInvalid) {
+			return nil, s.errorHandler.NewSearchIndexNameInvalidStatus(err, in.Name).Err()
 		} else if errors.Is(err, cbsearchx.ErrOnlyBucketOrScopeSet) {
 			return nil, s.errorHandler.NewOnlyBucketOrScopeSetStatus(err, in.Name).Err()
 		}
@@ -466,6 +474,8 @@ func (s *SearchIndexAdminServer) PauseIndexIngest(ctx context.Context, in *admin
 			return nil, s.errorHandler.NewSearchIndexMissingStatus(err, in.Name).Err()
 		} else if errors.Is(err, cbsearchx.ErrIndexNameEmpty) {
 			return nil, s.errorHandler.NewSearchIndexNameEmptyStatus(err).Err()
+		} else if errors.Is(err, cbsearchx.ErrIndexNameInvalid) {
+			return nil, s.errorHandler.NewSearchIndexNameInvalidStatus(err, in.Name).Err()
 		} else if errors.Is(err, cbsearchx.ErrOnlyBucketOrScopeSet) {
 			return nil, s.errorHandler.NewOnlyBucketOrScopeSetStatus(err, in.Name).Err()
 		}
@@ -502,6 +512,8 @@ func (s *SearchIndexAdminServer) ResumeIndexIngest(ctx context.Context, in *admi
 			return nil, s.errorHandler.NewSearchIndexMissingStatus(err, in.Name).Err()
 		} else if errors.Is(err, cbsearchx.ErrIndexNameEmpty) {
 			return nil, s.errorHandler.NewSearchIndexNameEmptyStatus(err).Err()
+		} else if errors.Is(err, cbsearchx.ErrIndexNameInvalid) {
+			return nil, s.errorHandler.NewSearchIndexNameInvalidStatus(err, in.Name).Err()
 		} else if errors.Is(err, cbsearchx.ErrOnlyBucketOrScopeSet) {
 			return nil, s.errorHandler.NewOnlyBucketOrScopeSetStatus(err, in.Name).Err()
 		}
@@ -538,6 +550,8 @@ func (s *SearchIndexAdminServer) AllowIndexQuerying(ctx context.Context, in *adm
 			return nil, s.errorHandler.NewSearchIndexMissingStatus(err, in.Name).Err()
 		} else if errors.Is(err, cbsearchx.ErrIndexNameEmpty) {
 			return nil, s.errorHandler.NewSearchIndexNameEmptyStatus(err).Err()
+		} else if errors.Is(err, cbsearchx.ErrIndexNameInvalid) {
+			return nil, s.errorHandler.NewSearchIndexNameInvalidStatus(err, in.Name).Err()
 		} else if errors.Is(err, cbsearchx.ErrOnlyBucketOrScopeSet) {
 			return nil, s.errorHandler.NewOnlyBucketOrScopeSetStatus(err, in.Name).Err()
 		}
@@ -574,6 +588,8 @@ func (s *SearchIndexAdminServer) DisallowIndexQuerying(ctx context.Context, in *
 			return nil, s.errorHandler.NewSearchIndexMissingStatus(err, in.Name).Err()
 		} else if errors.Is(err, cbsearchx.ErrIndexNameEmpty) {
 			return nil, s.errorHandler.NewSearchIndexNameEmptyStatus(err).Err()
+		} else if errors.Is(err, cbsearchx.ErrIndexNameInvalid) {
+			return nil, s.errorHandler.NewSearchIndexNameInvalidStatus(err, in.Name).Err()
 		} else if errors.Is(err, cbsearchx.ErrOnlyBucketOrScopeSet) {
 			return nil, s.errorHandler.NewOnlyBucketOrScopeSetStatus(err, in.Name).Err()
 		}
@@ -610,6 +626,8 @@ func (s *SearchIndexAdminServer) FreezeIndexPlan(ctx context.Context, in *admin_
 			return nil, s.errorHandler.NewSearchIndexMissingStatus(err, in.Name).Err()
 		} else if errors.Is(err, cbsearchx.ErrIndexNameEmpty) {
 			return nil, s.errorHandler.NewSearchIndexNameEmptyStatus(err).Err()
+		} else if errors.Is(err, cbsearchx.ErrIndexNameInvalid) {
+			return nil, s.errorHandler.NewSearchIndexNameInvalidStatus(err, in.Name).Err()
 		} else if errors.Is(err, cbsearchx.ErrOnlyBucketOrScopeSet) {
 			return nil, s.errorHandler.NewOnlyBucketOrScopeSetStatus(err, in.Name).Err()
 		}
@@ -646,6 +664,8 @@ func (s *SearchIndexAdminServer) UnfreezeIndexPlan(ctx context.Context, in *admi
 			return nil, s.errorHandler.NewSearchIndexMissingStatus(err, in.Name).Err()
 		} else if errors.Is(err, cbsearchx.ErrIndexNameEmpty) {
 			return nil, s.errorHandler.NewSearchIndexNameEmptyStatus(err).Err()
+		} else if errors.Is(err, cbsearchx.ErrIndexNameInvalid) {
+			return nil, s.errorHandler.NewSearchIndexNameInvalidStatus(err, in.Name).Err()
 		} else if errors.Is(err, cbsearchx.ErrOnlyBucketOrScopeSet) {
 			return nil, s.errorHandler.NewOnlyBucketOrScopeSetStatus(err, in.Name).Err()
 		}
