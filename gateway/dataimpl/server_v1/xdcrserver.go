@@ -39,6 +39,23 @@ func NewXdcrServer(
 	}
 }
 
+func (s *XdcrServer) Heartbeat(ctx context.Context, in *internal_xdcr_v1.HeartbeatRequest) (*internal_xdcr_v1.HeartbeatResponse, error) {
+	clusterAgent, oboUser, errSt := s.authHandler.GetHttpOboAgent(ctx, nil)
+	if errSt != nil {
+		return nil, errSt.Err()
+	}
+
+	err := clusterAgent.XdcrC2c(ctx, &cbmgmtx.XdcrC2cOptions{
+		Payload:    in.Payload,
+		OnBehalfOf: oboUser,
+	})
+	if err != nil {
+		return nil, s.errorHandler.NewGenericStatus(err).Err()
+	}
+
+	return &internal_xdcr_v1.HeartbeatResponse{}, nil
+}
+
 func (s *XdcrServer) GetClusterInfo(ctx context.Context, in *internal_xdcr_v1.GetClusterInfoRequest) (*internal_xdcr_v1.GetClusterInfoResponse, error) {
 	clusterAgent, oboUser, errSt := s.authHandler.GetHttpOboAgent(ctx, nil)
 	if errSt != nil {

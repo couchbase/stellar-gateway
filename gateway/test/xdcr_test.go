@@ -14,6 +14,23 @@ import (
 	"google.golang.org/grpc/codes"
 )
 
+func (s *GatewayOpsTestSuite) TestXdcrHeartbeat() {
+	xdcrClient := internal_xdcr_v1.NewXdcrServiceClient(s.gatewayConn)
+
+	_, err := xdcrClient.Heartbeat(context.Background(),
+		&internal_xdcr_v1.HeartbeatRequest{
+			Payload: []byte(`{"Magic":1,"ReqType":7}`),
+		},
+		grpc.PerRPCCredentials(s.basicRpcCreds))
+
+	require.Error(s.T(), err)
+
+	// This relies on the test framework running stellar-gateway with Debug mode enabled
+	assertRpcErrorDetails(s.T(), err, func(d *epb.DebugInfo) {
+		assert.Contains(s.T(), d.Detail, "SourceHeartbeatReq")
+	})
+}
+
 func (s *GatewayOpsTestSuite) TestXdcrGetClusterInfo() {
 	xdcrClient := internal_xdcr_v1.NewXdcrServiceClient(s.gatewayConn)
 
