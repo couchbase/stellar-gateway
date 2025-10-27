@@ -507,18 +507,19 @@ func (s *GatewayOpsTestSuite) TestUpdateIndex() {
 			resourceDetails: "searchindex",
 			expect:          codes.InvalidArgument,
 		},
-		// TODO - ING-1155
-		// {
-		// 	description: "PlanParams",
-		// 	modifyDefault: func(def *admin_search_v1.UpdateIndexRequest) *admin_search_v1.UpdateIndexRequest {
-		// 		def.Index.PlanParams = map[string][]byte{
-		// 			"targets": b,
-		// 		}
+		{
+			description: "PlanParams",
+			modifyDefault: func(def *admin_search_v1.UpdateIndexRequest) *admin_search_v1.UpdateIndexRequest {
+				b, err := json.Marshal(987)
+				s.Require().NoError(err)
+				def.Index.PlanParams = map[string][]byte{
+					"maxPartitionsPerPIndex": b,
+				}
 
-		// 		return def
-		// 	},
-		// 	expect: codes.OK,
-		// },
+				return def
+			},
+			expect: codes.OK,
+		},
 		{
 			description: "InvalidType",
 			modifyDefault: func(def *admin_search_v1.UpdateIndexRequest) *admin_search_v1.UpdateIndexRequest {
@@ -606,7 +607,10 @@ func (s *GatewayOpsTestSuite) TestUpdateIndex() {
 				requireRpcSuccess(s.T(), getResp, err)
 
 				assert.Equal(s.T(), req.Index.SourceParams, updatedGetResp.Index.SourceParams)
-				assert.Equal(s.T(), req.Index.PlanParams, updatedGetResp.Index.PlanParams)
+				// Different server versions return different fields in plan
+				// params that would cause a general Equal to fail so we only
+				// check maxPartitionsPerPIndex
+				assert.Equal(s.T(), req.Index.PlanParams["maxPartitionsPerPIndex"], updatedGetResp.Index.PlanParams["maxPartitionsPerPIndex"])
 				assert.Equal(s.T(), req.Index.SourceName, updatedGetResp.Index.SourceName)
 				assert.Equal(s.T(), req.Index.SourceType, updatedGetResp.Index.SourceType)
 				assert.Equal(s.T(), req.Index.SourceUuid, updatedGetResp.Index.SourceUuid)
