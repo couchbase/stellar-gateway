@@ -77,15 +77,13 @@ func (a AuthHandler) MaybeGetOboUserFromContext(ctx context.Context) (string, st
 	credsFound := username != "" && password != ""
 	certFound := connState != nil && len(connState.PeerCertificates) != 0
 
-	if credsFound && certFound {
-		return "", "", a.ErrorHandler.NewCredentialsAndCertStatus()
-	}
-
-	if !credsFound && !certFound {
+	switch {
+	case !credsFound && !certFound:
 		return "", "", nil
-	}
-
-	if certFound {
+	case credsFound && certFound:
+		a.Logger.Debug("username/password taking priority over client cert auth as both were given.")
+	case credsFound:
+	case certFound:
 		oboUser, oboDomain, err := a.Authenticator.ValidateConnStateForObo(ctx, connState)
 		if err != nil {
 			if errors.Is(err, auth.ErrInvalidCertificate) {
