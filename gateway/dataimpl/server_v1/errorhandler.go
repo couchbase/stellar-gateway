@@ -884,11 +884,6 @@ func (e ErrorHandler) NewUnexpectedAuthTypeStatus() *status.Status {
 	return st
 }
 
-func (e ErrorHandler) NewCredentialsAndCertStatus() *status.Status {
-	st := status.New(codes.InvalidArgument, "Authorization header and client certificate provided.")
-	return st
-}
-
 func (e ErrorHandler) NewInvalidQueryStatus(baseErr error, queryErrStr string) *status.Status {
 	st := status.New(codes.InvalidArgument,
 		fmt.Sprintf("Query parsing failed: %s", queryErrStr))
