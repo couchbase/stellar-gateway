@@ -30,6 +30,7 @@ import (
 	"github.com/couchbase/goprotostellar/genproto/kv_v1"
 	"github.com/couchbase/goprotostellar/genproto/query_v1"
 	"github.com/couchbase/goprotostellar/genproto/search_v1"
+	"github.com/couchbase/stellar-gateway/contrib/goprotostellar/genproto/routing_v1"
 	"github.com/couchbase/stellar-gateway/contrib/oapimetrics"
 	"github.com/couchbase/stellar-gateway/dataapiv1"
 	"github.com/couchbase/stellar-gateway/gateway/apiversion"
@@ -131,6 +132,7 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 	admin_collection_v1.RegisterCollectionAdminServiceServer(dataSrv, dataImpl.AdminCollectionV1Server)
 	admin_query_v1.RegisterQueryAdminServiceServer(dataSrv, dataImpl.AdminQueryIndexV1Server)
 	admin_search_v1.RegisterSearchAdminServiceServer(dataSrv, dataImpl.AdminSearchIndexV1Server)
+	routing_v1.RegisterRoutingServiceServer(dataSrv, dataImpl.RoutingServer)
 
 	// health check
 	healthServer := health.NewServer()

@@ -26,6 +26,7 @@ type Servers struct {
 	AdminQueryIndexV1Server  *server_v1.QueryIndexAdminServer
 	AdminSearchIndexV1Server *server_v1.SearchIndexAdminServer
 	TransactionsV1Server     *server_v1.TransactionsServer
+	RoutingServer            *server_v1.RoutingServer
 }
 
 func New(opts *NewOptions) *Servers {
@@ -86,6 +87,12 @@ func New(opts *NewOptions) *Servers {
 			opts.Logger.Named("transactions"),
 			v1ErrHandler,
 			v1AuthHandler,
+		),
+		RoutingServer: server_v1.NewRoutingServer(
+			opts.Logger.Named("routing"),
+			v1ErrHandler,
+			v1AuthHandler,
+			opts.CbClient,
 		),
 	}
 }
