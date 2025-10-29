@@ -676,6 +676,10 @@ func (s *XdcrServer) PushDocument(
 			opts.Options |= memdx.MetaOpFlagForceAcceptWithMetaOps
 		}
 
+		if in.VbUuid != nil {
+			opts.VBUUID = *in.VbUuid
+		}
+
 		result, err := bucketAgent.DeleteWithMeta(ctx, &opts)
 		if err != nil {
 			if errors.Is(err, memdx.ErrConflictOrCasMismatch) {
@@ -696,6 +700,8 @@ func (s *XdcrServer) PushDocument(
 				return nil, s.errorHandler.NewScopeMissingStatus(err, in.BucketName, in.ScopeName).Err()
 			} else if errors.Is(err, memdx.ErrAccessError) {
 				return nil, s.errorHandler.NewCollectionNoWriteAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+			} else if errors.Is(err, gocbcorex.ErrVbucketUUIDMismatch) {
+				return nil, s.errorHandler.NewVbUuidDivergenceStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
 			}
 			return nil, s.errorHandler.NewGenericStatus(err).Err()
 		}
@@ -723,6 +729,10 @@ func (s *XdcrServer) PushDocument(
 			opts.Options |= memdx.MetaOpFlagForceAcceptWithMetaOps
 		}
 
+		if in.VbUuid != nil {
+			opts.VBUUID = *in.VbUuid
+		}
+
 		result, err := bucketAgent.AddWithMeta(ctx, &opts)
 		if err != nil {
 			if errors.Is(err, memdx.ErrDocExists) {
@@ -735,6 +745,8 @@ func (s *XdcrServer) PushDocument(
 				return nil, s.errorHandler.NewCollectionNoWriteAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
 			} else if errors.Is(err, memdx.ErrValueTooLarge) {
 				return nil, s.errorHandler.NewValueTooLargeStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key, false).Err()
+			} else if errors.Is(err, gocbcorex.ErrVbucketUUIDMismatch) {
+				return nil, s.errorHandler.NewVbUuidDivergenceStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
 			}
 			return nil, s.errorHandler.NewGenericStatus(err).Err()
 		}
@@ -774,6 +786,10 @@ func (s *XdcrServer) PushDocument(
 			opts.Options |= memdx.MetaOpFlagForceAcceptWithMetaOps
 		}
 
+		if in.VbUuid != nil {
+			opts.VBUUID = *in.VbUuid
+		}
+
 		result, err := bucketAgent.SetWithMeta(ctx, &opts)
 		if err != nil {
 			if errors.Is(err, memdx.ErrConflictOrCasMismatch) {
@@ -794,6 +810,8 @@ func (s *XdcrServer) PushDocument(
 				return nil, s.errorHandler.NewCollectionNoWriteAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
 			} else if errors.Is(err, memdx.ErrValueTooLarge) {
 				return nil, s.errorHandler.NewValueTooLargeStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key, false).Err()
+			} else if errors.Is(err, gocbcorex.ErrVbucketUUIDMismatch) {
+				return nil, s.errorHandler.NewVbUuidDivergenceStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
 			}
 			return nil, s.errorHandler.NewGenericStatus(err).Err()
 		}
