@@ -391,6 +391,8 @@ func (s *SearchIndexAdminServer) AnalyzeDocument(ctx context.Context, in *admin_
 			return nil, s.errorHandler.NewSearchIndexNameEmptyStatus(err).Err()
 		} else if errors.Is(err, cbsearchx.ErrOnlyBucketOrScopeSet) {
 			return nil, s.errorHandler.NewOnlyBucketOrScopeSetStatus(err, in.Name).Err()
+		} else if errors.Is(err, cbsearchx.ErrNoIndexPartitionsFound) {
+			return nil, s.errorHandler.NewSearchIndexNotReadyStatus(err, in.Name).Err()
 		}
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
