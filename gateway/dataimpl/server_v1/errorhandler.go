@@ -488,6 +488,17 @@ func (e ErrorHandler) NewOnlyBucketOrScopeSetStatus(baseErr error, indexName str
 	return st
 }
 
+func (e ErrorHandler) NewSearchIndexNotReadyStatus(baseErr error, indexName string) *status.Status {
+	st := status.New(codes.Unavailable, "Search index is still being built, try again later.")
+	st = e.tryAttachStatusDetails(st, &epb.ResourceInfo{
+		ResourceType: "searchindex",
+		ResourceName: indexName,
+		Description:  "",
+	})
+	st = e.tryAttachExtraContext(st, baseErr)
+	return st
+}
+
 func (e ErrorHandler) NewIncorrectSearchSourceTypeStatus(baseErr error, indexName string, sourceType *string) *status.Status {
 	var sT string
 	if sourceType != nil {
