@@ -1078,14 +1078,13 @@ func (s *GatewayOpsTestSuite) TestAnalyzeDocument() {
 	}
 
 	analyzeTests := []analyzeTest{
-		// TODO - ING-1174
-		// {
-		// 	description: "Basic",
-		// 	modifyDefault: func(def *admin_search_v1.AnalyzeDocumentRequest) *admin_search_v1.AnalyzeDocumentRequest {
-		// 		return def
-		// 	},
-		// 	expect: codes.OK,
-		// },
+		{
+			description: "Basic",
+			modifyDefault: func(def *admin_search_v1.AnalyzeDocumentRequest) *admin_search_v1.AnalyzeDocumentRequest {
+				return def
+			},
+			expect: codes.OK,
+		},
 		{
 			description: "IndexNotFound",
 			modifyDefault: func(def *admin_search_v1.AnalyzeDocumentRequest) *admin_search_v1.AnalyzeDocumentRequest {
@@ -1108,6 +1107,8 @@ func (s *GatewayOpsTestSuite) TestAnalyzeDocument() {
 
 	for i := range analyzeTests {
 		t := analyzeTests[i]
+		ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+		defer cancel()
 		s.Run(t.description, func() {
 			defaultAnalyzeRequest := admin_search_v1.AnalyzeDocumentRequest{
 				Name:       indexName,
@@ -1121,13 +1122,23 @@ func (s *GatewayOpsTestSuite) TestAnalyzeDocument() {
 				creds = *t.creds
 			}
 
-			resp, err := searchAdminClient.AnalyzeDocument(ctx, req, grpc.PerRPCCredentials(creds))
 			if t.expect == codes.OK {
-				require.NoError(s.T(), err)
-				requireRpcSuccess(s.T(), resp, err)
+				require.Eventually(s.T(), func() bool {
+					_, err := searchAdminClient.AnalyzeDocument(ctx, req, grpc.PerRPCCredentials(creds))
+
+					if err != nil {
+						assertRpcStatus(s.T(), err, codes.Unavailable)
+						assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
+							assert.Equal(s.T(), "searchindex", d.ResourceType)
+						})
+					}
+
+					return err == nil
+				}, time.Second*90, time.Second*5)
 				return
 			}
 
+			_, err := searchAdminClient.AnalyzeDocument(ctx, req, grpc.PerRPCCredentials(creds))
 			assertRpcStatus(s.T(), err, t.expect)
 			assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
 				assert.Equal(s.T(), t.resourceDetails, d.ResourceType)
