@@ -188,6 +188,19 @@ func (e ErrorHandler) NewBucketInvalidArgStatus(baseErr error, msg string, bucke
 	return st
 }
 
+func (e ErrorHandler) NewBucketAccessDeniedStatus(baseErr error, bucketName string) *status.Status {
+	msg := "No permissions to perform bucket management operation."
+	st := status.New(codes.PermissionDenied, msg)
+
+	st = e.tryAttachStatusDetails(
+		st, &epb.ResourceInfo{
+			ResourceType: "bucket",
+			ResourceName: bucketName,
+			Description:  "",
+		})
+	return st
+}
+
 func (e ErrorHandler) NewCollectionInvalidArgStatus(baseErr error, msg string, bucket, scope, collection string) *status.Status {
 	if msg == "" {
 		msg = "invalid argument"
