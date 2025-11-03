@@ -284,6 +284,8 @@ func (s *BucketAdminServer) CreateBucket(
 			return nil, s.errorHandler.NewBucketExistsStatus(err, in.BucketName).Err()
 		} else if errors.Is(err, cbmgmtx.ErrServerInvalidArg) {
 			return nil, s.errorHandler.NewBucketInvalidArgStatus(err, "", in.BucketName).Err()
+		} else if errors.Is(err, cbmgmtx.ErrAccessDenied) {
+			return nil, s.errorHandler.NewBucketAccessDeniedStatus(err, in.BucketName).Err()
 		}
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
@@ -387,6 +389,10 @@ func (s *BucketAdminServer) UpdateBucket(
 	if err != nil {
 		if errors.Is(err, cbmgmtx.ErrBucketNotFound) {
 			return nil, s.errorHandler.NewBucketMissingStatus(err, in.BucketName).Err()
+		} else if errors.Is(err, cbmgmtx.ErrServerInvalidArg) {
+			return nil, s.errorHandler.NewBucketInvalidArgStatus(err, "", in.BucketName).Err()
+		} else if errors.Is(err, cbmgmtx.ErrAccessDenied) {
+			return nil, s.errorHandler.NewBucketAccessDeniedStatus(err, in.BucketName).Err()
 		}
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
@@ -418,6 +424,8 @@ func (s *BucketAdminServer) DeleteBucket(
 	if err != nil {
 		if errors.Is(err, cbmgmtx.ErrBucketNotFound) {
 			return nil, s.errorHandler.NewBucketMissingStatus(err, in.BucketName).Err()
+		} else if errors.Is(err, cbmgmtx.ErrAccessDenied) {
+			return nil, s.errorHandler.NewBucketAccessDeniedStatus(err, in.BucketName).Err()
 		}
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
@@ -451,6 +459,8 @@ func (s *BucketAdminServer) FlushBucket(
 			return nil, s.errorHandler.NewBucketMissingStatus(err, in.BucketName).Err()
 		} else if errors.Is(err, cbmgmtx.ErrFlushDisabled) {
 			return nil, s.errorHandler.NewBucketFlushDisabledStatus(err, in.BucketName).Err()
+		} else if errors.Is(err, cbmgmtx.ErrAccessDenied) {
+			return nil, s.errorHandler.NewBucketAccessDeniedStatus(err, in.BucketName).Err()
 		}
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
