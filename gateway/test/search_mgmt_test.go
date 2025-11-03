@@ -29,7 +29,7 @@ func (s *GatewayOpsTestSuite) RunCommonIndexErrorCases(
 	indexName string,
 	fn func(ctx context.Context, opts *commonIndexErrorTestData) (interface{}, error),
 ) {
-	_, scope := s.initialiseBucketAndScope()
+	bucket, scope := s.initialiseBucketAndScope()
 
 	s.Run("BucketNotFound", func() {
 		_, err := fn(ctx, &commonIndexErrorTestData{
@@ -57,19 +57,18 @@ func (s *GatewayOpsTestSuite) RunCommonIndexErrorCases(
 		})
 	})
 
-	// TODO - ING-1187
-	// s.Run("BadCredentials", func() {
-	// 	_, err := fn(ctx, &commonIndexErrorTestData{
-	// 		IndexName:  indexName,
-	// 		BucketName: bucket,
-	// 		ScopeName:  scope,
-	// 		Creds:      s.badRpcCreds,
-	// 	})
-	// 	assertRpcStatus(s.T(), err, codes.Unauthenticated)
-	// 	assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
-	// 		assert.Equal(s.T(), "searchindex", d.ResourceType)
-	// 	})
-	// })
+	s.Run("BadCredentials", func() {
+		_, err := fn(ctx, &commonIndexErrorTestData{
+			IndexName:  indexName,
+			BucketName: bucket,
+			ScopeName:  scope,
+			Creds:      s.badRpcCreds,
+		})
+		assertRpcStatus(s.T(), err, codes.PermissionDenied)
+		assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
+			assert.Equal(s.T(), "", d.ResourceType)
+		})
+	})
 }
 
 func (s *GatewayOpsTestSuite) TestGetIndex() {
