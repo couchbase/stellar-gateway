@@ -40,13 +40,13 @@ func (s *GatewayOpsTestSuite) RunCommonBucketMgmtErrorCases(
 	// 	})
 	// 	assertRpcStatus(s.T(), err, codes.InvalidArgument)
 	// })
-	// TODO - ING - 1192
-	// s.Run("BadCredentials", func() {
-	// 	_, err := fn(&commonBucketMgmtErrorTestData{
-	// 		Creds: s.badRpcCreds,
-	// 	})
-	// 	assertRpcStatus(s.T(), err, codes.Unauthenticated)
-	// })
+	s.Run("BadCredentials", func() {
+		_, err := fn(&commonBucketMgmtErrorTestData{
+			BucketName: uuid.NewString()[:6],
+			Creds:      s.badRpcCreds,
+		})
+		assertRpcStatus(s.T(), err, codes.PermissionDenied)
+	})
 }
 
 func (s *GatewayOpsTestSuite) TestCreateBucket() {
@@ -134,28 +134,27 @@ func (s *GatewayOpsTestSuite) TestCreateBucket() {
 				return def
 			},
 		},
-		// TODO - ING-1202
-		// {
-		// 	description: "MajorityDurability",
-		// 	modifyDefault: func(def *admin_bucket_v1.CreateBucketRequest) *admin_bucket_v1.CreateBucketRequest {
-		// 		def.MinimumDurabilityLevel = ptr.To(kv_v1.DurabilityLevel_DURABILITY_LEVEL_MAJORITY)
-		// 		return def
-		// 	},
-		// },
-		// {
-		// 	description: "PersistToActiveDurability",
-		// 	modifyDefault: func(def *admin_bucket_v1.CreateBucketRequest) *admin_bucket_v1.CreateBucketRequest {
-		// 		def.MinimumDurabilityLevel = ptr.To(kv_v1.DurabilityLevel_DURABILITY_LEVEL_MAJORITY_AND_PERSIST_TO_ACTIVE)
-		// 		return def
-		// 	},
-		// },
-		// {
-		// 	description: "PersistToMajorityDurability",
-		// 	modifyDefault: func(def *admin_bucket_v1.CreateBucketRequest) *admin_bucket_v1.CreateBucketRequest {
-		// 		def.MinimumDurabilityLevel = ptr.To(kv_v1.DurabilityLevel_DURABILITY_LEVEL_PERSIST_TO_MAJORITY)
-		// 		return def
-		// 	},
-		// },
+		{
+			description: "MajorityDurability",
+			modifyDefault: func(def *admin_bucket_v1.CreateBucketRequest) *admin_bucket_v1.CreateBucketRequest {
+				def.MinimumDurabilityLevel = ptr.To(kv_v1.DurabilityLevel_DURABILITY_LEVEL_MAJORITY)
+				return def
+			},
+		},
+		{
+			description: "PersistToActiveDurability",
+			modifyDefault: func(def *admin_bucket_v1.CreateBucketRequest) *admin_bucket_v1.CreateBucketRequest {
+				def.MinimumDurabilityLevel = ptr.To(kv_v1.DurabilityLevel_DURABILITY_LEVEL_MAJORITY_AND_PERSIST_TO_ACTIVE)
+				return def
+			},
+		},
+		{
+			description: "PersistToMajorityDurability",
+			modifyDefault: func(def *admin_bucket_v1.CreateBucketRequest) *admin_bucket_v1.CreateBucketRequest {
+				def.MinimumDurabilityLevel = ptr.To(kv_v1.DurabilityLevel_DURABILITY_LEVEL_PERSIST_TO_MAJORITY)
+				return def
+			},
+		},
 		{
 			description: "CouchstoreStorage",
 			modifyDefault: func(def *admin_bucket_v1.CreateBucketRequest) *admin_bucket_v1.CreateBucketRequest {
@@ -201,24 +200,22 @@ func (s *GatewayOpsTestSuite) TestCreateBucket() {
 				return def
 			},
 		},
-		// TODO - ING-1190
-		// {
-		// 	description: "CustomConflictResolution",
-		// 	modifyDefault: func(def *admin_bucket_v1.CreateBucketRequest) *admin_bucket_v1.CreateBucketRequest {
-		// 		def.ConflictResolutionType = ptr.To(admin_bucket_v1.ConflictResolutionType_CONFLICT_RESOLUTION_TYPE_CUSTOM)
-		// 		return def
-		// 	},
-		// },
-
-		// TODO - ING-1188
-		// {
-		// 	description: "EvictionModeNru",
-		// 	modifyDefault: func(def *admin_bucket_v1.CreateBucketRequest) *admin_bucket_v1.CreateBucketRequest {
-		// 		def.EvictionMode = ptr.To(admin_bucket_v1.EvictionMode_EVICTION_MODE_NOT_RECENTLY_USED)
-		// 		return def
-		// 	},
-		// 	expect: codes.InvalidArgument,
-		// },
+		{
+			description: "CustomConflictResolution",
+			modifyDefault: func(def *admin_bucket_v1.CreateBucketRequest) *admin_bucket_v1.CreateBucketRequest {
+				def.ConflictResolutionType = ptr.To(admin_bucket_v1.ConflictResolutionType_CONFLICT_RESOLUTION_TYPE_CUSTOM)
+				return def
+			},
+			expect: codes.InvalidArgument,
+		},
+		{
+			description: "EvictionModeNru",
+			modifyDefault: func(def *admin_bucket_v1.CreateBucketRequest) *admin_bucket_v1.CreateBucketRequest {
+				def.EvictionMode = ptr.To(admin_bucket_v1.EvictionMode_EVICTION_MODE_NOT_RECENTLY_USED)
+				return def
+			},
+			expect: codes.InvalidArgument,
+		},
 		{
 			description: "AlreadyExists",
 			modifyDefault: func(def *admin_bucket_v1.CreateBucketRequest) *admin_bucket_v1.CreateBucketRequest {
@@ -299,15 +296,14 @@ func (s *GatewayOpsTestSuite) TestCreateBucket() {
 				return def
 			},
 		},
-		// TODO - ING-1202
-		// {
-		// 	description: "EphemeralMajorityDurability",
-		// 	modifyDefault: func(def *admin_bucket_v1.CreateBucketRequest) *admin_bucket_v1.CreateBucketRequest {
-		// 		def.BucketType = admin_bucket_v1.BucketType_BUCKET_TYPE_EPHEMERAL
-		// 		def.MinimumDurabilityLevel = ptr.To(kv_v1.DurabilityLevel_DURABILITY_LEVEL_MAJORITY)
-		// 		return def
-		// 	},
-		// },
+		{
+			description: "EphemeralMajorityDurability",
+			modifyDefault: func(def *admin_bucket_v1.CreateBucketRequest) *admin_bucket_v1.CreateBucketRequest {
+				def.BucketType = admin_bucket_v1.BucketType_BUCKET_TYPE_EPHEMERAL
+				def.MinimumDurabilityLevel = ptr.To(kv_v1.DurabilityLevel_DURABILITY_LEVEL_MAJORITY)
+				return def
+			},
+		},
 		{
 			description: "EphemeralTimestampConflictResolution",
 			modifyDefault: func(def *admin_bucket_v1.CreateBucketRequest) *admin_bucket_v1.CreateBucketRequest {
@@ -316,15 +312,15 @@ func (s *GatewayOpsTestSuite) TestCreateBucket() {
 				return def
 			},
 		},
-		// TODO - ING-1190
-		// {
-		// 	description: "EphemeralCustomConflictResolution",
-		// 	modifyDefault: func(def *admin_bucket_v1.CreateBucketRequest) *admin_bucket_v1.CreateBucketRequest {
-		// 		def.BucketType = admin_bucket_v1.BucketType_BUCKET_TYPE_EPHEMERAL
-		// 		def.ConflictResolutionType = ptr.To(admin_bucket_v1.ConflictResolutionType_CONFLICT_RESOLUTION_TYPE_CUSTOM)
-		// 		return def
-		// 	},
-		// },
+		{
+			description: "EphemeralCustomConflictResolution",
+			modifyDefault: func(def *admin_bucket_v1.CreateBucketRequest) *admin_bucket_v1.CreateBucketRequest {
+				def.BucketType = admin_bucket_v1.BucketType_BUCKET_TYPE_EPHEMERAL
+				def.ConflictResolutionType = ptr.To(admin_bucket_v1.ConflictResolutionType_CONFLICT_RESOLUTION_TYPE_CUSTOM)
+				return def
+			},
+			expect: codes.InvalidArgument,
+		},
 		// TODO - ING-1189
 		// {
 		// 	description: "EphemeralCouchstoreStorage",
@@ -360,25 +356,24 @@ func (s *GatewayOpsTestSuite) TestCreateBucket() {
 			},
 			expect: codes.InvalidArgument,
 		},
-		// TODO - ING-1188
-		// {
-		// 	description: "EphemeralWithFullEviction",
-		// 	modifyDefault: func(def *admin_bucket_v1.CreateBucketRequest) *admin_bucket_v1.CreateBucketRequest {
-		// 		def.BucketType = admin_bucket_v1.BucketType_BUCKET_TYPE_EPHEMERAL
-		// 		def.EvictionMode = ptr.To(admin_bucket_v1.EvictionMode_EVICTION_MODE_FULL)
-		// 		return def
-		// 	},
-		// 	expect: codes.InvalidArgument,
-		// },
-		// {
-		// 	description: "EphemeralWithValueOnlyEviction",
-		// 	modifyDefault: func(def *admin_bucket_v1.CreateBucketRequest) *admin_bucket_v1.CreateBucketRequest {
-		// 		def.BucketType = admin_bucket_v1.BucketType_BUCKET_TYPE_EPHEMERAL
-		// 		def.EvictionMode = ptr.To(admin_bucket_v1.EvictionMode_EVICTION_MODE_VALUE_ONLY)
-		// 		return def
-		// 	},
-		// 	expect: codes.InvalidArgument,
-		// },
+		{
+			description: "EphemeralWithFullEviction",
+			modifyDefault: func(def *admin_bucket_v1.CreateBucketRequest) *admin_bucket_v1.CreateBucketRequest {
+				def.BucketType = admin_bucket_v1.BucketType_BUCKET_TYPE_EPHEMERAL
+				def.EvictionMode = ptr.To(admin_bucket_v1.EvictionMode_EVICTION_MODE_FULL)
+				return def
+			},
+			expect: codes.InvalidArgument,
+		},
+		{
+			description: "EphemeralWithValueOnlyEviction",
+			modifyDefault: func(def *admin_bucket_v1.CreateBucketRequest) *admin_bucket_v1.CreateBucketRequest {
+				def.BucketType = admin_bucket_v1.BucketType_BUCKET_TYPE_EPHEMERAL
+				def.EvictionMode = ptr.To(admin_bucket_v1.EvictionMode_EVICTION_MODE_VALUE_ONLY)
+				return def
+			},
+			expect: codes.InvalidArgument,
+		},
 		{
 			description: "HistoryRetentionCollectionDefault",
 			modifyDefault: func(def *admin_bucket_v1.CreateBucketRequest) *admin_bucket_v1.CreateBucketRequest {
@@ -724,22 +719,21 @@ func (s *GatewayOpsTestSuite) TestUpdateBucket() {
 				return def
 			},
 		},
-		// TODO - ING-1193
-		// {
-		// 	description: "NumReplicas",
-		// 	modifyDefault: func(def *admin_bucket_v1.UpdateBucketRequest) *admin_bucket_v1.UpdateBucketRequest {
-		// 		def.NumReplicas = ptr.To(uint32(2))
-		// 		return def
-		// 	},
-		// },
-		// {
-		// 	description: "TooManyReplicas",
-		// 	modifyDefault: func(def *admin_bucket_v1.UpdateBucketRequest) *admin_bucket_v1.UpdateBucketRequest {
-		// 		def.NumReplicas = ptr.To(uint32(5))
-		// 		return def
-		// 	},
-		// 	expect: codes.InvalidArgument,
-		// },
+		{
+			description: "NumReplicas",
+			modifyDefault: func(def *admin_bucket_v1.UpdateBucketRequest) *admin_bucket_v1.UpdateBucketRequest {
+				def.NumReplicas = ptr.To(uint32(2))
+				return def
+			},
+		},
+		{
+			description: "TooManyReplicas",
+			modifyDefault: func(def *admin_bucket_v1.UpdateBucketRequest) *admin_bucket_v1.UpdateBucketRequest {
+				def.NumReplicas = ptr.To(uint32(5))
+				return def
+			},
+			expect: codes.InvalidArgument,
+		},
 		{
 			description: "EnableFlush",
 			modifyDefault: func(def *admin_bucket_v1.UpdateBucketRequest) *admin_bucket_v1.UpdateBucketRequest {
@@ -782,45 +776,52 @@ func (s *GatewayOpsTestSuite) TestUpdateBucket() {
 				return def
 			},
 		},
-		// TODO - ING-1202
-		// {
-		// 	description: "DurabilityLevelMajority",
-		// 	modifyDefault: func(def *admin_bucket_v1.UpdateBucketRequest) *admin_bucket_v1.UpdateBucketRequest {
-		// 		def.MinimumDurabilityLevel = ptr.To(kv_v1.DurabilityLevel_DURABILITY_LEVEL_MAJORITY)
-		// 		return def
-		// 	},
-		// },
-		// {
-		// 	description: "DurabilityLevelMajorityAndPersistToActive",
-		// 	modifyDefault: func(def *admin_bucket_v1.UpdateBucketRequest) *admin_bucket_v1.UpdateBucketRequest {
-		// 		def.MinimumDurabilityLevel = ptr.To(kv_v1.DurabilityLevel_DURABILITY_LEVEL_MAJORITY_AND_PERSIST_TO_ACTIVE)
-		// 		return def
-		// 	},
-		// },
-		// {
-		// 	description: "DurabilityLevelPersistToMajority",
-		// 	modifyDefault: func(def *admin_bucket_v1.UpdateBucketRequest) *admin_bucket_v1.UpdateBucketRequest {
-		// 		def.MinimumDurabilityLevel = ptr.To(kv_v1.DurabilityLevel_DURABILITY_LEVEL_PERSIST_TO_MAJORITY)
-		// 		return def
-		// 	},
-		// },
-		// TODO - ING-1194
-		// {
-		// 	description: "RamQuotaLessThan100Mb",
-		// 	modifyDefault: func(def *admin_bucket_v1.UpdateBucketRequest) *admin_bucket_v1.UpdateBucketRequest {
-		// 		def.RamQuotaMb = ptr.To(uint64(99))
-		// 		return def
-		// 	},
-		// 	expect: codes.InvalidArgument,
-		// },
-		// {
-		// 	description: "RamQuotaLessThan1024MbMagma",
-		// 	modifyDefault: func(def *admin_bucket_v1.UpdateBucketRequest) *admin_bucket_v1.UpdateBucketRequest {
-		// 		def.RamQuotaMb = ptr.To(uint64(1023))
-		// 		return def
-		// 	},
-		// 	expect: codes.InvalidArgument,
-		// },
+		{
+			description: "DurabilityLevelMajority",
+			modifyDefault: func(def *admin_bucket_v1.UpdateBucketRequest) *admin_bucket_v1.UpdateBucketRequest {
+				def.MinimumDurabilityLevel = ptr.To(kv_v1.DurabilityLevel_DURABILITY_LEVEL_MAJORITY)
+				return def
+			},
+		},
+		{
+			description: "DurabilityLevelMajorityAndPersistToActive",
+			modifyDefault: func(def *admin_bucket_v1.UpdateBucketRequest) *admin_bucket_v1.UpdateBucketRequest {
+				def.MinimumDurabilityLevel = ptr.To(kv_v1.DurabilityLevel_DURABILITY_LEVEL_MAJORITY_AND_PERSIST_TO_ACTIVE)
+				return def
+			},
+		},
+		{
+			description: "DurabilityLevelPersistToMajority",
+			modifyDefault: func(def *admin_bucket_v1.UpdateBucketRequest) *admin_bucket_v1.UpdateBucketRequest {
+				def.MinimumDurabilityLevel = ptr.To(kv_v1.DurabilityLevel_DURABILITY_LEVEL_PERSIST_TO_MAJORITY)
+				return def
+			},
+		},
+		{
+			description: "RamQuotaLessThan100Mb",
+			modifyDefault: func(def *admin_bucket_v1.UpdateBucketRequest) *admin_bucket_v1.UpdateBucketRequest {
+				def.RamQuotaMb = ptr.To(uint64(99))
+				return def
+			},
+			expect: codes.InvalidArgument,
+		},
+		{
+			description: "RamQuotaLessThanMinimumMagma",
+			modifyDefault: func(def *admin_bucket_v1.UpdateBucketRequest) *admin_bucket_v1.UpdateBucketRequest {
+				def.BucketName = magmaBucket
+
+				// The minimum RAM quota for magma buckets was lowered to 100 in
+				// 8.0.0
+				if s.IsOlderServerVersion("8.0.0") {
+					def.RamQuotaMb = ptr.To(uint64(1023))
+				} else {
+					def.RamQuotaMb = ptr.To(uint64(99))
+				}
+
+				return def
+			},
+			expect: codes.InvalidArgument,
+		},
 		{
 			description: "BucketNotFound",
 			modifyDefault: func(def *admin_bucket_v1.UpdateBucketRequest) *admin_bucket_v1.UpdateBucketRequest {
@@ -902,60 +903,57 @@ func (s *GatewayOpsTestSuite) TestUpdateBucket() {
 			},
 			expect: codes.InvalidArgument,
 		},
-		// TODO - ING-1195
-		// {
-		// 	description: "EvictionModeNru",
-		// 	modifyDefault: func(def *admin_bucket_v1.UpdateBucketRequest) *admin_bucket_v1.UpdateBucketRequest {
-		// 		def.EvictionMode = ptr.To(admin_bucket_v1.EvictionMode_EVICTION_MODE_NOT_RECENTLY_USED)
-		// 		return def
-		// 	},
-		// 	expect: codes.InvalidArgument,
-		// },
-		// {
-		// 	description: "EvictionModeNone",
-		// 	modifyDefault: func(def *admin_bucket_v1.UpdateBucketRequest) *admin_bucket_v1.UpdateBucketRequest {
-		// 		def.EvictionMode = ptr.To(admin_bucket_v1.EvictionMode_EVICTION_MODE_NONE)
-		// 		return def
-		// 	},
-		// 	expect: codes.InvalidArgument,
-		// },
-		// {
-		// 	description: "EphemeralEvictionMode",
-		// 	modifyDefault: func(def *admin_bucket_v1.UpdateBucketRequest) *admin_bucket_v1.UpdateBucketRequest {
-		// 		def.BucketName = ephemeralBucket
-		// 		def.EvictionMode = ptr.To(admin_bucket_v1.EvictionMode_EVICTION_MODE_FULL)
-		// 		return def
-		// 	},
-		// 	expect: codes.InvalidArgument,
-		// },
-		// TODO - ING-1202
-		// {
-		// 	description: "EphemeralDurabilityLevelMajority",
-		// 	modifyDefault: func(def *admin_bucket_v1.UpdateBucketRequest) *admin_bucket_v1.UpdateBucketRequest {
-		// 		def.BucketName = ephemeralBucket
-		// 		def.MinimumDurabilityLevel = ptr.To(kv_v1.DurabilityLevel_DURABILITY_LEVEL_MAJORITY)
-		// 		return def
-		// 	},
-		// },
-		// TODO - ING-1196
-		// {
-		// 	description: "EphemeralDurabilityLevelMajorityAndPersistToActive",
-		// 	modifyDefault: func(def *admin_bucket_v1.UpdateBucketRequest) *admin_bucket_v1.UpdateBucketRequest {
-		// 		def.BucketName = ephemeralBucket
-		// 		def.MinimumDurabilityLevel = ptr.To(kv_v1.DurabilityLevel_DURABILITY_LEVEL_MAJORITY_AND_PERSIST_TO_ACTIVE)
-		// 		return def
-		// 	},
-		// 	expect: codes.InvalidArgument,
-		// },
-		// {
-		// 	description: "EphemeralDurabilityLevelPersistToMajority",
-		// 	modifyDefault: func(def *admin_bucket_v1.UpdateBucketRequest) *admin_bucket_v1.UpdateBucketRequest {
-		// 		def.BucketName = ephemeralBucket
-		// 		def.MinimumDurabilityLevel = ptr.To(kv_v1.DurabilityLevel_DURABILITY_LEVEL_PERSIST_TO_MAJORITY)
-		// 		return def
-		// 	},
-		// 	expect: codes.InvalidArgument,
-		// },
+		{
+			description: "EvictionModeNru",
+			modifyDefault: func(def *admin_bucket_v1.UpdateBucketRequest) *admin_bucket_v1.UpdateBucketRequest {
+				def.EvictionMode = ptr.To(admin_bucket_v1.EvictionMode_EVICTION_MODE_NOT_RECENTLY_USED)
+				return def
+			},
+			expect: codes.InvalidArgument,
+		},
+		{
+			description: "EvictionModeNone",
+			modifyDefault: func(def *admin_bucket_v1.UpdateBucketRequest) *admin_bucket_v1.UpdateBucketRequest {
+				def.EvictionMode = ptr.To(admin_bucket_v1.EvictionMode_EVICTION_MODE_NONE)
+				return def
+			},
+			expect: codes.InvalidArgument,
+		},
+		{
+			description: "EphemeralEvictionMode",
+			modifyDefault: func(def *admin_bucket_v1.UpdateBucketRequest) *admin_bucket_v1.UpdateBucketRequest {
+				def.BucketName = ephemeralBucket
+				def.EvictionMode = ptr.To(admin_bucket_v1.EvictionMode_EVICTION_MODE_FULL)
+				return def
+			},
+			expect: codes.InvalidArgument,
+		},
+		{
+			description: "EphemeralDurabilityLevelMajority",
+			modifyDefault: func(def *admin_bucket_v1.UpdateBucketRequest) *admin_bucket_v1.UpdateBucketRequest {
+				def.BucketName = ephemeralBucket
+				def.MinimumDurabilityLevel = ptr.To(kv_v1.DurabilityLevel_DURABILITY_LEVEL_MAJORITY)
+				return def
+			},
+		},
+		{
+			description: "EphemeralDurabilityLevelMajorityAndPersistToActive",
+			modifyDefault: func(def *admin_bucket_v1.UpdateBucketRequest) *admin_bucket_v1.UpdateBucketRequest {
+				def.BucketName = ephemeralBucket
+				def.MinimumDurabilityLevel = ptr.To(kv_v1.DurabilityLevel_DURABILITY_LEVEL_MAJORITY_AND_PERSIST_TO_ACTIVE)
+				return def
+			},
+			expect: codes.InvalidArgument,
+		},
+		{
+			description: "EphemeralDurabilityLevelPersistToMajority",
+			modifyDefault: func(def *admin_bucket_v1.UpdateBucketRequest) *admin_bucket_v1.UpdateBucketRequest {
+				def.BucketName = ephemeralBucket
+				def.MinimumDurabilityLevel = ptr.To(kv_v1.DurabilityLevel_DURABILITY_LEVEL_PERSIST_TO_MAJORITY)
+				return def
+			},
+			expect: codes.InvalidArgument,
+		},
 	}
 
 	for i := range updateTests {
@@ -1019,7 +1017,7 @@ func (s *GatewayOpsTestSuite) TestUpdateBucket() {
 	s.RunCommonBucketMgmtErrorCases(
 		func(opts *commonBucketMgmtErrorTestData) (interface{}, error) {
 			return adminClient.UpdateBucket(context.Background(), &admin_bucket_v1.UpdateBucketRequest{
-				BucketName: opts.BucketName,
+				BucketName: couchbaseBucket,
 			}, grpc.PerRPCCredentials(opts.Creds))
 		})
 }
