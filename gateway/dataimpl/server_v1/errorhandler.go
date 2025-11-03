@@ -529,6 +529,29 @@ func (e ErrorHandler) NewSearchSourceNotFoundStatus(baseErr error, indexName str
 	return st
 }
 
+func (e ErrorHandler) NewSearchIndexAuthenticationFailureStatus(baseErr error, bucketName, scopeName *string) *status.Status {
+	var path string
+	var resource string
+	if bucketName != nil {
+		path = *bucketName
+		resource = "bucket"
+		if scopeName != nil {
+			path = path + "/" + *scopeName
+			resource = "scope"
+		}
+	}
+
+	msg := fmt.Sprintf("Insufficient permissions to perform search index operation against %s.", path)
+	st := status.New(codes.PermissionDenied, msg)
+	st = e.tryAttachStatusDetails(st, &epb.ResourceInfo{
+		ResourceType: resource,
+		ResourceName: path,
+		Description:  "",
+	})
+	st = e.tryAttachExtraContext(st, baseErr)
+	return st
+}
+
 func (e ErrorHandler) NewDocMissingStatus(baseErr error, bucketName, scopeName, collectionName, docId string) *status.Status {
 	st := status.New(codes.NotFound,
 		fmt.Sprintf("Document '%s' not found in '%s/%s/%s'.",
