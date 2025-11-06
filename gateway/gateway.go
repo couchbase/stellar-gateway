@@ -258,8 +258,7 @@ func (g *Gateway) Run(ctx context.Context) error {
 	var tlsConfig *tls.Config
 	if scheme == "couchbases" {
 		tlsConfig = &tls.Config{
-			RootCAs:    config.ClusterCaCert,
-			ServerName: strings.Split(mgmtHostPort, ":")[0],
+			RootCAs: config.ClusterCaCert,
 		}
 	}
 
