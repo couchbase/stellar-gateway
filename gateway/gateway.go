@@ -69,6 +69,7 @@ type Config struct {
 	GrpcCertificate tls.Certificate
 	DapiCertificate tls.Certificate
 	ClusterCaCert   *x509.CertPool
+	ClientCaCert    *x509.CertPool
 
 	NumInstances    uint
 	StartupCallback func(*StartupInfo)
@@ -410,7 +411,7 @@ func (g *Gateway) Run(ctx context.Context) error {
 			Metrics:     metrics.GetSnMetrics(),
 			RateLimiter: rateLimiter,
 			GrpcTlsConfig: &tls.Config{
-				ClientCAs:  config.ClusterCaCert,
+				ClientCAs:  config.ClientCaCert,
 				ClientAuth: tls.VerifyClientCertIfGiven,
 				GetCertificate: func(chi *tls.ClientHelloInfo) (*tls.Certificate, error) {
 					return g.atomicGrpcCert.Load(), nil
