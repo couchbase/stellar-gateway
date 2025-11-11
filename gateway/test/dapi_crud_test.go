@@ -106,7 +106,7 @@ func (s *GatewayOpsTestSuite) RunCommonDapiErrorCases(
 			DocumentKey: s.randomDocId(),
 		})
 		require.NotNil(s.T(), resp)
-		require.Equal(s.T(), http.StatusBadRequest, resp.StatusCode)
+		require.Equal(s.T(), http.StatusUnauthorized, resp.StatusCode)
 		// Authorization header missing is considered a missing parameter rather
 		// than an authentication specific error.
 	})

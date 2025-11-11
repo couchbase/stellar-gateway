@@ -2,6 +2,7 @@ package server_v1
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"net/http"
 
@@ -19,6 +20,8 @@ type AuthHandler struct {
 	CbClient      *gocbcorex.BucketsTrackingAgentManager
 }
 
+type CtxKeyTlsConnState struct{}
+
 func (a AuthHandler) getUserPassFromRequest(authHdr string) (string, string, error) {
 	// we reuse the Basic auth parsing built into the go net library
 	r := http.Request{
@@ -35,8 +38,12 @@ func (a AuthHandler) getUserPassFromRequest(authHdr string) (string, string, err
 	return username, password, nil
 }
 
-func (a AuthHandler) MaybeGetUserPassFromRequest(authHdr string) (string, string, *Status) {
-	username, password, err := a.getUserPassFromRequest(authHdr)
+func (a AuthHandler) MaybeGetUserPassFromRequest(authHdr *string) (string, string, *Status) {
+	if authHdr == nil {
+		return "", "", nil
+	}
+
+	username, password, err := a.getUserPassFromRequest(*authHdr)
 	if err != nil {
 		return "", "", a.ErrorHandler.NewInvalidAuthHeaderStatus(err)
 	}
@@ -44,14 +51,47 @@ func (a AuthHandler) MaybeGetUserPassFromRequest(authHdr string) (string, string
 	return username, password, nil
 }
 
-func (a AuthHandler) MaybeGetOboUserFromContext(ctx context.Context, authHdr string) (string, string, *Status) {
+func (a AuthHandler) MaybeGetConnStateFromContext(ctx context.Context) (*tls.ConnectionState, *Status) {
+	connState, ok := ctx.Value(CtxKeyTlsConnState{}).(*tls.ConnectionState)
+	if connState == nil || !ok {
+		return nil, nil
+	}
+
+	return connState, nil
+}
+
+func (a AuthHandler) MaybeGetOboUserFromContext(ctx context.Context, authHdr *string) (string, string, *Status) {
 	username, password, errHe := a.MaybeGetUserPassFromRequest(authHdr)
 	if errHe != nil {
 		return "", "", errHe
 	}
 
-	if username == "" && password == "" {
-		return "", "", nil
+	connState, errSt := a.MaybeGetConnStateFromContext(ctx)
+	if errSt != nil {
+		return "", "", errSt
+	}
+
+	credsFound := username != "" && password != ""
+	certFound := connState != nil && len(connState.PeerCertificates) != 0
+
+	switch {
+	case !credsFound && !certFound:
+		return "", "", a.ErrorHandler.NewNoAuthStatus()
+	case credsFound && certFound:
+		a.Logger.Debug("username/password taking priority over client cert auth as both were given.")
+	case credsFound:
+	case certFound:
+		oboUser, oboDomain, err := a.Authenticator.ValidateConnStateForObo(ctx, connState)
+		if err != nil {
+			if errors.Is(err, auth.ErrInvalidCertificate) {
+				return "", "", a.ErrorHandler.NewInvalidCertificateStatus()
+			}
+
+			a.Logger.Error("received an unexpected cert authentication error", zap.Error(err))
+			return "", "", a.ErrorHandler.NewInternalStatus()
+		}
+
+		return oboUser, oboDomain, nil
 	}
 
 	oboUser, oboDomain, err := a.Authenticator.ValidateUserForObo(ctx, username, password)
@@ -67,7 +107,7 @@ func (a AuthHandler) MaybeGetOboUserFromContext(ctx context.Context, authHdr str
 	return oboUser, oboDomain, nil
 }
 
-func (a AuthHandler) GetOboUserFromRequest(ctx context.Context, authHdr string) (string, string, *Status) {
+func (a AuthHandler) GetOboUserFromRequest(ctx context.Context, authHdr *string) (string, string, *Status) {
 	user, domain, st := a.MaybeGetOboUserFromContext(ctx, authHdr)
 	if st != nil {
 		return "", "", st
@@ -81,7 +121,7 @@ func (a AuthHandler) GetOboUserFromRequest(ctx context.Context, authHdr string) 
 }
 
 func (a AuthHandler) GetHttpOboInfoFromContext(ctx context.Context, authHdr string) (*cbhttpx.OnBehalfOfInfo, *Status) {
-	username, password, errHe := a.MaybeGetUserPassFromRequest(authHdr)
+	username, password, errHe := a.MaybeGetUserPassFromRequest(&authHdr)
 	if errHe != nil {
 		return nil, errHe
 	}
@@ -119,7 +159,7 @@ func (a AuthHandler) getBucketAgent(ctx context.Context, bucketName string) (*go
 }
 
 func (a AuthHandler) GetMemdOboAgent(
-	ctx context.Context, authHdr string, bucketName string,
+	ctx context.Context, authHdr *string, bucketName string,
 ) (*gocbcorex.Agent, string, *Status) {
 	oboUser, _, errHe := a.GetOboUserFromRequest(ctx, authHdr)
 	if errHe != nil {
