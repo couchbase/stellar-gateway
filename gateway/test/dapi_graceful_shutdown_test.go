@@ -19,9 +19,14 @@ import (
 func (s *GatewayOpsTestSuite) TestGracefulShutdown() {
 	s.T().Logf("setting up new instance of stellar gateway...")
 
-	gwCert, err := selfsignedcert.GenerateCertificate()
+	cert, key, err := selfsignedcert.GenerateCertificate()
 	if err != nil {
 		s.T().Fatalf("failed to create testing certificate: %s", err)
+	}
+
+	gwCert, err := selfsignedcert.ConstructTlsCert(cert, key)
+	if err != nil {
+		s.T().Fatalf("failed to construct testing certificate: %s", err)
 	}
 
 	logger, err := zap.NewDevelopment()

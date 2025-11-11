@@ -446,13 +446,19 @@ func startGateway() {
 
 	var selfSignedCert *tls.Certificate
 	if config.selfSign {
-		generatedCert, err := selfsignedcert.GenerateCertificate()
+		generatedCert, generatedKey, err := selfsignedcert.GenerateCertificate()
 		if err != nil {
 			logger.Error("failed to generate a self-signed certificate")
 			os.Exit(1)
 		}
 
-		selfSignedCert = generatedCert
+		tlsCert, err := selfsignedcert.ConstructTlsCert(generatedCert, generatedKey)
+		if err != nil {
+			logger.Error("failed to generate a self-signed certificate")
+			os.Exit(1)
+		}
+
+		selfSignedCert = tlsCert
 	}
 
 	var grpcCertificate tls.Certificate
