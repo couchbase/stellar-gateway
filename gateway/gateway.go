@@ -400,6 +400,8 @@ func (g *Gateway) Run(ctx context.Context) error {
 			Authenticator:   authenticator,
 			ProxyServices:   proxyServices,
 			ProxyBlockAdmin: config.ProxyBlockAdmin,
+			Username:        config.Username,
+			Password:        config.Password,
 		})
 
 		config.Logger.Info("initializing protostellar system")
@@ -420,6 +422,8 @@ func (g *Gateway) Run(ctx context.Context) error {
 				GetCertificate: func(chi *tls.ClientHelloInfo) (*tls.Certificate, error) {
 					return g.atomicDapiCert.Load(), nil
 				},
+				ClientCAs:  config.ClientCaCert,
+				ClientAuth: tls.VerifyClientCertIfGiven,
 			},
 			AlphaEndpoints: config.AlphaEndpoints,
 			Debug:          config.Debug,
