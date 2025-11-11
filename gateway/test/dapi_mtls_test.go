@@ -11,17 +11,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func (s *GatewayOpsTestSuite) TestDapiClientCertAuth() {
+func (s *GatewayOpsTestSuite) TestDapiClientCertAuthTools() {
 	testutils.SkipIfNoDinoCluster(s.T())
-
-	s.Run("Tools", s.Tools)
-
-	s.Run("Proxy", s.Proxy)
-
-	s.Run("Crud", s.Crud)
-}
-
-func (s *GatewayOpsTestSuite) Tools() {
 	dino := testutils.StartDinoTesting(s.T(), false)
 	username := "dapiUser"
 	client := s.createMtlsClient(dino, username)
@@ -56,7 +47,8 @@ func (s *GatewayOpsTestSuite) Tools() {
 	})
 }
 
-func (s *GatewayOpsTestSuite) Proxy() {
+func (s *GatewayOpsTestSuite) TestDapiClientCertAuthProxy() {
+	testutils.SkipIfNoDinoCluster(s.T())
 	if !s.SupportsFeature(TestFeatureQuery) {
 		s.T().Skip()
 	}
@@ -113,7 +105,8 @@ func (s *GatewayOpsTestSuite) Proxy() {
 	})
 }
 
-func (s *GatewayOpsTestSuite) Crud() {
+func (s *GatewayOpsTestSuite) TestDapiClientCertAuthCrud() {
+	testutils.SkipIfNoDinoCluster(s.T())
 	dino := testutils.StartDinoTesting(s.T(), false)
 	username := "crudUser"
 	client := s.createMtlsClient(dino, username)
