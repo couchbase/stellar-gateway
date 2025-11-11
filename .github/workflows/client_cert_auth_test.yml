@@ -1,0 +1,71 @@
+name: Run Client Cert Auth Tests
+permissions:
+  contents: read
+  packages: read
+
+on:
+  push:
+    tags:
+      - v*
+    branches:
+      - master
+  pull_request:
+jobs:
+  test:
+    name: Test
+    strategy:
+      matrix:
+        server:
+          - 8.1.0-1203
+          - 8.0.0
+          - 7.6.8
+          - 7.2.8
+
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install cbdinocluster
+        uses: ./.github/actions/install-cbdinocluster
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Start couchbase cluster
+        id: start-cluster
+        uses: ./.github/actions/start-couchbase-cluster
+      - uses: actions/setup-go@v5
+        with:
+          go-version: 1.24
+      - uses: arduino/setup-protoc@v3
+        with:
+          version: 31.1
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install Tools
+        run: |
+          go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36
+          go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.5
+          go install github.com/matryer/moq@v0.5
+      - name: Install Dependencies
+        run: go get ./...
+      - name: Generate Files
+        run: |
+          go generate ./...
+      - name: Run Test
+        env:
+          SGTEST_CBCONNSTR: ${{ steps.start-cluster.outputs.node-ip }}
+          SGTEST_DINOID: ${{ steps.start-cluster.outputs.dino-id }}
+        run: go test ./gateway/test -run TestGatewayOps -v -testify.m TestClientCertAuth
+
+      - name: Collect couchbase logs
+        timeout-minutes: 10
+        if: failure()
+        run: |
+          mkdir -p ./client-cert-auth-logs
+          cbdinocluster -v collect-logs ${{ steps.start-cluster.outputs.dino-id }} ./client-cert-auth-logs
+      - name: Upload couchbase logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cbcollect-logs-${{ matrix.server }}
+          path: ./client-cert-auth-logs/*
+          retention-days: 5

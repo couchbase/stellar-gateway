@@ -3,6 +3,7 @@ package testutils
 import (
 	"bufio"
 	"context"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -93,6 +94,22 @@ func runDinoRemoveNode(node string) error {
 	return runNoResDinoCmd([]string{"nodes", "rm", globalTestConfig.DinoId, node})
 }
 
+func runDinoAddUser(username string, canRead, canWrite bool) error {
+	return runNoResDinoCmd([]string{
+		"users",
+		"add",
+		globalTestConfig.DinoId,
+		username,
+		"--password=password",
+		fmt.Sprintf("--can-read=%v", canRead),
+		fmt.Sprintf("--can-write=%v", canWrite),
+	})
+}
+
+func runDinoRemoveUser(username string) error {
+	return runNoResDinoCmd([]string{"users", "remove", globalTestConfig.DinoId, username})
+}
+
 type DinoController struct {
 	t             *testing.T
 	oldFoSettings *cbmgmtx.GetAutoFailoverSettingsResponse
@@ -181,4 +198,38 @@ func (c *DinoController) AllowTraffic(node string) {
 func (c *DinoController) RemoveNode(node string) {
 	err := runDinoRemoveNode(node)
 	require.NoError(c.t, err)
+}
+
+func (c *DinoController) AddUnprivilegedUser(username string) {
+	err := runDinoAddUser(username, false, false)
+	require.NoError(c.t, err)
+}
+
+func (c *DinoController) AddReadOnlyUser(username string) {
+	err := runDinoAddUser(username, true, false)
+	require.NoError(c.t, err)
+}
+
+func (c *DinoController) AddWriteUser(username string) {
+	err := runDinoAddUser(username, true, true)
+	require.NoError(c.t, err)
+}
+
+func (c *DinoController) RemoveUser(username string) {
+	err := runDinoRemoveUser(username)
+	require.NoError(c.t, err)
+}
+
+func (c *DinoController) GetClientCert(username string) string {
+	res, err := runDinoCmd([]string{"certificates", "get-client-cert", username})
+	require.NoError(c.t, err)
+	return res
+}
+
+func GetDinoCACert() (string, error) {
+	return runDinoCmd([]string{"certificates", "get-dino-ca"})
+}
+
+func GetServerCert(ip string, dns string) (string, error) {
+	return runDinoCmd([]string{"certificates", "get-server-cert", "--ip", ip, "--dns", dns})
 }
