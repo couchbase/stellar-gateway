@@ -2,7 +2,9 @@ package test
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -23,6 +25,7 @@ import (
 	"github.com/couchbase/stellar-gateway/contrib/grpcheaderauth"
 	"github.com/couchbase/stellar-gateway/gateway"
 	"github.com/couchbase/stellar-gateway/testutils"
+	"github.com/couchbase/stellar-gateway/utils/certificates"
 	"github.com/couchbase/stellar-gateway/utils/selfsignedcert"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -40,6 +43,7 @@ type GatewayOpsTestSuite struct {
 	testClusterInfo  *testutils.CanonicalTestCluster
 	gatewayCloseFunc func()
 	gatewayConn      *grpc.ClientConn
+	gwConnAddr       string
 	gatewayClosedCh  chan struct{}
 	dapiCli          *http.Client
 	dapiAddr         string
@@ -54,6 +58,10 @@ type GatewayOpsTestSuite struct {
 	badRestCreds   string
 	basicRestCreds string
 	readRestCreds  string
+
+	caCert           *x509.Certificate
+	caKey            *ecdsa.PrivateKey
+	clientCaCertPool *x509.CertPool
 
 	clusterVersion *NodeVersion
 	features       []TestFeature
@@ -249,10 +257,22 @@ func (s *GatewayOpsTestSuite) SetupSuite() {
 			s.T().Fatalf("failed to initialize test logging: %s", err)
 		}
 
-		gwCert, err := selfsignedcert.GenerateCertificate()
+		caCert, caKey, err := selfsignedcert.GenerateCertificate()
 		if err != nil {
 			s.T().Fatalf("failed to create testing certificate: %s", err)
 		}
+
+		gwCert, err := certificates.GenerateSignedServerCert(caCert, caKey)
+		if err != nil {
+			s.T().Fatalf("failed to create signed gateway certificate: %s", err)
+		}
+
+		clientCaCert := x509.NewCertPool()
+		clientCaCert.AddCert(caCert)
+
+		s.caCert = caCert
+		s.caKey = caKey
+		s.clientCaCertPool = clientCaCert
 
 		gwStartInfoCh := make(chan *gateway.StartupInfo, 1)
 		gwCtx, gwCtxCancel := context.WithCancel(context.Background())
@@ -265,6 +285,7 @@ func (s *GatewayOpsTestSuite) SetupSuite() {
 			BindDapiPort:    0,
 			GrpcCertificate: *gwCert,
 			DapiCertificate: *gwCert,
+			ClientCaCert:    clientCaCert,
 			AlphaEndpoints:  true,
 			NumInstances:    1,
 			ProxyServices:   []string{"query", "analytics", "mgmt", "search"},
@@ -308,6 +329,7 @@ func (s *GatewayOpsTestSuite) SetupSuite() {
 		}
 
 		s.gatewayConn = conn
+		s.gwConnAddr = connAddr
 		s.gatewayCloseFunc = gwCtxCancel
 		s.gatewayClosedCh = gwClosedCh
 		s.dapiCli = dapiCli
@@ -330,6 +352,7 @@ func (s *GatewayOpsTestSuite) SetupSuite() {
 		}
 
 		s.gatewayConn = conn
+		s.gwConnAddr = connAddr
 		s.dapiCli = dapiCli
 		s.dapiAddr = dapiAddr
 	}
