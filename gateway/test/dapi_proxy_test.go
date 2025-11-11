@@ -294,7 +294,7 @@ func (s *GatewayOpsTestSuite) TestDapiSearchProxy() {
 		})
 
 		require.NotNil(s.T(), resp)
-		require.Equal(s.T(), http.StatusForbidden, resp.StatusCode)
+		require.Equal(s.T(), http.StatusUnauthorized, resp.StatusCode)
 	})
 
 	s.Run("BadCredentials", func() {

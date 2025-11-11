@@ -54,7 +54,7 @@ jobs:
         env:
           SGTEST_CBCONNSTR: ${{ steps.start-cluster.outputs.node-ip }}
           SGTEST_DINOID: ${{ steps.start-cluster.outputs.dino-id }}
-        run: go test ./gateway/test -run TestGatewayOps -v -testify.m TestClientCertAuth
+        run: go test ./gateway/test -run TestGatewayOps -v -testify.m ClientCertAuth
 
       - name: Collect couchbase logs
         timeout-minutes: 10

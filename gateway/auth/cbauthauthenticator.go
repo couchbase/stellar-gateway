@@ -103,7 +103,7 @@ func (a *CbAuthAuthenticator) ValidateConnStateForObo(ctx context.Context, connS
 			return "", "", ErrInvalidCertificate
 		}
 
-		return "", "", fmt.Errorf("failed to check certificate with cbauth: %s", err.Error())
+		return "", "", fmt.Errorf("failed to check certificate with cbauth: %w", err)
 	}
 
 	return info.User, info.Domain, nil
