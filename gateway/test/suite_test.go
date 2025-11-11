@@ -3,8 +3,10 @@ package test
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
 	"math/rand"
 	"net/http"
@@ -41,6 +43,7 @@ type GatewayOpsTestSuite struct {
 	testClusterInfo  *testutils.CanonicalTestCluster
 	gatewayCloseFunc func()
 	gatewayConn      *grpc.ClientConn
+	gwConnAddr       string
 	gatewayClosedCh  chan struct{}
 	dapiCli          *http.Client
 	dapiAddr         string
@@ -55,6 +58,8 @@ type GatewayOpsTestSuite struct {
 	badRestCreds   string
 	basicRestCreds string
 	readRestCreds  string
+
+	clientCaCertPool *x509.CertPool
 
 	clusterVersion *NodeVersion
 	features       []TestFeature
@@ -269,6 +274,15 @@ func (s *GatewayOpsTestSuite) SetupSuite() {
 			s.T().Fatalf("failed to create testing certificate: %s", err)
 		}
 
+		s.clientCaCertPool = x509.NewCertPool()
+		if testConfig.DinoId != "" {
+			caCert := s.getDinoCaCert()
+
+			s.clientCaCertPool.AddCert(caCert)
+
+			gwCert = s.getServerCert()
+		}
+
 		gwStartInfoCh := make(chan *gateway.StartupInfo, 1)
 		gwCtx, gwCtxCancel := context.WithCancel(context.Background())
 		gw, err := gateway.NewGateway(&gateway.Config{
@@ -280,6 +294,7 @@ func (s *GatewayOpsTestSuite) SetupSuite() {
 			BindDapiPort:    0,
 			GrpcCertificate: *gwCert,
 			DapiCertificate: *gwCert,
+			ClientCaCert:    s.clientCaCertPool,
 			AlphaEndpoints:  true,
 			NumInstances:    1,
 			ProxyServices:   []string{"query", "analytics", "mgmt", "search"},
@@ -324,6 +339,7 @@ func (s *GatewayOpsTestSuite) SetupSuite() {
 		}
 
 		s.gatewayConn = conn
+		s.gwConnAddr = connAddr
 		s.gatewayCloseFunc = gwCtxCancel
 		s.gatewayClosedCh = gwClosedCh
 		s.dapiCli = dapiCli
@@ -346,6 +362,7 @@ func (s *GatewayOpsTestSuite) SetupSuite() {
 		}
 
 		s.gatewayConn = conn
+		s.gwConnAddr = connAddr
 		s.dapiCli = dapiCli
 		s.dapiAddr = dapiAddr
 	}
@@ -386,6 +403,39 @@ func (s *GatewayOpsTestSuite) ParseSupportedFeatures(featsStr string) {
 			Enabled: enabled,
 		})
 	}
+}
+
+func (s *GatewayOpsTestSuite) getDinoCaCert() *x509.Certificate {
+	res, err := testutils.GetDinoCACert()
+	if err != nil {
+		s.T().Fatalf("failed to get dino ca cert: %s", err)
+	}
+
+	block, _ := pem.Decode([]byte(res))
+	if block == nil {
+		s.T().Fatalf("failed to decode dino ca cert: %s", err)
+	}
+
+	cert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		s.T().Fatalf("failed to parse dino ca cert: %s", err)
+	}
+
+	return cert
+}
+
+func (s *GatewayOpsTestSuite) getServerCert() *tls.Certificate {
+	res, err := testutils.GetServerCert("127.0.0.1", "")
+	if err != nil {
+		s.T().Fatalf("failed to get server cert: %s", err)
+	}
+
+	cert, err := tls.X509KeyPair([]byte(res), []byte(res))
+	if err != nil {
+		s.T().Fatalf("failed to parse server cert: %s", err)
+	}
+
+	return &cert
 }
 
 var TEST_CONTENT = []byte(`{"foo": "bar","obj":{"num":14,"arr":[2,5,8],"str":"zz"},"num":11,"arr":[3,6,9,12]}`)
