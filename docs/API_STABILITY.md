@@ -1,6 +1,18 @@
-# API Stability Levels
+# API Stability and Versioning
 
-Here are the various levels of API stability for our application's gRPC and REST interfaces.
+We use the alpha, beta, ga terminology to describe versions, while using stability levels such
+as volatile, uncommitted and committed to describe individual RPCs. Any versions or RPCs which
+do not describe their level are assumed to be committed / ga.
+
+Additionally, a correlation exists between the RPC stability and the versions it can exist
+within, such that:
+
+- Alpha maps directly to volatile.
+- Beta maps directly to uncommitted.
+- GA maps directly to committed.
+
+The following is a list of definitions for each stability level within our gRPC and REST
+interfaces:
 
 ## Alpha Endpoints
 
