@@ -88,6 +88,8 @@ func (a AuthHandler) MaybeGetOboUserFromContext(ctx context.Context) (string, st
 		if err != nil {
 			if errors.Is(err, auth.ErrInvalidCertificate) {
 				return "", "", a.ErrorHandler.NewInvalidCertificateStatus()
+			} else if errors.Is(err, auth.ErrCertAuthDisabled) {
+				return "", "", a.ErrorHandler.NewCertAuthDisabledStatus()
 			}
 
 			a.Logger.Error("received an unexpected cert authentication error", zap.Error(err))
