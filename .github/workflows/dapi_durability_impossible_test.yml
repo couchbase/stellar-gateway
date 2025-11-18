@@ -16,9 +16,10 @@ jobs:
     strategy:
       matrix:
         server:
-          - 8.0.0-3534
-          - 7.6.5
-          - 7.2.2
+          - 8.1.0-1203
+          - 8.0.0
+          - 7.6.8
+          - 7.2.8
 
     runs-on: ubuntu-latest
     steps:

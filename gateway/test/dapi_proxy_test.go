@@ -81,6 +81,11 @@ func (s *GatewayOpsTestSuite) TestDapiQueryProxy() {
 		require.Empty(s.T(), resp.Headers.Get("Content-Length"))
 	})
 
+	// Query only performs authentication on the moment a request is
+	// received from 7.2.8 onwards. Before this the request will be accepted
+	// and a 200 returned.
+	supportsNon200InvalidAuthResponse := !s.IsOlderServerVersion("7.2.8")
+
 	s.Run("Unauthenticated", func() {
 		resp := s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
@@ -91,10 +96,7 @@ func (s *GatewayOpsTestSuite) TestDapiQueryProxy() {
 			Body: []byte(`{"statement": "SELECT * FROM default LIMIT 1"}`),
 		})
 
-		// Query only performs authentication on the moment a request is
-		// received from 7.6.0 onwards. Before this the request will be accepted
-		// and a 200 returned.
-		if s.IsOlderServerVersion("7.6.0") {
+		if !supportsNon200InvalidAuthResponse {
 			requireRestSuccess(s.T(), resp)
 
 			queryResponse := QueryResponse{}
@@ -123,9 +125,9 @@ func (s *GatewayOpsTestSuite) TestDapiQueryProxy() {
 		})
 
 		// Query only performs authentication on the moment a request is
-		// received from 7.6.0 onwards. Before this the request will be accepted
+		// received from 7.2.8 onwards. Before this the request will be accepted
 		// and a 200 returned.
-		if s.IsOlderServerVersion("7.6.0") {
+		if !supportsNon200InvalidAuthResponse {
 			requireRestSuccess(s.T(), resp)
 
 			queryResponse := QueryResponse{}
