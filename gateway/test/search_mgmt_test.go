@@ -605,7 +605,15 @@ func (s *GatewayOpsTestSuite) TestUpdateIndex() {
 				}, grpc.PerRPCCredentials(s.basicRpcCreds))
 				requireRpcSuccess(s.T(), getResp, err)
 
-				assert.Equal(s.T(), req.Index.SourceParams, updatedGetResp.Index.SourceParams)
+				if len(req.Index.SourceParams) > 0 {
+					// Different server versions return different fields in source
+					// params that would cause a general Equal to fail so we only
+					// check targets.
+					assert.Equal(s.T(), req.Index.SourceParams["target"], updatedGetResp.Index.SourceParams["target"])
+				} else {
+					assert.Empty(s.T(), req.Index.SourceParams["target"])
+				}
+
 				// Different server versions return different fields in plan
 				// params that would cause a general Equal to fail so we only
 				// check maxPartitionsPerPIndex
