@@ -286,20 +286,21 @@ func (s *GatewayOpsTestSuite) SetupSuite() {
 		gwStartInfoCh := make(chan *gateway.StartupInfo, 1)
 		gwCtx, gwCtxCancel := context.WithCancel(context.Background())
 		gw, err := gateway.NewGateway(&gateway.Config{
-			Logger:          logger.Named("gateway"),
-			CbConnStr:       testConfig.CbConnStr,
-			Username:        testConfig.CbUser,
-			Password:        testConfig.CbPass,
-			BindDataPort:    0,
-			BindDapiPort:    0,
-			GrpcCertificate: *gwCert,
-			DapiCertificate: *gwCert,
-			ClientCaCert:    s.clientCaCertPool,
-			AlphaEndpoints:  true,
-			NumInstances:    1,
-			ProxyServices:   []string{"query", "analytics", "mgmt", "search"},
-			ProxyBlockAdmin: true,
-			Debug:           true,
+			Logger:              logger.Named("gateway"),
+			CbConnStr:           testConfig.CbConnStr,
+			Username:            testConfig.CbUser,
+			Password:            testConfig.CbPass,
+			BoostrapNodeIsLocal: true,
+			BindDataPort:        0,
+			BindDapiPort:        0,
+			GrpcCertificate:     *gwCert,
+			DapiCertificate:     *gwCert,
+			ClientCaCert:        s.clientCaCertPool,
+			AlphaEndpoints:      true,
+			NumInstances:        1,
+			ProxyServices:       []string{"query", "analytics", "mgmt", "search"},
+			ProxyBlockAdmin:     true,
+			Debug:               true,
 
 			StartupCallback: func(m *gateway.StartupInfo) {
 				gwStartInfoCh <- m

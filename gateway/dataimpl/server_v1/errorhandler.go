@@ -1031,3 +1031,10 @@ func (e ErrorHandler) NewUnimplementedServerVersionStatus() *status.Status {
 		"The requested feature is not available on this server version.")
 	return st
 }
+
+func (e ErrorHandler) NewServerRoutingUnimplementedError() *status.Status {
+	st := status.New(
+		codes.Unimplemented,
+		"Bucket name required because Cluster-level server routing is not implemented")
+	return st
+}
