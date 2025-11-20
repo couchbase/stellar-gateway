@@ -78,6 +78,7 @@ func init() {
 	configFlags.String("cb-host", "localhost", "the couchbase server host")
 	configFlags.String("cb-user", "Administrator", "the couchbase server username")
 	configFlags.String("cb-pass", "password", "the couchbase server password")
+	configFlags.Bool("cb-host-is-local", false, "specifies if the cb-host node is running locally")
 	configFlags.String("bind-address", "0.0.0.0", "the local address to bind to")
 	configFlags.Int("data-port", 18098, "the data port")
 	configFlags.Int("dapi-port", -1, "the data api port")
@@ -250,6 +251,7 @@ type config struct {
 	cbHost                string
 	cbUser                string
 	cbPass                string
+	cbHostIsLocal         bool
 	bindAddress           string
 	dataPort              int
 	webPort               int
@@ -290,6 +292,7 @@ func readConfig(logger *zap.Logger) *config {
 		cbHost:                viper.GetString("cb-host"),
 		cbUser:                viper.GetString("cb-user"),
 		cbPass:                viper.GetString("cb-pass"),
+		cbHostIsLocal:         viper.GetBool("cb-host-is-local"),
 		bindAddress:           viper.GetString("bind-address"),
 		dataPort:              viper.GetInt("data-port"),
 		webPort:               viper.GetInt("web-port"),
@@ -329,6 +332,7 @@ func readConfig(logger *zap.Logger) *config {
 		zap.String("cbHost", config.cbHost),
 		zap.String("cbUser", config.cbUser),
 		// zap.String("cbPass", config.cbPass),
+		zap.Bool("cbHostIsLocal", config.cbHostIsLocal),
 		zap.String("bindAddress", config.bindAddress),
 		zap.Int("dataPort", config.dataPort),
 		zap.Int("webPort", config.webPort),
@@ -600,24 +604,25 @@ func startGateway() {
 	}
 
 	gatewayConfig := &gateway.Config{
-		Logger:          logger.Named("gateway"),
-		CbConnStr:       config.cbHost,
-		Username:        config.cbUser,
-		Password:        config.cbPass,
-		Daemon:          daemon,
-		Debug:           config.debug,
-		ProxyServices:   strings.Split(config.dapiProxyServices, ","),
-		ProxyBlockAdmin: config.dapiNoProxyAdmin,
-		AlphaEndpoints:  config.alphaEndpoints,
-		BindDataPort:    config.dataPort,
-		BindDapiPort:    config.dapiPort,
-		BindAddress:     config.bindAddress,
-		RateLimit:       config.rateLimit,
-		GrpcCertificate: grpcCertificate,
-		DapiCertificate: dapiCertificate,
-		ClusterCaCert:   caCertPool,
-		ClientCaCert:    clientCaCertPool,
-		NumInstances:    1,
+		Logger:              logger.Named("gateway"),
+		CbConnStr:           config.cbHost,
+		Username:            config.cbUser,
+		Password:            config.cbPass,
+		BoostrapNodeIsLocal: config.cbHostIsLocal,
+		Daemon:              daemon,
+		Debug:               config.debug,
+		ProxyServices:       strings.Split(config.dapiProxyServices, ","),
+		ProxyBlockAdmin:     config.dapiNoProxyAdmin,
+		AlphaEndpoints:      config.alphaEndpoints,
+		BindDataPort:        config.dataPort,
+		BindDapiPort:        config.dapiPort,
+		BindAddress:         config.bindAddress,
+		RateLimit:           config.rateLimit,
+		GrpcCertificate:     grpcCertificate,
+		DapiCertificate:     dapiCertificate,
+		ClusterCaCert:       caCertPool,
+		ClientCaCert:        clientCaCertPool,
+		NumInstances:        1,
 		StartupCallback: func(m *gateway.StartupInfo) {
 			webapi.MarkSystemHealthy()
 		},
