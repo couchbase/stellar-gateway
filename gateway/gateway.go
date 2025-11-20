@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"strings"
 	"sync"
@@ -54,9 +55,10 @@ type Config struct {
 	ProxyBlockAdmin bool
 	AlphaEndpoints  bool
 
-	CbConnStr string
-	Username  string
-	Password  string
+	CbConnStr           string
+	BoostrapNodeIsLocal bool
+	Username            string
+	Password            string
 
 	BindAddress      string
 	BindDataPort     int
@@ -167,7 +169,7 @@ func pingCouchbaseCluster(
 	username, password string,
 	tlsConfig *tls.Config,
 	logger *zap.Logger,
-) (string, error) {
+) (string, string, error) {
 	var endpoint string
 	if tlsConfig != nil {
 		endpoint = "https://" + mgmtHostPort
@@ -197,7 +199,7 @@ func pingCouchbaseCluster(
 
 	clusterConfig, err := mgmt.GetClusterConfig(ctx, &cbmgmtx.GetClusterConfigOptions{})
 	if err != nil {
-		return "", errors.Wrap(err, "failed to get cluster config")
+		return "", "", errors.Wrap(err, "failed to get cluster config")
 	}
 
 	var thisNode *cbconfigx.FullNodeJson
@@ -208,11 +210,11 @@ func pingCouchbaseCluster(
 	}
 
 	if thisNode == nil {
-		return "", errors.New("failed to find local bootstrap node in node list")
+		return "", "", errors.New("failed to find local bootstrap node in node list")
 	}
 
 	if thisNode.ClusterMembership != "active" {
-		return "", errors.New("bootstrap node is not part of a cluster yet")
+		return "", "", errors.New("bootstrap node is not part of a cluster yet")
 	}
 
 	serverVersion := strings.Split(thisNode.Version, "-")[0]
@@ -224,10 +226,15 @@ func pingCouchbaseCluster(
 
 	clusterInfo, err := mgmt.GetTerseClusterConfig(ctx, &cbmgmtx.GetTerseClusterConfigOptions{})
 	if err != nil {
-		return "", errors.Wrap(err, "failed to get cluster info")
+		return "", "", errors.Wrap(err, "failed to get cluster info")
 	}
 
-	return clusterInfo.UUID, nil
+	nodeHost, _, err := net.SplitHostPort(thisNode.Hostname)
+	if err != nil {
+		return "", "", errors.New("failed to split node hostname")
+	}
+
+	return clusterInfo.UUID, nodeHost, nil
 }
 
 func (g *Gateway) Run(ctx context.Context) error {
@@ -263,8 +270,9 @@ func (g *Gateway) Run(ctx context.Context) error {
 	}
 
 	var clusterUUID string
+	var bootstrapNodeAddr string
 	for {
-		currentUUID, err := pingCouchbaseCluster(ctx, mgmtHostPort, config.Username, config.Password, tlsConfig, config.Logger)
+		currentUUID, nodeAddr, err := pingCouchbaseCluster(ctx, mgmtHostPort, config.Username, config.Password, tlsConfig, config.Logger)
 		if err != nil {
 			config.Logger.Warn("failed to ping cluster", zap.Error(err))
 
@@ -287,6 +295,7 @@ func (g *Gateway) Run(ctx context.Context) error {
 
 		// once we successfully ping the cluster, we can stop polling
 		clusterUUID = currentUUID
+		bootstrapNodeAddr = nodeAddr
 		break
 	}
 
@@ -387,10 +396,12 @@ func (g *Gateway) Run(ctx context.Context) error {
 		rateLimiter := ratelimiting.NewGlobalRateLimiter(uint64(config.RateLimit), time.Second)
 
 		dataImpl := dataimpl.New(&dataimpl.NewOptions{
-			Logger:        config.Logger.Named("data-impl"),
-			Debug:         config.Debug,
-			CbClient:      agentMgr,
-			Authenticator: authenticator,
+			Logger:           config.Logger.Named("data-impl"),
+			Debug:            config.Debug,
+			CbClient:         agentMgr,
+			Authenticator:    authenticator,
+			LocalhostConnstr: strings.Contains(mgmtHostPort, "localhost") || config.BoostrapNodeIsLocal,
+			BootstrapNode:    bootstrapNodeAddr,
 		})
 
 		dapiImpl := dapiimpl.New(&dapiimpl.NewOptions{
