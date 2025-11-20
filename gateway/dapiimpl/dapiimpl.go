@@ -18,6 +18,9 @@ type NewOptions struct {
 	ProxyServices   []proxy.ServiceType
 	ProxyBlockAdmin bool
 	Debug           bool
+
+	Username string
+	Password string
 }
 
 type Servers struct {
@@ -44,7 +47,11 @@ func New(opts *NewOptions) *Servers {
 			opts.CbClient,
 			opts.ProxyServices,
 			opts.ProxyBlockAdmin,
-			opts.Debug),
+			opts.Debug,
+			v1AuthHandler,
+			opts.Username,
+			opts.Password,
+		),
 		DataApiV1Server: server_v1.NewDataApiServer(
 			opts.Logger.Named("dapi-serverv1"),
 			v1ErrHandler,
