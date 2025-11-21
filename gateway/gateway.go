@@ -58,6 +58,7 @@ type Config struct {
 	BoostrapNodeIsLocal bool
 	Username            string
 	Password            string
+	SingleUserAuth      bool
 
 	BindAddress      string
 	BindDataPort     int
@@ -273,20 +274,31 @@ func (g *Gateway) Run(ctx context.Context) error {
 	}
 
 	// initialize cb-auth
-	authenticator, err := auth.NewCbAuthAuthenticator(ctx, auth.NewCbAuthAuthenticatorOptions{
-		NodeId:      nodeID,
-		Addresses:   []string{authHostPort},
-		Username:    config.Username,
-		Password:    config.Password,
-		ClusterUUID: clusterUUID,
-		Logger:      config.Logger.Named("cbauth"),
-	})
-	if err != nil {
-		config.Logger.Error("failed to initialize cbauth connection",
-			zap.Error(err),
-			zap.String("hostPort", authHostPort),
-			zap.String("user", config.Username))
-		return err
+	var cbAuthAuthenticator *auth.CbAuthAuthenticator
+	var authenticator auth.Authenticator
+	if !config.SingleUserAuth {
+		cbAuthAuthenticator, err = auth.NewCbAuthAuthenticator(ctx, auth.NewCbAuthAuthenticatorOptions{
+			NodeId:      nodeID,
+			Addresses:   []string{authHostPort},
+			Username:    config.Username,
+			Password:    config.Password,
+			ClusterUUID: clusterUUID,
+			Logger:      config.Logger.Named("cbauth"),
+		})
+		if err != nil {
+			config.Logger.Error("failed to initialize cbauth connection",
+				zap.Error(err),
+				zap.String("hostPort", authHostPort),
+				zap.String("user", config.Username))
+			return err
+		}
+
+		authenticator = cbAuthAuthenticator
+	} else {
+		authenticator = &auth.SingleUserAuthenticator{
+			Username: config.Username,
+			Password: config.Password,
+		}
 	}
 
 	// try to establish a client connection to the cluster
@@ -319,45 +331,47 @@ func (g *Gateway) Run(ctx context.Context) error {
 		proxyServices = append(proxyServices, proxy.ServiceType(serviceName))
 	}
 
-	go func() {
-		watchCh := agentMgr.WatchConfig(context.Background())
-	runLoop:
-		for {
-			select {
-			case <-g.shutdownSig:
-				break runLoop
-			case cfg := <-watchCh:
-				if cfg == nil {
-					continue
-				}
+	if cbAuthAuthenticator != nil {
+		go func() {
+			watchCh := agentMgr.WatchConfig(context.Background())
+		runLoop:
+			for {
+				select {
+				case <-g.shutdownSig:
+					break runLoop
+				case cfg := <-watchCh:
+					if cfg == nil {
+						continue
+					}
 
-				mgmtEndpointsList := make([]string, 0, len(cfg.Nodes))
-				for _, node := range cfg.Nodes {
-					if node.Addresses.NonSSLPorts.Mgmt > 0 {
-						mgmtEndpointsList = append(mgmtEndpointsList,
-							fmt.Sprintf("%s:%d", node.Addresses.Hostname, node.Addresses.NonSSLPorts.Mgmt))
+					mgmtEndpointsList := make([]string, 0, len(cfg.Nodes))
+					for _, node := range cfg.Nodes {
+						if node.Addresses.NonSSLPorts.Mgmt > 0 {
+							mgmtEndpointsList = append(mgmtEndpointsList,
+								fmt.Sprintf("%s:%d", node.Addresses.Hostname, node.Addresses.NonSSLPorts.Mgmt))
+						}
+					}
+
+					err := cbAuthAuthenticator.Reconfigure(auth.CbAuthAuthenticatorReconfigureOptions{
+						Addresses:   mgmtEndpointsList,
+						Username:    config.Username,
+						Password:    config.Password,
+						ClusterUUID: clusterUUID,
+					})
+					if err != nil {
+						config.Logger.Warn("failed to reconfigure cbauth",
+							zap.Error(err))
 					}
 				}
-
-				err := authenticator.Reconfigure(auth.CbAuthAuthenticatorReconfigureOptions{
-					Addresses:   mgmtEndpointsList,
-					Username:    config.Username,
-					Password:    config.Password,
-					ClusterUUID: clusterUUID,
-				})
-				if err != nil {
-					config.Logger.Warn("failed to reconfigure cbauth",
-						zap.Error(err))
-				}
 			}
-		}
 
-		err := authenticator.Close()
-		if err != nil {
-			config.Logger.Warn("failed to shutdown cbauth",
-				zap.Error(err))
-		}
-	}()
+			err := cbAuthAuthenticator.Close()
+			if err != nil {
+				config.Logger.Warn("failed to shutdown cbauth",
+					zap.Error(err))
+			}
+		}()
+	}
 
 	startInstance := func(ctx context.Context, instanceIdx int) error {
 		rateLimiter := ratelimiting.NewGlobalRateLimiter(uint64(config.RateLimit), time.Second)

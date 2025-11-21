@@ -101,6 +101,10 @@ func (a AuthHandler) MaybeGetOboUserFromContext(ctx context.Context) (string, st
 
 	oboUser, oboDomain, err := a.Authenticator.ValidateUserForObo(ctx, username, password)
 	if err != nil {
+		if errors.Is(err, auth.ErrSingleUserAuthValid) {
+			return "", "", nil
+		}
+
 		if errors.Is(err, auth.ErrInvalidCredentials) {
 			return "", "", a.ErrorHandler.NewInvalidCredentialsStatus()
 		}
@@ -116,10 +120,6 @@ func (a AuthHandler) GetOboUserFromContext(ctx context.Context) (string, string,
 	user, domain, st := a.MaybeGetOboUserFromContext(ctx)
 	if st != nil {
 		return "", "", st
-	}
-
-	if user == "" {
-		return "", "", a.ErrorHandler.NewNoAuthStatus()
 	}
 
 	return user, domain, nil

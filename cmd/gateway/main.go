@@ -79,6 +79,7 @@ func init() {
 	configFlags.String("cb-user", "Administrator", "the couchbase server username")
 	configFlags.String("cb-pass", "password", "the couchbase server password")
 	configFlags.Bool("cb-host-is-local", false, "specifies if the cb-host node is running locally")
+	configFlags.Bool("single-user-auth", false, "enables single-user authenticating to GRPC and Data API")
 	configFlags.String("bind-address", "0.0.0.0", "the local address to bind to")
 	configFlags.Int("data-port", 18098, "the data port")
 	configFlags.Int("dapi-port", -1, "the data api port")
@@ -252,6 +253,7 @@ type config struct {
 	cbUser                string
 	cbPass                string
 	cbHostIsLocal         bool
+	singleUserAuth        bool
 	bindAddress           string
 	dataPort              int
 	webPort               int
@@ -293,6 +295,7 @@ func readConfig(logger *zap.Logger) *config {
 		cbUser:                viper.GetString("cb-user"),
 		cbPass:                viper.GetString("cb-pass"),
 		cbHostIsLocal:         viper.GetBool("cb-host-is-local"),
+		singleUserAuth:        viper.GetBool("single-user-auth"),
 		bindAddress:           viper.GetString("bind-address"),
 		dataPort:              viper.GetInt("data-port"),
 		webPort:               viper.GetInt("web-port"),
@@ -333,6 +336,7 @@ func readConfig(logger *zap.Logger) *config {
 		zap.String("cbUser", config.cbUser),
 		// zap.String("cbPass", config.cbPass),
 		zap.Bool("cbHostIsLocal", config.cbHostIsLocal),
+		zap.Bool("singleUserAuth", config.singleUserAuth),
 		zap.String("bindAddress", config.bindAddress),
 		zap.Int("dataPort", config.dataPort),
 		zap.Int("webPort", config.webPort),
@@ -609,6 +613,7 @@ func startGateway() {
 		Username:            config.cbUser,
 		Password:            config.cbPass,
 		BoostrapNodeIsLocal: config.cbHostIsLocal,
+		SingleUserAuth:      config.singleUserAuth,
 		Daemon:              daemon,
 		Debug:               config.debug,
 		ProxyServices:       strings.Split(config.dapiProxyServices, ","),
@@ -649,8 +654,9 @@ func startGateway() {
 
 		if newConfig.cbHost != config.cbHost ||
 			newConfig.cbUser != config.cbUser ||
-			newConfig.cbPass != config.cbPass {
-			logger.Warn("config changes for cbHost, cbUser, or cbPass require a restart")
+			newConfig.cbPass != config.cbPass ||
+			newConfig.singleUserAuth != config.singleUserAuth {
+			logger.Warn("config changes for cbHost, cbUser, cbPass or singleUserAuth require a restart")
 		}
 
 		if newConfig.bindAddress != config.bindAddress ||
