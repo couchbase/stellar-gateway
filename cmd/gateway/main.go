@@ -78,6 +78,7 @@ func init() {
 	configFlags.String("cb-host", "localhost", "the couchbase server host")
 	configFlags.String("cb-user", "Administrator", "the couchbase server username")
 	configFlags.String("cb-pass", "password", "the couchbase server password")
+	configFlags.Bool("single-user-auth", false, "enables single-user authenticating to GRPC and Data API")
 	configFlags.String("bind-address", "0.0.0.0", "the local address to bind to")
 	configFlags.Int("data-port", 18098, "the data port")
 	configFlags.Int("dapi-port", -1, "the data api port")
@@ -250,6 +251,7 @@ type config struct {
 	cbHost                string
 	cbUser                string
 	cbPass                string
+	singleUserAuth        bool
 	bindAddress           string
 	dataPort              int
 	webPort               int
@@ -290,6 +292,7 @@ func readConfig(logger *zap.Logger) *config {
 		cbHost:                viper.GetString("cb-host"),
 		cbUser:                viper.GetString("cb-user"),
 		cbPass:                viper.GetString("cb-pass"),
+		singleUserAuth:        viper.GetBool("single-user-auth"),
 		bindAddress:           viper.GetString("bind-address"),
 		dataPort:              viper.GetInt("data-port"),
 		webPort:               viper.GetInt("web-port"),
@@ -329,6 +332,7 @@ func readConfig(logger *zap.Logger) *config {
 		zap.String("cbHost", config.cbHost),
 		zap.String("cbUser", config.cbUser),
 		// zap.String("cbPass", config.cbPass),
+		zap.Bool("singleUserAuth", config.singleUserAuth),
 		zap.String("bindAddress", config.bindAddress),
 		zap.Int("dataPort", config.dataPort),
 		zap.Int("webPort", config.webPort),
@@ -604,6 +608,7 @@ func startGateway() {
 		CbConnStr:       config.cbHost,
 		Username:        config.cbUser,
 		Password:        config.cbPass,
+		SingleUserAuth:  config.singleUserAuth,
 		Daemon:          daemon,
 		Debug:           config.debug,
 		ProxyServices:   strings.Split(config.dapiProxyServices, ","),
@@ -644,8 +649,9 @@ func startGateway() {
 
 		if newConfig.cbHost != config.cbHost ||
 			newConfig.cbUser != config.cbUser ||
-			newConfig.cbPass != config.cbPass {
-			logger.Warn("config changes for cbHost, cbUser, or cbPass require a restart")
+			newConfig.cbPass != config.cbPass ||
+			newConfig.singleUserAuth != config.singleUserAuth {
+			logger.Warn("config changes for cbHost, cbUser, cbPass or singleUserAuth require a restart")
 		}
 
 		if newConfig.bindAddress != config.bindAddress ||
