@@ -937,6 +937,16 @@ func (e ErrorHandler) NewInvalidCertificateStatus() *status.Status {
 	return st
 }
 
+func (e ErrorHandler) NewCertAuthDisabledStatus() *status.Status {
+	st := status.New(codes.Unauthenticated, "Client cert auth disabled on the cluster.")
+	st = e.tryAttachStatusDetails(st, &epb.ResourceInfo{
+		ResourceType: "user",
+		ResourceName: "",
+		Description:  "",
+	})
+	return st
+}
+
 func (e ErrorHandler) NewUnexpectedAuthTypeStatus() *status.Status {
 	st := status.New(codes.InvalidArgument, "Unexpected auth type.")
 	return st
