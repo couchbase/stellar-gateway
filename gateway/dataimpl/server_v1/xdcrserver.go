@@ -271,6 +271,10 @@ func (s *XdcrServer) WatchCollections(in *internal_xdcr_v1.WatchCollectionsReque
 			OnBehalfOf: oboUser,
 		})
 		if err != nil {
+			if errors.Is(err, cbmgmtx.ErrBucketNotFound) {
+				return s.errorHandler.NewBucketMissingStatus(err, in.BucketName).Err()
+			}
+
 			return s.errorHandler.NewGenericStatus(err).Err()
 		}
 

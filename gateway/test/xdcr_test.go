@@ -205,37 +205,55 @@ func (s *GatewayOpsTestSuite) TestXdcrGetVbucketInfo() {
 func (s *GatewayOpsTestSuite) TestXdcrWatchCollections() {
 	xdcrClient := internal_xdcr_v1.NewXdcrServiceClient(s.gatewayConn)
 
-	opCtx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	s.Run("Basic", func() {
+		opCtx, cancel := context.WithCancel(context.Background())
+		defer cancel()
 
-	resp, err := xdcrClient.WatchCollections(opCtx, &internal_xdcr_v1.WatchCollectionsRequest{
-		BucketName: s.bucketName,
-	}, grpc.PerRPCCredentials(s.basicRpcCreds))
-	requireRpcSuccess(s.T(), resp, err)
+		resp, err := xdcrClient.WatchCollections(opCtx, &internal_xdcr_v1.WatchCollectionsRequest{
+			BucketName: s.bucketName,
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		requireRpcSuccess(s.T(), resp, err)
 
-	manifest, err := resp.Recv()
-	require.NoError(s.T(), err)
-	require.Greater(s.T(), manifest.ManifestUid, uint32(0))
-	require.Greater(s.T(), len(manifest.Scopes), 0)
+		manifest, err := resp.Recv()
+		require.NoError(s.T(), err)
+		require.Greater(s.T(), manifest.ManifestUid, uint32(0))
+		require.Greater(s.T(), len(manifest.Scopes), 0)
 
-	for _, scope := range manifest.Scopes {
-		if scope.ScopeName == "_default" {
-			require.Zero(s.T(), scope.ScopeId)
-		} else {
-			require.Greater(s.T(), scope.ScopeId, uint32(0))
-		}
-		require.NotEmpty(s.T(), scope.ScopeName)
-		require.Greater(s.T(), len(scope.Collections), 0)
-
-		for _, collection := range scope.Collections {
-			if collection.CollectionName == "_default" {
-				require.Zero(s.T(), collection.CollectionId)
+		for _, scope := range manifest.Scopes {
+			if scope.ScopeName == "_default" {
+				require.Zero(s.T(), scope.ScopeId)
 			} else {
-				require.Greater(s.T(), collection.CollectionId, uint32(0))
+				require.Greater(s.T(), scope.ScopeId, uint32(0))
 			}
-			require.NotEmpty(s.T(), collection.CollectionName)
+			require.NotEmpty(s.T(), scope.ScopeName)
+			require.Greater(s.T(), len(scope.Collections), 0)
+
+			for _, collection := range scope.Collections {
+				if collection.CollectionName == "_default" {
+					require.Zero(s.T(), collection.CollectionId)
+				} else {
+					require.Greater(s.T(), collection.CollectionId, uint32(0))
+				}
+				require.NotEmpty(s.T(), collection.CollectionName)
+			}
 		}
-	}
+	})
+
+	s.Run("BucketNotFound", func() {
+		opCtx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		resp, err := xdcrClient.WatchCollections(opCtx, &internal_xdcr_v1.WatchCollectionsRequest{
+			BucketName: "nonexistent-bucket",
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		requireRpcSuccess(s.T(), resp, err)
+
+		_, err = resp.Recv()
+		assertRpcStatus(s.T(), err, codes.NotFound)
+		assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
+			assert.Equal(s.T(), "bucket", d.ResourceType)
+		})
+	})
 }
 
 func (s *GatewayOpsTestSuite) TestXdcrGetDocument() {
