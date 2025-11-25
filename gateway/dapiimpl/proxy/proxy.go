@@ -2,6 +2,8 @@ package proxy
 
 import (
 	"context"
+	"encoding/base64"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -16,7 +18,10 @@ import (
 	"go.opentelemetry.io/otel/propagation"
 
 	"github.com/couchbase/gocbcorex"
+	"github.com/couchbase/gocbcorex/cbauthx"
 	"github.com/couchbase/gocbcorex/contrib/buildversion"
+	"github.com/couchbase/stellar-gateway/gateway/auth"
+	"github.com/couchbase/stellar-gateway/gateway/dapiimpl/server_v1"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
@@ -51,6 +56,10 @@ type DataApiProxy struct {
 	numRequests    metric.Int64Counter
 	ttfbMillis     metric.Int64Histogram
 	durationMillis metric.Int64Histogram
+
+	adminUsername string
+	adminPassword string
+	authHander    *server_v1.AuthHandler
 }
 
 func NewDataApiProxy(
@@ -59,6 +68,8 @@ func NewDataApiProxy(
 	services []ServiceType,
 	disableAdmin bool,
 	debugMode bool,
+	authHandler *server_v1.AuthHandler,
+	username, password string,
 ) *DataApiProxy {
 	mux := http.NewServeMux()
 
@@ -92,6 +103,9 @@ func NewDataApiProxy(
 		numRequests:    numRequests,
 		ttfbMillis:     ttfbMillis,
 		durationMillis: durationMillis,
+		adminUsername:  username,
+		adminPassword:  password,
+		authHander:     authHandler,
 	}
 
 	for _, serviceName := range services {
@@ -127,9 +141,13 @@ func (p *DataApiProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (p *DataApiProxy) writeError(w http.ResponseWriter, err error, msg string) {
+	p.writeErrorWithStatus(w, err, msg, 502)
+}
+
+func (p *DataApiProxy) writeErrorWithStatus(w http.ResponseWriter, err error, msg string, status int) {
 	p.logger.Debug(msg, zap.Error(err))
 
-	w.WriteHeader(502)
+	w.WriteHeader(status)
 
 	if !p.debugMode {
 		_, _ = fmt.Fprintf(w, "%s", msg)
@@ -251,6 +269,34 @@ func (p *DataApiProxy) proxyService(
 
 	// copy some other details
 	proxyReq.Header = r.Header
+
+	// If no auth header has been given, check for a client cert
+	authHdr := proxyReq.Header.Get("Authorization")
+	if authHdr == "" {
+		oboUser, oboDomain, err := p.authHander.Authenticator.ValidateConnStateForObo(ctx, r.TLS)
+		if err != nil {
+			if errors.Is(err, auth.ErrInvalidCertificate) {
+				p.writeError(w, err, "failed to validate certificate")
+				return
+			} else if errors.Is(err, cbauthx.ErrNoCert) {
+				p.writeErrorWithStatus(w, err, "authorization header or client cert are required", 401)
+				return
+			}
+
+			p.writeErrorWithStatus(w, err, "received an unexpected cert authentication error", 401)
+			return
+		}
+
+		// We only set the on behalf of and auth headers if there is a user, if
+		// we set the onbehalf of header to an empty string and use the admin
+		// creds then the server seems to ignore the obo header.
+		if oboUser != "" {
+			// ING-1371 (support CNG -> cluster mtls)
+			oboHdrStr := base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s:%s", oboUser, oboDomain)))
+			proxyReq.Header.Set("cb-on-behalf-of", oboHdrStr)
+			proxyReq.SetBasicAuth(p.adminUsername, p.adminPassword)
+		}
+	}
 
 	tr := otelhttp.NewTransport(
 		roundTripper,

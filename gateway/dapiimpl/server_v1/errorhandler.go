@@ -121,6 +121,24 @@ func (e ErrorHandler) NewInvalidCredentialsStatus() *Status {
 	return st
 }
 
+func (e ErrorHandler) NewUnexpectedAuthTypeStatus() *Status {
+	st := &Status{
+		StatusCode: http.StatusBadRequest,
+		Code:       dataapiv1.ErrorCodeInvalidArgument,
+		Message:    "Unexpected auth type.",
+	}
+	return st
+}
+
+func (e ErrorHandler) NewInvalidCertificateStatus() *Status {
+	st := &Status{
+		StatusCode: http.StatusForbidden,
+		Code:       dataapiv1.ErrorCodeInvalidAuth,
+		Message:    "Your certificate is invalid.",
+	}
+	return st
+}
+
 func (e ErrorHandler) NewInternalStatus() *Status {
 	st := &Status{
 		StatusCode: http.StatusInternalServerError,
