@@ -79,7 +79,7 @@ func (a AuthHandler) MaybeGetOboUserFromContext(ctx context.Context) (string, st
 
 	switch {
 	case !credsFound && !certFound:
-		return "", "", nil
+		return "", "", a.ErrorHandler.NewNoAuthStatus()
 	case credsFound && certFound:
 		a.Logger.Debug("username/password taking priority over client cert auth as both were given.")
 	case credsFound:
@@ -88,6 +88,8 @@ func (a AuthHandler) MaybeGetOboUserFromContext(ctx context.Context) (string, st
 		if err != nil {
 			if errors.Is(err, auth.ErrInvalidCertificate) {
 				return "", "", a.ErrorHandler.NewInvalidCertificateStatus()
+			} else if errors.Is(err, auth.ErrCertAuthDisabled) {
+				return "", "", a.ErrorHandler.NewCertAuthDisabledStatus()
 			}
 
 			a.Logger.Error("received an unexpected cert authentication error", zap.Error(err))
@@ -129,8 +131,35 @@ func (a AuthHandler) GetHttpOboInfoFromContext(ctx context.Context) (*cbhttpx.On
 		return nil, errSt
 	}
 
-	if username == "" {
+	connState, errHe := a.MaybeGetConnStateFromContext(ctx)
+	if errHe != nil {
+		return nil, errHe
+	}
+
+	credsFound := username != "" && password != ""
+	certFound := connState != nil && len(connState.PeerCertificates) != 0
+
+	switch {
+	case !credsFound && !certFound:
 		return nil, a.ErrorHandler.NewNoAuthStatus()
+	case credsFound && certFound:
+		a.Logger.Debug("username/password taking priority over client cert auth as both were given.")
+	case credsFound:
+	case certFound:
+		oboUser, oboDomain, err := a.Authenticator.ValidateConnStateForObo(ctx, connState)
+		if err != nil {
+			if errors.Is(err, auth.ErrInvalidCertificate) {
+				return nil, a.ErrorHandler.NewInvalidCertificateStatus()
+			}
+
+			a.Logger.Error("received an unexpected cert authentication error", zap.Error(err))
+			return nil, a.ErrorHandler.NewInternalStatus()
+		}
+
+		return &cbhttpx.OnBehalfOfInfo{
+			Username: oboUser,
+			Domain:   oboDomain,
+		}, nil
 	}
 
 	return &cbhttpx.OnBehalfOfInfo{

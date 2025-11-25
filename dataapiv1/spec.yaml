@@ -1222,7 +1222,6 @@ components:
       description: Header for authentication.
       schema:
         type: string
-      required: true
     AcceptEncodingHeader:
       in: header
       name: Accept-Encoding
