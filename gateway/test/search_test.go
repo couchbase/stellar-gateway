@@ -11,8 +11,10 @@ import (
 	"github.com/couchbase/goprotostellar/genproto/admin_search_v1"
 	"github.com/couchbase/goprotostellar/genproto/search_v1"
 	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 )
 
 func (s *GatewayOpsTestSuite) TestSearchBasic() {
@@ -26,6 +28,10 @@ func (s *GatewayOpsTestSuite) TestSearchBasic() {
 	if s.Run("SearchSetup", helper.testSetupSearch) {
 
 		s.Run("Test", helper.TestSearchBasic)
+
+		s.Run("TestBadCredentials", helper.TestSearchBadCredentials)
+
+		s.Run("TestInsufficientPermissions", helper.TestSearchInsufficientPermissions)
 
 		s.Run("TestQueryStringQuery", helper.TestQueryStringQuery)
 
@@ -751,6 +757,54 @@ func (s *testSearchServiceHelper) TestSearchBasic() {
 			s.Equal("capacity", f.NumericRangeFacet.NumericRanges[0].Name)
 		}
 	}
+}
+
+func (s *testSearchServiceHelper) TestSearchBadCredentials() {
+	client := search_v1.NewSearchServiceClient(s.gatewayConn)
+
+	field := "service"
+	query := &search_v1.Query_TermQuery{
+		TermQuery: &search_v1.TermQuery{
+			Term:  "search",
+			Field: &field,
+		},
+	}
+
+	queryResult, err := client.SearchQuery(context.Background(), &search_v1.SearchQueryRequest{
+		IndexName: s.IndexName,
+		Query: &search_v1.Query{
+			Query: query,
+		},
+	}, grpc.PerRPCCredentials(s.badRpcCreds))
+	requireRpcSuccess(s.T(), client, err)
+
+	_, err = queryResult.Recv()
+	assertRpcStatus(s.T(), err, codes.PermissionDenied)
+	assert.Contains(s.T(), err.Error(), "No permissions to query documents.")
+}
+
+func (s *testSearchServiceHelper) TestSearchInsufficientPermissions() {
+	client := search_v1.NewSearchServiceClient(s.gatewayConn)
+
+	field := "service"
+	query := &search_v1.Query_TermQuery{
+		TermQuery: &search_v1.TermQuery{
+			Term:  "search",
+			Field: &field,
+		},
+	}
+
+	queryResult, err := client.SearchQuery(context.Background(), &search_v1.SearchQueryRequest{
+		IndexName: s.IndexName,
+		Query: &search_v1.Query{
+			Query: query,
+		},
+	}, grpc.PerRPCCredentials(s.getNoPermissionRpcCreds()))
+	requireRpcSuccess(s.T(), client, err)
+
+	_, err = queryResult.Recv()
+	assertRpcStatus(s.T(), err, codes.PermissionDenied)
+	assert.Contains(s.T(), err.Error(), "No permissions to query documents.")
 }
 
 func (s *testSearchServiceHelper) testCleanupSearch() {
