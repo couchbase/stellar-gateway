@@ -29,8 +29,6 @@ func (s *GatewayOpsTestSuite) TestClientCertAuth() {
 }
 
 func (s *GatewayOpsTestSuite) KvService() {
-	dino := testutils.StartDinoTesting(s.T(), false)
-
 	indexClient := admin_search_v1.NewSearchAdminServiceClient(s.gatewayConn)
 	indexName := "a" + uuid.NewString()[:6]
 	sourceType := "couchbase"
@@ -148,8 +146,7 @@ func (s *GatewayOpsTestSuite) KvService() {
 
 	for _, t := range tests {
 		s.Run(t.description, func() {
-			username := t.description
-			conn := s.newClientCertConn(dino, username)
+			conn := s.connFromCert(s.missingUserCert)
 
 			s.Run("UserMissing", func() {
 				_, err := t.testFn(conn)
@@ -157,10 +154,7 @@ func (s *GatewayOpsTestSuite) KvService() {
 				assert.Contains(s.T(), err.Error(), "Your certificate is invalid")
 			})
 
-			dino.AddUnprivilegedUser(username)
-			s.T().Cleanup(func() {
-				dino.RemoveUser(username)
-			})
+			conn = s.connFromCert(s.noPermsCert)
 
 			s.Run("NoUserPermissions", func() {
 				_, err := t.testFn(conn)
@@ -168,17 +162,11 @@ func (s *GatewayOpsTestSuite) KvService() {
 				assert.Contains(s.T(), err.Error(), t.errMsg)
 			})
 
-			dino.AddWriteUser(username)
+			conn = s.connFromCert(s.basicUserCert)
 
 			s.Run("Success", func() {
-				require.Eventually(s.T(), func() bool {
-					resp, err := t.testFn(conn)
-					if err != nil {
-						return false
-					}
-					requireRpcSuccess(s.T(), resp, err)
-					return true
-				}, time.Second*30, time.Second*5)
+				resp, err := t.testFn(conn)
+				requireRpcSuccess(s.T(), resp, err)
 			})
 		})
 	}
@@ -310,7 +298,7 @@ func (s *GatewayOpsTestSuite) newClientCertConn(dino *testutils.DinoController, 
 	conn, err := grpc.NewClient(s.gwConnAddr,
 		grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{
 			RootCAs:      s.clientCaCertPool,
-			Certificates: []tls.Certificate{cert},
+			Certificates: []tls.Certificate{*cert},
 		})))
 	if err != nil {
 		s.T().Fatalf("failed to connect to test gateway: %s", err)

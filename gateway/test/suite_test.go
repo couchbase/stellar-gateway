@@ -48,18 +48,23 @@ type GatewayOpsTestSuite struct {
 	dapiCli          *http.Client
 	dapiAddr         string
 
-	bucketName     string
-	scopeName      string
-	collectionName string
-	badRpcCreds    credentials.PerRPCCredentials
-	basicRpcCreds  credentials.PerRPCCredentials
-	readRpcCreds   credentials.PerRPCCredentials
+	bucketName      string
+	scopeName       string
+	collectionName  string
+	badRpcCreds     credentials.PerRPCCredentials
+	basicRpcCreds   credentials.PerRPCCredentials
+	readRpcCreds    credentials.PerRPCCredentials
+	noPermsRpcCreds credentials.PerRPCCredentials
 
 	badRestCreds   string
 	basicRestCreds string
 	readRestCreds  string
 
 	clientCaCertPool *x509.CertPool
+	basicUserCert    *tls.Certificate
+	missingUserCert  *tls.Certificate
+	readUserCert     *tls.Certificate
+	noPermsCert      *tls.Certificate
 
 	clusterVersion *NodeVersion
 	features       []TestFeature
@@ -236,22 +241,14 @@ func (s *GatewayOpsTestSuite) SetupSuite() {
 		s.T().Fatalf("failed to setup basic basic auth")
 	}
 
-	readRpcCreds, err := grpcheaderauth.NewGrpcBasicAuth(
-		testClusterInfo.ReadUser, testClusterInfo.ReadPass)
-	if err != nil {
-		s.T().Fatalf("failed to setup basic read auth")
-	}
-
 	s.testClusterInfo = testClusterInfo
 	s.bucketName = testClusterInfo.BucketName
 	s.scopeName = testClusterInfo.ScopeName
 	s.collectionName = testClusterInfo.CollectionName
 	s.badRpcCreds = badRpcCreds
 	s.basicRpcCreds = basicRpcCreds
-	s.readRpcCreds = readRpcCreds
 	s.badRestCreds = s.makeRestBasicCreds("invalid-user", "invalid-pass")
 	s.basicRestCreds = s.makeRestBasicCreds(testClusterInfo.BasicUser, testClusterInfo.BasicPass)
-	s.readRestCreds = s.makeRestBasicCreds(testClusterInfo.ReadUser, testClusterInfo.ReadPass)
 
 	clusterVersionStr := os.Getenv("SGTEST_CLUSTER_VER")
 	if clusterVersionStr == "" {
@@ -281,6 +278,12 @@ func (s *GatewayOpsTestSuite) SetupSuite() {
 			s.clientCaCertPool.AddCert(caCert)
 
 			gwCert = s.getServerCert()
+
+			s.basicUserCert = s.getClientCert(testClusterInfo.BasicUser)
+			s.missingUserCert = s.getClientCert("missing-user")
+
+			s.initializeReadOnlyUser()
+			s.initializeNoPermissionsUser()
 		}
 
 		gwStartInfoCh := make(chan *gateway.StartupInfo, 1)
@@ -436,6 +439,56 @@ func (s *GatewayOpsTestSuite) getServerCert() *tls.Certificate {
 	}
 
 	return &cert
+}
+
+func (s *GatewayOpsTestSuite) getClientCert(username string) *tls.Certificate {
+	res, err := testutils.GetClientCert(username)
+	if err != nil {
+		s.T().Fatalf("failed to get client cert for '%s': %s", username, err)
+	}
+
+	cert, err := tls.X509KeyPair([]byte(res), []byte(res))
+	if err != nil {
+		s.T().Fatalf("failed to parse client cert: %s", err)
+	}
+
+	return &cert
+}
+
+func (s *GatewayOpsTestSuite) initializeReadOnlyUser() {
+	username := "read-only"
+	password := "password"
+	err := testutils.AddReadOnlyUser(username, password)
+	if err != nil {
+		s.T().Fatalf("failed to create read only user: %s", err)
+	}
+
+	creds, err := grpcheaderauth.NewGrpcBasicAuth(username, password)
+	if err != nil {
+		s.T().Fatalf("failed to setup basic read auth")
+	}
+
+	s.readRpcCreds = creds
+
+	s.readUserCert = s.getClientCert(username)
+}
+
+func (s *GatewayOpsTestSuite) initializeNoPermissionsUser() {
+	username := "no-permissions"
+	password := "password"
+	err := testutils.AddUnprivilegedUser(username, password)
+	if err != nil {
+		s.T().Fatalf("failed to create no permissions user: %s", err)
+	}
+
+	creds, err := grpcheaderauth.NewGrpcBasicAuth(username, password)
+	if err != nil {
+		s.T().Fatalf("failed to setup basic read auth")
+	}
+
+	s.noPermsRpcCreds = creds
+
+	s.noPermsCert = s.getClientCert(username)
 }
 
 var TEST_CONTENT = []byte(`{"foo": "bar","obj":{"num":14,"arr":[2,5,8],"str":"zz"},"num":11,"arr":[3,6,9,12]}`)

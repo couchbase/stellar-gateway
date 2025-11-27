@@ -20,8 +20,6 @@ type CanonicalTestCluster struct {
 	AdminPass            string
 	BasicUser            string
 	BasicPass            string
-	ReadUser             string
-	ReadPass             string
 	BucketName           string
 	SecondBucketName     string
 	ScopeName            string
@@ -111,8 +109,6 @@ func SetupCanonicalTestCluster(opts CanonicalTestClusterOptions) (*CanonicalTest
 		*/
 		BasicUser:            opts.Username,
 		BasicPass:            opts.Password,
-		ReadUser:             opts.Username,
-		ReadPass:             opts.Password,
 		BucketName:           "default",
 		SecondBucketName:     "",
 		ScopeName:            "_default",
