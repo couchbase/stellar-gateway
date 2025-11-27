@@ -29,6 +29,7 @@ type commonDapiTestData struct {
 
 func (s *GatewayOpsTestSuite) RunCommonDapiErrorCases(
 	fn func(opts *commonDapiTestData) *testHttpResponse,
+	noPermsCode string,
 ) {
 	s.Run("CollectionMissing", func() {
 		resp := fn(&commonDapiTestData{
@@ -107,9 +108,39 @@ func (s *GatewayOpsTestSuite) RunCommonDapiErrorCases(
 		})
 		require.NotNil(s.T(), resp)
 		require.Equal(s.T(), http.StatusUnauthorized, resp.StatusCode)
-		// Authorization header missing is considered a missing parameter rather
-		// than an authentication specific error.
 	})
+
+	s.Run("NoPermissionCreds", func() {
+		resp := fn(&commonDapiTestData{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Headers: map[string]string{
+				"Authorization": s.getNoPermissionRestCreds(),
+			},
+			DocumentKey: s.randomDocId(),
+		})
+		requireRestError(s.T(), resp, http.StatusForbidden, &testRestError{
+			Code: noPermsCode,
+		})
+	})
+
+	if noPermsCode == "NoWriteAccess" {
+		s.Run("ReadOnlyCreds", func() {
+			resp := fn(&commonDapiTestData{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Headers: map[string]string{
+					"Authorization": s.getReadOnlyRestCredentials(),
+				},
+				DocumentKey: s.randomDocId(),
+			})
+			requireRestError(s.T(), resp, http.StatusForbidden, &testRestError{
+				Code: noPermsCode,
+			})
+		})
+	}
 
 	s.Run("DocKeyTooLong", func() {
 		resp := fn(&commonDapiTestData{
@@ -558,7 +589,7 @@ func (s *GatewayOpsTestSuite) TestDapiGet() {
 			),
 			Headers: opts.Headers,
 		})
-	})
+	}, "NoReadAccess")
 }
 
 func (s *GatewayOpsTestSuite) TestDapiPost() {
@@ -870,7 +901,7 @@ func (s *GatewayOpsTestSuite) TestDapiPost() {
 			Headers: opts.Headers,
 			Body:    TEST_CONTENT,
 		})
-	})
+	}, "NoWriteAccess")
 }
 
 func (s *GatewayOpsTestSuite) TestDapiPut() {
@@ -1573,6 +1604,48 @@ func (s *GatewayOpsTestSuite) TestDapiPut() {
 			requireRestError(s.T(), resp, http.StatusBadRequest, nil)
 		})
 
+		s.Run("NoPermissionCreds", func() {
+			docId := s.randomDocId()
+
+			resp := s.sendTestHttpRequest(&testHttpRequest{
+				Method: http.MethodPut,
+				Path: fmt.Sprintf(
+					"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
+					s.bucketName, s.scopeName, s.collectionName, docId,
+				),
+				Headers: map[string]string{
+					"Authorization": s.getNoPermissionRestCreds(),
+					"If-Match":      "*",
+					"X-CB-Flags":    fmt.Sprintf("%d", TEST_CONTENT_FLAGS),
+				},
+				Body: TEST_CONTENT,
+			})
+			requireRestError(s.T(), resp, http.StatusForbidden, &testRestError{
+				Code: "NoWriteAccess",
+			})
+		})
+
+		s.Run("ReadOnlyCreds", func() {
+			docId := s.randomDocId()
+
+			resp := s.sendTestHttpRequest(&testHttpRequest{
+				Method: http.MethodPut,
+				Path: fmt.Sprintf(
+					"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
+					s.bucketName, s.scopeName, s.collectionName, docId,
+				),
+				Headers: map[string]string{
+					"Authorization": s.getReadOnlyRestCredentials(),
+					"If-Match":      "*",
+					"X-CB-Flags":    fmt.Sprintf("%d", TEST_CONTENT_FLAGS),
+				},
+				Body: TEST_CONTENT,
+			})
+			requireRestError(s.T(), resp, http.StatusForbidden, &testRestError{
+				Code: "NoWriteAccess",
+			})
+		})
+
 		s.IterDapiDurabilityLevelTests(func(durabilityLevel string, assertFailure func(*testHttpResponse)) {
 			docId := s.testDocId()
 
@@ -1689,7 +1762,7 @@ func (s *GatewayOpsTestSuite) TestDapiPut() {
 			Headers: opts.Headers,
 			Body:    TEST_CONTENT,
 		})
-	})
+	}, "NoWriteAccess")
 }
 
 func (s *GatewayOpsTestSuite) TestDapiDelete() {
@@ -1873,7 +1946,7 @@ func (s *GatewayOpsTestSuite) TestDapiDelete() {
 			),
 			Headers: opts.Headers,
 		})
-	})
+	}, "NoWriteAccess")
 }
 
 func (s *GatewayOpsTestSuite) TestDapiIncrement() {
@@ -2210,7 +2283,7 @@ func (s *GatewayOpsTestSuite) TestDapiIncrement() {
 			),
 			Headers: opts.Headers,
 		})
-	})
+	}, "NoWriteAccess")
 
 	s.IterDapiDurabilityLevelTests(func(durabilityLevel string, assertFailure func(*testHttpResponse)) {
 		docId := s.binaryDocId([]byte("5"))
@@ -2609,7 +2682,7 @@ func (s *GatewayOpsTestSuite) TestDapiDecrement() {
 			),
 			Headers: opts.Headers,
 		})
-	})
+	}, "NoWriteAccess")
 }
 
 func (s *GatewayOpsTestSuite) TestDapiLookupIn() {
@@ -3049,7 +3122,7 @@ func (s *GatewayOpsTestSuite) TestDapiLookupIn() {
 			Headers: opts.Headers,
 			Body:    []byte(`{"operations":[{"operation":"Get","path":"arr"}]}`),
 		})
-	})
+	}, "NoReadAccess")
 }
 
 func (s *GatewayOpsTestSuite) TestDapiMutateIn() {
@@ -3825,7 +3898,7 @@ func (s *GatewayOpsTestSuite) TestDapiMutateIn() {
 					{"operation":"DictSet","path":"x", "value": 43}
 				]}`),
 		})
-	})
+	}, "NoWriteAccess")
 }
 
 func (s *GatewayOpsTestSuite) TestDapiCors() {
@@ -4094,7 +4167,7 @@ func (s *GatewayOpsTestSuite) TestDapiAppend() {
 			Headers: opts.Headers,
 			Body:    []byte(`fghi`),
 		})
-	})
+	}, "NoWriteAccess")
 }
 
 func (s *GatewayOpsTestSuite) TestDapiPrepend() {
@@ -4311,7 +4384,7 @@ func (s *GatewayOpsTestSuite) TestDapiPrepend() {
 			Headers: opts.Headers,
 			Body:    []byte(`fghi`),
 		})
-	})
+	}, "NoWriteAccess")
 }
 
 func (s *GatewayOpsTestSuite) TestDapiTouch() {
@@ -4688,5 +4761,5 @@ func (s *GatewayOpsTestSuite) TestDapiTouch() {
 			Headers: opts.Headers,
 			Body:    TEST_CONTENT,
 		})
-	})
+	}, "NoWriteAccess")
 }

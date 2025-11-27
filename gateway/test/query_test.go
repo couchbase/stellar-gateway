@@ -181,6 +181,19 @@ func (s *GatewayOpsTestSuite) TestQuery() {
 		})
 	})
 
+	s.Run("NoPermissionCreds", func() {
+		client, err := queryClient.Query(context.Background(), &query_v1.QueryRequest{
+			Statement: "SELECT * FROM default._default._default",
+		}, grpc.PerRPCCredentials(s.getNoPermissionRpcCreds()))
+		requireRpcSuccess(s.T(), client, err)
+
+		_, _, err = readQueryStream(client)
+		assertRpcStatus(s.T(), err, codes.PermissionDenied)
+		assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
+			assert.Equal(s.T(), "user", d.ResourceType)
+		})
+	})
+
 	s.Run("Unauthenticated", func() {
 		client, err := queryClient.Query(context.Background(), &query_v1.QueryRequest{
 			Statement: "SELECT * FROM default._default._default",
@@ -189,6 +202,46 @@ func (s *GatewayOpsTestSuite) TestQuery() {
 
 		_, _, err = readQueryStream(client)
 		assertRpcStatus(s.T(), err, codes.Unauthenticated)
+	})
+
+	s.Run("UpsertReadOnlyCreds", func() {
+		bucketName := "default"
+		client, err := queryClient.Query(context.Background(), &query_v1.QueryRequest{
+			BucketName: &bucketName,
+			Statement:  "UPSERT INTO default (KEY, VALUE) VALUES ('query-insert', { 'hello': 'world' })",
+		}, grpc.PerRPCCredentials(s.getReadOnlyRpcCredentials()))
+		requireRpcSuccess(s.T(), client, err)
+
+		_, _, err = readQueryStream(client)
+		assertRpcStatus(s.T(), err, codes.PermissionDenied)
+		assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
+			assert.Equal(s.T(), "user", d.ResourceType)
+		})
+	})
+
+	s.Run("SelectReadOnlyCreds", func() {
+		docId := s.testDocId()
+		creds := s.getReadOnlyRpcCredentials()
+
+		assert.Eventually(s.T(), func() bool {
+			bucketName := "default"
+			client, err := queryClient.Query(context.Background(), &query_v1.QueryRequest{
+				BucketName: &bucketName,
+				Statement:  "SELECT * FROM default._default._default WHERE META().id='" + docId + "'",
+			}, grpc.PerRPCCredentials(creds))
+			requireRpcSuccess(s.T(), client, err)
+
+			rows, md, err := readQueryStream(client)
+			assertRpcStatus(s.T(), err, codes.OK)
+
+			if len(rows) != 1 {
+				return false
+			}
+
+			assert.Len(s.T(), rows, 1)
+			assert.NotNil(s.T(), md)
+			return true
+		}, 30*time.Second, 5*time.Second)
 	})
 
 	s.Run("CreateIndexExists", func() {

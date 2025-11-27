@@ -143,6 +143,68 @@ func (s *GatewayOpsTestSuite) TestDapiQueryProxy() {
 			require.Equal(s.T(), http.StatusUnauthorized, resp.StatusCode)
 		}
 	})
+
+	s.Run("NoPermissionCreds", func() {
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path:   "/_p/query/query/service",
+			Headers: map[string]string{
+				"Authorization": s.getNoPermissionRestCreds(),
+				"Content-Type":  "application/json",
+			},
+			Body: []byte(`{"statement": "SELECT * FROM default LIMIT 1"}`),
+		})
+
+		// Query only performs authentication on the moment a request is
+		// received from 7.2.8 onwards. Before this the request will be accepted
+		// and a 200 returned.
+		if !supportsNon200InvalidAuthResponse {
+			requireRestSuccess(s.T(), resp)
+
+			queryResponse := QueryResponse{}
+			err := json.Unmarshal(resp.Body, &queryResponse)
+			require.NoError(s.T(), err)
+
+			require.Equal(s.T(), 1, len(queryResponse.Errors))
+			require.NotNil(s.T(), queryResponse.Errors[0])
+			require.Equal(s.T(), 13014, queryResponse.Errors[0].Code)
+			require.Contains(s.T(), queryResponse.Errors[0].Message, "User does not have credentials")
+		} else {
+			require.NotNil(s.T(), resp)
+			require.Equal(s.T(), http.StatusUnauthorized, resp.StatusCode)
+		}
+	})
+
+	s.Run("ReadOnlyCreds", func() {
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path:   "/_p/query/query/service",
+			Headers: map[string]string{
+				"Authorization": s.getReadOnlyRestCredentials(),
+				"Content-Type":  "application/json",
+			},
+			Body: []byte(`{"statement": "UPSERT INTO default (KEY, VALUE) VALUES ('query-insert', { 'hello': 'world' })"}`),
+		})
+
+		// Query only performs authentication on the moment a request is
+		// received from 7.2.8 onwards. Before this the request will be accepted
+		// and a 200 returned.
+		if !supportsNon200InvalidAuthResponse {
+			requireRestSuccess(s.T(), resp)
+
+			queryResponse := QueryResponse{}
+			err := json.Unmarshal(resp.Body, &queryResponse)
+			require.NoError(s.T(), err)
+
+			require.Equal(s.T(), 1, len(queryResponse.Errors))
+			require.NotNil(s.T(), queryResponse.Errors[0])
+			require.Equal(s.T(), 13014, queryResponse.Errors[0].Code)
+			require.Contains(s.T(), queryResponse.Errors[0].Message, "User does not have credentials")
+		} else {
+			require.NotNil(s.T(), resp)
+			require.Equal(s.T(), http.StatusUnauthorized, resp.StatusCode)
+		}
+	})
 }
 
 func (s *GatewayOpsTestSuite) TestDapiAnalyticsProxy() {
@@ -199,6 +261,21 @@ func (s *GatewayOpsTestSuite) TestDapiAnalyticsProxy() {
 		require.NotNil(s.T(), resp)
 		require.Equal(s.T(), http.StatusUnauthorized, resp.StatusCode)
 	})
+
+	s.Run("NoPermissionCreds", func() {
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path:   "/_p/cbas/analytics/service",
+			Headers: map[string]string{
+				"Authorization": s.getNoPermissionRestCreds(),
+				"Content-Type":  "application/json",
+			},
+			Body: []byte(`{"statement": "SELECT 1 = 1"}`),
+		})
+
+		require.NotNil(s.T(), resp)
+		require.Equal(s.T(), http.StatusForbidden, resp.StatusCode)
+	})
 }
 
 func (s *GatewayOpsTestSuite) TestDapiManagementProxy() {
@@ -246,6 +323,20 @@ func (s *GatewayOpsTestSuite) TestDapiManagementProxy() {
 			Path:   "/_p/mgmt/pools/default/buckets",
 			Headers: map[string]string{
 				"Authorization": s.badRestCreds,
+				"Content-Type":  "application/json",
+			},
+		})
+
+		require.NotNil(s.T(), resp)
+		require.Equal(s.T(), http.StatusUnauthorized, resp.StatusCode)
+	})
+
+	s.Run("NoPermissionCreds", func() {
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodGet,
+			Path:   "/_p/mgmt/pools/default/buckets",
+			Headers: map[string]string{
+				"Authorization": s.getNoPermissionRestCreds(),
 				"Content-Type":  "application/json",
 			},
 		})
@@ -309,5 +400,19 @@ func (s *GatewayOpsTestSuite) TestDapiSearchProxy() {
 
 		require.NotNil(s.T(), resp)
 		require.Equal(s.T(), http.StatusForbidden, resp.StatusCode)
+	})
+
+	s.Run("NoPermissions", func() {
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodGet,
+			Path:   "/_p/fts/api/index",
+			Headers: map[string]string{
+				"Authorization": s.getNoPermissionRestCreds(),
+				"Content-Type":  "application/json",
+			},
+		})
+
+		require.NotNil(s.T(), resp)
+		require.Equal(s.T(), http.StatusOK, resp.StatusCode)
 	})
 }
