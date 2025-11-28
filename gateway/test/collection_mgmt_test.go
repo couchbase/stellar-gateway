@@ -46,6 +46,7 @@ func (s *GatewayOpsTestSuite) RunCommonColMgmtErrorCases(
 		})
 	})
 	s.Run("NoPermissions", func() {
+		testutils.SkipIfNoDinoCluster(s.T())
 		_, err := fn(&commonColMgmtErrorTestCaseData{
 			BucketName: "default",
 			Creds:      s.noPermsRpcCreds,
