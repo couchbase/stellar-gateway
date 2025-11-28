@@ -56,9 +56,10 @@ type GatewayOpsTestSuite struct {
 	readRpcCreds    credentials.PerRPCCredentials
 	noPermsRpcCreds credentials.PerRPCCredentials
 
-	badRestCreds   string
-	basicRestCreds string
-	readRestCreds  string
+	badRestCreds     string
+	basicRestCreds   string
+	readRestCreds    string
+	noPermsRestCreds string
 
 	clientCaCertPool *x509.CertPool
 	basicUserCert    *tls.Certificate
@@ -470,6 +471,8 @@ func (s *GatewayOpsTestSuite) initializeReadOnlyUser() {
 
 	s.readRpcCreds = creds
 
+	s.readRestCreds = s.makeRestBasicCreds(username, password)
+
 	s.readUserCert = s.getClientCert(username)
 }
 
@@ -487,6 +490,8 @@ func (s *GatewayOpsTestSuite) initializeNoPermissionsUser() {
 	}
 
 	s.noPermsRpcCreds = creds
+
+	s.noPermsRestCreds = s.makeRestBasicCreds(username, password)
 
 	s.noPermsCert = s.getClientCert(username)
 }
