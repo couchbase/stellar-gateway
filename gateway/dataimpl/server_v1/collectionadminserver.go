@@ -60,7 +60,10 @@ func (s *CollectionAdminServer) ListCollections(
 	if err != nil {
 		if errors.Is(err, cbmgmtx.ErrBucketNotFound) {
 			return nil, s.errorHandler.NewBucketMissingStatus(err, in.BucketName).Err()
+		} else if errors.Is(err, cbmgmtx.ErrAccessDenied) {
+			return nil, s.errorHandler.NewCollectionAccessDeniedStatus(err, "").Err()
 		}
+
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
 
@@ -117,7 +120,10 @@ func (s *CollectionAdminServer) CreateScope(
 			return nil, s.errorHandler.NewBucketMissingStatus(err, in.BucketName).Err()
 		} else if errors.Is(err, cbmgmtx.ErrScopeExists) {
 			return nil, s.errorHandler.NewScopeExistsStatus(err, in.BucketName, in.ScopeName).Err()
+		} else if errors.Is(err, cbmgmtx.ErrAccessDenied) {
+			return nil, s.errorHandler.NewScopeAccessDeniedStatus(err, in.ScopeName).Err()
 		}
+
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
 
@@ -157,7 +163,10 @@ func (s *CollectionAdminServer) DeleteScope(
 			return nil, s.errorHandler.NewBucketMissingStatus(err, in.BucketName).Err()
 		} else if errors.Is(err, cbmgmtx.ErrScopeNotFound) {
 			return nil, s.errorHandler.NewScopeMissingStatus(err, in.BucketName, in.ScopeName).Err()
+		} else if errors.Is(err, cbmgmtx.ErrAccessDenied) {
+			return nil, s.errorHandler.NewScopeAccessDeniedStatus(err, in.ScopeName).Err()
 		}
+
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
 
@@ -221,6 +230,8 @@ func (s *CollectionAdminServer) CreateCollection(
 			return nil, s.errorHandler.NewCollectionExistsStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
 		} else if errors.Is(err, cbmgmtx.ErrScopeNotFound) {
 			return nil, s.errorHandler.NewScopeMissingStatus(err, in.BucketName, in.ScopeName).Err()
+		} else if errors.Is(err, cbmgmtx.ErrAccessDenied) {
+			return nil, s.errorHandler.NewCollectionAccessDeniedStatus(err, in.CollectionName).Err()
 		}
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
@@ -264,7 +275,10 @@ func (s *CollectionAdminServer) DeleteCollection(
 			return nil, s.errorHandler.NewCollectionMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
 		} else if errors.Is(err, cbmgmtx.ErrScopeNotFound) {
 			return nil, s.errorHandler.NewScopeMissingStatus(err, in.BucketName, in.ScopeName).Err()
+		} else if errors.Is(err, cbmgmtx.ErrAccessDenied) {
+			return nil, s.errorHandler.NewCollectionAccessDeniedStatus(err, in.CollectionName).Err()
 		}
+
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
 
@@ -330,6 +344,8 @@ func (s *CollectionAdminServer) UpdateCollection(
 			return nil, s.errorHandler.NewScopeMissingStatus(err, in.BucketName, in.ScopeName).Err()
 		} else if errors.Is(err, cbmgmtx.ErrServerInvalidArg) {
 			return nil, s.errorHandler.NewCollectionInvalidArgStatus(err, "", in.BucketName, in.ScopeName, in.CollectionName).Err()
+		} else if errors.Is(err, cbmgmtx.ErrAccessDenied) {
+			return nil, s.errorHandler.NewCollectionAccessDeniedStatus(err, in.CollectionName).Err()
 		}
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
