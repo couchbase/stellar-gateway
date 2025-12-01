@@ -140,6 +140,15 @@ func (s *QueryIndexAdminServer) GetAllIndexes(
 		OnBehalfOf:     oboInfo,
 	})
 	if err != nil {
+		if errors.Is(err, cbqueryx.ErrAuthenticationFailure) {
+			return nil, s.errorHandler.NewQueryIndexAuthenticationFailureStatus(
+				err,
+				in.GetBucketName(),
+				in.GetScopeName(),
+				in.GetCollectionName(),
+			).Err()
+		}
+
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
 
@@ -267,6 +276,15 @@ func (s *QueryIndexAdminServer) CreatePrimaryIndex(
 				err,
 				indexName,
 				msg).Err()
+		}
+
+		if errors.Is(err, cbqueryx.ErrAuthenticationFailure) {
+			return nil, s.errorHandler.NewQueryIndexAuthenticationFailureStatus(
+				err,
+				in.BucketName,
+				in.GetScopeName(),
+				in.GetCollectionName(),
+			).Err()
 		}
 
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
@@ -436,6 +454,15 @@ func (s *QueryIndexAdminServer) DropPrimaryIndex(
 					rErr.CollectionName).Err()
 			}
 		}
+
+		if errors.Is(err, cbqueryx.ErrAuthenticationFailure) {
+			return nil, s.errorHandler.NewQueryIndexAuthenticationFailureStatus(
+				err,
+				in.GetBucketName(),
+				in.GetScopeName(),
+				in.GetCollectionName()).Err()
+		}
+
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
 
@@ -509,6 +536,15 @@ func (s *QueryIndexAdminServer) DropIndex(
 					rErr.CollectionName).Err()
 			}
 		}
+
+		if errors.Is(err, cbqueryx.ErrAuthenticationFailure) {
+			return nil, s.errorHandler.NewQueryIndexAuthenticationFailureStatus(
+				err,
+				in.GetBucketName(),
+				in.GetScopeName(),
+				in.GetCollectionName()).Err()
+		}
+
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
 
@@ -550,6 +586,26 @@ func (s *QueryIndexAdminServer) BuildDeferredIndexes(
 		OnBehalfOf:     oboInfo,
 	})
 	if err != nil {
+		var rErr *cbqueryx.ResourceError
+		if errors.As(err, &rErr) {
+			if errors.Is(rErr.Cause, cbqueryx.ErrAuthenticationFailure) {
+				return nil, s.errorHandler.NewQueryIndexAuthenticationFailureStatus(
+					err,
+					rErr.BucketName,
+					rErr.ScopeName,
+					rErr.CollectionName).Err()
+			}
+		}
+
+		if errors.Is(err, cbqueryx.ErrAuthenticationFailure) {
+			return nil, s.errorHandler.NewQueryIndexAuthenticationFailureStatus(
+				err,
+				in.BucketName,
+				in.GetScopeName(),
+				in.GetCollectionName(),
+			).Err()
+		}
+
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
 
