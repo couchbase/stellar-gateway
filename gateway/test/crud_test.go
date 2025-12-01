@@ -14,7 +14,6 @@ import (
 
 	"github.com/couchbase/gocbcorex/contrib/ptr"
 	"github.com/couchbase/goprotostellar/genproto/kv_v1"
-	"github.com/couchbase/stellar-gateway/testutils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -109,13 +108,12 @@ func (s *GatewayOpsTestSuite) RunCommonErrorCases(
 	})
 
 	s.Run("NoPermissions", func() {
-		testutils.SkipIfNoDinoCluster(s.T())
 		_, err := fn(ctx, &commonErrorTestData{
 			BucketName:     s.bucketName,
 			ScopeName:      s.scopeName,
 			CollectionName: s.collectionName,
 			CallOptions: []grpc.CallOption{
-				grpc.PerRPCCredentials(s.noPermsRpcCreds),
+				grpc.PerRPCCredentials(s.getNoPermissionRpcCreds()),
 			},
 			Key: s.randomDocId(),
 		})
@@ -576,7 +574,6 @@ func (s *GatewayOpsTestSuite) TestInsert() {
 	})
 
 	s.Run("ReadOnlyCreds", func() {
-		testutils.SkipIfNoDinoCluster(s.T())
 		docId := s.randomDocId()
 		_, err := kvClient.Insert(context.Background(), &kv_v1.InsertRequest{
 			BucketName:     s.bucketName,
@@ -587,7 +584,7 @@ func (s *GatewayOpsTestSuite) TestInsert() {
 				ContentUncompressed: TEST_CONTENT,
 			},
 			ContentFlags: TEST_CONTENT_FLAGS,
-		}, grpc.PerRPCCredentials(s.readRpcCreds))
+		}, grpc.PerRPCCredentials(s.getReadOnlyRpcCredentials()))
 		assertRpcStatus(s.T(), err, codes.PermissionDenied)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
 			assert.Equal(s.T(), "collection", d.ResourceType)
@@ -1316,7 +1313,6 @@ func (s *GatewayOpsTestSuite) TestUpsert() {
 	})
 
 	s.Run("ReadOnlyCreds", func() {
-		testutils.SkipIfNoDinoCluster(s.T())
 		docId := s.randomDocId()
 		_, err := kvClient.Upsert(context.Background(), &kv_v1.UpsertRequest{
 			BucketName:     s.bucketName,
@@ -1327,7 +1323,7 @@ func (s *GatewayOpsTestSuite) TestUpsert() {
 				ContentUncompressed: TEST_CONTENT,
 			},
 			ContentFlags: TEST_CONTENT_FLAGS,
-		}, grpc.PerRPCCredentials(s.readRpcCreds))
+		}, grpc.PerRPCCredentials(s.getReadOnlyRpcCredentials()))
 		assertRpcStatus(s.T(), err, codes.PermissionDenied)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
 			assert.Equal(s.T(), "collection", d.ResourceType)
@@ -1572,7 +1568,6 @@ func (s *GatewayOpsTestSuite) TestReplace() {
 	})
 
 	s.Run("ReadOnlyCreds", func() {
-		testutils.SkipIfNoDinoCluster(s.T())
 		docId := s.randomDocId()
 		_, err := kvClient.Replace(context.Background(), &kv_v1.ReplaceRequest{
 			BucketName:     s.bucketName,
@@ -1583,7 +1578,7 @@ func (s *GatewayOpsTestSuite) TestReplace() {
 				ContentUncompressed: TEST_CONTENT,
 			},
 			ContentFlags: TEST_CONTENT_FLAGS,
-		}, grpc.PerRPCCredentials(s.readRpcCreds))
+		}, grpc.PerRPCCredentials(s.getReadOnlyRpcCredentials()))
 		assertRpcStatus(s.T(), err, codes.PermissionDenied)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
 			assert.Equal(s.T(), "collection", d.ResourceType)
@@ -1773,14 +1768,13 @@ func (s *GatewayOpsTestSuite) TestRemove() {
 	})
 
 	s.Run("ReadOnlyCreds", func() {
-		testutils.SkipIfNoDinoCluster(s.T())
 		docId := s.randomDocId()
 		_, err := kvClient.Remove(context.Background(), &kv_v1.RemoveRequest{
 			BucketName:     s.bucketName,
 			ScopeName:      s.scopeName,
 			CollectionName: s.collectionName,
 			Key:            docId,
-		}, grpc.PerRPCCredentials(s.readRpcCreds))
+		}, grpc.PerRPCCredentials(s.getReadOnlyRpcCredentials()))
 		assertRpcStatus(s.T(), err, codes.PermissionDenied)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
 			assert.Equal(s.T(), "collection", d.ResourceType)
@@ -1992,7 +1986,6 @@ func (s *GatewayOpsTestSuite) TestTouch() {
 	})
 
 	s.Run("ReadOnlyCreds", func() {
-		testutils.SkipIfNoDinoCluster(s.T())
 		docId := s.randomDocId()
 		_, err := kvClient.Touch(context.Background(), &kv_v1.TouchRequest{
 			BucketName:     s.bucketName,
@@ -2000,7 +1993,7 @@ func (s *GatewayOpsTestSuite) TestTouch() {
 			CollectionName: s.collectionName,
 			Key:            docId,
 			Expiry:         &kv_v1.TouchRequest_ExpirySecs{ExpirySecs: 10},
-		}, grpc.PerRPCCredentials(s.readRpcCreds))
+		}, grpc.PerRPCCredentials(s.getReadOnlyRpcCredentials()))
 		assertRpcStatus(s.T(), err, codes.PermissionDenied)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
 			assert.Equal(s.T(), "collection", d.ResourceType)
@@ -2209,7 +2202,6 @@ func (s *GatewayOpsTestSuite) TestGetAndTouch() {
 	})
 
 	s.Run("ReadOnlyCreds", func() {
-		testutils.SkipIfNoDinoCluster(s.T())
 		docId := s.randomDocId()
 		_, err := kvClient.GetAndTouch(context.Background(), &kv_v1.GetAndTouchRequest{
 			BucketName:     s.bucketName,
@@ -2217,7 +2209,7 @@ func (s *GatewayOpsTestSuite) TestGetAndTouch() {
 			CollectionName: s.collectionName,
 			Key:            docId,
 			Expiry:         &kv_v1.GetAndTouchRequest_ExpirySecs{ExpirySecs: 10},
-		}, grpc.PerRPCCredentials(s.readRpcCreds))
+		}, grpc.PerRPCCredentials(s.getReadOnlyRpcCredentials()))
 		assertRpcStatus(s.T(), err, codes.PermissionDenied)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
 			assert.Equal(s.T(), "collection", d.ResourceType)
@@ -2677,7 +2669,6 @@ func (s *GatewayOpsTestSuite) TestIncrement() {
 	})
 
 	s.Run("ReadOnlyCreds", func() {
-		testutils.SkipIfNoDinoCluster(s.T())
 		docId := s.binaryDocId([]byte("5"))
 		_, err := kvClient.Increment(context.Background(), &kv_v1.IncrementRequest{
 			BucketName:     s.bucketName,
@@ -2685,7 +2676,7 @@ func (s *GatewayOpsTestSuite) TestIncrement() {
 			CollectionName: s.collectionName,
 			Key:            docId,
 			Delta:          1,
-		}, grpc.PerRPCCredentials(s.readRpcCreds))
+		}, grpc.PerRPCCredentials(s.getReadOnlyRpcCredentials()))
 		assertRpcStatus(s.T(), err, codes.PermissionDenied)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
 			assert.Equal(s.T(), "collection", d.ResourceType)
@@ -2928,7 +2919,6 @@ func (s *GatewayOpsTestSuite) TestDecrement() {
 	})
 
 	s.Run("ReadOnlyCreds", func() {
-		testutils.SkipIfNoDinoCluster(s.T())
 		docId := s.binaryDocId([]byte("5"))
 		_, err := kvClient.Decrement(context.Background(), &kv_v1.DecrementRequest{
 			BucketName:     s.bucketName,
@@ -2936,7 +2926,7 @@ func (s *GatewayOpsTestSuite) TestDecrement() {
 			CollectionName: s.collectionName,
 			Key:            docId,
 			Delta:          1,
-		}, grpc.PerRPCCredentials(s.readRpcCreds))
+		}, grpc.PerRPCCredentials(s.getReadOnlyRpcCredentials()))
 		assertRpcStatus(s.T(), err, codes.PermissionDenied)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
 			assert.Equal(s.T(), "collection", d.ResourceType)
@@ -3133,14 +3123,13 @@ func (s *GatewayOpsTestSuite) TestAppend() {
 	})
 
 	s.Run("ReadOnlyCreds", func() {
-		testutils.SkipIfNoDinoCluster(s.T())
 		_, err := kvClient.Append(context.Background(), &kv_v1.AppendRequest{
 			BucketName:     s.bucketName,
 			ScopeName:      s.scopeName,
 			CollectionName: s.collectionName,
 			Key:            s.testDocId(),
 			Content:        []byte("world"),
-		}, grpc.PerRPCCredentials(s.readRpcCreds))
+		}, grpc.PerRPCCredentials(s.getReadOnlyRpcCredentials()))
 		assertRpcStatus(s.T(), err, codes.PermissionDenied)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
 			assert.Equal(s.T(), "collection", d.ResourceType)
@@ -3303,14 +3292,13 @@ func (s *GatewayOpsTestSuite) TestPrepend() {
 	})
 
 	s.Run("ReadOnlyCreds", func() {
-		testutils.SkipIfNoDinoCluster(s.T())
 		_, err := kvClient.Prepend(context.Background(), &kv_v1.PrependRequest{
 			BucketName:     s.bucketName,
 			ScopeName:      s.scopeName,
 			CollectionName: s.collectionName,
 			Key:            s.testDocId(),
 			Content:        []byte("world"),
-		}, grpc.PerRPCCredentials(s.readRpcCreds))
+		}, grpc.PerRPCCredentials(s.getReadOnlyRpcCredentials()))
 		assertRpcStatus(s.T(), err, codes.PermissionDenied)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
 			assert.Equal(s.T(), "collection", d.ResourceType)
@@ -4679,7 +4667,6 @@ func (s *GatewayOpsTestSuite) TestMutateIn() {
 	})
 
 	s.Run("ReadOnlyCreds", func() {
-		testutils.SkipIfNoDinoCluster(s.T())
 		_, err := kvClient.MutateIn(context.Background(), &kv_v1.MutateInRequest{
 			BucketName:     s.bucketName,
 			ScopeName:      s.scopeName,
@@ -4692,7 +4679,7 @@ func (s *GatewayOpsTestSuite) TestMutateIn() {
 					Content:   []byte(`"baz"`),
 				},
 			},
-		}, grpc.PerRPCCredentials(s.readRpcCreds))
+		}, grpc.PerRPCCredentials(s.getReadOnlyRpcCredentials()))
 		assertRpcStatus(s.T(), err, codes.PermissionDenied)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
 			assert.Equal(s.T(), "collection", d.ResourceType)

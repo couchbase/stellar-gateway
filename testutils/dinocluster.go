@@ -114,10 +114,6 @@ func runDinoAddUser(username, password string, canRead, canWrite bool) error {
 	})
 }
 
-func runDinoRemoveUser(username string) error {
-	return runNoResDinoCmd([]string{"users", "remove", globalTestConfig.DinoId, username})
-}
-
 type DinoController struct {
 	t             *testing.T
 	oldFoSettings *cbmgmtx.GetAutoFailoverSettingsResponse

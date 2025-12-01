@@ -14,7 +14,6 @@ import (
 	"github.com/golang/snappy"
 
 	"github.com/couchbase/goprotostellar/genproto/kv_v1"
-	"github.com/couchbase/stellar-gateway/testutils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -112,14 +111,12 @@ func (s *GatewayOpsTestSuite) RunCommonDapiErrorCases(
 	})
 
 	s.Run("NoPermissionCreds", func() {
-		testutils.SkipIfNoDinoCluster(s.T())
-
 		resp := fn(&commonDapiTestData{
 			BucketName:     s.bucketName,
 			ScopeName:      s.scopeName,
 			CollectionName: s.collectionName,
 			Headers: map[string]string{
-				"Authorization": s.noPermsRestCreds,
+				"Authorization": s.getNoPermissionRestCreds(),
 			},
 			DocumentKey: s.randomDocId(),
 		})
@@ -130,14 +127,12 @@ func (s *GatewayOpsTestSuite) RunCommonDapiErrorCases(
 
 	if noPermsCode == "NoWriteAccess" {
 		s.Run("ReadOnlyCreds", func() {
-			testutils.SkipIfNoDinoCluster(s.T())
-
 			resp := fn(&commonDapiTestData{
 				BucketName:     s.bucketName,
 				ScopeName:      s.scopeName,
 				CollectionName: s.collectionName,
 				Headers: map[string]string{
-					"Authorization": s.readRestCreds,
+					"Authorization": s.getReadOnlyRestCredentials(),
 				},
 				DocumentKey: s.randomDocId(),
 			})
@@ -1610,8 +1605,6 @@ func (s *GatewayOpsTestSuite) TestDapiPut() {
 		})
 
 		s.Run("NoPermissionCreds", func() {
-			testutils.SkipIfNoDinoCluster(s.T())
-
 			docId := s.randomDocId()
 
 			resp := s.sendTestHttpRequest(&testHttpRequest{
@@ -1621,7 +1614,7 @@ func (s *GatewayOpsTestSuite) TestDapiPut() {
 					s.bucketName, s.scopeName, s.collectionName, docId,
 				),
 				Headers: map[string]string{
-					"Authorization": s.noPermsRestCreds,
+					"Authorization": s.getNoPermissionRestCreds(),
 					"If-Match":      "*",
 					"X-CB-Flags":    fmt.Sprintf("%d", TEST_CONTENT_FLAGS),
 				},
@@ -1633,8 +1626,6 @@ func (s *GatewayOpsTestSuite) TestDapiPut() {
 		})
 
 		s.Run("ReadOnlyCreds", func() {
-			testutils.SkipIfNoDinoCluster(s.T())
-
 			docId := s.randomDocId()
 
 			resp := s.sendTestHttpRequest(&testHttpRequest{
@@ -1644,7 +1635,7 @@ func (s *GatewayOpsTestSuite) TestDapiPut() {
 					s.bucketName, s.scopeName, s.collectionName, docId,
 				),
 				Headers: map[string]string{
-					"Authorization": s.readRestCreds,
+					"Authorization": s.getReadOnlyRestCredentials(),
 					"If-Match":      "*",
 					"X-CB-Flags":    fmt.Sprintf("%d", TEST_CONTENT_FLAGS),
 				},

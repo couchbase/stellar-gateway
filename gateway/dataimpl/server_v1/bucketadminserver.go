@@ -46,6 +46,10 @@ func (s *BucketAdminServer) ListBuckets(
 		OnBehalfOf: oboInfo,
 	})
 	if err != nil {
+		if errors.Is(err, cbmgmtx.ErrAccessDenied) {
+			return nil, s.errorHandler.NewBucketAccessDeniedStatus(err, "").Err()
+		}
+
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
 

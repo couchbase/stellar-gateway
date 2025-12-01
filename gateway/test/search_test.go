@@ -10,7 +10,6 @@ import (
 
 	"github.com/couchbase/goprotostellar/genproto/admin_search_v1"
 	"github.com/couchbase/goprotostellar/genproto/search_v1"
-	"github.com/couchbase/stellar-gateway/testutils"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 
@@ -785,8 +784,6 @@ func (s *testSearchServiceHelper) TestSearchBadCredentials() {
 }
 
 func (s *testSearchServiceHelper) TestSearchInsufficientPermissions() {
-	testutils.SkipIfNoDinoCluster(s.T())
-
 	client := search_v1.NewSearchServiceClient(s.gatewayConn)
 
 	field := "service"
@@ -802,7 +799,7 @@ func (s *testSearchServiceHelper) TestSearchInsufficientPermissions() {
 		Query: &search_v1.Query{
 			Query: query,
 		},
-	}, grpc.PerRPCCredentials(s.noPermsRpcCreds))
+	}, grpc.PerRPCCredentials(s.getNoPermissionRpcCreds()))
 	requireRpcSuccess(s.T(), client, err)
 
 	_, err = queryResult.Recv()

@@ -210,6 +210,30 @@ func (s *GatewayOpsTestSuite) makeRestBasicCreds(username, password string) stri
 	))
 }
 
+func (s *GatewayOpsTestSuite) getBadRpcCredentials() credentials.PerRPCCredentials {
+	return s.badRpcCreds
+}
+
+func (s *GatewayOpsTestSuite) getNoPermissionRpcCreds() credentials.PerRPCCredentials {
+	testutils.SkipIfNoDinoCluster(s.T())
+	return s.noPermsRpcCreds
+}
+
+func (s *GatewayOpsTestSuite) getNoPermissionRestCreds() string {
+	testutils.SkipIfNoDinoCluster(s.T())
+	return s.noPermsRestCreds
+}
+
+func (s *GatewayOpsTestSuite) getReadOnlyRpcCredentials() credentials.PerRPCCredentials {
+	testutils.SkipIfNoDinoCluster(s.T())
+	return s.readRpcCreds
+}
+
+func (s *GatewayOpsTestSuite) getReadOnlyRestCredentials() string {
+	testutils.SkipIfNoDinoCluster(s.T())
+	return s.readRestCreds
+}
+
 func (s *GatewayOpsTestSuite) SetupSuite() {
 	s.T().Logf("setting up gateway ops suite")
 

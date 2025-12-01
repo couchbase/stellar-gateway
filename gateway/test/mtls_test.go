@@ -7,10 +7,13 @@ import (
 
 	"github.com/couchbase/gocbcorex/cbhttpx"
 	"github.com/couchbase/gocbcorex/cbmgmtx"
+	"github.com/couchbase/goprotostellar/genproto/admin_bucket_v1"
+	"github.com/couchbase/goprotostellar/genproto/admin_collection_v1"
 	"github.com/couchbase/goprotostellar/genproto/admin_query_v1"
 	"github.com/couchbase/goprotostellar/genproto/admin_search_v1"
 	"github.com/couchbase/goprotostellar/genproto/kv_v1"
 	"github.com/couchbase/goprotostellar/genproto/query_v1"
+	"github.com/couchbase/goprotostellar/genproto/search_v1"
 	"github.com/couchbase/stellar-gateway/testutils"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -76,49 +79,46 @@ func (s *GatewayOpsTestSuite) KvService() {
 			},
 			errMsg: "No permissions to query documents.",
 		},
-		// BUG(ING-1368): unknown error returned when user lacks permissions
-		// {
-		// 	description: "SearchService",
-		// 	testFn: func(conn *grpc.ClientConn) (interface{}, error) {
-		// 		client := search_v1.NewSearchServiceClient(conn)
-		// 		field := "service"
-		// 		query := &search_v1.Query_TermQuery{
-		// 			TermQuery: &search_v1.TermQuery{
-		// 				Term:  "search",
-		// 				Field: &field,
-		// 			},
-		// 		}
-		// 		resp, err := client.SearchQuery(context.Background(), &search_v1.SearchQueryRequest{
-		// 			IndexName: indexName,
-		// 			Query: &search_v1.Query{
-		// 				Query: query,
-		// 			},
-		// 		})
-		// 		requireRpcSuccess(s.T(), client, err)
-		// 		return resp.Recv()
-		// 	},
-		// 	errMsg: "No permissions to query documents.",
-		// },
-		// BUG(ING-1368): unknown error returned when user lacks permissions
-		// {
-		// 	description: "BucketMgmtService",
-		// 	testFn: func(conn *grpc.ClientConn) (interface{}, error) {
-		// 		client := admin_bucket_v1.NewBucketAdminServiceClient(conn)
-		// 		return client.ListBuckets(context.Background(), &admin_bucket_v1.ListBucketsRequest{})
-		// 	},
-		// 	errMsg: "No permissions to read bucket.",
-		// },
-		// BUG(ING-1368): unknown error returned when user lacks permissions
-		// {
-		// 	description: "CollectionMgmtService",
-		// 	testFn: func(conn *grpc.ClientConn) (interface{}, error) {
-		// 		client := admin_collection_v1.NewCollectionAdminServiceClient(conn)
-		// 		return client.ListCollections(context.Background(), &admin_collection_v1.ListCollectionsRequest{
-		// 			BucketName: s.bucketName,
-		// 		})
-		// 	},
-		// 	errMsg: "No permissions to read collection.",
-		// },
+		{
+			description: "SearchService",
+			testFn: func(conn *grpc.ClientConn) (interface{}, error) {
+				client := search_v1.NewSearchServiceClient(conn)
+				field := "service"
+				query := &search_v1.Query_TermQuery{
+					TermQuery: &search_v1.TermQuery{
+						Term:  "search",
+						Field: &field,
+					},
+				}
+				resp, err := client.SearchQuery(context.Background(), &search_v1.SearchQueryRequest{
+					IndexName: indexName,
+					Query: &search_v1.Query{
+						Query: query,
+					},
+				})
+				requireRpcSuccess(s.T(), client, err)
+				return resp.Recv()
+			},
+			errMsg: "No permissions to query documents.",
+		},
+		{
+			description: "BucketMgmtService",
+			testFn: func(conn *grpc.ClientConn) (interface{}, error) {
+				client := admin_bucket_v1.NewBucketAdminServiceClient(conn)
+				return client.ListBuckets(context.Background(), &admin_bucket_v1.ListBucketsRequest{})
+			},
+			errMsg: "No permissions to perform bucket management operation.",
+		},
+		{
+			description: "CollectionMgmtService",
+			testFn: func(conn *grpc.ClientConn) (interface{}, error) {
+				client := admin_collection_v1.NewCollectionAdminServiceClient(conn)
+				return client.ListCollections(context.Background(), &admin_collection_v1.ListCollectionsRequest{
+					BucketName: s.bucketName,
+				})
+			},
+			errMsg: "No permissions to perform collection management operation.",
+		},
 		{
 			description: "QueryMgmtService",
 			testFn: func(conn *grpc.ClientConn) (interface{}, error) {
@@ -173,9 +173,7 @@ func (s *GatewayOpsTestSuite) KvService() {
 }
 
 func (s *GatewayOpsTestSuite) ClientCertConfiguration() {
-	dino := testutils.StartDinoTesting(s.T(), false)
-	username := "certConfig"
-	conn := s.newClientCertConn(dino, username)
+	conn := s.connFromCert(s.basicUserCert)
 	kvClient := kv_v1.NewKvServiceClient(conn)
 
 	getFn := func() (*kv_v1.GetResponse, error) {
@@ -197,8 +195,6 @@ func (s *GatewayOpsTestSuite) ClientCertConfiguration() {
 			},
 		},
 	}
-
-	dino.AddWriteUser(username)
 
 	// Check that client cert auth is working as expected.
 	s.Run("InitialSuccess", func() {
@@ -289,12 +285,7 @@ func (s *GatewayOpsTestSuite) ClientCertConfiguration() {
 	assert.NoError(s.T(), err)
 }
 
-func (s *GatewayOpsTestSuite) newClientCertConn(dino *testutils.DinoController, username string) *grpc.ClientConn {
-	res := dino.GetClientCert(username)
-
-	cert, err := tls.X509KeyPair([]byte(res), []byte(res))
-	assert.NoError(s.T(), err)
-
+func (s *GatewayOpsTestSuite) connFromCert(cert *tls.Certificate) *grpc.ClientConn {
 	conn, err := grpc.NewClient(s.gwConnAddr,
 		grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{
 			RootCAs:      s.clientCaCertPool,

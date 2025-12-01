@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/couchbase/stellar-gateway/testutils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -146,13 +145,11 @@ func (s *GatewayOpsTestSuite) TestDapiQueryProxy() {
 	})
 
 	s.Run("NoPermissionCreds", func() {
-		testutils.SkipIfNoDinoCluster(s.T())
-
 		resp := s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
 			Path:   "/_p/query/query/service",
 			Headers: map[string]string{
-				"Authorization": s.noPermsRestCreds,
+				"Authorization": s.getNoPermissionRestCreds(),
 				"Content-Type":  "application/json",
 			},
 			Body: []byte(`{"statement": "SELECT * FROM default LIMIT 1"}`),
@@ -179,13 +176,11 @@ func (s *GatewayOpsTestSuite) TestDapiQueryProxy() {
 	})
 
 	s.Run("ReadOnlyCreds", func() {
-		testutils.SkipIfNoDinoCluster(s.T())
-
 		resp := s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
 			Path:   "/_p/query/query/service",
 			Headers: map[string]string{
-				"Authorization": s.readRestCreds,
+				"Authorization": s.getReadOnlyRestCredentials(),
 				"Content-Type":  "application/json",
 			},
 			Body: []byte(`{"statement": "UPSERT INTO default (KEY, VALUE) VALUES ('query-insert', { 'hello': 'world' })"}`),
@@ -268,13 +263,11 @@ func (s *GatewayOpsTestSuite) TestDapiAnalyticsProxy() {
 	})
 
 	s.Run("NoPermissionCreds", func() {
-		testutils.SkipIfNoDinoCluster(s.T())
-
 		resp := s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodPost,
 			Path:   "/_p/cbas/analytics/service",
 			Headers: map[string]string{
-				"Authorization": s.noPermsRestCreds,
+				"Authorization": s.getNoPermissionRestCreds(),
 				"Content-Type":  "application/json",
 			},
 			Body: []byte(`{"statement": "SELECT 1 = 1"}`),
@@ -339,13 +332,11 @@ func (s *GatewayOpsTestSuite) TestDapiManagementProxy() {
 	})
 
 	s.Run("NoPermissionCreds", func() {
-		testutils.SkipIfNoDinoCluster(s.T())
-
 		resp := s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodGet,
 			Path:   "/_p/mgmt/pools/default/buckets",
 			Headers: map[string]string{
-				"Authorization": s.noPermsRestCreds,
+				"Authorization": s.getNoPermissionRestCreds(),
 				"Content-Type":  "application/json",
 			},
 		})
@@ -412,13 +403,11 @@ func (s *GatewayOpsTestSuite) TestDapiSearchProxy() {
 	})
 
 	s.Run("NoPermissions", func() {
-		testutils.SkipIfNoDinoCluster(s.T())
-
 		resp := s.sendTestHttpRequest(&testHttpRequest{
 			Method: http.MethodGet,
 			Path:   "/_p/fts/api/index",
 			Headers: map[string]string{
-				"Authorization": s.noPermsRestCreds,
+				"Authorization": s.getNoPermissionRestCreds(),
 				"Content-Type":  "application/json",
 			},
 		})

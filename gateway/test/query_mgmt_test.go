@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/couchbase/gocbcorex/contrib/ptr"
 	"github.com/couchbase/goprotostellar/genproto/admin_query_v1"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -54,7 +53,7 @@ func (s *GatewayOpsTestSuite) TestQueryManagement() {
 			type createTest struct {
 				description     string
 				modifyDefault   func(*admin_query_v1.CreatePrimaryIndexRequest) *admin_query_v1.CreatePrimaryIndexRequest
-				creds           *credentials.PerRPCCredentials
+				getCreds        func() credentials.PerRPCCredentials
 				expect          codes.Code
 				resourceDetails string
 			}
@@ -198,8 +197,8 @@ func (s *GatewayOpsTestSuite) TestQueryManagement() {
 						def.Name = &name
 						return def
 					},
-					creds:  ptr.To(s.badRpcCreds),
-					expect: codes.PermissionDenied,
+					getCreds: s.getBadRpcCredentials,
+					expect:   codes.PermissionDenied,
 				},
 				{
 					description: "NoPermissionCreds",
@@ -208,8 +207,8 @@ func (s *GatewayOpsTestSuite) TestQueryManagement() {
 						def.Name = &name
 						return def
 					},
-					creds:  ptr.To(s.noPermsRpcCreds),
-					expect: codes.PermissionDenied,
+					getCreds: s.getNoPermissionRpcCreds,
+					expect:   codes.PermissionDenied,
 				},
 				{
 					description: "ReadOnlyCreds",
@@ -218,8 +217,8 @@ func (s *GatewayOpsTestSuite) TestQueryManagement() {
 						def.Name = &name
 						return def
 					},
-					creds:  ptr.To(s.readRpcCreds),
-					expect: codes.PermissionDenied,
+					getCreds: s.getReadOnlyRpcCredentials,
+					expect:   codes.PermissionDenied,
 				},
 			}
 
@@ -235,8 +234,8 @@ func (s *GatewayOpsTestSuite) TestQueryManagement() {
 					req := t.modifyDefault(&defaultCreateReq)
 
 					creds := s.basicRpcCreds
-					if t.creds != nil {
-						creds = *t.creds
+					if t.getCreds != nil {
+						creds = t.getCreds()
 					}
 
 					resp, err := queryAdminClient.CreatePrimaryIndex(context.Background(),
@@ -262,7 +261,7 @@ func (s *GatewayOpsTestSuite) TestQueryManagement() {
 			type listTest struct {
 				description   string
 				req           *admin_query_v1.GetAllIndexesRequest
-				creds         *credentials.PerRPCCredentials
+				getCreds      func() credentials.PerRPCCredentials
 				expect        codes.Code
 				expectNoIndex bool
 			}
@@ -303,13 +302,13 @@ func (s *GatewayOpsTestSuite) TestQueryManagement() {
 				{
 					description: "BadCredentials",
 					req:         &admin_query_v1.GetAllIndexesRequest{},
-					creds:       &s.badRpcCreds,
+					getCreds:    s.getBadRpcCredentials,
 					expect:      codes.PermissionDenied,
 				},
 				{
 					description:   "NoPermissionCreds",
 					req:           &admin_query_v1.GetAllIndexesRequest{},
-					creds:         &s.noPermsRpcCreds,
+					getCreds:      s.getNoPermissionRpcCreds,
 					expectNoIndex: true,
 				},
 				// BUG(ING-506): Can't test with invalid bucket names
@@ -351,8 +350,8 @@ func (s *GatewayOpsTestSuite) TestQueryManagement() {
 				t := listTests[i]
 				s.Run(t.description, func() {
 					creds := s.basicRpcCreds
-					if t.creds != nil {
-						creds = *t.creds
+					if t.getCreds != nil {
+						creds = t.getCreds()
 					}
 
 					resp, err := queryAdminClient.GetAllIndexes(context.Background(), t.req, grpc.PerRPCCredentials(creds))
@@ -379,7 +378,7 @@ func (s *GatewayOpsTestSuite) TestQueryManagement() {
 			type dropTest struct {
 				description       string
 				defaultDifference func(*admin_query_v1.DropPrimaryIndexRequest) *admin_query_v1.DropPrimaryIndexRequest
-				creds             *credentials.PerRPCCredentials
+				getCreds          func() credentials.PerRPCCredentials
 				expect            codes.Code
 				resourceDetails   string
 			}
@@ -414,24 +413,24 @@ func (s *GatewayOpsTestSuite) TestQueryManagement() {
 					defaultDifference: func(def *admin_query_v1.DropPrimaryIndexRequest) *admin_query_v1.DropPrimaryIndexRequest {
 						return def
 					},
-					creds:  &s.badRpcCreds,
-					expect: codes.PermissionDenied,
+					getCreds: s.getBadRpcCredentials,
+					expect:   codes.PermissionDenied,
 				},
 				{
 					description: "NoPermissionCreds",
 					defaultDifference: func(def *admin_query_v1.DropPrimaryIndexRequest) *admin_query_v1.DropPrimaryIndexRequest {
 						return def
 					},
-					creds:  &s.noPermsRpcCreds,
-					expect: codes.PermissionDenied,
+					getCreds: s.getNoPermissionRpcCreds,
+					expect:   codes.PermissionDenied,
 				},
 				{
 					description: "ReadOnlyCreds",
 					defaultDifference: func(def *admin_query_v1.DropPrimaryIndexRequest) *admin_query_v1.DropPrimaryIndexRequest {
 						return def
 					},
-					creds:  &s.readRpcCreds,
-					expect: codes.PermissionDenied,
+					getCreds: s.getReadOnlyRpcCredentials,
+					expect:   codes.PermissionDenied,
 				},
 				{
 					description: "Basic",
@@ -532,8 +531,8 @@ func (s *GatewayOpsTestSuite) TestQueryManagement() {
 					req := t.defaultDifference(&defaultDropRequest)
 
 					creds := s.basicRpcCreds
-					if t.creds != nil {
-						creds = *t.creds
+					if t.getCreds != nil {
+						creds = t.getCreds()
 					}
 
 					resp, err := queryAdminClient.DropPrimaryIndex(context.Background(),
@@ -563,6 +562,7 @@ func (s *GatewayOpsTestSuite) TestQueryManagement() {
 			type createTest struct {
 				description     string
 				modifyDefault   func(*admin_query_v1.CreateIndexRequest) *admin_query_v1.CreateIndexRequest
+				getCreds        func() credentials.PerRPCCredentials
 				expect          codes.Code
 				resourceDetails string
 			}
@@ -573,6 +573,30 @@ func (s *GatewayOpsTestSuite) TestQueryManagement() {
 					modifyDefault: func(def *admin_query_v1.CreateIndexRequest) *admin_query_v1.CreateIndexRequest {
 						return def
 					},
+				},
+				{
+					description: "BadCredentials",
+					modifyDefault: func(def *admin_query_v1.CreateIndexRequest) *admin_query_v1.CreateIndexRequest {
+						return def
+					},
+					getCreds: s.getBadRpcCredentials,
+					expect:   codes.PermissionDenied,
+				},
+				{
+					description: "NoPermissionCreds",
+					modifyDefault: func(def *admin_query_v1.CreateIndexRequest) *admin_query_v1.CreateIndexRequest {
+						return def
+					},
+					getCreds: s.getNoPermissionRpcCreds,
+					expect:   codes.PermissionDenied,
+				},
+				{
+					description: "ReadOnlyCreds",
+					modifyDefault: func(def *admin_query_v1.CreateIndexRequest) *admin_query_v1.CreateIndexRequest {
+						return def
+					},
+					getCreds: s.getReadOnlyRpcCredentials,
+					expect:   codes.PermissionDenied,
 				},
 				{
 					description: "AlreadyExists",
@@ -711,9 +735,15 @@ func (s *GatewayOpsTestSuite) TestQueryManagement() {
 						Fields:         []string{"test"},
 					}
 					req := t.modifyDefault(&defaultCreateReq)
+
+					creds := s.basicRpcCreds
+					if t.getCreds != nil {
+						creds = t.getCreds()
+					}
+
 					resp, err := queryAdminClient.CreateIndex(context.Background(),
 						req,
-						grpc.PerRPCCredentials(s.basicRpcCreds))
+						grpc.PerRPCCredentials(creds))
 
 					if t.expect == codes.OK {
 						requireRpcSuccess(s.T(), resp, err)
@@ -839,7 +869,7 @@ func (s *GatewayOpsTestSuite) TestQueryManagement() {
 			type dropTest struct {
 				description     string
 				modifyDefault   func(*admin_query_v1.DropIndexRequest) *admin_query_v1.DropIndexRequest
-				creds           *credentials.PerRPCCredentials
+				getCreds        func() credentials.PerRPCCredentials
 				expect          codes.Code
 				resourceDetails string
 			}
@@ -880,24 +910,24 @@ func (s *GatewayOpsTestSuite) TestQueryManagement() {
 					modifyDefault: func(def *admin_query_v1.DropIndexRequest) *admin_query_v1.DropIndexRequest {
 						return def
 					},
-					creds:  &s.badRpcCreds,
-					expect: codes.PermissionDenied,
+					getCreds: s.getBadRpcCredentials,
+					expect:   codes.PermissionDenied,
 				},
 				{
 					description: "NoPermissionCreds",
 					modifyDefault: func(def *admin_query_v1.DropIndexRequest) *admin_query_v1.DropIndexRequest {
 						return def
 					},
-					creds:  &s.noPermsRpcCreds,
-					expect: codes.PermissionDenied,
+					getCreds: s.getNoPermissionRpcCreds,
+					expect:   codes.PermissionDenied,
 				},
 				{
 					description: "ReadOnlyCreds",
 					modifyDefault: func(def *admin_query_v1.DropIndexRequest) *admin_query_v1.DropIndexRequest {
 						return def
 					},
-					creds:  &s.readRpcCreds,
-					expect: codes.PermissionDenied,
+					getCreds: s.getReadOnlyRpcCredentials,
+					expect:   codes.PermissionDenied,
 				},
 				{
 					description: "IndexMissing",
@@ -993,8 +1023,8 @@ func (s *GatewayOpsTestSuite) TestQueryManagement() {
 					req := t.modifyDefault(&defaultDropRequest)
 
 					creds := s.basicRpcCreds
-					if t.creds != nil {
-						creds = *t.creds
+					if t.getCreds != nil {
+						creds = t.getCreds()
 					}
 
 					resp, err := queryAdminClient.DropIndex(context.Background(),
@@ -1059,7 +1089,7 @@ func (s *GatewayOpsTestSuite) TestQueryManagement() {
 				BucketName:     s.bucketName,
 				ScopeName:      &s.scopeName,
 				CollectionName: &s.collectionName,
-			}, grpc.PerRPCCredentials(s.noPermsRpcCreds))
+			}, grpc.PerRPCCredentials(s.getNoPermissionRpcCreds()))
 			requireRpcSuccess(s.T(), resp, err)
 
 			getResp, err := queryAdminClient.GetAllIndexes(context.Background(), &admin_query_v1.GetAllIndexesRequest{}, grpc.PerRPCCredentials(s.basicRpcCreds))
@@ -1076,7 +1106,7 @@ func (s *GatewayOpsTestSuite) TestQueryManagement() {
 				BucketName:     s.bucketName,
 				ScopeName:      &s.scopeName,
 				CollectionName: &s.collectionName,
-			}, grpc.PerRPCCredentials(s.readRpcCreds))
+			}, grpc.PerRPCCredentials(s.getReadOnlyRpcCredentials()))
 			assertRpcStatus(s.T(), err, codes.PermissionDenied)
 		})
 

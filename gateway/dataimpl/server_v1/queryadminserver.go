@@ -381,6 +381,15 @@ func (s *QueryIndexAdminServer) CreateIndex(
 				msg).Err()
 		}
 
+		if errors.Is(err, cbqueryx.ErrAuthenticationFailure) {
+			return nil, s.errorHandler.NewQueryIndexAuthenticationFailureStatus(
+				err,
+				in.BucketName,
+				in.GetScopeName(),
+				in.GetCollectionName(),
+			).Err()
+		}
+
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
 	}
 

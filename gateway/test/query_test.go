@@ -184,7 +184,7 @@ func (s *GatewayOpsTestSuite) TestQuery() {
 	s.Run("NoPermissionCreds", func() {
 		client, err := queryClient.Query(context.Background(), &query_v1.QueryRequest{
 			Statement: "SELECT * FROM default._default._default",
-		}, grpc.PerRPCCredentials(s.noPermsRpcCreds))
+		}, grpc.PerRPCCredentials(s.getNoPermissionRpcCreds()))
 		requireRpcSuccess(s.T(), client, err)
 
 		_, _, err = readQueryStream(client)
@@ -209,7 +209,7 @@ func (s *GatewayOpsTestSuite) TestQuery() {
 		client, err := queryClient.Query(context.Background(), &query_v1.QueryRequest{
 			BucketName: &bucketName,
 			Statement:  "UPSERT INTO default (KEY, VALUE) VALUES ('query-insert', { 'hello': 'world' })",
-		}, grpc.PerRPCCredentials(s.readRpcCreds))
+		}, grpc.PerRPCCredentials(s.getReadOnlyRpcCredentials()))
 		requireRpcSuccess(s.T(), client, err)
 
 		_, _, err = readQueryStream(client)
@@ -221,13 +221,14 @@ func (s *GatewayOpsTestSuite) TestQuery() {
 
 	s.Run("SelectReadOnlyCreds", func() {
 		docId := s.testDocId()
+		creds := s.getReadOnlyRpcCredentials()
 
 		assert.Eventually(s.T(), func() bool {
 			bucketName := "default"
 			client, err := queryClient.Query(context.Background(), &query_v1.QueryRequest{
 				BucketName: &bucketName,
 				Statement:  "SELECT * FROM default._default._default WHERE META().id='" + docId + "'",
-			}, grpc.PerRPCCredentials(s.readRpcCreds))
+			}, grpc.PerRPCCredentials(creds))
 			requireRpcSuccess(s.T(), client, err)
 
 			rows, md, err := readQueryStream(client)

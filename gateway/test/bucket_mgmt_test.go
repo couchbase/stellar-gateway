@@ -7,7 +7,6 @@ import (
 	"github.com/couchbase/gocbcorex/contrib/ptr"
 	"github.com/couchbase/goprotostellar/genproto/admin_bucket_v1"
 	"github.com/couchbase/goprotostellar/genproto/kv_v1"
-	"github.com/couchbase/stellar-gateway/testutils"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -49,10 +48,9 @@ func (s *GatewayOpsTestSuite) RunCommonBucketMgmtErrorCases(
 		assertRpcStatus(s.T(), err, codes.PermissionDenied)
 	})
 	s.Run("NoPermissions", func() {
-		testutils.SkipIfNoDinoCluster(s.T())
 		_, err := fn(&commonBucketMgmtErrorTestData{
 			BucketName: uuid.NewString()[:6],
-			Creds:      s.noPermsRpcCreds,
+			Creds:      s.getNoPermissionRpcCreds(),
 		})
 		assertRpcStatus(s.T(), err, codes.PermissionDenied)
 	})

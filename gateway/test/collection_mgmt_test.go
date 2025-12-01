@@ -6,7 +6,6 @@ import (
 	"github.com/couchbase/gocbcorex/contrib/ptr"
 	"github.com/couchbase/goprotostellar/genproto/admin_bucket_v1"
 	"github.com/couchbase/goprotostellar/genproto/admin_collection_v1"
-	"github.com/couchbase/stellar-gateway/testutils"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	epb "google.golang.org/genproto/googleapis/rpc/errdetails"
@@ -46,10 +45,9 @@ func (s *GatewayOpsTestSuite) RunCommonColMgmtErrorCases(
 		})
 	})
 	s.Run("NoPermissions", func() {
-		testutils.SkipIfNoDinoCluster(s.T())
 		_, err := fn(&commonColMgmtErrorTestCaseData{
 			BucketName: "default",
-			Creds:      s.noPermsRpcCreds,
+			Creds:      s.getNoPermissionRpcCreds(),
 		})
 		assertRpcStatus(s.T(), err, codes.PermissionDenied)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
@@ -69,9 +67,8 @@ func (s *GatewayOpsTestSuite) TestCreateCollection() {
 
 	type createTest struct {
 		description   string
-		skipFn        func()
 		modifyDefault func(*admin_collection_v1.CreateCollectionRequest) *admin_collection_v1.CreateCollectionRequest
-		creds         *credentials.PerRPCCredentials
+		getCreds      func() credentials.PerRPCCredentials
 		context       *context.Context
 		checkFn       func(*admin_collection_v1.ListCollectionsResponse_Collection)
 		expect        codes.Code
@@ -110,11 +107,6 @@ func (s *GatewayOpsTestSuite) TestCreateCollection() {
 		},
 		{
 			description: "NoExpiry",
-			skipFn: func() {
-				if !s.SupportsFeature(TestFeatureCollectionNoExpriy) {
-					s.T().Skip()
-				}
-			},
 			modifyDefault: func(def *admin_collection_v1.CreateCollectionRequest) *admin_collection_v1.CreateCollectionRequest {
 				maxExpiry := uint32(0)
 				def.MaxExpirySecs = &maxExpiry
@@ -159,22 +151,19 @@ func (s *GatewayOpsTestSuite) TestCreateCollection() {
 		},
 		{
 			description: "ReadOnlyUser",
-			skipFn: func() {
-				testutils.SkipIfNoDinoCluster(s.T())
-			},
 			modifyDefault: func(def *admin_collection_v1.CreateCollectionRequest) *admin_collection_v1.CreateCollectionRequest {
 				return def
 			},
-			creds:  &s.readRpcCreds,
-			expect: codes.PermissionDenied,
+			getCreds: s.getReadOnlyRpcCredentials,
+			expect:   codes.PermissionDenied,
 		},
 	}
 
 	for i := range createTests {
 		t := createTests[i]
 		s.Run(t.description, func() {
-			if t.skipFn != nil {
-				t.skipFn()
+			if t.description == "NoExpiry" && !s.SupportsFeature(TestFeatureCollectionNoExpriy) {
+				s.T().Skip()
 			}
 
 			colName := uuid.NewString()[:6]
@@ -185,8 +174,9 @@ func (s *GatewayOpsTestSuite) TestCreateCollection() {
 			}
 			req := t.modifyDefault(defaultCreateRequest)
 
-			if t.creds == nil {
-				t.creds = &s.basicRpcCreds
+			creds := s.basicRpcCreds
+			if t.getCreds != nil {
+				creds = t.getCreds()
 			}
 
 			ctx := context.Background()
@@ -194,7 +184,7 @@ func (s *GatewayOpsTestSuite) TestCreateCollection() {
 				ctx = *t.context
 			}
 
-			resp, err := colClient.CreateCollection(ctx, req, grpc.PerRPCCredentials(*t.creds))
+			resp, err := colClient.CreateCollection(ctx, req, grpc.PerRPCCredentials(creds))
 			if t.expect == codes.OK {
 				requireRpcSuccess(s.T(), resp, err)
 
@@ -236,9 +226,8 @@ func (s *GatewayOpsTestSuite) TestUpdateCollection() {
 
 	type updateTest struct {
 		description   string
-		skipFn        func()
 		modifyDefault func(*admin_collection_v1.UpdateCollectionRequest) *admin_collection_v1.UpdateCollectionRequest
-		creds         *credentials.PerRPCCredentials
+		getCreds      func() credentials.PerRPCCredentials
 		context       *context.Context
 		checkFn       func(*admin_collection_v1.ListCollectionsResponse_Collection)
 		expect        codes.Code
@@ -269,11 +258,6 @@ func (s *GatewayOpsTestSuite) TestUpdateCollection() {
 		},
 		{
 			description: "NoExpiry",
-			skipFn: func() {
-				if !s.SupportsFeature(TestFeatureCollectionNoExpriy) {
-					s.T().Skip()
-				}
-			},
 			modifyDefault: func(def *admin_collection_v1.UpdateCollectionRequest) *admin_collection_v1.UpdateCollectionRequest {
 				def.MaxExpirySecs = ptr.To(uint32(0))
 				return def
@@ -285,11 +269,6 @@ func (s *GatewayOpsTestSuite) TestUpdateCollection() {
 		},
 		{
 			description: "MaxExpiry",
-			skipFn: func() {
-				if !s.SupportsFeature(TestFeatureCollectionNoExpriy) {
-					s.T().Skip()
-				}
-			},
 			modifyDefault: func(def *admin_collection_v1.UpdateCollectionRequest) *admin_collection_v1.UpdateCollectionRequest {
 				def.MaxExpirySecs = ptr.To(uint32(123))
 				return def
@@ -317,22 +296,19 @@ func (s *GatewayOpsTestSuite) TestUpdateCollection() {
 		},
 		{
 			description: "ReadOnlyUser",
-			skipFn: func() {
-				testutils.SkipIfNoDinoCluster(s.T())
-			},
 			modifyDefault: func(def *admin_collection_v1.UpdateCollectionRequest) *admin_collection_v1.UpdateCollectionRequest {
 				return def
 			},
-			creds:  &s.readRpcCreds,
-			expect: codes.PermissionDenied,
+			getCreds: s.getReadOnlyRpcCredentials,
+			expect:   codes.PermissionDenied,
 		},
 	}
 
 	for i := range updateTests {
 		t := updateTests[i]
 		s.Run(t.description, func() {
-			if t.skipFn != nil {
-				t.skipFn()
+			if !s.SupportsFeature(TestFeatureCollectionNoExpriy) && (t.description == "MaxExpiry" || t.description == "NoExpiry") {
+				s.T().Skip()
 			}
 
 			deafultUpdateRequest := &admin_collection_v1.UpdateCollectionRequest{
@@ -341,8 +317,9 @@ func (s *GatewayOpsTestSuite) TestUpdateCollection() {
 				CollectionName: colName,
 			}
 
-			if t.creds == nil {
-				t.creds = &s.basicRpcCreds
+			creds := s.basicRpcCreds
+			if t.getCreds != nil {
+				creds = t.getCreds()
 			}
 
 			ctx := context.Background()
@@ -352,7 +329,7 @@ func (s *GatewayOpsTestSuite) TestUpdateCollection() {
 
 			req := t.modifyDefault(deafultUpdateRequest)
 
-			resp, err := colClient.UpdateCollection(ctx, req, grpc.PerRPCCredentials(*t.creds))
+			resp, err := colClient.UpdateCollection(ctx, req, grpc.PerRPCCredentials(creds))
 			if t.expect == codes.OK {
 				requireRpcSuccess(s.T(), resp, err)
 
