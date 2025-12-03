@@ -64,13 +64,21 @@ func runDinoCmd(args []string) (string, error) {
 		outputWaitCh <- struct{}{}
 	}()
 
-	go func() { _, _ = io.Copy(os.Stdout, teeRdr) }()
-	go func() { _, _ = io.Copy(os.Stdout, stdErr) }()
+	go func() {
+		_, _ = io.Copy(os.Stdout, teeRdr)
+		_ = pipeWrt.Close()
+	}()
+
+	errWaitCh := make(chan struct{}, 1)
+	go func() {
+		_, _ = io.Copy(os.Stdout, stdErr)
+		errWaitCh <- struct{}{}
+	}()
 
 	err := cmd.Run()
 
-	_ = pipeWrt.Close()
 	<-outputWaitCh
+	<-errWaitCh
 
 	log.Printf("---")
 
