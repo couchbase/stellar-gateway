@@ -311,7 +311,7 @@ func (s *GatewayOpsTestSuite) TestUpdateCollection() {
 				s.T().Skip()
 			}
 
-			deafultUpdateRequest := &admin_collection_v1.UpdateCollectionRequest{
+			defaultUpdateRequest := &admin_collection_v1.UpdateCollectionRequest{
 				BucketName:     bucketName,
 				ScopeName:      scopeName,
 				CollectionName: colName,
@@ -327,7 +327,7 @@ func (s *GatewayOpsTestSuite) TestUpdateCollection() {
 				ctx = *t.context
 			}
 
-			req := t.modifyDefault(deafultUpdateRequest)
+			req := t.modifyDefault(defaultUpdateRequest)
 
 			resp, err := colClient.UpdateCollection(ctx, req, grpc.PerRPCCredentials(creds))
 			if t.expect == codes.OK {

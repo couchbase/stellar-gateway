@@ -1393,7 +1393,7 @@ func (s *KvServer) GetAllReplicas(in *kv_v1.GetAllReplicasRequest, out kv_v1.KvS
 
 	if replicaError != nil {
 		if errors.Is(replicaError, memdx.ErrAccessError) {
-			return s.errorHandler.NewCollectionNoReadAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+			return s.errorHandler.NewCollectionNoReadAccessStatus(replicaError, in.BucketName, in.ScopeName, in.CollectionName).Err()
 		}
 
 		return s.errorHandler.NewGenericStatus(replicaError).Err()

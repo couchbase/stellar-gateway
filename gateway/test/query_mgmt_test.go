@@ -303,7 +303,15 @@ func (s *GatewayOpsTestSuite) TestQueryManagement() {
 					description: "BadCredentials",
 					req:         &admin_query_v1.GetAllIndexesRequest{},
 					getCreds:    s.getBadRpcCredentials,
-					expect:      codes.PermissionDenied,
+					expect: func() codes.Code {
+						// The query we do to get all indexes returns a 200
+						// 200 status against any version pre 7.6.x
+						if s.IsOlderServerVersion("7.6") {
+							return codes.OK
+						}
+						return codes.PermissionDenied
+					}(),
+					expectNoIndex: true,
 				},
 				{
 					description:   "NoPermissionCreds",
@@ -358,7 +366,6 @@ func (s *GatewayOpsTestSuite) TestQueryManagement() {
 					if t.expect == codes.OK {
 						requireRpcSuccess(s.T(), resp, err)
 						foundIdx := findIndex(resp.Indexes, s.bucketName, s.scopeName, s.collectionName, indexName)
-						fmt.Println(len(resp.Indexes))
 
 						if t.expectNoIndex {
 							require.Nil(s.T(), foundIdx)
@@ -470,7 +477,7 @@ func (s *GatewayOpsTestSuite) TestQueryManagement() {
 					expect: codes.InvalidArgument,
 				},
 				{
-					description: "tBlankCollection",
+					description: "BlankCollection",
 					defaultDifference: func(def *admin_query_v1.DropPrimaryIndexRequest) *admin_query_v1.DropPrimaryIndexRequest {
 						def.CollectionName = &blankName
 						return def
@@ -849,7 +856,6 @@ func (s *GatewayOpsTestSuite) TestQueryManagement() {
 					if t.expect == codes.OK {
 						requireRpcSuccess(s.T(), resp, err)
 						foundIdx := findIndex(resp.Indexes, s.bucketName, s.scopeName, s.collectionName, indexName)
-						fmt.Println(len(resp.Indexes))
 
 						if t.expectNoIndex {
 							require.Nil(s.T(), foundIdx)
@@ -1074,11 +1080,22 @@ func (s *GatewayOpsTestSuite) TestQueryManagement() {
 		})
 
 		s.Run("BuildBadCreds", func() {
-			_, err := queryAdminClient.BuildDeferredIndexes(context.Background(), &admin_query_v1.BuildDeferredIndexesRequest{
+			resp, err := queryAdminClient.BuildDeferredIndexes(context.Background(), &admin_query_v1.BuildDeferredIndexesRequest{
 				BucketName:     s.bucketName,
 				ScopeName:      &s.scopeName,
 				CollectionName: &s.collectionName,
 			}, grpc.PerRPCCredentials(s.badRpcCreds))
+
+			// When we build deferred indexes we first GetAllIndexes. When done
+			// with bad credentials pre 7.6.x GetAllIndexes returns an OK status
+			// and an empty list of indexes, causing buildDeferredIndexes to do
+			// the same.
+			if s.IsOlderServerVersion("7.6") {
+				assertRpcStatus(s.T(), err, codes.OK)
+				assert.Len(s.T(), resp.Indexes, 0)
+				return
+			}
+
 			assertRpcStatus(s.T(), err, codes.PermissionDenied)
 		})
 
