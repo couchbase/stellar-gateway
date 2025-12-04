@@ -1,8 +1,7 @@
 package server_v1
 
 import (
-	"context"
-	"strings"
+	"errors"
 	"time"
 
 	"github.com/couchbase/gocbcorex/cbmgmtx"
@@ -17,6 +16,7 @@ type RoutingServer struct {
 	logger       *zap.Logger
 	errorHandler *ErrorHandler
 	authHandler  *AuthHandler
+	mgmt         *cbmgmtx.Management
 
 	bootstrapNodeIsLocal bool
 
@@ -30,13 +30,17 @@ func NewRoutingServer(
 	logger *zap.Logger,
 	errorHandler *ErrorHandler,
 	authHandler *AuthHandler,
+	mgmt *cbmgmtx.Management,
 	bootstrapNodeIsLocal bool,
 	bootsrapHost string,
 ) *RoutingServer {
+	mgmt.UserAgent = "routing-server"
+
 	return &RoutingServer{
 		logger:               logger,
 		errorHandler:         errorHandler,
 		authHandler:          authHandler,
+		mgmt:                 mgmt,
 		bootstrapNodeIsLocal: bootstrapNodeIsLocal,
 		bootstrapHost:        bootsrapHost,
 	}
@@ -54,7 +58,7 @@ func (s *RoutingServer) WatchRouting(
 		bucketName = *in.BucketName
 	}
 
-	bucketAgent, _, errSt := s.authHandler.GetMemdOboAgent(out.Context(), bucketName)
+	_, oboInfo, errSt := s.authHandler.GetHttpOboAgent(out.Context(), nil)
 	if errSt != nil {
 		return errSt.Err()
 	}
@@ -62,24 +66,32 @@ func (s *RoutingServer) WatchRouting(
 	ticker := time.NewTicker(5 * time.Second)
 	var prevVBucketMap cbconfig.VBucketServerMapJson
 	for {
-		bucket, err := bucketAgent.GetBucket(context.Background(), &cbmgmtx.GetBucketOptions{BucketName: bucketName})
+		bucket, err := s.mgmt.GetTerseBucketConfig(out.Context(), &cbmgmtx.GetTerseBucketConfigOptions{
+			BucketName: bucketName,
+			OnBehalfOf: oboInfo,
+		})
+
 		if err != nil {
-			return err
+			if errors.Is(err, cbmgmtx.ErrBucketNotFound) {
+				return s.errorHandler.NewBucketMissingStatus(err, bucketName).Err()
+			}
+
+			return s.errorHandler.NewGenericStatus(err).Err()
 		}
 
-		if !prevVBucketMap.Equal(*bucket.RawConfig.VBucketServerMap) {
-			prevVBucketMap = *bucket.RawConfig.VBucketServerMap
+		if !prevVBucketMap.Equal(*bucket.VBucketServerMap) {
+			prevVBucketMap = *bucket.VBucketServerMap
 
 			var localVBuckets []uint32
-			for i, addr := range bucket.RawConfig.VBucketServerMap.ServerList {
-				if strings.Contains(addr, s.bootstrapHost) && s.bootstrapNodeIsLocal {
-					localVBuckets = vBucketIdsForServer(i, bucket.RawConfig.VBucketServerMap.VBucketMap)
+			for i, node := range bucket.Nodes {
+				if node.Hostname == s.bootstrapHost && s.bootstrapNodeIsLocal {
+					localVBuckets = vBucketIdsForServer(i, bucket.VBucketServerMap.VBucketMap)
 				}
 			}
 
 			resp := &routing_v2.WatchRoutingResponse{
 				VbucketDataRouting: &routing_v2.VbucketRouting{
-					NumVbuckets:   uint32(len(bucket.RawConfig.VBucketServerMap.VBucketMap)),
+					NumVbuckets:   uint32(len(bucket.VBucketServerMap.VBucketMap)),
 					LocalVbuckets: localVBuckets,
 				},
 			}

@@ -6,7 +6,6 @@ import (
 	"crypto/x509"
 	"fmt"
 	"log"
-	"net"
 	"net/http"
 	"strings"
 	"sync"
@@ -165,38 +164,9 @@ func mgmtHostPortToAuthHostPort(mgmtHostPort string) (string, error) {
 
 func pingCouchbaseCluster(
 	ctx context.Context,
-	mgmtHostPort,
-	username, password string,
-	tlsConfig *tls.Config,
+	mgmt *cbmgmtx.Management,
 	logger *zap.Logger,
 ) (string, string, error) {
-	var endpoint string
-	if tlsConfig != nil {
-		endpoint = "https://" + mgmtHostPort
-	} else {
-		endpoint = "http://" + mgmtHostPort
-	}
-
-	transport := &http.Transport{
-		Proxy:                 http.ProxyFromEnvironment,
-		ForceAttemptHTTP2:     true,
-		MaxIdleConns:          100,
-		IdleConnTimeout:       90 * time.Second,
-		TLSHandshakeTimeout:   10 * time.Second,
-		ExpectContinueTimeout: 1 * time.Second,
-		TLSClientConfig:       tlsConfig,
-	}
-
-	mgmt := &cbmgmtx.Management{
-		Transport: transport,
-		UserAgent: "cloud-native-gateway-startup",
-		Endpoint:  endpoint,
-		Auth: &cbhttpx.BasicAuth{
-			Username: username,
-			Password: password,
-		},
-	}
-
 	clusterConfig, err := mgmt.GetClusterConfig(ctx, &cbmgmtx.GetClusterConfigOptions{})
 	if err != nil {
 		return "", "", errors.Wrap(err, "failed to get cluster config")
@@ -229,12 +199,7 @@ func pingCouchbaseCluster(
 		return "", "", errors.Wrap(err, "failed to get cluster info")
 	}
 
-	nodeHost, _, err := net.SplitHostPort(thisNode.Hostname)
-	if err != nil {
-		return "", "", errors.New("failed to split node hostname")
-	}
-
-	return clusterInfo.UUID, nodeHost, nil
+	return clusterInfo.UUID, thisNode.Hostname, nil
 }
 
 func (g *Gateway) Run(ctx context.Context) error {
@@ -269,10 +234,12 @@ func (g *Gateway) Run(ctx context.Context) error {
 		}
 	}
 
+	mgmt := initStartupMgmt(tlsConfig, mgmtHostPort, config.Username, config.Password)
+
 	var clusterUUID string
 	var bootstrapNodeAddr string
 	for {
-		currentUUID, nodeAddr, err := pingCouchbaseCluster(ctx, mgmtHostPort, config.Username, config.Password, tlsConfig, config.Logger)
+		currentUUID, nodeAddr, err := pingCouchbaseCluster(ctx, mgmt, config.Logger)
 		if err != nil {
 			config.Logger.Warn("failed to ping cluster", zap.Error(err))
 
@@ -399,6 +366,7 @@ func (g *Gateway) Run(ctx context.Context) error {
 			Logger:           config.Logger.Named("data-impl"),
 			Debug:            config.Debug,
 			CbClient:         agentMgr,
+			Mgmt:             mgmt,
 			Authenticator:    authenticator,
 			LocalhostConnstr: strings.Contains(mgmtHostPort, "localhost") || config.BoostrapNodeIsLocal,
 			BootstrapNode:    bootstrapNodeAddr,
@@ -566,5 +534,34 @@ func (g *Gateway) Reconfigure(opts *ReconfigureOptions) error {
 func (g *Gateway) Shutdown() {
 	if g.isShutdown.CompareAndSwap(false, true) {
 		close(g.shutdownSig)
+	}
+}
+
+func initStartupMgmt(tlsConfig *tls.Config, mgmtHostPort, username, password string) *cbmgmtx.Management {
+	var endpoint string
+	if tlsConfig != nil {
+		endpoint = "https://" + mgmtHostPort
+	} else {
+		endpoint = "http://" + mgmtHostPort
+	}
+
+	transport := &http.Transport{
+		Proxy:                 http.ProxyFromEnvironment,
+		ForceAttemptHTTP2:     true,
+		MaxIdleConns:          100,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+		TLSClientConfig:       tlsConfig,
+	}
+
+	return &cbmgmtx.Management{
+		Transport: transport,
+		UserAgent: "cloud-native-gateway-startup",
+		Endpoint:  endpoint,
+		Auth: &cbhttpx.BasicAuth{
+			Username: username,
+			Password: password,
+		},
 	}
 }

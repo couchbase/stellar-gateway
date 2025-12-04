@@ -2,6 +2,7 @@ package dataimpl
 
 import (
 	"github.com/couchbase/gocbcorex"
+	"github.com/couchbase/gocbcorex/cbmgmtx"
 	"github.com/couchbase/stellar-gateway/gateway/auth"
 	"github.com/couchbase/stellar-gateway/gateway/dataimpl/server_v1"
 	"go.uber.org/zap"
@@ -11,6 +12,7 @@ type NewOptions struct {
 	Logger *zap.Logger
 
 	CbClient      *gocbcorex.BucketsTrackingAgentManager
+	Mgmt          *cbmgmtx.Management
 	Authenticator auth.Authenticator
 
 	Debug            bool
@@ -100,6 +102,7 @@ func New(opts *NewOptions) *Servers {
 			opts.Logger.Named("routing"),
 			v1ErrHandler,
 			v1AuthHandler,
+			opts.Mgmt,
 			opts.LocalhostConnstr,
 			opts.BootstrapNode,
 		),
