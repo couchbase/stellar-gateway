@@ -107,6 +107,22 @@ func (s *GatewayOpsTestSuite) RunCommonErrorCases(
 		})
 	})
 
+	s.Run("NoPermissions", func() {
+		_, err := fn(ctx, &commonErrorTestData{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			CallOptions: []grpc.CallOption{
+				grpc.PerRPCCredentials(s.getNoPermissionRpcCreds()),
+			},
+			Key: s.randomDocId(),
+		})
+		assertRpcStatus(s.T(), err, codes.PermissionDenied)
+		assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
+			assert.Equal(s.T(), "collection", d.ResourceType)
+		})
+	})
+
 	s.Run("Unauthenticated", func() {
 		_, err := fn(ctx, &commonErrorTestData{
 			BucketName:     s.bucketName,
@@ -555,6 +571,24 @@ func (s *GatewayOpsTestSuite) TestInsert() {
 			ContentFlags: TEST_CONTENT_FLAGS,
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
 		assertRpcStatus(s.T(), err, codes.InvalidArgument)
+	})
+
+	s.Run("ReadOnlyCreds", func() {
+		docId := s.randomDocId()
+		_, err := kvClient.Insert(context.Background(), &kv_v1.InsertRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            docId,
+			Content: &kv_v1.InsertRequest_ContentUncompressed{
+				ContentUncompressed: TEST_CONTENT,
+			},
+			ContentFlags: TEST_CONTENT_FLAGS,
+		}, grpc.PerRPCCredentials(s.getReadOnlyRpcCredentials()))
+		assertRpcStatus(s.T(), err, codes.PermissionDenied)
+		assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
+			assert.Equal(s.T(), "collection", d.ResourceType)
+		})
 	})
 
 	s.RunCommonErrorCases(func(ctx context.Context, opts *commonErrorTestData) (interface{}, error) {
@@ -1278,6 +1312,24 @@ func (s *GatewayOpsTestSuite) TestUpsert() {
 		assertRpcStatus(s.T(), err, codes.InvalidArgument)
 	})
 
+	s.Run("ReadOnlyCreds", func() {
+		docId := s.randomDocId()
+		_, err := kvClient.Upsert(context.Background(), &kv_v1.UpsertRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            docId,
+			Content: &kv_v1.UpsertRequest_ContentUncompressed{
+				ContentUncompressed: TEST_CONTENT,
+			},
+			ContentFlags: TEST_CONTENT_FLAGS,
+		}, grpc.PerRPCCredentials(s.getReadOnlyRpcCredentials()))
+		assertRpcStatus(s.T(), err, codes.PermissionDenied)
+		assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
+			assert.Equal(s.T(), "collection", d.ResourceType)
+		})
+	})
+
 	s.RunCommonErrorCases(func(ctx context.Context, opts *commonErrorTestData) (interface{}, error) {
 		return kvClient.Upsert(ctx, &kv_v1.UpsertRequest{
 			BucketName:     opts.BucketName,
@@ -1515,6 +1567,24 @@ func (s *GatewayOpsTestSuite) TestReplace() {
 		assertRpcStatus(s.T(), err, codes.InvalidArgument)
 	})
 
+	s.Run("ReadOnlyCreds", func() {
+		docId := s.randomDocId()
+		_, err := kvClient.Replace(context.Background(), &kv_v1.ReplaceRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            docId,
+			Content: &kv_v1.ReplaceRequest_ContentUncompressed{
+				ContentUncompressed: TEST_CONTENT,
+			},
+			ContentFlags: TEST_CONTENT_FLAGS,
+		}, grpc.PerRPCCredentials(s.getReadOnlyRpcCredentials()))
+		assertRpcStatus(s.T(), err, codes.PermissionDenied)
+		assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
+			assert.Equal(s.T(), "collection", d.ResourceType)
+		})
+	})
+
 	s.RunCommonErrorCases(func(ctx context.Context, opts *commonErrorTestData) (interface{}, error) {
 		return kvClient.Replace(ctx, &kv_v1.ReplaceRequest{
 			BucketName:     opts.BucketName,
@@ -1694,6 +1764,20 @@ func (s *GatewayOpsTestSuite) TestRemove() {
 		assertRpcErrorDetails(s.T(), err, func(d *epb.PreconditionFailure) {
 			assert.Len(s.T(), d.Violations, 1)
 			assert.Equal(s.T(), "LOCKED", d.Violations[0].Type)
+		})
+	})
+
+	s.Run("ReadOnlyCreds", func() {
+		docId := s.randomDocId()
+		_, err := kvClient.Remove(context.Background(), &kv_v1.RemoveRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            docId,
+		}, grpc.PerRPCCredentials(s.getReadOnlyRpcCredentials()))
+		assertRpcStatus(s.T(), err, codes.PermissionDenied)
+		assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
+			assert.Equal(s.T(), "collection", d.ResourceType)
 		})
 	})
 
@@ -1901,6 +1985,21 @@ func (s *GatewayOpsTestSuite) TestTouch() {
 		})
 	})
 
+	s.Run("ReadOnlyCreds", func() {
+		docId := s.randomDocId()
+		_, err := kvClient.Touch(context.Background(), &kv_v1.TouchRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            docId,
+			Expiry:         &kv_v1.TouchRequest_ExpirySecs{ExpirySecs: 10},
+		}, grpc.PerRPCCredentials(s.getReadOnlyRpcCredentials()))
+		assertRpcStatus(s.T(), err, codes.PermissionDenied)
+		assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
+			assert.Equal(s.T(), "collection", d.ResourceType)
+		})
+	})
+
 	s.RunCommonErrorCases(func(ctx context.Context, opts *commonErrorTestData) (interface{}, error) {
 		return kvClient.Touch(ctx, &kv_v1.TouchRequest{
 			BucketName:     opts.BucketName,
@@ -2099,6 +2198,21 @@ func (s *GatewayOpsTestSuite) TestGetAndTouch() {
 		assertRpcErrorDetails(s.T(), err, func(d *epb.PreconditionFailure) {
 			assert.Len(s.T(), d.Violations, 1)
 			assert.Equal(s.T(), "LOCKED", d.Violations[0].Type)
+		})
+	})
+
+	s.Run("ReadOnlyCreds", func() {
+		docId := s.randomDocId()
+		_, err := kvClient.GetAndTouch(context.Background(), &kv_v1.GetAndTouchRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            docId,
+			Expiry:         &kv_v1.GetAndTouchRequest_ExpirySecs{ExpirySecs: 10},
+		}, grpc.PerRPCCredentials(s.getReadOnlyRpcCredentials()))
+		assertRpcStatus(s.T(), err, codes.PermissionDenied)
+		assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
+			assert.Equal(s.T(), "collection", d.ResourceType)
 		})
 	})
 
@@ -2554,6 +2668,21 @@ func (s *GatewayOpsTestSuite) TestIncrement() {
 		assertRpcStatus(s.T(), err, codes.InvalidArgument)
 	})
 
+	s.Run("ReadOnlyCreds", func() {
+		docId := s.binaryDocId([]byte("5"))
+		_, err := kvClient.Increment(context.Background(), &kv_v1.IncrementRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            docId,
+			Delta:          1,
+		}, grpc.PerRPCCredentials(s.getReadOnlyRpcCredentials()))
+		assertRpcStatus(s.T(), err, codes.PermissionDenied)
+		assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
+			assert.Equal(s.T(), "collection", d.ResourceType)
+		})
+	})
+
 	s.RunCommonErrorCases(func(ctx context.Context, opts *commonErrorTestData) (interface{}, error) {
 		return kvClient.Increment(ctx, &kv_v1.IncrementRequest{
 			BucketName:     opts.BucketName,
@@ -2789,6 +2918,21 @@ func (s *GatewayOpsTestSuite) TestDecrement() {
 		assertRpcStatus(s.T(), err, codes.InvalidArgument)
 	})
 
+	s.Run("ReadOnlyCreds", func() {
+		docId := s.binaryDocId([]byte("5"))
+		_, err := kvClient.Decrement(context.Background(), &kv_v1.DecrementRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            docId,
+			Delta:          1,
+		}, grpc.PerRPCCredentials(s.getReadOnlyRpcCredentials()))
+		assertRpcStatus(s.T(), err, codes.PermissionDenied)
+		assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
+			assert.Equal(s.T(), "collection", d.ResourceType)
+		})
+	})
+
 	s.RunCommonErrorCases(func(ctx context.Context, opts *commonErrorTestData) (interface{}, error) {
 		return kvClient.Decrement(ctx, &kv_v1.DecrementRequest{
 			BucketName:     opts.BucketName,
@@ -2978,6 +3122,20 @@ func (s *GatewayOpsTestSuite) TestAppend() {
 		})
 	})
 
+	s.Run("ReadOnlyCreds", func() {
+		_, err := kvClient.Append(context.Background(), &kv_v1.AppendRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            s.testDocId(),
+			Content:        []byte("world"),
+		}, grpc.PerRPCCredentials(s.getReadOnlyRpcCredentials()))
+		assertRpcStatus(s.T(), err, codes.PermissionDenied)
+		assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
+			assert.Equal(s.T(), "collection", d.ResourceType)
+		})
+	})
+
 	s.RunCommonErrorCases(func(ctx context.Context, opts *commonErrorTestData) (interface{}, error) {
 		return kvClient.Append(ctx, &kv_v1.AppendRequest{
 			BucketName:     opts.BucketName,
@@ -3130,6 +3288,20 @@ func (s *GatewayOpsTestSuite) TestPrepend() {
 		assertRpcErrorDetails(s.T(), err, func(d *epb.PreconditionFailure) {
 			assert.Len(s.T(), d.Violations, 1)
 			assert.Equal(s.T(), "VALUE_TOO_LARGE", d.Violations[0].Type)
+		})
+	})
+
+	s.Run("ReadOnlyCreds", func() {
+		_, err := kvClient.Prepend(context.Background(), &kv_v1.PrependRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            s.testDocId(),
+			Content:        []byte("world"),
+		}, grpc.PerRPCCredentials(s.getReadOnlyRpcCredentials()))
+		assertRpcStatus(s.T(), err, codes.PermissionDenied)
+		assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
+			assert.Equal(s.T(), "collection", d.ResourceType)
 		})
 	})
 
@@ -4492,6 +4664,26 @@ func (s *GatewayOpsTestSuite) TestMutateIn() {
 		assert.Len(s.T(), lResp.Specs, 1)
 		assert.Nil(s.T(), lResp.Specs[0].Status)
 		assert.Equal(s.T(), []byte(`2`), lResp.Specs[0].Content)
+	})
+
+	s.Run("ReadOnlyCreds", func() {
+		_, err := kvClient.MutateIn(context.Background(), &kv_v1.MutateInRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            s.lockedDocId(),
+			Specs: []*kv_v1.MutateInRequest_Spec{
+				{
+					Operation: kv_v1.MutateInRequest_Spec_OPERATION_UPSERT,
+					Path:      "foo",
+					Content:   []byte(`"baz"`),
+				},
+			},
+		}, grpc.PerRPCCredentials(s.getReadOnlyRpcCredentials()))
+		assertRpcStatus(s.T(), err, codes.PermissionDenied)
+		assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
+			assert.Equal(s.T(), "collection", d.ResourceType)
+		})
 	})
 
 	s.RunCommonErrorCases(func(ctx context.Context, opts *commonErrorTestData) (interface{}, error) {

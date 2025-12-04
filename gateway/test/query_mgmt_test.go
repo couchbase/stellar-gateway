@@ -11,6 +11,7 @@ import (
 	epb "google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials"
 )
 
 func (s *GatewayOpsTestSuite) TestQueryManagement() {
@@ -48,784 +49,1008 @@ func (s *GatewayOpsTestSuite) TestQueryManagement() {
 	s.Run("PrimaryIndex", func() {
 		indexName := uuid.NewString()
 
-		type createTest struct {
-			description     string
-			modifyDefault   func(*admin_query_v1.CreatePrimaryIndexRequest) *admin_query_v1.CreatePrimaryIndexRequest
-			expect          codes.Code
-			resourceDetails string
-		}
+		s.Run("Create", func() {
+			type createTest struct {
+				description     string
+				modifyDefault   func(*admin_query_v1.CreatePrimaryIndexRequest) *admin_query_v1.CreatePrimaryIndexRequest
+				getCreds        func() credentials.PerRPCCredentials
+				expect          codes.Code
+				resourceDetails string
+			}
 
-		createTests := []createTest{
-			{
-				description: "Create",
-				modifyDefault: func(def *admin_query_v1.CreatePrimaryIndexRequest) *admin_query_v1.CreatePrimaryIndexRequest {
-					return def
+			createTests := []createTest{
+				{
+					description: "Basic",
+					modifyDefault: func(def *admin_query_v1.CreatePrimaryIndexRequest) *admin_query_v1.CreatePrimaryIndexRequest {
+						return def
+					},
 				},
-			},
-			{
-				description: "CreateAlreadyExists",
-				modifyDefault: func(def *admin_query_v1.CreatePrimaryIndexRequest) *admin_query_v1.CreatePrimaryIndexRequest {
-					return def
+				{
+					description: "AlreadyExists",
+					modifyDefault: func(def *admin_query_v1.CreatePrimaryIndexRequest) *admin_query_v1.CreatePrimaryIndexRequest {
+						return def
+					},
+					expect:          codes.AlreadyExists,
+					resourceDetails: "queryindex",
 				},
-				expect:          codes.AlreadyExists,
-				resourceDetails: "queryindex",
-			},
-			{
-				description: "CreateAlreadyExistsIgnoreIfExists",
-				modifyDefault: func(def *admin_query_v1.CreatePrimaryIndexRequest) *admin_query_v1.CreatePrimaryIndexRequest {
-					def.IgnoreIfExists = &trueBool
-					return def
+				{
+					description: "AlreadyExistsIgnoreIfExists",
+					modifyDefault: func(def *admin_query_v1.CreatePrimaryIndexRequest) *admin_query_v1.CreatePrimaryIndexRequest {
+						def.IgnoreIfExists = &trueBool
+						return def
+					},
 				},
-			},
-			{
-				description: "CreateBlankBucket",
-				modifyDefault: func(def *admin_query_v1.CreatePrimaryIndexRequest) *admin_query_v1.CreatePrimaryIndexRequest {
-					def.BucketName = ""
-					return def
+				{
+					description: "BlankBucket",
+					modifyDefault: func(def *admin_query_v1.CreatePrimaryIndexRequest) *admin_query_v1.CreatePrimaryIndexRequest {
+						def.BucketName = ""
+						return def
+					},
+					expect: codes.InvalidArgument,
 				},
-				expect: codes.InvalidArgument,
-			},
-			{
-				description: "CreateBlankScope",
-				modifyDefault: func(def *admin_query_v1.CreatePrimaryIndexRequest) *admin_query_v1.CreatePrimaryIndexRequest {
-					def.ScopeName = &blankName
-					return def
+				{
+					description: "BlankScope",
+					modifyDefault: func(def *admin_query_v1.CreatePrimaryIndexRequest) *admin_query_v1.CreatePrimaryIndexRequest {
+						def.ScopeName = &blankName
+						return def
+					},
+					expect: codes.InvalidArgument,
 				},
-				expect: codes.InvalidArgument,
-			},
-			{
-				description: "CreateBlankCollection",
-				modifyDefault: func(def *admin_query_v1.CreatePrimaryIndexRequest) *admin_query_v1.CreatePrimaryIndexRequest {
-					def.CollectionName = &blankName
-					return def
+				{
+					description: "BlankCollection",
+					modifyDefault: func(def *admin_query_v1.CreatePrimaryIndexRequest) *admin_query_v1.CreatePrimaryIndexRequest {
+						def.CollectionName = &blankName
+						return def
+					},
+					expect: codes.InvalidArgument,
 				},
-				expect: codes.InvalidArgument,
-			},
-			{
-				description: "CreateRequestMissingScope",
-				modifyDefault: func(def *admin_query_v1.CreatePrimaryIndexRequest) *admin_query_v1.CreatePrimaryIndexRequest {
-					def.Name = &missingScopeName
-					def.ScopeName = nil
-					return def
+				{
+					description: "RequestMissingScope",
+					modifyDefault: func(def *admin_query_v1.CreatePrimaryIndexRequest) *admin_query_v1.CreatePrimaryIndexRequest {
+						def.Name = &missingScopeName
+						def.ScopeName = nil
+						return def
+					},
 				},
-			},
-			{
-				description: "CreateRequestMissingCollection",
-				modifyDefault: func(def *admin_query_v1.CreatePrimaryIndexRequest) *admin_query_v1.CreatePrimaryIndexRequest {
-					def.Name = &missingCollectionName
-					def.CollectionName = nil
-					return def
+				{
+					description: "RequestMissingCollection",
+					modifyDefault: func(def *admin_query_v1.CreatePrimaryIndexRequest) *admin_query_v1.CreatePrimaryIndexRequest {
+						def.Name = &missingCollectionName
+						def.CollectionName = nil
+						return def
+					},
 				},
-			},
-			{
-				description: "CreateRequestMissingScopeAndCollection",
-				modifyDefault: func(def *admin_query_v1.CreatePrimaryIndexRequest) *admin_query_v1.CreatePrimaryIndexRequest {
-					def.Name = &missingScopeAndCollectionName
-					def.ScopeName = nil
-					def.CollectionName = nil
-					return def
+				{
+					description: "RequestMissingScopeAndCollection",
+					modifyDefault: func(def *admin_query_v1.CreatePrimaryIndexRequest) *admin_query_v1.CreatePrimaryIndexRequest {
+						def.Name = &missingScopeAndCollectionName
+						def.ScopeName = nil
+						def.CollectionName = nil
+						return def
+					},
 				},
-			},
-			{
-				description: "CreateNonExistentBucket",
-				modifyDefault: func(def *admin_query_v1.CreatePrimaryIndexRequest) *admin_query_v1.CreatePrimaryIndexRequest {
-					def.BucketName = unmatchedName
-					return def
+				{
+					description: "NonExistentBucket",
+					modifyDefault: func(def *admin_query_v1.CreatePrimaryIndexRequest) *admin_query_v1.CreatePrimaryIndexRequest {
+						def.BucketName = unmatchedName
+						return def
+					},
+					expect: codes.NotFound,
 				},
-				expect: codes.NotFound,
-			},
-			{
-				description: "CreateNonExistentScope",
-				modifyDefault: func(def *admin_query_v1.CreatePrimaryIndexRequest) *admin_query_v1.CreatePrimaryIndexRequest {
-					def.ScopeName = &unmatchedName
-					return def
+				{
+					description: "NonExistentScope",
+					modifyDefault: func(def *admin_query_v1.CreatePrimaryIndexRequest) *admin_query_v1.CreatePrimaryIndexRequest {
+						def.ScopeName = &unmatchedName
+						return def
+					},
+					expect: codes.NotFound,
 				},
-				expect: codes.NotFound,
-			},
-			{
-				description: "CreateNonExistentCollection",
-				modifyDefault: func(def *admin_query_v1.CreatePrimaryIndexRequest) *admin_query_v1.CreatePrimaryIndexRequest {
-					def.CollectionName = &unmatchedName
-					return def
+				{
+					description: "NonExistentCollection",
+					modifyDefault: func(def *admin_query_v1.CreatePrimaryIndexRequest) *admin_query_v1.CreatePrimaryIndexRequest {
+						def.CollectionName = &unmatchedName
+						return def
+					},
+					expect: codes.NotFound,
 				},
-				expect: codes.NotFound,
-			},
-			{
-				description: "CreateNegativeReplicas",
-				modifyDefault: func(def *admin_query_v1.CreatePrimaryIndexRequest) *admin_query_v1.CreatePrimaryIndexRequest {
-					def.NumReplicas = &negativeReplicas
-					return def
+				{
+					description: "NegativeReplicas",
+					modifyDefault: func(def *admin_query_v1.CreatePrimaryIndexRequest) *admin_query_v1.CreatePrimaryIndexRequest {
+						def.NumReplicas = &negativeReplicas
+						return def
+					},
+					expect: codes.InvalidArgument,
 				},
-				expect: codes.InvalidArgument,
-			},
-			{
-				description: "CreateTooManyReplicas",
-				modifyDefault: func(def *admin_query_v1.CreatePrimaryIndexRequest) *admin_query_v1.CreatePrimaryIndexRequest {
-					// Index name collision detection occurs before attempting to build the index so a new index name
-					// needs to be used, else we get codes.AlreadyExists
-					name := "newIndex"
-					def.Name = &name
-					def.NumReplicas = &tooManyReplicas
-					return def
+				{
+					description: "TooManyReplicas",
+					modifyDefault: func(def *admin_query_v1.CreatePrimaryIndexRequest) *admin_query_v1.CreatePrimaryIndexRequest {
+						// Index name collision detection occurs before attempting to build the index so a new index name
+						// needs to be used, else we get codes.AlreadyExists
+						name := "newIndex"
+						def.Name = &name
+						def.NumReplicas = &tooManyReplicas
+						return def
+					},
+					expect: codes.InvalidArgument,
 				},
-				expect: codes.InvalidArgument,
-			},
-			{
-				description: "CreateIndexNameTooLong",
-				modifyDefault: func(def *admin_query_v1.CreatePrimaryIndexRequest) *admin_query_v1.CreatePrimaryIndexRequest {
-					name := s.docIdOfLen(220)
-					def.Name = &name
-					return def
+				{
+					description: "IndexNameTooLong",
+					modifyDefault: func(def *admin_query_v1.CreatePrimaryIndexRequest) *admin_query_v1.CreatePrimaryIndexRequest {
+						name := s.docIdOfLen(220)
+						def.Name = &name
+						return def
+					},
+					expect: codes.InvalidArgument,
 				},
-				expect: codes.InvalidArgument,
-			},
-			{
-				description: "CreateSpecialCharactersInIndexName",
-				modifyDefault: func(def *admin_query_v1.CreatePrimaryIndexRequest) *admin_query_v1.CreatePrimaryIndexRequest {
-					def.Name = &specialCharName
-					return def
+				{
+					description: "SpecialCharactersInIndexName",
+					modifyDefault: func(def *admin_query_v1.CreatePrimaryIndexRequest) *admin_query_v1.CreatePrimaryIndexRequest {
+						def.Name = &specialCharName
+						return def
+					},
+					expect: codes.InvalidArgument,
 				},
-				expect: codes.InvalidArgument,
-			},
-		}
+				{
+					description: "BadCredentials",
+					modifyDefault: func(def *admin_query_v1.CreatePrimaryIndexRequest) *admin_query_v1.CreatePrimaryIndexRequest {
+						name := "newIndex"
+						def.Name = &name
+						return def
+					},
+					getCreds: s.getBadRpcCredentials,
+					expect:   codes.PermissionDenied,
+				},
+				{
+					description: "NoPermissionCreds",
+					modifyDefault: func(def *admin_query_v1.CreatePrimaryIndexRequest) *admin_query_v1.CreatePrimaryIndexRequest {
+						name := "newIndex"
+						def.Name = &name
+						return def
+					},
+					getCreds: s.getNoPermissionRpcCreds,
+					expect:   codes.PermissionDenied,
+				},
+				{
+					description: "ReadOnlyCreds",
+					modifyDefault: func(def *admin_query_v1.CreatePrimaryIndexRequest) *admin_query_v1.CreatePrimaryIndexRequest {
+						name := "newIndex"
+						def.Name = &name
+						return def
+					},
+					getCreds: s.getReadOnlyRpcCredentials,
+					expect:   codes.PermissionDenied,
+				},
+			}
 
-		for i := range createTests {
-			t := createTests[i]
-			s.Run(t.description, func() {
-				defaultCreateReq := admin_query_v1.CreatePrimaryIndexRequest{
-					Name:           &indexName,
-					BucketName:     s.bucketName,
-					ScopeName:      &s.scopeName,
-					CollectionName: &s.collectionName,
-				}
-				req := t.modifyDefault(&defaultCreateReq)
-				resp, err := queryAdminClient.CreatePrimaryIndex(context.Background(),
-					req,
-					grpc.PerRPCCredentials(s.basicRpcCreds))
+			for i := range createTests {
+				t := createTests[i]
+				s.Run(t.description, func() {
+					defaultCreateReq := admin_query_v1.CreatePrimaryIndexRequest{
+						Name:           &indexName,
+						BucketName:     s.bucketName,
+						ScopeName:      &s.scopeName,
+						CollectionName: &s.collectionName,
+					}
+					req := t.modifyDefault(&defaultCreateReq)
 
-				if t.expect == codes.OK {
-					requireRpcSuccess(s.T(), resp, err)
-					return
-				}
+					creds := s.basicRpcCreds
+					if t.getCreds != nil {
+						creds = t.getCreds()
+					}
 
-				assertRpcStatus(s.T(), err, t.expect)
-				if t.resourceDetails != "" {
-					assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
-						assert.Equal(s.T(), t.resourceDetails, d.ResourceType)
-					})
-				}
-			})
-		}
+					resp, err := queryAdminClient.CreatePrimaryIndex(context.Background(),
+						req,
+						grpc.PerRPCCredentials(creds))
 
-		checkHasIndex := func(req *admin_query_v1.GetAllIndexesRequest) {
-			resp, err := queryAdminClient.GetAllIndexes(context.Background(), req, grpc.PerRPCCredentials(s.basicRpcCreds))
-			requireRpcSuccess(s.T(), resp, err)
+					if t.expect == codes.OK {
+						requireRpcSuccess(s.T(), resp, err)
+						return
+					}
 
-			foundIdx := findIndex(resp.Indexes, s.bucketName, s.scopeName, s.collectionName, indexName)
-			require.NotNil(s.T(), foundIdx)
-		}
-		s.Run("ListAllIndexes", func() {
-			checkHasIndex(&admin_query_v1.GetAllIndexesRequest{})
-		})
-		s.Run("ListBucketIndexes", func() {
-			checkHasIndex(&admin_query_v1.GetAllIndexesRequest{
-				BucketName: &s.bucketName,
-			})
-		})
-		s.Run("ListScopeIndexes", func() {
-			checkHasIndex(&admin_query_v1.GetAllIndexesRequest{
-				BucketName: &s.bucketName,
-				ScopeName:  &s.scopeName,
-			})
-		})
-		s.Run("ListCollectionIndexes", func() {
-			checkHasIndex(&admin_query_v1.GetAllIndexesRequest{
-				BucketName:     &s.bucketName,
-				ScopeName:      &s.scopeName,
-				CollectionName: &s.collectionName,
-			})
-		})
-		s.Run("ListCollectionIndexesRequestMissingScope", func() {
-			checkHasIndex(&admin_query_v1.GetAllIndexesRequest{
-				BucketName:     &s.bucketName,
-				CollectionName: &s.collectionName,
-			})
-		})
-
-		checkNoHasIndex := func(req *admin_query_v1.GetAllIndexesRequest) {
-			resp, err := queryAdminClient.GetAllIndexes(context.Background(), req, grpc.PerRPCCredentials(s.basicRpcCreds))
-			requireRpcSuccess(s.T(), resp, err)
-
-			foundIdx := findIndex(resp.Indexes, s.bucketName, s.scopeName, s.collectionName, indexName)
-			require.Nil(s.T(), foundIdx)
-		}
-
-		// BUG(ING-506): Can't test with invalid bucket names
-		/*
-			s.Run("NoListBucketIndexes", func() {
-				checkNoHasIndex(&admin_query_v1.GetAllIndexesRequest{
-					BucketName: &unmatchedName,
+					assertRpcStatus(s.T(), err, t.expect)
+					if t.resourceDetails != "" {
+						assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
+							assert.Equal(s.T(), t.resourceDetails, d.ResourceType)
+						})
+					}
 				})
-			})
-		*/
-		s.Run("NoListScopeIndexes", func() {
-			checkNoHasIndex(&admin_query_v1.GetAllIndexesRequest{
-				BucketName: &s.bucketName,
-				ScopeName:  &unmatchedName,
-			})
-		})
-		s.Run("NoListCollectionIndexes", func() {
-			checkNoHasIndex(&admin_query_v1.GetAllIndexesRequest{
-				BucketName:     &s.bucketName,
-				ScopeName:      &s.scopeName,
-				CollectionName: &unmatchedName,
-			})
-		})
-		s.Run("NoListRequestMissingBucket", func() {
-			checkNoHasIndex(&admin_query_v1.GetAllIndexesRequest{
-				ScopeName:      &s.scopeName,
-				CollectionName: &s.collectionName,
-			})
+			}
 		})
 
-		type dropTest struct {
-			description       string
-			defaultDifference func(*admin_query_v1.DropPrimaryIndexRequest) *admin_query_v1.DropPrimaryIndexRequest
-			expect            codes.Code
-			resourceDetails   string
-		}
+		s.Run("ListAllIndexes", func() {
+			type listTest struct {
+				description   string
+				req           *admin_query_v1.GetAllIndexesRequest
+				getCreds      func() credentials.PerRPCCredentials
+				expect        codes.Code
+				expectNoIndex bool
+			}
 
-		dropTests := []dropTest{
-			{
-				description: "DropNonExistentBucket",
-				defaultDifference: func(def *admin_query_v1.DropPrimaryIndexRequest) *admin_query_v1.DropPrimaryIndexRequest {
-					def.BucketName = unmatchedName
-					return def
+			listTests := []listTest{
+				{
+					description: "Basic",
+					req:         &admin_query_v1.GetAllIndexesRequest{},
 				},
-				expect: codes.NotFound,
-			},
-			{
-				description: "DropNonExistentScope",
-				defaultDifference: func(def *admin_query_v1.DropPrimaryIndexRequest) *admin_query_v1.DropPrimaryIndexRequest {
-					def.ScopeName = &unmatchedName
-					return def
+				{
+					description: "BucketIndexes",
+					req: &admin_query_v1.GetAllIndexesRequest{
+						BucketName: &s.bucketName,
+					},
 				},
-				expect: codes.NotFound,
-			},
-			{
-				description: "DropNonExistentCollection",
-				defaultDifference: func(def *admin_query_v1.DropPrimaryIndexRequest) *admin_query_v1.DropPrimaryIndexRequest {
-					def.CollectionName = &unmatchedName
-					return def
+				{
+					description: "ScopeIndexes",
+					req: &admin_query_v1.GetAllIndexesRequest{
+						BucketName: &s.bucketName,
+						ScopeName:  &s.scopeName,
+					},
 				},
-				expect: codes.NotFound,
-			},
-			{
-				description: "Drop",
-				defaultDifference: func(def *admin_query_v1.DropPrimaryIndexRequest) *admin_query_v1.DropPrimaryIndexRequest {
-					return def
+				{
+					description: "CollectionIndexes",
+					req: &admin_query_v1.GetAllIndexesRequest{
+						BucketName:     &s.bucketName,
+						ScopeName:      &s.scopeName,
+						CollectionName: &s.collectionName,
+					},
 				},
-			},
-			{
-				description: "DropMissing",
-				defaultDifference: func(def *admin_query_v1.DropPrimaryIndexRequest) *admin_query_v1.DropPrimaryIndexRequest {
-					return def
+				{
+					description: "CollectionIndexesMissingScope",
+					req: &admin_query_v1.GetAllIndexesRequest{
+						BucketName:     &s.bucketName,
+						CollectionName: &s.collectionName,
+					},
 				},
-				expect:          codes.NotFound,
-				resourceDetails: "queryindex",
-			},
-			{
-				description: "DropMissingIgnored",
-				defaultDifference: func(def *admin_query_v1.DropPrimaryIndexRequest) *admin_query_v1.DropPrimaryIndexRequest {
-					def.IgnoreIfMissing = &trueBool
-					return def
+				{
+					description: "BadCredentials",
+					req:         &admin_query_v1.GetAllIndexesRequest{},
+					getCreds:    s.getBadRpcCredentials,
+					expect: func() codes.Code {
+						// The query we do to get all indexes returns a 200
+						// 200 status against any version pre 7.6.x
+						if s.IsOlderServerVersion("7.6") {
+							return codes.OK
+						}
+						return codes.PermissionDenied
+					}(),
+					expectNoIndex: true,
 				},
-			},
-			{
-				description: "DropRequestBlankBucket",
-				defaultDifference: func(def *admin_query_v1.DropPrimaryIndexRequest) *admin_query_v1.DropPrimaryIndexRequest {
-					def.BucketName = ""
-					return def
+				{
+					description:   "NoPermissionCreds",
+					req:           &admin_query_v1.GetAllIndexesRequest{},
+					getCreds:      s.getNoPermissionRpcCreds,
+					expectNoIndex: true,
 				},
-				expect: codes.InvalidArgument,
-			},
-			{
-				description: "DropRequestBlankScope",
-				defaultDifference: func(def *admin_query_v1.DropPrimaryIndexRequest) *admin_query_v1.DropPrimaryIndexRequest {
-					def.ScopeName = &blankName
-					return def
+				// BUG(ING-506): Can't test with invalid bucket names
+				// {
+				// 	description: "NoListBucketIndexes",
+				// 	req: &admin_query_v1.GetAllIndexesRequest{
+				// 		BucketName: &unmatchedName,
+				// 	},
+				// 	expectNoIndex: true,
+				// },
+				{
+					description: "NoListScopeIndexes",
+					req: &admin_query_v1.GetAllIndexesRequest{
+						BucketName: &s.bucketName,
+						ScopeName:  &unmatchedName,
+					},
+					expectNoIndex: true,
 				},
-				expect: codes.InvalidArgument,
-			},
-			{
-				description: "DropRequestBlankCollection",
-				defaultDifference: func(def *admin_query_v1.DropPrimaryIndexRequest) *admin_query_v1.DropPrimaryIndexRequest {
-					def.CollectionName = &blankName
-					return def
+				{
+					description: "NoListCollectionIndexes",
+					req: &admin_query_v1.GetAllIndexesRequest{
+						BucketName:     &s.bucketName,
+						ScopeName:      &s.scopeName,
+						CollectionName: &unmatchedName,
+					},
+					expectNoIndex: true,
 				},
-				expect: codes.InvalidArgument,
-			},
-			{
-				description: "DropRequestMissingScope",
-				defaultDifference: func(def *admin_query_v1.DropPrimaryIndexRequest) *admin_query_v1.DropPrimaryIndexRequest {
-					def.Name = &missingScopeName
-					def.ScopeName = nil
-					return def
+				{
+					description: "NoListRequestMissingBucket",
+					req: &admin_query_v1.GetAllIndexesRequest{
+						ScopeName:      &s.scopeName,
+						CollectionName: &s.collectionName,
+					},
+					expectNoIndex: true,
 				},
-			},
-			{
-				description: "DropRequestMissingScopeIgnoreIfMissing",
-				defaultDifference: func(def *admin_query_v1.DropPrimaryIndexRequest) *admin_query_v1.DropPrimaryIndexRequest {
-					def.ScopeName = nil
-					def.IgnoreIfMissing = &trueBool
-					return def
-				},
-			},
-			{
-				description: "DropRequestMissingCollection",
-				defaultDifference: func(def *admin_query_v1.DropPrimaryIndexRequest) *admin_query_v1.DropPrimaryIndexRequest {
-					def.Name = &missingCollectionName
-					def.CollectionName = nil
-					return def
-				},
-			},
-			{
-				description: "DropRequestMissingCollectionIgnoreIfMissing",
-				defaultDifference: func(def *admin_query_v1.DropPrimaryIndexRequest) *admin_query_v1.DropPrimaryIndexRequest {
-					def.CollectionName = nil
-					def.IgnoreIfMissing = &trueBool
-					return def
-				},
-			},
-			{
-				description: "DropRequestMissingScopeAndCollection",
-				defaultDifference: func(def *admin_query_v1.DropPrimaryIndexRequest) *admin_query_v1.DropPrimaryIndexRequest {
-					def.Name = &missingScopeAndCollectionName
-					def.CollectionName = nil
-					return def
-				},
-			},
-		}
+			}
 
-		for i := range dropTests {
-			t := dropTests[i]
-			s.Run(t.description, func() {
-				defaultDropRequest := admin_query_v1.DropPrimaryIndexRequest{
-					Name:           &indexName,
-					BucketName:     s.bucketName,
-					ScopeName:      &s.scopeName,
-					CollectionName: &s.collectionName,
-				}
-				req := t.defaultDifference(&defaultDropRequest)
-				resp, err := queryAdminClient.DropPrimaryIndex(context.Background(),
-					req,
-					grpc.PerRPCCredentials(s.basicRpcCreds))
+			for i := range listTests {
+				t := listTests[i]
+				s.Run(t.description, func() {
+					creds := s.basicRpcCreds
+					if t.getCreds != nil {
+						creds = t.getCreds()
+					}
 
-				if t.expect == codes.OK {
-					requireRpcSuccess(s.T(), resp, err)
-					return
-				}
-				assertRpcStatus(s.T(), err, t.expect)
+					resp, err := queryAdminClient.GetAllIndexes(context.Background(), t.req, grpc.PerRPCCredentials(creds))
+					if t.expect == codes.OK {
+						requireRpcSuccess(s.T(), resp, err)
+						foundIdx := findIndex(resp.Indexes, s.bucketName, s.scopeName, s.collectionName, indexName)
 
-				if t.resourceDetails != "" {
-					assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
-						assert.Equal(s.T(), t.resourceDetails, d.ResourceType)
-					})
-				}
-			})
-		}
+						if t.expectNoIndex {
+							require.Nil(s.T(), foundIdx)
+							return
+						}
+
+						require.NotNil(s.T(), foundIdx)
+						return
+					}
+
+					assertRpcStatus(s.T(), err, t.expect)
+				})
+			}
+		})
+
+		s.Run("Drop", func() {
+			type dropTest struct {
+				description       string
+				defaultDifference func(*admin_query_v1.DropPrimaryIndexRequest) *admin_query_v1.DropPrimaryIndexRequest
+				getCreds          func() credentials.PerRPCCredentials
+				expect            codes.Code
+				resourceDetails   string
+			}
+
+			dropTests := []dropTest{
+				{
+					description: "NonExistentBucket",
+					defaultDifference: func(def *admin_query_v1.DropPrimaryIndexRequest) *admin_query_v1.DropPrimaryIndexRequest {
+						def.BucketName = unmatchedName
+						return def
+					},
+					expect: codes.NotFound,
+				},
+				{
+					description: "NonExistentScope",
+					defaultDifference: func(def *admin_query_v1.DropPrimaryIndexRequest) *admin_query_v1.DropPrimaryIndexRequest {
+						def.ScopeName = &unmatchedName
+						return def
+					},
+					expect: codes.NotFound,
+				},
+				{
+					description: "NonExistentCollection",
+					defaultDifference: func(def *admin_query_v1.DropPrimaryIndexRequest) *admin_query_v1.DropPrimaryIndexRequest {
+						def.CollectionName = &unmatchedName
+						return def
+					},
+					expect: codes.NotFound,
+				},
+				{
+					description: "BadCredentials",
+					defaultDifference: func(def *admin_query_v1.DropPrimaryIndexRequest) *admin_query_v1.DropPrimaryIndexRequest {
+						return def
+					},
+					getCreds: s.getBadRpcCredentials,
+					expect:   codes.PermissionDenied,
+				},
+				{
+					description: "NoPermissionCreds",
+					defaultDifference: func(def *admin_query_v1.DropPrimaryIndexRequest) *admin_query_v1.DropPrimaryIndexRequest {
+						return def
+					},
+					getCreds: s.getNoPermissionRpcCreds,
+					expect:   codes.PermissionDenied,
+				},
+				{
+					description: "ReadOnlyCreds",
+					defaultDifference: func(def *admin_query_v1.DropPrimaryIndexRequest) *admin_query_v1.DropPrimaryIndexRequest {
+						return def
+					},
+					getCreds: s.getReadOnlyRpcCredentials,
+					expect:   codes.PermissionDenied,
+				},
+				{
+					description: "Basic",
+					defaultDifference: func(def *admin_query_v1.DropPrimaryIndexRequest) *admin_query_v1.DropPrimaryIndexRequest {
+						return def
+					},
+				},
+				{
+					description: "IndexMissing",
+					defaultDifference: func(def *admin_query_v1.DropPrimaryIndexRequest) *admin_query_v1.DropPrimaryIndexRequest {
+						return def
+					},
+					expect:          codes.NotFound,
+					resourceDetails: "queryindex",
+				},
+				{
+					description: "IndexMissingIgnored",
+					defaultDifference: func(def *admin_query_v1.DropPrimaryIndexRequest) *admin_query_v1.DropPrimaryIndexRequest {
+						def.IgnoreIfMissing = &trueBool
+						return def
+					},
+				},
+				{
+					description: "BlankBucket",
+					defaultDifference: func(def *admin_query_v1.DropPrimaryIndexRequest) *admin_query_v1.DropPrimaryIndexRequest {
+						def.BucketName = ""
+						return def
+					},
+					expect: codes.InvalidArgument,
+				},
+				{
+					description: "BlankScope",
+					defaultDifference: func(def *admin_query_v1.DropPrimaryIndexRequest) *admin_query_v1.DropPrimaryIndexRequest {
+						def.ScopeName = &blankName
+						return def
+					},
+					expect: codes.InvalidArgument,
+				},
+				{
+					description: "BlankCollection",
+					defaultDifference: func(def *admin_query_v1.DropPrimaryIndexRequest) *admin_query_v1.DropPrimaryIndexRequest {
+						def.CollectionName = &blankName
+						return def
+					},
+					expect: codes.InvalidArgument,
+				},
+				{
+					description: "MissingScope",
+					defaultDifference: func(def *admin_query_v1.DropPrimaryIndexRequest) *admin_query_v1.DropPrimaryIndexRequest {
+						def.Name = &missingScopeName
+						def.ScopeName = nil
+						return def
+					},
+				},
+				{
+					description: "MissingScopeIgnoreIfMissing",
+					defaultDifference: func(def *admin_query_v1.DropPrimaryIndexRequest) *admin_query_v1.DropPrimaryIndexRequest {
+						def.ScopeName = nil
+						def.IgnoreIfMissing = &trueBool
+						return def
+					},
+				},
+				{
+					description: "MissingCollection",
+					defaultDifference: func(def *admin_query_v1.DropPrimaryIndexRequest) *admin_query_v1.DropPrimaryIndexRequest {
+						def.Name = &missingCollectionName
+						def.CollectionName = nil
+						return def
+					},
+				},
+				{
+					description: "MissingCollectionIgnoreIfMissing",
+					defaultDifference: func(def *admin_query_v1.DropPrimaryIndexRequest) *admin_query_v1.DropPrimaryIndexRequest {
+						def.CollectionName = nil
+						def.IgnoreIfMissing = &trueBool
+						return def
+					},
+				},
+				{
+					description: "MissingScopeAndCollection",
+					defaultDifference: func(def *admin_query_v1.DropPrimaryIndexRequest) *admin_query_v1.DropPrimaryIndexRequest {
+						def.Name = &missingScopeAndCollectionName
+						def.CollectionName = nil
+						return def
+					},
+				},
+			}
+
+			for i := range dropTests {
+				t := dropTests[i]
+				s.Run(t.description, func() {
+					defaultDropRequest := admin_query_v1.DropPrimaryIndexRequest{
+						Name:           &indexName,
+						BucketName:     s.bucketName,
+						ScopeName:      &s.scopeName,
+						CollectionName: &s.collectionName,
+					}
+					req := t.defaultDifference(&defaultDropRequest)
+
+					creds := s.basicRpcCreds
+					if t.getCreds != nil {
+						creds = t.getCreds()
+					}
+
+					resp, err := queryAdminClient.DropPrimaryIndex(context.Background(),
+						req,
+						grpc.PerRPCCredentials(creds))
+
+					if t.expect == codes.OK {
+						requireRpcSuccess(s.T(), resp, err)
+						return
+					}
+					assertRpcStatus(s.T(), err, t.expect)
+
+					if t.resourceDetails != "" {
+						assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
+							assert.Equal(s.T(), t.resourceDetails, d.ResourceType)
+						})
+					}
+				})
+			}
+		})
 	})
 
 	s.Run("SecondaryIndex", func() {
 		indexName := uuid.NewString()
 
-		type createTest struct {
-			description     string
-			modifyDefault   func(*admin_query_v1.CreateIndexRequest) *admin_query_v1.CreateIndexRequest
-			expect          codes.Code
-			resourceDetails string
-		}
+		s.Run("Create", func() {
+			type createTest struct {
+				description     string
+				modifyDefault   func(*admin_query_v1.CreateIndexRequest) *admin_query_v1.CreateIndexRequest
+				getCreds        func() credentials.PerRPCCredentials
+				expect          codes.Code
+				resourceDetails string
+			}
 
-		createTests := []createTest{
-			{
-				description: "Create",
-				modifyDefault: func(def *admin_query_v1.CreateIndexRequest) *admin_query_v1.CreateIndexRequest {
-					return def
+			createTests := []createTest{
+				{
+					description: "Basic",
+					modifyDefault: func(def *admin_query_v1.CreateIndexRequest) *admin_query_v1.CreateIndexRequest {
+						return def
+					},
 				},
-			},
-			{
-				description: "CreateAlreadyExists",
-				modifyDefault: func(def *admin_query_v1.CreateIndexRequest) *admin_query_v1.CreateIndexRequest {
-					return def
+				{
+					description: "BadCredentials",
+					modifyDefault: func(def *admin_query_v1.CreateIndexRequest) *admin_query_v1.CreateIndexRequest {
+						return def
+					},
+					getCreds: s.getBadRpcCredentials,
+					expect:   codes.PermissionDenied,
 				},
-				expect:          codes.AlreadyExists,
-				resourceDetails: "queryindex",
-			},
-			{
-				description: "CreateAlreadyExistsIgnoreIfExists",
-				modifyDefault: func(def *admin_query_v1.CreateIndexRequest) *admin_query_v1.CreateIndexRequest {
-					def.IgnoreIfExists = &trueBool
-					return def
+				{
+					description: "NoPermissionCreds",
+					modifyDefault: func(def *admin_query_v1.CreateIndexRequest) *admin_query_v1.CreateIndexRequest {
+						return def
+					},
+					getCreds: s.getNoPermissionRpcCreds,
+					expect:   codes.PermissionDenied,
 				},
-			},
-			{
-				description: "CreateBlankBucket",
-				modifyDefault: func(def *admin_query_v1.CreateIndexRequest) *admin_query_v1.CreateIndexRequest {
-					def.BucketName = blankName
-					return def
+				{
+					description: "ReadOnlyCreds",
+					modifyDefault: func(def *admin_query_v1.CreateIndexRequest) *admin_query_v1.CreateIndexRequest {
+						return def
+					},
+					getCreds: s.getReadOnlyRpcCredentials,
+					expect:   codes.PermissionDenied,
 				},
-				expect: codes.InvalidArgument,
-			},
-			{
-				description: "CreateBlankScope",
-				modifyDefault: func(def *admin_query_v1.CreateIndexRequest) *admin_query_v1.CreateIndexRequest {
-					def.ScopeName = &blankName
-					return def
+				{
+					description: "AlreadyExists",
+					modifyDefault: func(def *admin_query_v1.CreateIndexRequest) *admin_query_v1.CreateIndexRequest {
+						return def
+					},
+					expect:          codes.AlreadyExists,
+					resourceDetails: "queryindex",
 				},
-				expect: codes.InvalidArgument,
-			},
-			{
-				description: "CreateBlankCollection",
-				modifyDefault: func(def *admin_query_v1.CreateIndexRequest) *admin_query_v1.CreateIndexRequest {
-					def.CollectionName = &blankName
-					return def
+				{
+					description: "AlreadyExistsIgnoreIfExists",
+					modifyDefault: func(def *admin_query_v1.CreateIndexRequest) *admin_query_v1.CreateIndexRequest {
+						def.IgnoreIfExists = &trueBool
+						return def
+					},
 				},
-				expect: codes.InvalidArgument,
-			},
-			{
-				description: "CreateMissingScope",
-				modifyDefault: func(def *admin_query_v1.CreateIndexRequest) *admin_query_v1.CreateIndexRequest {
-					def.Name = missingScopeName
-					def.ScopeName = nil
-					return def
+				{
+					description: "BlankBucket",
+					modifyDefault: func(def *admin_query_v1.CreateIndexRequest) *admin_query_v1.CreateIndexRequest {
+						def.BucketName = blankName
+						return def
+					},
+					expect: codes.InvalidArgument,
 				},
-			},
-			{
-				description: "CreateMissingCollection",
-				modifyDefault: func(def *admin_query_v1.CreateIndexRequest) *admin_query_v1.CreateIndexRequest {
-					def.Name = missingCollectionName
-					def.CollectionName = nil
-					return def
+				{
+					description: "BlankScope",
+					modifyDefault: func(def *admin_query_v1.CreateIndexRequest) *admin_query_v1.CreateIndexRequest {
+						def.ScopeName = &blankName
+						return def
+					},
+					expect: codes.InvalidArgument,
 				},
-			},
-			{
-				description: "CreateMissingScopeAndCollection",
-				modifyDefault: func(def *admin_query_v1.CreateIndexRequest) *admin_query_v1.CreateIndexRequest {
-					def.Name = missingScopeAndCollectionName
-					def.ScopeName = nil
-					def.CollectionName = nil
-					return def
+				{
+					description: "BlankCollection",
+					modifyDefault: func(def *admin_query_v1.CreateIndexRequest) *admin_query_v1.CreateIndexRequest {
+						def.CollectionName = &blankName
+						return def
+					},
+					expect: codes.InvalidArgument,
 				},
-			},
-			{
-				description: "CreateNonExistentBucket",
-				modifyDefault: func(def *admin_query_v1.CreateIndexRequest) *admin_query_v1.CreateIndexRequest {
-					def.BucketName = unmatchedName
-					return def
+				{
+					description: "MissingScope",
+					modifyDefault: func(def *admin_query_v1.CreateIndexRequest) *admin_query_v1.CreateIndexRequest {
+						def.Name = missingScopeName
+						def.ScopeName = nil
+						return def
+					},
 				},
-				expect: codes.NotFound,
-			},
-			{
-				description: "CreateNonExistentScope",
-				modifyDefault: func(def *admin_query_v1.CreateIndexRequest) *admin_query_v1.CreateIndexRequest {
-					def.ScopeName = &unmatchedName
-					return def
+				{
+					description: "MissingCollection",
+					modifyDefault: func(def *admin_query_v1.CreateIndexRequest) *admin_query_v1.CreateIndexRequest {
+						def.Name = missingCollectionName
+						def.CollectionName = nil
+						return def
+					},
 				},
-				expect: codes.NotFound,
-			},
-			{
-				description: "CreateNonExistentCollection",
-				modifyDefault: func(def *admin_query_v1.CreateIndexRequest) *admin_query_v1.CreateIndexRequest {
-					def.CollectionName = &unmatchedName
-					return def
+				{
+					description: "MissingScopeAndCollection",
+					modifyDefault: func(def *admin_query_v1.CreateIndexRequest) *admin_query_v1.CreateIndexRequest {
+						def.Name = missingScopeAndCollectionName
+						def.ScopeName = nil
+						def.CollectionName = nil
+						return def
+					},
 				},
-				expect: codes.NotFound,
-			},
-			{
-				description: "CreateNegativeReplicas",
-				modifyDefault: func(def *admin_query_v1.CreateIndexRequest) *admin_query_v1.CreateIndexRequest {
-					def.NumReplicas = &negativeReplicas
-					return def
+				{
+					description: "NonExistentBucket",
+					modifyDefault: func(def *admin_query_v1.CreateIndexRequest) *admin_query_v1.CreateIndexRequest {
+						def.BucketName = unmatchedName
+						return def
+					},
+					expect: codes.NotFound,
 				},
-				expect: codes.InvalidArgument,
-			},
-			{
-				description: "CreateTooManyReplicas",
-				modifyDefault: func(def *admin_query_v1.CreateIndexRequest) *admin_query_v1.CreateIndexRequest {
-					// Index name collision detection occurs before attempting to build the index so a new index name
-					// needs to be used, else we get codes.AlreadyExists
-					def.Name = "newIndex"
-					def.NumReplicas = &tooManyReplicas
-					return def
+				{
+					description: "NonExistentScope",
+					modifyDefault: func(def *admin_query_v1.CreateIndexRequest) *admin_query_v1.CreateIndexRequest {
+						def.ScopeName = &unmatchedName
+						return def
+					},
+					expect: codes.NotFound,
 				},
-				expect: codes.InvalidArgument,
-			},
-			{
-				description: "CreateIndexNameTooLong",
-				modifyDefault: func(def *admin_query_v1.CreateIndexRequest) *admin_query_v1.CreateIndexRequest {
-					name := s.docIdOfLen(220)
-					def.Name = name
-					return def
+				{
+					description: "NonExistentCollection",
+					modifyDefault: func(def *admin_query_v1.CreateIndexRequest) *admin_query_v1.CreateIndexRequest {
+						def.CollectionName = &unmatchedName
+						return def
+					},
+					expect: codes.NotFound,
 				},
-				expect: codes.InvalidArgument,
-			},
-			{
-				description: "CreateSpecialCharactersInIndexName",
-				modifyDefault: func(def *admin_query_v1.CreateIndexRequest) *admin_query_v1.CreateIndexRequest {
-					def.Name = specialCharName
-					return def
+				{
+					description: "NegativeReplicas",
+					modifyDefault: func(def *admin_query_v1.CreateIndexRequest) *admin_query_v1.CreateIndexRequest {
+						def.NumReplicas = &negativeReplicas
+						return def
+					},
+					expect: codes.InvalidArgument,
 				},
-				expect: codes.InvalidArgument,
-			},
-		}
+				{
+					description: "TooManyReplicas",
+					modifyDefault: func(def *admin_query_v1.CreateIndexRequest) *admin_query_v1.CreateIndexRequest {
+						// Index name collision detection occurs before attempting to build the index so a new index name
+						// needs to be used, else we get codes.AlreadyExists
+						def.Name = "newIndex"
+						def.NumReplicas = &tooManyReplicas
+						return def
+					},
+					expect: codes.InvalidArgument,
+				},
+				{
+					description: "IndexNameTooLong",
+					modifyDefault: func(def *admin_query_v1.CreateIndexRequest) *admin_query_v1.CreateIndexRequest {
+						name := s.docIdOfLen(220)
+						def.Name = name
+						return def
+					},
+					expect: codes.InvalidArgument,
+				},
+				{
+					description: "SpecialCharactersInIndexName",
+					modifyDefault: func(def *admin_query_v1.CreateIndexRequest) *admin_query_v1.CreateIndexRequest {
+						def.Name = specialCharName
+						return def
+					},
+					expect: codes.InvalidArgument,
+				},
+			}
 
-		for i := range createTests {
-			t := createTests[i]
-			s.Run(t.description, func() {
-				defaultCreateReq := admin_query_v1.CreateIndexRequest{
-					Name:           indexName,
-					BucketName:     s.bucketName,
-					ScopeName:      &s.scopeName,
-					CollectionName: &s.collectionName,
-					Fields:         []string{"test"},
-				}
-				req := t.modifyDefault(&defaultCreateReq)
-				resp, err := queryAdminClient.CreateIndex(context.Background(),
-					req,
-					grpc.PerRPCCredentials(s.basicRpcCreds))
+			for i := range createTests {
+				t := createTests[i]
+				s.Run(t.description, func() {
+					defaultCreateReq := admin_query_v1.CreateIndexRequest{
+						Name:           indexName,
+						BucketName:     s.bucketName,
+						ScopeName:      &s.scopeName,
+						CollectionName: &s.collectionName,
+						Fields:         []string{"test"},
+					}
+					req := t.modifyDefault(&defaultCreateReq)
 
-				if t.expect == codes.OK {
-					requireRpcSuccess(s.T(), resp, err)
-					return
-				}
+					creds := s.basicRpcCreds
+					if t.getCreds != nil {
+						creds = t.getCreds()
+					}
 
-				assertRpcStatus(s.T(), err, t.expect)
-				if t.resourceDetails != "" {
-					assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
-						assert.Equal(s.T(), t.resourceDetails, d.ResourceType)
-					})
-				}
-			})
-		}
+					resp, err := queryAdminClient.CreateIndex(context.Background(),
+						req,
+						grpc.PerRPCCredentials(creds))
 
-		checkHasIndex := func(req *admin_query_v1.GetAllIndexesRequest) {
-			resp, err := queryAdminClient.GetAllIndexes(context.Background(), req, grpc.PerRPCCredentials(s.basicRpcCreds))
-			requireRpcSuccess(s.T(), resp, err)
+					if t.expect == codes.OK {
+						requireRpcSuccess(s.T(), resp, err)
+						return
+					}
 
-			foundIdx := findIndex(resp.Indexes, s.bucketName, s.scopeName, s.collectionName, indexName)
-			require.NotNil(s.T(), foundIdx)
-		}
-		s.Run("ListAllIndexes", func() {
-			checkHasIndex(&admin_query_v1.GetAllIndexesRequest{})
-		})
-		s.Run("ListBucketIndexes", func() {
-			checkHasIndex(&admin_query_v1.GetAllIndexesRequest{
-				BucketName: &s.bucketName,
-			})
-		})
-		s.Run("ListScopeIndexes", func() {
-			checkHasIndex(&admin_query_v1.GetAllIndexesRequest{
-				BucketName: &s.bucketName,
-				ScopeName:  &s.scopeName,
-			})
-		})
-		s.Run("ListCollectionIndexes", func() {
-			checkHasIndex(&admin_query_v1.GetAllIndexesRequest{
-				BucketName:     &s.bucketName,
-				ScopeName:      &s.scopeName,
-				CollectionName: &s.collectionName,
-			})
-		})
-		s.Run("ListCollectionIndexesRequestMissingScope", func() {
-			checkHasIndex(&admin_query_v1.GetAllIndexesRequest{
-				BucketName:     &s.bucketName,
-				CollectionName: &s.collectionName,
-			})
-		})
-
-		checkNoHasIndex := func(req *admin_query_v1.GetAllIndexesRequest) {
-			resp, err := queryAdminClient.GetAllIndexes(context.Background(), req, grpc.PerRPCCredentials(s.basicRpcCreds))
-			requireRpcSuccess(s.T(), resp, err)
-
-			foundIdx := findIndex(resp.Indexes, s.bucketName, s.scopeName, s.collectionName, indexName)
-			require.Nil(s.T(), foundIdx)
-		}
-		unmatchedName := "something-else"
-		// BUG(ING-506): Can't test with invalid bucket names
-		/*
-			s.Run("NoListBucketIndexes", func() {
-				checkNoHasIndex(&admin_query_v1.GetAllIndexesRequest{
-					BucketName: &unmatchedName,
+					assertRpcStatus(s.T(), err, t.expect)
+					if t.resourceDetails != "" {
+						assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
+							assert.Equal(s.T(), t.resourceDetails, d.ResourceType)
+						})
+					}
 				})
-			})
-		*/
-		s.Run("NoListScopeIndexes", func() {
-			checkNoHasIndex(&admin_query_v1.GetAllIndexesRequest{
-				BucketName: &s.bucketName,
-				ScopeName:  &unmatchedName,
-			})
-		})
-		s.Run("NoListCollectionIndexes", func() {
-			checkNoHasIndex(&admin_query_v1.GetAllIndexesRequest{
-				BucketName:     &s.bucketName,
-				ScopeName:      &s.scopeName,
-				CollectionName: &unmatchedName,
-			})
-		})
-		s.Run("NoListRequestMissingBucket", func() {
-			checkNoHasIndex(&admin_query_v1.GetAllIndexesRequest{
-				ScopeName:      &s.scopeName,
-				CollectionName: &s.collectionName,
-			})
+			}
 		})
 
-		type dropTest struct {
-			description     string
-			modifyDefault   func(*admin_query_v1.DropIndexRequest) *admin_query_v1.DropIndexRequest
-			expect          codes.Code
-			resourceDetails string
-		}
+		s.Run("ListAllIndexes", func() {
+			type listTest struct {
+				description   string
+				req           *admin_query_v1.GetAllIndexesRequest
+				creds         *credentials.PerRPCCredentials
+				expect        codes.Code
+				expectNoIndex bool
+			}
 
-		dropTests := []dropTest{
-			{
-				description: "DropNonExistentBucket",
-				modifyDefault: func(def *admin_query_v1.DropIndexRequest) *admin_query_v1.DropIndexRequest {
-					def.BucketName = unmatchedName
-					return def
+			listTests := []listTest{
+				{
+					description: "Basic",
+					req:         &admin_query_v1.GetAllIndexesRequest{},
 				},
-				expect: codes.NotFound,
-			},
-			{
-				description: "DropNonExistentScope",
-				modifyDefault: func(def *admin_query_v1.DropIndexRequest) *admin_query_v1.DropIndexRequest {
-					def.ScopeName = &unmatchedName
-					return def
+				{
+					description: "BucketIndexes",
+					req: &admin_query_v1.GetAllIndexesRequest{
+						BucketName: &s.bucketName,
+					},
 				},
-				expect: codes.NotFound,
-			},
-			{
-				description: "DropNonExistentCollection",
-				modifyDefault: func(def *admin_query_v1.DropIndexRequest) *admin_query_v1.DropIndexRequest {
-					def.CollectionName = &unmatchedName
-					return def
+				{
+					description: "ScopeIndexes",
+					req: &admin_query_v1.GetAllIndexesRequest{
+						BucketName: &s.bucketName,
+						ScopeName:  &s.scopeName,
+					},
 				},
-				expect: codes.NotFound,
-			},
-			{
-				description: "Drop",
-				modifyDefault: func(def *admin_query_v1.DropIndexRequest) *admin_query_v1.DropIndexRequest {
-					return def
+				{
+					description: "CollectionIndexes",
+					req: &admin_query_v1.GetAllIndexesRequest{
+						BucketName:     &s.bucketName,
+						ScopeName:      &s.scopeName,
+						CollectionName: &s.collectionName,
+					},
 				},
-			},
-			{
-				description: "DropMissing",
-				modifyDefault: func(def *admin_query_v1.DropIndexRequest) *admin_query_v1.DropIndexRequest {
-					return def
+				{
+					description: "CollectionIndexesMissingScope",
+					req: &admin_query_v1.GetAllIndexesRequest{
+						BucketName:     &s.bucketName,
+						CollectionName: &s.collectionName,
+					},
 				},
-				expect:          codes.NotFound,
-				resourceDetails: "queryindex",
-			},
-			{
-				description: "DropMissingIgnored",
-				modifyDefault: func(def *admin_query_v1.DropIndexRequest) *admin_query_v1.DropIndexRequest {
-					def.IgnoreIfMissing = &trueBool
-					return def
+				// BUG(ING-506): Can't test with invalid bucket names
+				// {
+				// 	description: "NoListBucketIndexes",
+				// 	req: &admin_query_v1.GetAllIndexesRequest{
+				// 		BucketName: &unmatchedName,
+				// 	},
+				// 	expectNoIndex: true,
+				// },
+				{
+					description: "NoListScopeIndexes",
+					req: &admin_query_v1.GetAllIndexesRequest{
+						BucketName: &s.bucketName,
+						ScopeName:  &unmatchedName,
+					},
+					expectNoIndex: true,
 				},
-			},
-			{
-				description: "DropRequestBlankBucket",
-				modifyDefault: func(def *admin_query_v1.DropIndexRequest) *admin_query_v1.DropIndexRequest {
-					def.BucketName = blankName
-					return def
+				{
+					description: "NoListCollectionIndexes",
+					req: &admin_query_v1.GetAllIndexesRequest{
+						BucketName:     &s.bucketName,
+						ScopeName:      &s.scopeName,
+						CollectionName: &unmatchedName,
+					},
+					expectNoIndex: true,
 				},
-				expect: codes.InvalidArgument,
-			},
-			{
-				description: "DropRequestBlankScope",
-				modifyDefault: func(def *admin_query_v1.DropIndexRequest) *admin_query_v1.DropIndexRequest {
-					def.ScopeName = &blankName
-					return def
+				{
+					description: "NoListRequestMissingBucket",
+					req: &admin_query_v1.GetAllIndexesRequest{
+						ScopeName:      &s.scopeName,
+						CollectionName: &s.collectionName,
+					},
+					expectNoIndex: true,
 				},
-				expect: codes.InvalidArgument,
-			},
-			{
-				description: "DropRequestBlankCollection",
-				modifyDefault: func(def *admin_query_v1.DropIndexRequest) *admin_query_v1.DropIndexRequest {
-					def.CollectionName = &blankName
-					return def
-				},
-				expect: codes.InvalidArgument,
-			},
-			{
-				description: "DropRequestMissingScope",
-				modifyDefault: func(def *admin_query_v1.DropIndexRequest) *admin_query_v1.DropIndexRequest {
-					def.Name = missingScopeName
-					def.ScopeName = nil
-					return def
-				},
-			},
-			{
-				description: "DropRequestMissingScopeIgnoreIfMissing",
-				modifyDefault: func(def *admin_query_v1.DropIndexRequest) *admin_query_v1.DropIndexRequest {
-					def.ScopeName = nil
-					def.IgnoreIfMissing = &trueBool
-					return def
-				},
-			},
-			{
-				description: "DropRequestMissingCollection",
-				modifyDefault: func(def *admin_query_v1.DropIndexRequest) *admin_query_v1.DropIndexRequest {
-					def.Name = missingCollectionName
-					def.CollectionName = nil
-					return def
-				},
-			},
-			{
-				description: "DropRequestMissingCollectionIgnoreIfMissing",
-				modifyDefault: func(def *admin_query_v1.DropIndexRequest) *admin_query_v1.DropIndexRequest {
-					def.Name = missingCollectionName
-					def.CollectionName = nil
-					def.IgnoreIfMissing = &trueBool
-					return def
-				},
-			},
-			{
-				description: "DropRequestMissingScopeAndCollection",
-				modifyDefault: func(def *admin_query_v1.DropIndexRequest) *admin_query_v1.DropIndexRequest {
-					def.Name = missingScopeAndCollectionName
-					def.CollectionName = nil
-					return def
-				},
-			},
-		}
+			}
 
-		for i := range dropTests {
-			t := dropTests[i]
-			s.Run(t.description, func() {
-				defaultDropRequest := admin_query_v1.DropIndexRequest{
-					Name:           indexName,
-					BucketName:     s.bucketName,
-					ScopeName:      &s.scopeName,
-					CollectionName: &s.collectionName,
-				}
-				req := t.modifyDefault(&defaultDropRequest)
-				resp, err := queryAdminClient.DropIndex(context.Background(),
-					req,
-					grpc.PerRPCCredentials(s.basicRpcCreds))
+			for i := range listTests {
+				t := listTests[i]
+				s.Run(t.description, func() {
+					creds := s.basicRpcCreds
+					if t.creds != nil {
+						creds = *t.creds
+					}
 
-				if t.expect == codes.OK {
-					requireRpcSuccess(s.T(), resp, err)
-					return
-				}
-				assertRpcStatus(s.T(), err, t.expect)
+					resp, err := queryAdminClient.GetAllIndexes(context.Background(), t.req, grpc.PerRPCCredentials(creds))
+					if t.expect == codes.OK {
+						requireRpcSuccess(s.T(), resp, err)
+						foundIdx := findIndex(resp.Indexes, s.bucketName, s.scopeName, s.collectionName, indexName)
 
-				if t.resourceDetails != "" {
-					assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
-						assert.Equal(s.T(), t.resourceDetails, d.ResourceType)
-					})
-				}
-			})
-		}
+						if t.expectNoIndex {
+							require.Nil(s.T(), foundIdx)
+							return
+						}
+
+						require.NotNil(s.T(), foundIdx)
+						return
+					}
+
+					assertRpcStatus(s.T(), err, t.expect)
+				})
+			}
+		})
+
+		s.Run("Drop", func() {
+			type dropTest struct {
+				description     string
+				modifyDefault   func(*admin_query_v1.DropIndexRequest) *admin_query_v1.DropIndexRequest
+				getCreds        func() credentials.PerRPCCredentials
+				expect          codes.Code
+				resourceDetails string
+			}
+
+			dropTests := []dropTest{
+				{
+					description: "NonExistentBucket",
+					modifyDefault: func(def *admin_query_v1.DropIndexRequest) *admin_query_v1.DropIndexRequest {
+						def.BucketName = unmatchedName
+						return def
+					},
+					expect: codes.NotFound,
+				},
+				{
+					description: "NonExistentScope",
+					modifyDefault: func(def *admin_query_v1.DropIndexRequest) *admin_query_v1.DropIndexRequest {
+						def.ScopeName = &unmatchedName
+						return def
+					},
+					expect: codes.NotFound,
+				},
+				{
+					description: "NonExistentCollection",
+					modifyDefault: func(def *admin_query_v1.DropIndexRequest) *admin_query_v1.DropIndexRequest {
+						def.CollectionName = &unmatchedName
+						return def
+					},
+					expect: codes.NotFound,
+				},
+				{
+					description: "Basic",
+					modifyDefault: func(def *admin_query_v1.DropIndexRequest) *admin_query_v1.DropIndexRequest {
+						return def
+					},
+				},
+				{
+					description: "BadCredentials",
+					modifyDefault: func(def *admin_query_v1.DropIndexRequest) *admin_query_v1.DropIndexRequest {
+						return def
+					},
+					getCreds: s.getBadRpcCredentials,
+					expect:   codes.PermissionDenied,
+				},
+				{
+					description: "NoPermissionCreds",
+					modifyDefault: func(def *admin_query_v1.DropIndexRequest) *admin_query_v1.DropIndexRequest {
+						return def
+					},
+					getCreds: s.getNoPermissionRpcCreds,
+					expect:   codes.PermissionDenied,
+				},
+				{
+					description: "ReadOnlyCreds",
+					modifyDefault: func(def *admin_query_v1.DropIndexRequest) *admin_query_v1.DropIndexRequest {
+						return def
+					},
+					getCreds: s.getReadOnlyRpcCredentials,
+					expect:   codes.PermissionDenied,
+				},
+				{
+					description: "IndexMissing",
+					modifyDefault: func(def *admin_query_v1.DropIndexRequest) *admin_query_v1.DropIndexRequest {
+						return def
+					},
+					expect:          codes.NotFound,
+					resourceDetails: "queryindex",
+				},
+				{
+					description: "IndexMissingIgnored",
+					modifyDefault: func(def *admin_query_v1.DropIndexRequest) *admin_query_v1.DropIndexRequest {
+						def.IgnoreIfMissing = &trueBool
+						return def
+					},
+				},
+				{
+					description: "BlankBucket",
+					modifyDefault: func(def *admin_query_v1.DropIndexRequest) *admin_query_v1.DropIndexRequest {
+						def.BucketName = blankName
+						return def
+					},
+					expect: codes.InvalidArgument,
+				},
+				{
+					description: "BlankScope",
+					modifyDefault: func(def *admin_query_v1.DropIndexRequest) *admin_query_v1.DropIndexRequest {
+						def.ScopeName = &blankName
+						return def
+					},
+					expect: codes.InvalidArgument,
+				},
+				{
+					description: "BlankCollection",
+					modifyDefault: func(def *admin_query_v1.DropIndexRequest) *admin_query_v1.DropIndexRequest {
+						def.CollectionName = &blankName
+						return def
+					},
+					expect: codes.InvalidArgument,
+				},
+				{
+					description: "MissingScope",
+					modifyDefault: func(def *admin_query_v1.DropIndexRequest) *admin_query_v1.DropIndexRequest {
+						def.Name = missingScopeName
+						def.ScopeName = nil
+						return def
+					},
+				},
+				{
+					description: "MissingScopeIgnoreIfMissing",
+					modifyDefault: func(def *admin_query_v1.DropIndexRequest) *admin_query_v1.DropIndexRequest {
+						def.ScopeName = nil
+						def.IgnoreIfMissing = &trueBool
+						return def
+					},
+				},
+				{
+					description: "MissingCollection",
+					modifyDefault: func(def *admin_query_v1.DropIndexRequest) *admin_query_v1.DropIndexRequest {
+						def.Name = missingCollectionName
+						def.CollectionName = nil
+						return def
+					},
+				},
+				{
+					description: "MissingCollectionIgnoreIfMissing",
+					modifyDefault: func(def *admin_query_v1.DropIndexRequest) *admin_query_v1.DropIndexRequest {
+						def.Name = missingCollectionName
+						def.CollectionName = nil
+						def.IgnoreIfMissing = &trueBool
+						return def
+					},
+				},
+				{
+					description: "MissingScopeAndCollection",
+					modifyDefault: func(def *admin_query_v1.DropIndexRequest) *admin_query_v1.DropIndexRequest {
+						def.Name = missingScopeAndCollectionName
+						def.CollectionName = nil
+						return def
+					},
+				},
+			}
+
+			for i := range dropTests {
+				t := dropTests[i]
+				s.Run(t.description, func() {
+					defaultDropRequest := admin_query_v1.DropIndexRequest{
+						Name:           indexName,
+						BucketName:     s.bucketName,
+						ScopeName:      &s.scopeName,
+						CollectionName: &s.collectionName,
+					}
+					req := t.modifyDefault(&defaultDropRequest)
+
+					creds := s.basicRpcCreds
+					if t.getCreds != nil {
+						creds = t.getCreds()
+					}
+
+					resp, err := queryAdminClient.DropIndex(context.Background(),
+						req,
+						grpc.PerRPCCredentials(creds))
+
+					if t.expect == codes.OK {
+						requireRpcSuccess(s.T(), resp, err)
+						return
+					}
+					assertRpcStatus(s.T(), err, t.expect)
+
+					if t.resourceDetails != "" {
+						assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
+							assert.Equal(s.T(), t.resourceDetails, d.ResourceType)
+						})
+					}
+				})
+			}
+		})
 	})
 
 	s.Run("DeferredIndex", func() {
@@ -852,6 +1077,54 @@ func (s *GatewayOpsTestSuite) TestQueryManagement() {
 			require.NotNil(s.T(), foundIdx)
 
 			require.Equal(s.T(), admin_query_v1.IndexState_INDEX_STATE_DEFERRED, foundIdx.State)
+		})
+
+		s.Run("BuildBadCreds", func() {
+			resp, err := queryAdminClient.BuildDeferredIndexes(context.Background(), &admin_query_v1.BuildDeferredIndexesRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      &s.scopeName,
+				CollectionName: &s.collectionName,
+			}, grpc.PerRPCCredentials(s.badRpcCreds))
+
+			// When we build deferred indexes we first GetAllIndexes. When done
+			// with bad credentials pre 7.6.x GetAllIndexes returns an OK status
+			// and an empty list of indexes, causing buildDeferredIndexes to do
+			// the same.
+			if s.IsOlderServerVersion("7.6") {
+				assertRpcStatus(s.T(), err, codes.OK)
+				assert.Len(s.T(), resp.Indexes, 0)
+				return
+			}
+
+			assertRpcStatus(s.T(), err, codes.PermissionDenied)
+		})
+
+		// Building with no perissions does not return an error status but does
+		// not build the indexes
+		s.Run("BuildNoPermissionCreds", func() {
+			resp, err := queryAdminClient.BuildDeferredIndexes(context.Background(), &admin_query_v1.BuildDeferredIndexesRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      &s.scopeName,
+				CollectionName: &s.collectionName,
+			}, grpc.PerRPCCredentials(s.getNoPermissionRpcCreds()))
+			requireRpcSuccess(s.T(), resp, err)
+
+			getResp, err := queryAdminClient.GetAllIndexes(context.Background(), &admin_query_v1.GetAllIndexesRequest{}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			requireRpcSuccess(s.T(), getResp, err)
+
+			foundIdx := findIndex(getResp.Indexes, s.bucketName, s.scopeName, s.collectionName, indexName)
+			require.NotNil(s.T(), foundIdx)
+
+			require.Equal(s.T(), admin_query_v1.IndexState_INDEX_STATE_DEFERRED, foundIdx.State)
+		})
+
+		s.Run("BuildReadOnlyCreds", func() {
+			_, err := queryAdminClient.BuildDeferredIndexes(context.Background(), &admin_query_v1.BuildDeferredIndexesRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      &s.scopeName,
+				CollectionName: &s.collectionName,
+			}, grpc.PerRPCCredentials(s.getReadOnlyRpcCredentials()))
+			assertRpcStatus(s.T(), err, codes.PermissionDenied)
 		})
 
 		s.Run("Build", func() {

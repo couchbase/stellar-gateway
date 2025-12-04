@@ -5,10 +5,15 @@ import (
 	"crypto/tls"
 	"time"
 
+	"github.com/couchbase/gocbcorex/cbhttpx"
+	"github.com/couchbase/gocbcorex/cbmgmtx"
+	"github.com/couchbase/goprotostellar/genproto/admin_bucket_v1"
+	"github.com/couchbase/goprotostellar/genproto/admin_collection_v1"
 	"github.com/couchbase/goprotostellar/genproto/admin_query_v1"
 	"github.com/couchbase/goprotostellar/genproto/admin_search_v1"
 	"github.com/couchbase/goprotostellar/genproto/kv_v1"
 	"github.com/couchbase/goprotostellar/genproto/query_v1"
+	"github.com/couchbase/goprotostellar/genproto/search_v1"
 	"github.com/couchbase/stellar-gateway/testutils"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -20,8 +25,13 @@ import (
 
 func (s *GatewayOpsTestSuite) TestClientCertAuth() {
 	testutils.SkipIfNoDinoCluster(s.T())
-	dino := testutils.StartDinoTesting(s.T(), false)
 
+	s.Run("KvService", s.KvService)
+
+	s.Run("ClientCertAuthDisabled", s.ClientCertConfiguration)
+}
+
+func (s *GatewayOpsTestSuite) KvService() {
 	indexClient := admin_search_v1.NewSearchAdminServiceClient(s.gatewayConn)
 	indexName := "a" + uuid.NewString()[:6]
 	sourceType := "couchbase"
@@ -69,49 +79,46 @@ func (s *GatewayOpsTestSuite) TestClientCertAuth() {
 			},
 			errMsg: "No permissions to query documents.",
 		},
-		// BUG(ING-1368): unknown error returned when user lacks permissions
-		// {
-		// 	description: "SearchService",
-		// 	testFn: func(conn *grpc.ClientConn) (interface{}, error) {
-		// 		client := search_v1.NewSearchServiceClient(conn)
-		// 		field := "service"
-		// 		query := &search_v1.Query_TermQuery{
-		// 			TermQuery: &search_v1.TermQuery{
-		// 				Term:  "search",
-		// 				Field: &field,
-		// 			},
-		// 		}
-		// 		resp, err := client.SearchQuery(context.Background(), &search_v1.SearchQueryRequest{
-		// 			IndexName: indexName,
-		// 			Query: &search_v1.Query{
-		// 				Query: query,
-		// 			},
-		// 		})
-		// 		requireRpcSuccess(s.T(), client, err)
-		// 		return resp.Recv()
-		// 	},
-		// 	errMsg: "No permissions to query documents.",
-		// },
-		// BUG(ING-1368): unknown error returned when user lacks permissions
-		// {
-		// 	description: "BucketMgmtService",
-		// 	testFn: func(conn *grpc.ClientConn) (interface{}, error) {
-		// 		client := admin_bucket_v1.NewBucketAdminServiceClient(conn)
-		// 		return client.ListBuckets(context.Background(), &admin_bucket_v1.ListBucketsRequest{})
-		// 	},
-		// 	errMsg: "No permissions to read bucket.",
-		// },
-		// BUG(ING-1368): unknown error returned when user lacks permissions
-		// {
-		// 	description: "CollectionMgmtService",
-		// 	testFn: func(conn *grpc.ClientConn) (interface{}, error) {
-		// 		client := admin_collection_v1.NewCollectionAdminServiceClient(conn)
-		// 		return client.ListCollections(context.Background(), &admin_collection_v1.ListCollectionsRequest{
-		// 			BucketName: s.bucketName,
-		// 		})
-		// 	},
-		// 	errMsg: "No permissions to read collection.",
-		// },
+		{
+			description: "SearchService",
+			testFn: func(conn *grpc.ClientConn) (interface{}, error) {
+				client := search_v1.NewSearchServiceClient(conn)
+				field := "service"
+				query := &search_v1.Query_TermQuery{
+					TermQuery: &search_v1.TermQuery{
+						Term:  "search",
+						Field: &field,
+					},
+				}
+				resp, err := client.SearchQuery(context.Background(), &search_v1.SearchQueryRequest{
+					IndexName: indexName,
+					Query: &search_v1.Query{
+						Query: query,
+					},
+				})
+				requireRpcSuccess(s.T(), client, err)
+				return resp.Recv()
+			},
+			errMsg: "No permissions to query documents.",
+		},
+		{
+			description: "BucketMgmtService",
+			testFn: func(conn *grpc.ClientConn) (interface{}, error) {
+				client := admin_bucket_v1.NewBucketAdminServiceClient(conn)
+				return client.ListBuckets(context.Background(), &admin_bucket_v1.ListBucketsRequest{})
+			},
+			errMsg: "No permissions to perform bucket management operation.",
+		},
+		{
+			description: "CollectionMgmtService",
+			testFn: func(conn *grpc.ClientConn) (interface{}, error) {
+				client := admin_collection_v1.NewCollectionAdminServiceClient(conn)
+				return client.ListCollections(context.Background(), &admin_collection_v1.ListCollectionsRequest{
+					BucketName: s.bucketName,
+				})
+			},
+			errMsg: "No permissions to perform collection management operation.",
+		},
 		{
 			description: "QueryMgmtService",
 			testFn: func(conn *grpc.ClientConn) (interface{}, error) {
@@ -139,8 +146,7 @@ func (s *GatewayOpsTestSuite) TestClientCertAuth() {
 
 	for _, t := range tests {
 		s.Run(t.description, func() {
-			username := t.description
-			conn := s.newClientCertConn(dino, username)
+			conn := s.connFromCert(s.missingUserCert)
 
 			s.Run("UserMissing", func() {
 				_, err := t.testFn(conn)
@@ -148,10 +154,7 @@ func (s *GatewayOpsTestSuite) TestClientCertAuth() {
 				assert.Contains(s.T(), err.Error(), "Your certificate is invalid")
 			})
 
-			dino.AddUnprivilegedUser(username)
-			s.T().Cleanup(func() {
-				dino.RemoveUser(username)
-			})
+			conn = s.connFromCert(s.noPermsCert)
 
 			s.Run("NoUserPermissions", func() {
 				_, err := t.testFn(conn)
@@ -159,32 +162,134 @@ func (s *GatewayOpsTestSuite) TestClientCertAuth() {
 				assert.Contains(s.T(), err.Error(), t.errMsg)
 			})
 
-			dino.AddWriteUser(username)
+			conn = s.connFromCert(s.basicUserCert)
 
 			s.Run("Success", func() {
-				require.Eventually(s.T(), func() bool {
-					resp, err := t.testFn(conn)
-					if err != nil {
-						return false
-					}
-					requireRpcSuccess(s.T(), resp, err)
-					return true
-				}, time.Second*30, time.Second)
+				resp, err := t.testFn(conn)
+				requireRpcSuccess(s.T(), resp, err)
 			})
 		})
 	}
 }
 
-func (s *GatewayOpsTestSuite) newClientCertConn(dino *testutils.DinoController, username string) *grpc.ClientConn {
-	res := dino.GetClientCert(username)
+func (s *GatewayOpsTestSuite) ClientCertConfiguration() {
+	conn := s.connFromCert(s.basicUserCert)
+	kvClient := kv_v1.NewKvServiceClient(conn)
 
-	cert, err := tls.X509KeyPair([]byte(res), []byte(res))
+	getFn := func() (*kv_v1.GetResponse, error) {
+		return kvClient.Get(context.Background(), &kv_v1.GetRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            s.testDocId(),
+		})
+	}
+
+	enableReq := &cbmgmtx.ConfigureClientCertAuthRequest{
+		State: "enable",
+		Prefixes: []cbmgmtx.Prefix{
+			{
+				Path:      "san.email",
+				Prefix:    "",
+				Delimiter: "@",
+			},
+		},
+	}
+
+	// Check that client cert auth is working as expected.
+	s.Run("InitialSuccess", func() {
+		resp, err := getFn()
+		requireRpcSuccess(s.T(), resp, err)
+	})
+
+	ep, err := s.testClusterInfo.AdminClient.GetMgmtEndpoint(context.Background())
+	require.NoError(s.T(), err)
+	mgmt := cbmgmtx.Management{
+		Transport: ep.RoundTripper,
+		UserAgent: "useragent",
+		Endpoint:  ep.Endpoint,
+		Auth: &cbhttpx.BasicAuth{
+			Username: ep.Username,
+			Password: ep.Password,
+		},
+	}
+
+	// Change the path that cbauth will try and get the name from and check
+	// that the old cert fails
+	err = mgmt.ConfigureClientCertAuth(context.Background(), &cbmgmtx.ConfigureClientCertAuthRequest{
+		State: "enable",
+		Prefixes: []cbmgmtx.Prefix{
+			{
+				Path:      "subject.cn",
+				Prefix:    "",
+				Delimiter: "",
+			},
+		},
+	})
 	assert.NoError(s.T(), err)
 
+	s.Run("IncorrectUsernamePath", func() {
+		require.Eventually(s.T(), func() bool {
+			_, err := getFn()
+			if err == nil {
+				return false
+			}
+
+			assertRpcStatus(s.T(), err, codes.PermissionDenied)
+			return assert.Contains(s.T(), err.Error(), "Your certificate is invalid")
+		}, time.Second*30, time.Second*5)
+	})
+
+	// Restore intial settings and check that the original cert works again.
+	err = mgmt.ConfigureClientCertAuth(context.Background(), enableReq)
+	assert.NoError(s.T(), err)
+
+	s.Run("SuccessAfterSettingsReset", func() {
+		require.Eventually(s.T(), func() bool {
+			resp, err := getFn()
+			if err != nil {
+				return false
+			}
+
+			requireRpcSuccess(s.T(), resp, err)
+			return true
+		}, time.Second*30, time.Second*5)
+	})
+
+	// Disable client cert auth on the cluster and make sure op fails.
+	err = mgmt.ConfigureClientCertAuth(context.Background(), &cbmgmtx.ConfigureClientCertAuthRequest{
+		State: "disable",
+		Prefixes: []cbmgmtx.Prefix{
+			{
+				Path:      "san.email",
+				Prefix:    "",
+				Delimiter: "@",
+			},
+		},
+	})
+	assert.NoError(s.T(), err)
+
+	s.Run("CertAuthDisabled", func() {
+		require.Eventually(s.T(), func() bool {
+			_, err := getFn()
+			if err == nil {
+				return false
+			}
+
+			assertRpcStatus(s.T(), err, codes.Unauthenticated)
+			return assert.Contains(s.T(), err.Error(), "Client cert auth disabled on the cluster")
+		}, time.Second*30, time.Second*5)
+	})
+
+	err = mgmt.ConfigureClientCertAuth(context.Background(), enableReq)
+	assert.NoError(s.T(), err)
+}
+
+func (s *GatewayOpsTestSuite) connFromCert(cert *tls.Certificate) *grpc.ClientConn {
 	conn, err := grpc.NewClient(s.gwConnAddr,
 		grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{
 			RootCAs:      s.clientCaCertPool,
-			Certificates: []tls.Certificate{cert},
+			Certificates: []tls.Certificate{*cert},
 		})))
 	if err != nil {
 		s.T().Fatalf("failed to connect to test gateway: %s", err)

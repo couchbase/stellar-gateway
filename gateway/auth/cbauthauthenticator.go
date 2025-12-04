@@ -14,6 +14,7 @@ import (
 var (
 	ErrInvalidCredentials = errors.New("invalid credentials")
 	ErrInvalidCertificate = errors.New("invalid certificate")
+	ErrCertAuthDisabled   = errors.New("client cert auth disabled")
 )
 
 type CbAuthAuthenticator struct {
@@ -101,6 +102,8 @@ func (a *CbAuthAuthenticator) ValidateConnStateForObo(ctx context.Context, connS
 	if err != nil {
 		if errors.Is(err, cbauthx.ErrInvalidAuth) {
 			return "", "", ErrInvalidCertificate
+		} else if errors.Is(err, cbauthx.ErrCertAuthDisabled) {
+			return "", "", ErrCertAuthDisabled
 		}
 
 		return "", "", fmt.Errorf("failed to check certificate with cbauth: %w", err)

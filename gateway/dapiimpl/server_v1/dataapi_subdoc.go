@@ -250,7 +250,7 @@ func (s *DataApiServer) MutateInDocument(
 		} else if errors.Is(err, memdx.ErrUnknownScopeName) {
 			return nil, s.errorHandler.NewScopeMissingStatus(err, in.BucketName, in.ScopeName).Err()
 		} else if errors.Is(err, memdx.ErrAccessError) {
-			return nil, s.errorHandler.NewCollectionNoReadAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+			return nil, s.errorHandler.NewCollectionNoWriteAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
 		} else if errors.Is(err, memdx.ErrValueTooLarge) {
 			if in.Body.StoreSemantic != nil && *in.Body.StoreSemantic == dataapiv1.StoreSemanticInsert {
 				return nil, s.errorHandler.NewValueTooLargeStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.DocumentKey, false).Err()

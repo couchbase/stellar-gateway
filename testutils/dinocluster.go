@@ -102,20 +102,16 @@ func runDinoRemoveNode(node string) error {
 	return runNoResDinoCmd([]string{"nodes", "rm", globalTestConfig.DinoId, node})
 }
 
-func runDinoAddUser(username string, canRead, canWrite bool) error {
+func runDinoAddUser(username, password string, canRead, canWrite bool) error {
 	return runNoResDinoCmd([]string{
 		"users",
 		"add",
 		globalTestConfig.DinoId,
 		username,
-		"--password=password",
+		fmt.Sprintf("--password=%s", password),
 		fmt.Sprintf("--can-read=%v", canRead),
 		fmt.Sprintf("--can-write=%v", canWrite),
 	})
-}
-
-func runDinoRemoveUser(username string) error {
-	return runNoResDinoCmd([]string{"users", "remove", globalTestConfig.DinoId, username})
 }
 
 type DinoController struct {
@@ -208,30 +204,16 @@ func (c *DinoController) RemoveNode(node string) {
 	require.NoError(c.t, err)
 }
 
-func (c *DinoController) AddUnprivilegedUser(username string) {
-	err := runDinoAddUser(username, false, false)
-	require.NoError(c.t, err)
+func AddUnprivilegedUser(username, password string) error {
+	return runDinoAddUser(username, password, false, false)
 }
 
-func (c *DinoController) AddReadOnlyUser(username string) {
-	err := runDinoAddUser(username, true, false)
-	require.NoError(c.t, err)
+func AddReadOnlyUser(username, password string) error {
+	return runDinoAddUser(username, password, true, false)
 }
 
-func (c *DinoController) AddWriteUser(username string) {
-	err := runDinoAddUser(username, true, true)
-	require.NoError(c.t, err)
-}
-
-func (c *DinoController) RemoveUser(username string) {
-	err := runDinoRemoveUser(username)
-	require.NoError(c.t, err)
-}
-
-func (c *DinoController) GetClientCert(username string) string {
-	res, err := runDinoCmd([]string{"certificates", "get-client-cert", username})
-	require.NoError(c.t, err)
-	return res
+func GetClientCert(username string) (string, error) {
+	return runDinoCmd([]string{"certificates", "get-client-cert", username})
 }
 
 func GetDinoCACert() (string, error) {

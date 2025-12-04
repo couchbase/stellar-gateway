@@ -737,6 +737,32 @@ func (e ErrorHandler) NewCollectionNoWriteAccessStatus(baseErr error, bucketName
 	return st
 }
 
+func (e ErrorHandler) NewScopeAccessDeniedStatus(baseErr error, scopeName string) *status.Status {
+	msg := "No permissions to perform scope management operation."
+	st := status.New(codes.PermissionDenied, msg)
+
+	st = e.tryAttachStatusDetails(
+		st, &epb.ResourceInfo{
+			ResourceType: "scope",
+			ResourceName: scopeName,
+			Description:  "",
+		})
+	return st
+}
+
+func (e ErrorHandler) NewCollectionAccessDeniedStatus(baseErr error, collectionName string) *status.Status {
+	msg := "No permissions to perform collection management operation."
+	st := status.New(codes.PermissionDenied, msg)
+
+	st = e.tryAttachStatusDetails(
+		st, &epb.ResourceInfo{
+			ResourceType: "collection",
+			ResourceName: collectionName,
+			Description:  "",
+		})
+	return st
+}
+
 func (e ErrorHandler) NewSdDocTooDeepStatus(baseErr error, bucketName, scopeName, collectionName, docId string) *status.Status {
 	st := status.New(codes.FailedPrecondition,
 		fmt.Sprintf("Document '%s' JSON was too deep to parse in '%s/%s/%s'.",
@@ -929,6 +955,16 @@ func (e ErrorHandler) NewInvalidCredentialsStatus() *status.Status {
 
 func (e ErrorHandler) NewInvalidCertificateStatus() *status.Status {
 	st := status.New(codes.PermissionDenied, "Your certificate is invalid.")
+	st = e.tryAttachStatusDetails(st, &epb.ResourceInfo{
+		ResourceType: "user",
+		ResourceName: "",
+		Description:  "",
+	})
+	return st
+}
+
+func (e ErrorHandler) NewCertAuthDisabledStatus() *status.Status {
+	st := status.New(codes.Unauthenticated, "Client cert auth disabled on the cluster.")
 	st = e.tryAttachStatusDetails(st, &epb.ResourceInfo{
 		ResourceType: "user",
 		ResourceName: "",

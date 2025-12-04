@@ -1391,7 +1391,15 @@ func (s *KvServer) GetAllReplicas(in *kv_v1.GetAllReplicasRequest, out kv_v1.KvS
 		}
 	}
 
-	return replicaError
+	if replicaError != nil {
+		if errors.Is(replicaError, memdx.ErrAccessError) {
+			return s.errorHandler.NewCollectionNoReadAccessStatus(replicaError, in.BucketName, in.ScopeName, in.CollectionName).Err()
+		}
+
+		return s.errorHandler.NewGenericStatus(replicaError).Err()
+	}
+
+	return nil
 }
 
 func (s *KvServer) checkKey(key string) *status.Status {

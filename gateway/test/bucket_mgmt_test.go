@@ -47,6 +47,13 @@ func (s *GatewayOpsTestSuite) RunCommonBucketMgmtErrorCases(
 		})
 		assertRpcStatus(s.T(), err, codes.PermissionDenied)
 	})
+	s.Run("NoPermissions", func() {
+		_, err := fn(&commonBucketMgmtErrorTestData{
+			BucketName: uuid.NewString()[:6],
+			Creds:      s.getNoPermissionRpcCreds(),
+		})
+		assertRpcStatus(s.T(), err, codes.PermissionDenied)
+	})
 }
 
 func (s *GatewayOpsTestSuite) TestCreateBucket() {
