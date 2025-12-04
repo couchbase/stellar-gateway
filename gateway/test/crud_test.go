@@ -10,6 +10,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/couchbase/gocbcorex/cbhttpx"
+	"github.com/couchbase/gocbcorex/cbmgmtx"
+
 	"github.com/google/uuid"
 
 	"github.com/couchbase/gocbcorex/contrib/ptr"
@@ -3916,6 +3919,90 @@ func (s *GatewayOpsTestSuite) TestMutateIn() {
 			Specs:          specs,
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
 		assertRpcStatus(s.T(), err, codes.InvalidArgument)
+	})
+
+	s.Run("IncreaseNumberOfSpecs", func() {
+		if s.IsOlderServerVersion("8.1.0") {
+			s.T().Skip()
+			return
+		}
+
+		ep, err := s.testClusterInfo.AdminClient.GetMgmtEndpoint(context.Background())
+		require.NoError(s.T(), err)
+
+		auth := &cbhttpx.BasicAuth{
+			Username: ep.Username,
+			Password: ep.Password,
+		}
+
+		defer func() {
+			sixteen := 16
+			err = cbmgmtx.Management{
+				Transport: ep.RoundTripper,
+				UserAgent: "",
+				Endpoint:  ep.Endpoint,
+				Auth:      auth,
+			}.SetGlobalMemcachedSettings(context.Background(), &cbmgmtx.SetGlobalMemcachedSettingsOptions{
+				SubdocMultiMaxPaths: &sixteen,
+			})
+			require.NoError(s.T(), err)
+		}()
+
+		maxPaths := 18
+
+		err = cbmgmtx.Management{
+			Transport: ep.RoundTripper,
+			UserAgent: "",
+			Endpoint:  ep.Endpoint,
+			Auth:      auth,
+		}.SetGlobalMemcachedSettings(context.Background(), &cbmgmtx.SetGlobalMemcachedSettingsOptions{
+			SubdocMultiMaxPaths: &maxPaths,
+		})
+		require.NoError(s.T(), err)
+
+		allMgmtEps, err := s.testClusterInfo.AdminClient.GetMgmtEndpoints()
+		require.NoError(s.T(), err)
+
+		s.Eventually(func() bool {
+			for _, mgmtEp := range allMgmtEps {
+				settings, err := cbmgmtx.Management{
+					Transport: ep.RoundTripper,
+					UserAgent: "",
+					Endpoint:  "http://" + mgmtEp,
+					Auth:      auth,
+				}.GetGlobalMemcachedSettings(context.Background(), &cbmgmtx.GetGlobalMemcachedSettingsOptions{})
+				require.NoError(s.T(), err)
+
+				if setting, ok := settings[string(cbmgmtx.GlobalMemcachedSettingSubdocMultiMaxPaths)]; ok {
+					paths := int(setting.(float64))
+					if paths != maxPaths {
+						return false
+					}
+				} else {
+					return false
+				}
+			}
+
+			return true
+		}, 30*time.Second, 500*time.Millisecond)
+
+		var specs []*kv_v1.MutateInRequest_Spec
+		for i := 0; i < maxPaths; i++ {
+			specs = append(specs, &kv_v1.MutateInRequest_Spec{
+				Operation: kv_v1.MutateInRequest_Spec_OPERATION_UPSERT,
+				Path:      "a",
+				Content:   []byte(`2`),
+			})
+		}
+
+		_, err = kvClient.MutateIn(context.Background(), &kv_v1.MutateInRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            s.testDocId(),
+			Specs:          specs,
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		assertRpcStatus(s.T(), err, codes.OK)
 	})
 
 	s.Run("ArrayAddUniqueDuplicate", func() {
