@@ -5,6 +5,8 @@ import (
 	"crypto/tls"
 	"time"
 
+	"github.com/couchbase/gocbcorex/cbhttpx"
+	"github.com/couchbase/gocbcorex/cbmgmtx"
 	"github.com/couchbase/goprotostellar/genproto/admin_query_v1"
 	"github.com/couchbase/goprotostellar/genproto/admin_search_v1"
 	"github.com/couchbase/goprotostellar/genproto/kv_v1"
@@ -169,10 +171,140 @@ func (s *GatewayOpsTestSuite) TestClientCertAuth() {
 					}
 					requireRpcSuccess(s.T(), resp, err)
 					return true
-				}, time.Second*30, time.Second)
+				}, time.Second*30, time.Second*5)
 			})
 		})
 	}
+}
+
+func (s *GatewayOpsTestSuite) TestClientCertAuthConfiguration() {
+	testutils.SkipIfNoDinoCluster(s.T())
+	dino := testutils.StartDinoTesting(s.T(), false)
+	username := "certConfig"
+	conn := s.newClientCertConn(dino, username)
+	kvClient := kv_v1.NewKvServiceClient(conn)
+
+	getFn := func() (*kv_v1.GetResponse, error) {
+		return kvClient.Get(context.Background(), &kv_v1.GetRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            s.testDocId(),
+		})
+	}
+
+	enableReq := &cbmgmtx.ConfigureClientCertAuthRequest{
+		State: "enable",
+		Prefixes: []cbmgmtx.Prefix{
+			{
+				Path:      "san.email",
+				Prefix:    "",
+				Delimiter: "@",
+			},
+		},
+	}
+
+	dino.AddWriteUser(username)
+
+	// Check that client cert auth is working as expected.
+	s.Run("InitialSuccess", func() {
+		resp, err := getFn()
+		requireRpcSuccess(s.T(), resp, err)
+	})
+
+	ep, err := s.testClusterInfo.AdminClient.GetMgmtEndpoint(context.Background())
+	require.NoError(s.T(), err)
+	mgmt := cbmgmtx.Management{
+		Transport: ep.RoundTripper,
+		UserAgent: "useragent",
+		Endpoint:  ep.Endpoint,
+		Auth: &cbhttpx.BasicAuth{
+			Username: ep.Username,
+			Password: ep.Password,
+		},
+	}
+
+	// Change the path that cbauth will try and get the name from and check
+	// that the old cert fails
+	err = mgmt.ConfigureClientCertAuth(context.Background(), &cbmgmtx.ConfigureClientCertAuthRequest{
+		State: "enable",
+		Prefixes: []cbmgmtx.Prefix{
+			{
+				Path:      "subject.cn",
+				Prefix:    "",
+				Delimiter: "",
+			},
+		},
+	})
+	assert.NoError(s.T(), err)
+
+	s.Run("IncorrectUsernamePath", func() {
+		require.Eventually(s.T(), func() bool {
+			_, err := getFn()
+			if err == nil {
+				return false
+			}
+
+			assertRpcStatus(s.T(), err, codes.PermissionDenied)
+			return assert.Contains(s.T(), err.Error(), "Your certificate is invalid")
+		}, time.Second*30, time.Second*5)
+	})
+
+	// Restore intial settings and check that the original cert works again.
+	err = mgmt.ConfigureClientCertAuth(context.Background(), enableReq)
+	assert.NoError(s.T(), err)
+
+	s.Run("SuccessAfterSettingsReset", func() {
+		require.Eventually(s.T(), func() bool {
+			resp, err := getFn()
+			if err != nil {
+				return false
+			}
+
+			requireRpcSuccess(s.T(), resp, err)
+			return true
+		}, time.Second*30, time.Second*5)
+	})
+
+	// Disable client cert auth on the cluster and make sure op fails.
+	err = mgmt.ConfigureClientCertAuth(context.Background(), &cbmgmtx.ConfigureClientCertAuthRequest{
+		State: "disable",
+		Prefixes: []cbmgmtx.Prefix{
+			{
+				Path:      "san.email",
+				Prefix:    "",
+				Delimiter: "@",
+			},
+		},
+	})
+	assert.NoError(s.T(), err)
+
+	s.Run("CertAuthDisabled", func() {
+		require.Eventually(s.T(), func() bool {
+			_, err := getFn()
+			if err == nil {
+				return false
+			}
+
+			assertRpcStatus(s.T(), err, codes.Unauthenticated)
+			return assert.Contains(s.T(), err.Error(), "Client cert auth disabled on the cluster")
+		}, time.Second*30, time.Second*5)
+	})
+
+	err = mgmt.ConfigureClientCertAuth(context.Background(), enableReq)
+	assert.NoError(s.T(), err)
+
+	// Ensure that client cert auth is full enabled for finishing the test so
+	// that we don't impact other cert auth tests.
+	require.Eventually(s.T(), func() bool {
+		resp, err := getFn()
+		if err != nil {
+			return false
+		}
+
+		requireRpcSuccess(s.T(), resp, err)
+		return true
+	}, time.Second*30, time.Second*5)
 }
 
 func (s *GatewayOpsTestSuite) newClientCertConn(dino *testutils.DinoController, username string) *grpc.ClientConn {
