@@ -395,6 +395,145 @@ func (s *GatewayOpsTestSuite) TestXdcrCheckDocument() {
 				assert.Equal(s.T(), "DOC_NEWER", d.Reason)
 			})
 		})
+
+		s.Run("Xattr", func() {
+			s.Run("Both", func() {
+				docId := s.randomDocId()
+				s.createDocument(createDocumentOptions{
+					BucketName:     s.bucketName,
+					ScopeName:      s.scopeName,
+					CollectionName: s.collectionName,
+					DocId:          docId,
+					Content:        TEST_CONTENT,
+					ContentFlags:   TEST_CONTENT_FLAGS,
+					WithXattrs:     true,
+				})
+
+				getResp, err := xdcrClient.GetDocument(context.Background(), &internal_xdcr_v1.GetDocumentRequest{
+					BucketName:     s.bucketName,
+					ScopeName:      s.scopeName,
+					CollectionName: s.collectionName,
+					Key:            docId,
+				}, grpc.PerRPCCredentials(s.basicRpcCreds))
+				requireRpcSuccess(s.T(), getResp, err)
+
+				_, err = xdcrClient.CheckDocument(context.Background(), &internal_xdcr_v1.CheckDocumentRequest{
+					BucketName:     s.bucketName,
+					ScopeName:      s.scopeName,
+					CollectionName: s.collectionName,
+					Key:            docId,
+					StoreCas:       getResp.Cas,
+					ContentFlags:   TEST_CONTENT_FLAGS,
+					ExpiryTime:     nil, // no expiry
+					Revno:          getResp.Revno,
+					HasXattrs:      true,
+				}, grpc.PerRPCCredentials(s.basicRpcCreds))
+				requireRpcSuccess(s.T(), getResp, err)
+			})
+
+			s.Run("Neither", func() {
+				docId := s.randomDocId()
+				s.createDocument(createDocumentOptions{
+					BucketName:     s.bucketName,
+					ScopeName:      s.scopeName,
+					CollectionName: s.collectionName,
+					DocId:          docId,
+					Content:        TEST_CONTENT,
+					ContentFlags:   TEST_CONTENT_FLAGS,
+				})
+
+				getResp, err := xdcrClient.GetDocument(context.Background(), &internal_xdcr_v1.GetDocumentRequest{
+					BucketName:     s.bucketName,
+					ScopeName:      s.scopeName,
+					CollectionName: s.collectionName,
+					Key:            docId,
+				}, grpc.PerRPCCredentials(s.basicRpcCreds))
+				requireRpcSuccess(s.T(), getResp, err)
+
+				_, err = xdcrClient.CheckDocument(context.Background(), &internal_xdcr_v1.CheckDocumentRequest{
+					BucketName:     s.bucketName,
+					ScopeName:      s.scopeName,
+					CollectionName: s.collectionName,
+					Key:            docId,
+					StoreCas:       getResp.Cas,
+					ContentFlags:   TEST_CONTENT_FLAGS,
+					ExpiryTime:     nil, // no expiry
+					Revno:          getResp.Revno,
+				}, grpc.PerRPCCredentials(s.basicRpcCreds))
+				requireRpcSuccess(s.T(), getResp, err)
+			})
+
+			s.Run("OursOnly", func() {
+				docId := s.randomDocId()
+				s.createDocument(createDocumentOptions{
+					BucketName:     s.bucketName,
+					ScopeName:      s.scopeName,
+					CollectionName: s.collectionName,
+					DocId:          docId,
+					Content:        TEST_CONTENT,
+					ContentFlags:   TEST_CONTENT_FLAGS,
+					WithXattrs:     false,
+				})
+
+				getResp, err := xdcrClient.GetDocument(context.Background(), &internal_xdcr_v1.GetDocumentRequest{
+					BucketName:     s.bucketName,
+					ScopeName:      s.scopeName,
+					CollectionName: s.collectionName,
+					Key:            docId,
+				}, grpc.PerRPCCredentials(s.basicRpcCreds))
+				requireRpcSuccess(s.T(), getResp, err)
+
+				_, err = xdcrClient.CheckDocument(context.Background(), &internal_xdcr_v1.CheckDocumentRequest{
+					BucketName:     s.bucketName,
+					ScopeName:      s.scopeName,
+					CollectionName: s.collectionName,
+					Key:            docId,
+					StoreCas:       getResp.Cas,
+					ContentFlags:   TEST_CONTENT_FLAGS,
+					ExpiryTime:     nil, // no expiry
+					Revno:          getResp.Revno,
+					HasXattrs:      true,
+				}, grpc.PerRPCCredentials(s.basicRpcCreds))
+				requireRpcSuccess(s.T(), getResp, err)
+			})
+
+			s.Run("TheirsOnly", func() {
+				docId := s.randomDocId()
+				s.createDocument(createDocumentOptions{
+					BucketName:     s.bucketName,
+					ScopeName:      s.scopeName,
+					CollectionName: s.collectionName,
+					DocId:          docId,
+					Content:        TEST_CONTENT,
+					ContentFlags:   TEST_CONTENT_FLAGS,
+					WithXattrs:     true,
+				})
+
+				getResp, err := xdcrClient.GetDocument(context.Background(), &internal_xdcr_v1.GetDocumentRequest{
+					BucketName:     s.bucketName,
+					ScopeName:      s.scopeName,
+					CollectionName: s.collectionName,
+					Key:            docId,
+				}, grpc.PerRPCCredentials(s.basicRpcCreds))
+				requireRpcSuccess(s.T(), getResp, err)
+
+				_, err = xdcrClient.CheckDocument(context.Background(), &internal_xdcr_v1.CheckDocumentRequest{
+					BucketName:     s.bucketName,
+					ScopeName:      s.scopeName,
+					CollectionName: s.collectionName,
+					Key:            docId,
+					StoreCas:       getResp.Cas,
+					ContentFlags:   TEST_CONTENT_FLAGS,
+					ExpiryTime:     nil, // no expiry
+					Revno:          getResp.Revno,
+					HasXattrs:      false,
+				}, grpc.PerRPCCredentials(s.basicRpcCreds))
+				assertRpcStatus(s.T(), err, codes.Aborted)
+				assertRpcErrorDetails(s.T(), err, func(d *epb.ErrorInfo) {
+					assert.Equal(s.T(), "DOC_NEWER", d.Reason)
+				})
+			})
+		})
 	})
 
 	s.Run("Delete", func() {
