@@ -1303,7 +1303,7 @@ func (s *KvServer) MutateIn(ctx context.Context, in *kv_v1.MutateInRequest) (*kv
 				} else if errors.Is(err, memdx.ErrSubDocCantInsert) {
 					opSpec := in.Specs[subdocErr.OpIndex]
 					if opSpec.Operation == kv_v1.MutateInRequest_Spec_OPERATION_COUNTER {
-						return nil, s.errorHandler.NewSdValueOutOfRangeStatus(err, in.Specs[subdocErr.OpIndex].Path).Err()
+						return nil, s.errorHandler.NewSdValueOutOfRangeStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key, in.Specs[subdocErr.OpIndex].Path).Err()
 					} else {
 						return nil, s.errorHandler.NewSdBadValueStatus(err, in.Specs[subdocErr.OpIndex].Path).Err()
 					}
