@@ -157,7 +157,7 @@ func (e ErrorHandler) NewBucketFlushDisabledStatus(baseErr error, bucketName str
 	st = e.tryAttachStatusDetails(st, &epb.PreconditionFailure{
 		Violations: []*epb.PreconditionFailure_Violation{{
 			Type:        "FLUSH_DISABLED",
-			Subject:     bucketName,
+			Subject:     "bucket/" + bucketName,
 			Description: "",
 		}},
 	})
@@ -339,7 +339,7 @@ func (e ErrorHandler) NewQueryIndexNotBuildingStatus(baseErr error, bucketName, 
 	st = e.tryAttachStatusDetails(st, &epb.PreconditionFailure{
 		Violations: []*epb.PreconditionFailure_Violation{{
 			Type:        "NOT_BUILDING",
-			Subject:     fmt.Sprintf("%s/%s/%s/%s", bucketName, scopeName, collectionName, indexName),
+			Subject:     fmt.Sprintf("queryindex/%s/%s/%s/%s", bucketName, scopeName, collectionName, indexName),
 			Description: "",
 		}},
 	})
@@ -625,7 +625,7 @@ func (e ErrorHandler) NewDocLockedStatus(baseErr error, bucketName, scopeName, c
 	st = e.tryAttachStatusDetails(st, &epb.PreconditionFailure{
 		Violations: []*epb.PreconditionFailure_Violation{{
 			Type:        "LOCKED",
-			Subject:     fmt.Sprintf("%s/%s/%s/%s", bucketName, scopeName, collectionName, docId),
+			Subject:     fmt.Sprintf("document/%s/%s/%s/%s", bucketName, scopeName, collectionName, docId),
 			Description: "",
 		}},
 	})
@@ -640,7 +640,7 @@ func (e ErrorHandler) NewDocNotLockedStatus(baseErr error, bucketName, scopeName
 	st = e.tryAttachStatusDetails(st, &epb.PreconditionFailure{
 		Violations: []*epb.PreconditionFailure_Violation{{
 			Type:        "NOT_LOCKED",
-			Subject:     fmt.Sprintf("%s/%s/%s/%s", bucketName, scopeName, collectionName, docId),
+			Subject:     fmt.Sprintf("document/%s/%s/%s/%s", bucketName, scopeName, collectionName, docId),
 			Description: "",
 		}},
 	})
@@ -656,7 +656,7 @@ func (e ErrorHandler) NewDocNotNumericStatus(baseErr error, bucketName, scopeNam
 	st = e.tryAttachStatusDetails(st, &epb.PreconditionFailure{
 		Violations: []*epb.PreconditionFailure_Violation{{
 			Type:        "DOC_NOT_NUMERIC",
-			Subject:     fmt.Sprintf("%s/%s/%s/%s", bucketName, scopeName, collectionName, docId),
+			Subject:     fmt.Sprintf("document/%s/%s/%s/%s", bucketName, scopeName, collectionName, docId),
 			Description: "",
 		}},
 	})
@@ -675,7 +675,7 @@ func (e ErrorHandler) NewValueTooLargeStatus(baseErr error, bucketName, scopeNam
 		st = e.tryAttachStatusDetails(st, &epb.PreconditionFailure{
 			Violations: []*epb.PreconditionFailure_Violation{{
 				Type:        "VALUE_TOO_LARGE",
-				Subject:     fmt.Sprintf("%s/%s/%s/%s", bucketName, scopeName, collectionName, docId),
+				Subject:     fmt.Sprintf("document/%s/%s/%s/%s", bucketName, scopeName, collectionName, docId),
 				Description: "",
 			}},
 		})
@@ -696,7 +696,7 @@ func (e ErrorHandler) NewDurabilityImpossibleStatus(baseErr error, bucketName st
 	st = e.tryAttachStatusDetails(st, &epb.PreconditionFailure{
 		Violations: []*epb.PreconditionFailure_Violation{{
 			Type:        "DURABILITY_IMPOSSIBLE",
-			Subject:     fmt.Sprintf("%ss", bucketName),
+			Subject:     fmt.Sprintf("bucket/%s", bucketName),
 			Description: "",
 		}},
 	})
@@ -770,7 +770,7 @@ func (e ErrorHandler) NewSdDocTooDeepStatus(baseErr error, bucketName, scopeName
 	st = e.tryAttachStatusDetails(st, &epb.PreconditionFailure{
 		Violations: []*epb.PreconditionFailure_Violation{{
 			Type:        "DOC_TOO_DEEP",
-			Subject:     fmt.Sprintf("%s/%s/%s/%s", bucketName, scopeName, collectionName, docId),
+			Subject:     fmt.Sprintf("document/%s/%s/%s/%s", bucketName, scopeName, collectionName, docId),
 			Description: "",
 		}},
 	})
@@ -785,7 +785,7 @@ func (e ErrorHandler) NewSdDocNotJsonStatus(baseErr error, bucketName, scopeName
 	st = e.tryAttachStatusDetails(st, &epb.PreconditionFailure{
 		Violations: []*epb.PreconditionFailure_Violation{{
 			Type:        "DOC_NOT_JSON",
-			Subject:     fmt.Sprintf("%s/%s/%s/%s", bucketName, scopeName, collectionName, docId),
+			Subject:     fmt.Sprintf("document/%s/%s/%s/%s", bucketName, scopeName, collectionName, docId),
 			Description: "",
 		}},
 	})
@@ -826,7 +826,7 @@ func (e ErrorHandler) NewSdPathMismatchStatus(baseErr error, bucketName, scopeNa
 	st = e.tryAttachStatusDetails(st, &epb.PreconditionFailure{
 		Violations: []*epb.PreconditionFailure_Violation{{
 			Type:        "PATH_MISMATCH",
-			Subject:     sdPath,
+			Subject:     fmt.Sprintf("document/%s/%s/%s/%s/%s", bucketName, scopeName, collectionName, docId, sdPath),
 			Description: "",
 		}},
 	})
@@ -849,14 +849,14 @@ func (e ErrorHandler) NewSdBadValueStatus(baseErr error, sdPath string) *status.
 	return st
 }
 
-func (e ErrorHandler) NewSdValueOutOfRangeStatus(baseErr error, sdPath string) *status.Status {
+func (e ErrorHandler) NewSdValueOutOfRangeStatus(baseErr error, bucketName, scopeName, collectionName, docId, sdPath string) *status.Status {
 	st := status.New(codes.FailedPrecondition,
 		fmt.Sprintf("Counter operation content for path '%s' would put the JSON value out of range.",
 			sdPath))
 	st = e.tryAttachStatusDetails(st, &epb.PreconditionFailure{
 		Violations: []*epb.PreconditionFailure_Violation{{
 			Type:        "VALUE_OUT_OF_RANGE",
-			Subject:     sdPath,
+			Subject:     fmt.Sprintf("document/%s/%s/%s/%s/%s", bucketName, scopeName, collectionName, docId, sdPath),
 			Description: "",
 		}},
 	})
@@ -871,7 +871,7 @@ func (e ErrorHandler) NewSdBadRangeStatus(baseErr error, bucketName, scopeName, 
 	st = e.tryAttachStatusDetails(st, &epb.PreconditionFailure{
 		Violations: []*epb.PreconditionFailure_Violation{{
 			Type:        "PATH_VALUE_OUT_OF_RANGE",
-			Subject:     sdPath,
+			Subject:     fmt.Sprintf("document/%s/%s/%s/%s/%s", bucketName, scopeName, collectionName, docId, sdPath),
 			Description: "",
 		}},
 	})
