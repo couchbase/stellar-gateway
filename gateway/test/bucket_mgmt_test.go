@@ -24,22 +24,22 @@ type commonBucketMgmtErrorTestData struct {
 
 func (s *GatewayOpsTestSuite) RunCommonBucketMgmtErrorCases(
 	fn func(opts *commonBucketMgmtErrorTestData) (interface{}, error),
+	specialCharsExpectedCode codes.Code,
 ) {
-	// TODO - ING-1191
-	// s.Run("BlankBucketName", func() {
-	// 	_, err := fn(&commonBucketMgmtErrorTestData{
-	// 		BucketName: "",
-	// 		Creds:      s.basicRpcCreds,
-	// 	})
-	// 	assertRpcStatus(s.T(), err, codes.InvalidArgument)
-	// })
-	// s.Run("BucketNameSpecialChars", func() {
-	// 	_, err := fn(&commonBucketMgmtErrorTestData{
-	// 		BucketName: "%?#",
-	// 		Creds:      s.basicRpcCreds,
-	// 	})
-	// 	assertRpcStatus(s.T(), err, codes.InvalidArgument)
-	// })
+	s.Run("BlankBucketName", func() {
+		_, err := fn(&commonBucketMgmtErrorTestData{
+			BucketName: "",
+			Creds:      s.basicRpcCreds,
+		})
+		assertRpcStatus(s.T(), err, codes.InvalidArgument)
+	})
+	s.Run("BucketNameSpecialChars", func() {
+		_, err := fn(&commonBucketMgmtErrorTestData{
+			BucketName: "%?#",
+			Creds:      s.basicRpcCreds,
+		})
+		assertRpcStatus(s.T(), err, specialCharsExpectedCode)
+	})
 	s.Run("BadCredentials", func() {
 		_, err := fn(&commonBucketMgmtErrorTestData{
 			BucketName: uuid.NewString()[:6],
@@ -484,7 +484,7 @@ func (s *GatewayOpsTestSuite) TestCreateBucket() {
 			return adminClient.CreateBucket(context.Background(), &admin_bucket_v1.CreateBucketRequest{
 				BucketName: opts.BucketName,
 			}, grpc.PerRPCCredentials(opts.Creds))
-		})
+		}, codes.InvalidArgument)
 }
 
 func (s *GatewayOpsTestSuite) TestDeleteBucket() {
@@ -545,7 +545,7 @@ func (s *GatewayOpsTestSuite) TestDeleteBucket() {
 			return adminClient.DeleteBucket(context.Background(), &admin_bucket_v1.DeleteBucketRequest{
 				BucketName: opts.BucketName,
 			}, grpc.PerRPCCredentials(opts.Creds))
-		})
+		}, codes.NotFound)
 }
 
 func (s *GatewayOpsTestSuite) TestFlushBucket() {
@@ -623,7 +623,7 @@ func (s *GatewayOpsTestSuite) TestFlushBucket() {
 			return adminClient.FlushBucket(context.Background(), &admin_bucket_v1.FlushBucketRequest{
 				BucketName: opts.BucketName,
 			}, grpc.PerRPCCredentials(opts.Creds))
-		})
+		}, codes.NotFound)
 }
 
 func (s *GatewayOpsTestSuite) TestFlushBucket_FlushDisabled() {
@@ -1024,9 +1024,9 @@ func (s *GatewayOpsTestSuite) TestUpdateBucket() {
 	s.RunCommonBucketMgmtErrorCases(
 		func(opts *commonBucketMgmtErrorTestData) (interface{}, error) {
 			return adminClient.UpdateBucket(context.Background(), &admin_bucket_v1.UpdateBucketRequest{
-				BucketName: couchbaseBucket,
+				BucketName: opts.BucketName,
 			}, grpc.PerRPCCredentials(opts.Creds))
-		})
+		}, codes.NotFound)
 }
 
 func defaultCouchbaseBucket() *admin_bucket_v1.ListBucketsResponse_Bucket {
