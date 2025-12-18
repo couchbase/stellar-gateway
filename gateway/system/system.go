@@ -231,11 +231,10 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 	httpHandler = c.Handler(httpHandler)
 
 	dapiSrv := &http.Server{
-		WriteTimeout: time.Second * 15,
-		ReadTimeout:  time.Second * 15,
-		IdleTimeout:  time.Second * 60,
-		Handler:      httpHandler,
-		TLSConfig:    opts.DapiTlsConfig,
+		ReadHeaderTimeout: time.Second * 5,
+		IdleTimeout:       time.Second * 60,
+		Handler:           httpHandler,
+		TLSConfig:         opts.DapiTlsConfig,
 	}
 
 	s := &System{
