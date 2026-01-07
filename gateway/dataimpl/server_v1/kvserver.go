@@ -3,6 +3,8 @@ package server_v1
 import (
 	"context"
 	"errors"
+	"fmt"
+	"net"
 	"time"
 
 	"github.com/couchbase/gocbcorex"
@@ -19,17 +21,31 @@ type KvServer struct {
 	logger       *zap.Logger
 	errorHandler *ErrorHandler
 	authHandler  *AuthHandler
+	optimalKvEp  string
 }
 
 func NewKvServer(
 	logger *zap.Logger,
 	errorHandler *ErrorHandler,
 	authHandler *AuthHandler,
+	bootstrapNodeIsLocal bool,
+	bootstrapNode string,
 ) *KvServer {
+
+	var optimalKvEp string
+	// CNG will always have a node that it is bootstrapped against, but we only
+	// want to set this as the optimal kv endpoint if the bootstrap node is
+	// local.
+	if bootstrapNodeIsLocal {
+		host, port, _ := net.SplitHostPort(bootstrapNode)
+		optimalKvEp = fmt.Sprintf("kvep-%s-%s", host, port)
+	}
+
 	return &KvServer{
 		logger:       logger,
 		errorHandler: errorHandler,
 		authHandler:  authHandler,
+		optimalKvEp:  optimalKvEp,
 	}
 }
 
