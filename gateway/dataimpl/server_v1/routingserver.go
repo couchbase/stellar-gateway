@@ -53,7 +53,7 @@ func (s *RoutingServer) WatchRouting(
 	var bucketName string
 	if in.BucketName == nil {
 		// ING-1357 (support non-kv optimised routing)
-		return s.errorHandler.NewServerRoutingUnimplementedError().Err()
+		return s.errorHandler.NewServerRoutingUnimplementedError(out.Context()).Err()
 	} else {
 		bucketName = *in.BucketName
 	}
@@ -73,10 +73,10 @@ func (s *RoutingServer) WatchRouting(
 
 		if err != nil {
 			if errors.Is(err, cbmgmtx.ErrBucketNotFound) {
-				return s.errorHandler.NewBucketMissingStatus(err, bucketName).Err()
+				return s.errorHandler.NewBucketMissingStatus(out.Context(), err, bucketName).Err()
 			}
 
-			return s.errorHandler.NewGenericStatus(err).Err()
+			return s.errorHandler.NewGenericStatus(out.Context(), err).Err()
 		}
 
 		if !prevVBucketMap.Equal(*bucket.VBucketServerMap) {

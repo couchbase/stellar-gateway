@@ -196,11 +196,11 @@ func (s *SearchServer) SearchQuery(in *search_v1.SearchQueryRequest, out search_
 	result, err := agent.Search(out.Context(), &opts)
 	if err != nil {
 		if errors.Is(err, cbsearchx.ErrIndexNotFound) {
-			return s.errorHandler.NewSearchIndexMissingStatus(err, in.IndexName).Err()
+			return s.errorHandler.NewSearchIndexMissingStatus(out.Context(), err, in.IndexName).Err()
 		} else if errors.Is(err, cbsearchx.ErrAuthenticationFailure) {
-			return s.errorHandler.NewQueryNoAccessStatus(err).Err()
+			return s.errorHandler.NewQueryNoAccessStatus(out.Context(), err).Err()
 		}
-		return s.errorHandler.NewGenericStatus(err).Err()
+		return s.errorHandler.NewGenericStatus(out.Context(), err).Err()
 	}
 
 	var rowCache []*search_v1.SearchQueryResponse_SearchQueryRow
@@ -210,7 +210,7 @@ func (s *SearchServer) SearchQuery(in *search_v1.SearchQueryRequest, out search_
 	for result.HasMoreHits() {
 		row, err := result.ReadHit()
 		if err != nil {
-			return s.errorHandler.NewGenericStatus(err).Err()
+			return s.errorHandler.NewGenericStatus(out.Context(), err).Err()
 		}
 
 		fragments := make(map[string]*search_v1.SearchQueryResponse_Fragment, len(row.Fragments))
@@ -258,7 +258,7 @@ func (s *SearchServer) SearchQuery(in *search_v1.SearchQueryRequest, out search_
 				Hits: rowCache,
 			})
 			if err != nil {
-				return s.errorHandler.NewGenericStatus(err).Err()
+				return s.errorHandler.NewGenericStatus(out.Context(), err).Err()
 			}
 			rowCache = nil
 			rowCacheNumBytes = 0
@@ -384,7 +384,7 @@ func (s *SearchServer) SearchQuery(in *search_v1.SearchQueryRequest, out search_
 			Facets:   facetsPs,
 		})
 		if err != nil {
-			return s.errorHandler.NewGenericStatus(err).Err()
+			return s.errorHandler.NewGenericStatus(out.Context(), err).Err()
 		}
 	}
 

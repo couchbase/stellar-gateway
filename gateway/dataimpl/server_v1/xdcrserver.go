@@ -50,7 +50,7 @@ func (s *XdcrServer) Heartbeat(ctx context.Context, in *internal_xdcr_v1.Heartbe
 		OnBehalfOf: oboUser,
 	})
 	if err != nil {
-		return nil, s.errorHandler.NewGenericStatus(err).Err()
+		return nil, s.errorHandler.NewGenericStatus(ctx, err).Err()
 	}
 
 	return &internal_xdcr_v1.HeartbeatResponse{}, nil
@@ -66,7 +66,7 @@ func (s *XdcrServer) GetClusterInfo(ctx context.Context, in *internal_xdcr_v1.Ge
 		OnBehalfOf: oboUser,
 	})
 	if err != nil {
-		return nil, s.errorHandler.NewGenericStatus(err).Err()
+		return nil, s.errorHandler.NewGenericStatus(ctx, err).Err()
 	}
 
 	return &internal_xdcr_v1.GetClusterInfoResponse{
@@ -86,9 +86,9 @@ func (s *XdcrServer) GetBucketInfo(ctx context.Context, in *internal_xdcr_v1.Get
 	})
 	if err != nil {
 		if errors.Is(err, cbmgmtx.ErrBucketNotFound) {
-			return nil, s.errorHandler.NewBucketMissingStatus(err, in.BucketName).Err()
+			return nil, s.errorHandler.NewBucketMissingStatus(ctx, err, in.BucketName).Err()
 		}
-		return nil, s.errorHandler.NewGenericStatus(err).Err()
+		return nil, s.errorHandler.NewGenericStatus(ctx, err).Err()
 	}
 
 	numVbuckets := uint32(0)
@@ -263,7 +263,7 @@ func (s *XdcrServer) GetVbucketInfo(in *internal_xdcr_v1.GetVbucketInfoRequest, 
 		})
 	}
 	if finalErr != nil {
-		return s.errorHandler.NewGenericStatus(finalErr).Err()
+		return s.errorHandler.NewGenericStatus(out.Context(), finalErr).Err()
 	}
 
 	return nil
@@ -285,10 +285,10 @@ func (s *XdcrServer) WatchCollections(in *internal_xdcr_v1.WatchCollectionsReque
 		})
 		if err != nil {
 			if errors.Is(err, cbmgmtx.ErrBucketNotFound) {
-				return s.errorHandler.NewBucketMissingStatus(err, in.BucketName).Err()
+				return s.errorHandler.NewBucketMissingStatus(ctx, err, in.BucketName).Err()
 			}
 
-			return s.errorHandler.NewGenericStatus(err).Err()
+			return s.errorHandler.NewGenericStatus(ctx, err).Err()
 		}
 
 		manifestUid, _ := strconv.ParseUint(manifest.UID, 16, 32)
@@ -344,7 +344,7 @@ func (s *XdcrServer) GetDocument(
 		return nil, errSt.Err()
 	}
 
-	errSt = s.checkKey(in.Key)
+	errSt = s.checkKey(ctx, in.Key)
 	if errSt != nil {
 		return nil, errSt.Err()
 	}
@@ -368,17 +368,17 @@ func (s *XdcrServer) GetDocument(
 		metaRes, err := bucketAgent.GetMeta(ctx, &metaOpts)
 		if err != nil {
 			if errors.Is(err, memdx.ErrDocLocked) {
-				return nil, s.errorHandler.NewDocLockedStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+				return nil, s.errorHandler.NewDocLockedStatus(ctx, err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
 			} else if errors.Is(err, memdx.ErrDocNotFound) {
-				return nil, s.errorHandler.NewDocMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+				return nil, s.errorHandler.NewDocMissingStatus(ctx, err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
 			} else if errors.Is(err, memdx.ErrUnknownCollectionName) {
-				return nil, s.errorHandler.NewCollectionMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+				return nil, s.errorHandler.NewCollectionMissingStatus(ctx, err, in.BucketName, in.ScopeName, in.CollectionName).Err()
 			} else if errors.Is(err, memdx.ErrUnknownScopeName) {
-				return nil, s.errorHandler.NewScopeMissingStatus(err, in.BucketName, in.ScopeName).Err()
+				return nil, s.errorHandler.NewScopeMissingStatus(ctx, err, in.BucketName, in.ScopeName).Err()
 			} else if errors.Is(err, memdx.ErrAccessError) {
-				return nil, s.errorHandler.NewCollectionNoReadAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+				return nil, s.errorHandler.NewCollectionNoReadAccessStatus(ctx, err, in.BucketName, in.ScopeName, in.CollectionName).Err()
 			}
-			return nil, s.errorHandler.NewGenericStatus(err).Err()
+			return nil, s.errorHandler.NewGenericStatus(ctx, err).Err()
 		}
 
 		var expiryTime time.Time
@@ -410,17 +410,17 @@ func (s *XdcrServer) GetDocument(
 			dataRes, err := bucketAgent.Get(ctx, &dataOpts)
 			if err != nil {
 				if errors.Is(err, memdx.ErrDocLocked) {
-					return nil, s.errorHandler.NewDocLockedStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+					return nil, s.errorHandler.NewDocLockedStatus(ctx, err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
 				} else if errors.Is(err, memdx.ErrDocNotFound) {
-					return nil, s.errorHandler.NewDocMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+					return nil, s.errorHandler.NewDocMissingStatus(ctx, err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
 				} else if errors.Is(err, memdx.ErrUnknownCollectionName) {
-					return nil, s.errorHandler.NewCollectionMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+					return nil, s.errorHandler.NewCollectionMissingStatus(ctx, err, in.BucketName, in.ScopeName, in.CollectionName).Err()
 				} else if errors.Is(err, memdx.ErrUnknownScopeName) {
-					return nil, s.errorHandler.NewScopeMissingStatus(err, in.BucketName, in.ScopeName).Err()
+					return nil, s.errorHandler.NewScopeMissingStatus(ctx, err, in.BucketName, in.ScopeName).Err()
 				} else if errors.Is(err, memdx.ErrAccessError) {
-					return nil, s.errorHandler.NewCollectionNoReadAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+					return nil, s.errorHandler.NewCollectionNoReadAccessStatus(ctx, err, in.BucketName, in.ScopeName, in.CollectionName).Err()
 				}
-				return nil, s.errorHandler.NewGenericStatus(err).Err()
+				return nil, s.errorHandler.NewGenericStatus(ctx, err).Err()
 			}
 
 			alwaysCompress := kv_v1.CompressionEnabled_COMPRESSION_ENABLED_ALWAYS
@@ -430,7 +430,7 @@ func (s *XdcrServer) GetDocument(
 				return nil, errSt.Err()
 			}
 			if !isCompressed {
-				return nil, s.errorHandler.NewGenericStatus(
+				return nil, s.errorHandler.NewGenericStatus(ctx,
 					errors.New("document content is not compressed, but compression was expected"),
 				).Err()
 			}
@@ -447,19 +447,19 @@ func (s *XdcrServer) GetDocument(
 			dataRes, err := bucketAgent.GetEx(ctx, &dataOpts)
 			if err != nil {
 				if errors.Is(err, memdx.ErrDocLocked) {
-					return nil, s.errorHandler.NewDocLockedStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+					return nil, s.errorHandler.NewDocLockedStatus(ctx, err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
 				} else if errors.Is(err, memdx.ErrDocNotFound) {
-					return nil, s.errorHandler.NewDocMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+					return nil, s.errorHandler.NewDocMissingStatus(ctx, err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
 				} else if errors.Is(err, memdx.ErrUnknownCollectionName) {
-					return nil, s.errorHandler.NewCollectionMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+					return nil, s.errorHandler.NewCollectionMissingStatus(ctx, err, in.BucketName, in.ScopeName, in.CollectionName).Err()
 				} else if errors.Is(err, memdx.ErrUnknownScopeName) {
-					return nil, s.errorHandler.NewScopeMissingStatus(err, in.BucketName, in.ScopeName).Err()
+					return nil, s.errorHandler.NewScopeMissingStatus(ctx, err, in.BucketName, in.ScopeName).Err()
 				} else if errors.Is(err, memdx.ErrAccessError) {
-					return nil, s.errorHandler.NewCollectionNoReadAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+					return nil, s.errorHandler.NewCollectionNoReadAccessStatus(ctx, err, in.BucketName, in.ScopeName, in.CollectionName).Err()
 				} else if errors.Is(err, memdx.ErrUnknownCommand) {
-					return nil, s.errorHandler.NewUnimplementedServerVersionStatus().Err()
+					return nil, s.errorHandler.NewUnimplementedServerVersionStatus(ctx).Err()
 				}
-				return nil, s.errorHandler.NewGenericStatus(err).Err()
+				return nil, s.errorHandler.NewGenericStatus(ctx, err).Err()
 			}
 
 			decompValue, errSt := CompressHandler{}.UncompressContent(dataRes.Value, dataRes.Datatype)
@@ -470,7 +470,7 @@ func (s *XdcrServer) GetDocument(
 			xattrBlob, docValue, err := memdx.SplitXattrBlob(decompValue)
 			if err != nil {
 				return nil, s.errorHandler.NewGenericStatus(
-					errors.New("failed to parse xattr data"),
+					ctx, errors.New("failed to parse xattr data"),
 				).Err()
 			}
 
@@ -483,7 +483,7 @@ func (s *XdcrServer) GetDocument(
 			})
 			if err != nil {
 				return nil, s.errorHandler.NewGenericStatus(
-					errors.New("failed to iterate xattr data"),
+					ctx, errors.New("failed to iterate xattr data"),
 				).Err()
 			}
 
@@ -495,7 +495,7 @@ func (s *XdcrServer) GetDocument(
 			}
 			if !isCompressed {
 				return nil, s.errorHandler.NewGenericStatus(
-					errors.New("document content is not compressed, but compression was expected"),
+					ctx, errors.New("document content is not compressed, but compression was expected"),
 				).Err()
 			}
 
@@ -509,7 +509,7 @@ func (s *XdcrServer) GetDocument(
 	}
 
 	return nil, s.errorHandler.NewGenericStatus(
-		errors.New("failed to retrieve document after multiple attempts"),
+		ctx, errors.New("failed to retrieve document after multiple attempts"),
 	).Err()
 }
 
@@ -522,7 +522,7 @@ func (s *XdcrServer) CheckDocument(
 		return nil, errSt.Err()
 	}
 
-	errSt = s.checkKey(in.Key)
+	errSt = s.checkKey(ctx, in.Key)
 	if errSt != nil {
 		return nil, errSt.Err()
 	}
@@ -543,20 +543,20 @@ func (s *XdcrServer) CheckDocument(
 				return &internal_xdcr_v1.CheckDocumentResponse{}, nil
 			}
 
-			return nil, s.errorHandler.NewDocMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+			return nil, s.errorHandler.NewDocMissingStatus(ctx, err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
 		} else if errors.Is(err, memdx.ErrUnknownCollectionName) {
-			return nil, s.errorHandler.NewCollectionMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+			return nil, s.errorHandler.NewCollectionMissingStatus(ctx, err, in.BucketName, in.ScopeName, in.CollectionName).Err()
 		} else if errors.Is(err, memdx.ErrUnknownScopeName) {
-			return nil, s.errorHandler.NewScopeMissingStatus(err, in.BucketName, in.ScopeName).Err()
+			return nil, s.errorHandler.NewScopeMissingStatus(ctx, err, in.BucketName, in.ScopeName).Err()
 		} else if errors.Is(err, memdx.ErrAccessError) {
-			return nil, s.errorHandler.NewCollectionNoReadAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+			return nil, s.errorHandler.NewCollectionNoReadAccessStatus(ctx, err, in.BucketName, in.ScopeName, in.CollectionName).Err()
 		}
-		return nil, s.errorHandler.NewGenericStatus(err).Err()
+		return nil, s.errorHandler.NewGenericStatus(ctx, err).Err()
 	}
 
 	crMode, err := bucketAgent.GetConflictResolutionMode(ctx)
 	if err != nil {
-		return nil, s.errorHandler.NewGenericStatus(err).Err()
+		return nil, s.errorHandler.NewGenericStatus(ctx, err).Err()
 	}
 
 	var inExpiry uint32
@@ -584,17 +584,17 @@ func (s *XdcrServer) CheckDocument(
 	if err != nil {
 		if errors.Is(err, cbdoccrx.ErrUnsupportedConflictResolutionMode) {
 			return nil, s.errorHandler.NewGenericStatus(
-				errors.New("unsupported conflict resolution mode"),
+				ctx, errors.New("unsupported conflict resolution mode"),
 			).Err()
 		}
 
-		return nil, s.errorHandler.NewGenericStatus(err).Err()
+		return nil, s.errorHandler.NewGenericStatus(ctx, err).Err()
 	}
 
 	if crRes == cbdoccrx.ResolveResultKeepB {
 		// keep b means to not replicate
 		// equality means to not replicate (ie keep the target as-is)
-		return nil, s.errorHandler.NewDocConflictStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+		return nil, s.errorHandler.NewDocConflictStatus(ctx, err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
 	}
 
 	// if there is a true conflict, we need to return an error indicating that
@@ -613,12 +613,12 @@ func (s *XdcrServer) PushDocument(
 		return nil, errSt.Err()
 	}
 
-	errSt = s.checkKey(in.Key)
+	errSt = s.checkKey(ctx, in.Key)
 	if errSt != nil {
 		return nil, errSt.Err()
 	}
 
-	errSt = s.checkCAS(&in.StoreCas)
+	errSt = s.checkCAS(ctx, &in.StoreCas)
 	if errSt != nil {
 		return nil, errSt.Err()
 	}
@@ -672,14 +672,14 @@ func (s *XdcrServer) PushDocument(
 
 	crMode, err := bucketAgent.GetConflictResolutionMode(ctx)
 	if err != nil {
-		return nil, s.errorHandler.NewGenericStatus(err).Err()
+		return nil, s.errorHandler.NewGenericStatus(ctx, err).Err()
 	}
 
 	if in.IsDeleted {
 		var checkCas uint64
 		if in.CheckCas != nil {
 			if *in.CheckCas == 0 {
-				return nil, s.errorHandler.NewZeroCasStatus().Err()
+				return nil, s.errorHandler.NewZeroCasStatus(ctx).Err()
 			}
 			checkCas = *in.CheckCas
 		} else {
@@ -711,25 +711,25 @@ func (s *XdcrServer) PushDocument(
 			if errors.Is(err, memdx.ErrConflictOrCasMismatch) {
 				if checkCas == 0 {
 					// if there is no checked cas, this must be a conflict
-					return nil, s.errorHandler.NewDocConflictStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+					return nil, s.errorHandler.NewDocConflictStatus(ctx, err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
 				}
 
 				// we skip conflict resolution for sets with a checked CAS, so this must be a CAS mismatch
-				return nil, s.errorHandler.NewDocCasMismatchStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+				return nil, s.errorHandler.NewDocCasMismatchStatus(ctx, err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
 			} else if errors.Is(err, memdx.ErrDocLocked) {
-				return nil, s.errorHandler.NewDocLockedStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+				return nil, s.errorHandler.NewDocLockedStatus(ctx, err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
 			} else if errors.Is(err, memdx.ErrDocNotFound) {
-				return nil, s.errorHandler.NewDocMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+				return nil, s.errorHandler.NewDocMissingStatus(ctx, err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
 			} else if errors.Is(err, memdx.ErrUnknownCollectionName) {
-				return nil, s.errorHandler.NewCollectionMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+				return nil, s.errorHandler.NewCollectionMissingStatus(ctx, err, in.BucketName, in.ScopeName, in.CollectionName).Err()
 			} else if errors.Is(err, memdx.ErrUnknownScopeName) {
-				return nil, s.errorHandler.NewScopeMissingStatus(err, in.BucketName, in.ScopeName).Err()
+				return nil, s.errorHandler.NewScopeMissingStatus(ctx, err, in.BucketName, in.ScopeName).Err()
 			} else if errors.Is(err, memdx.ErrAccessError) {
-				return nil, s.errorHandler.NewCollectionNoWriteAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+				return nil, s.errorHandler.NewCollectionNoWriteAccessStatus(ctx, err, in.BucketName, in.ScopeName, in.CollectionName).Err()
 			} else if errors.Is(err, gocbcorex.ErrVbucketUUIDMismatch) {
-				return nil, s.errorHandler.NewVbUuidDivergenceStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+				return nil, s.errorHandler.NewVbUuidDivergenceStatus(ctx, err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
 			}
-			return nil, s.errorHandler.NewGenericStatus(err).Err()
+			return nil, s.errorHandler.NewGenericStatus(ctx, err).Err()
 		}
 
 		return &internal_xdcr_v1.PushDocumentResponse{
@@ -762,19 +762,19 @@ func (s *XdcrServer) PushDocument(
 		result, err := bucketAgent.AddWithMeta(ctx, &opts)
 		if err != nil {
 			if errors.Is(err, memdx.ErrDocExists) {
-				return nil, s.errorHandler.NewDocExistsStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+				return nil, s.errorHandler.NewDocExistsStatus(ctx, err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
 			} else if errors.Is(err, memdx.ErrUnknownCollectionName) {
-				return nil, s.errorHandler.NewCollectionMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+				return nil, s.errorHandler.NewCollectionMissingStatus(ctx, err, in.BucketName, in.ScopeName, in.CollectionName).Err()
 			} else if errors.Is(err, memdx.ErrUnknownScopeName) {
-				return nil, s.errorHandler.NewScopeMissingStatus(err, in.BucketName, in.ScopeName).Err()
+				return nil, s.errorHandler.NewScopeMissingStatus(ctx, err, in.BucketName, in.ScopeName).Err()
 			} else if errors.Is(err, memdx.ErrAccessError) {
-				return nil, s.errorHandler.NewCollectionNoWriteAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+				return nil, s.errorHandler.NewCollectionNoWriteAccessStatus(ctx, err, in.BucketName, in.ScopeName, in.CollectionName).Err()
 			} else if errors.Is(err, memdx.ErrValueTooLarge) {
-				return nil, s.errorHandler.NewValueTooLargeStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key, false).Err()
+				return nil, s.errorHandler.NewValueTooLargeStatus(ctx, err, in.BucketName, in.ScopeName, in.CollectionName, in.Key, false).Err()
 			} else if errors.Is(err, gocbcorex.ErrVbucketUUIDMismatch) {
-				return nil, s.errorHandler.NewVbUuidDivergenceStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+				return nil, s.errorHandler.NewVbUuidDivergenceStatus(ctx, err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
 			}
-			return nil, s.errorHandler.NewGenericStatus(err).Err()
+			return nil, s.errorHandler.NewGenericStatus(ctx, err).Err()
 		}
 
 		return &internal_xdcr_v1.PushDocumentResponse{
@@ -821,25 +821,25 @@ func (s *XdcrServer) PushDocument(
 			if errors.Is(err, memdx.ErrConflictOrCasMismatch) {
 				if checkCas == 0 {
 					// if there is no checked cas, this must be a conflict
-					return nil, s.errorHandler.NewDocConflictStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+					return nil, s.errorHandler.NewDocConflictStatus(ctx, err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
 				}
 
 				// we skip conflict resolution for sets with a checked CAS, so this must be a CAS mismatch
-				return nil, s.errorHandler.NewDocCasMismatchStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+				return nil, s.errorHandler.NewDocCasMismatchStatus(ctx, err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
 			} else if errors.Is(err, memdx.ErrDocExists) {
-				return nil, s.errorHandler.NewDocExistsStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+				return nil, s.errorHandler.NewDocExistsStatus(ctx, err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
 			} else if errors.Is(err, memdx.ErrUnknownCollectionName) {
-				return nil, s.errorHandler.NewCollectionMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+				return nil, s.errorHandler.NewCollectionMissingStatus(ctx, err, in.BucketName, in.ScopeName, in.CollectionName).Err()
 			} else if errors.Is(err, memdx.ErrUnknownScopeName) {
-				return nil, s.errorHandler.NewScopeMissingStatus(err, in.BucketName, in.ScopeName).Err()
+				return nil, s.errorHandler.NewScopeMissingStatus(ctx, err, in.BucketName, in.ScopeName).Err()
 			} else if errors.Is(err, memdx.ErrAccessError) {
-				return nil, s.errorHandler.NewCollectionNoWriteAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+				return nil, s.errorHandler.NewCollectionNoWriteAccessStatus(ctx, err, in.BucketName, in.ScopeName, in.CollectionName).Err()
 			} else if errors.Is(err, memdx.ErrValueTooLarge) {
-				return nil, s.errorHandler.NewValueTooLargeStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key, false).Err()
+				return nil, s.errorHandler.NewValueTooLargeStatus(ctx, err, in.BucketName, in.ScopeName, in.CollectionName, in.Key, false).Err()
 			} else if errors.Is(err, gocbcorex.ErrVbucketUUIDMismatch) {
-				return nil, s.errorHandler.NewVbUuidDivergenceStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+				return nil, s.errorHandler.NewVbUuidDivergenceStatus(ctx, err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
 			}
-			return nil, s.errorHandler.NewGenericStatus(err).Err()
+			return nil, s.errorHandler.NewGenericStatus(ctx, err).Err()
 		}
 
 		return &internal_xdcr_v1.PushDocumentResponse{
@@ -849,17 +849,17 @@ func (s *XdcrServer) PushDocument(
 	}
 }
 
-func (s *XdcrServer) checkKey(key string) *status.Status {
+func (s *XdcrServer) checkKey(ctx context.Context, key string) *status.Status {
 	if len(key) > 250 || len(key) < 1 {
-		return s.errorHandler.NewInvalidKeyLengthStatus(key)
+		return s.errorHandler.NewInvalidKeyLengthStatus(ctx, key)
 	}
 
 	return nil
 }
 
-func (s *XdcrServer) checkCAS(cas *uint64) *status.Status {
+func (s *XdcrServer) checkCAS(ctx context.Context, cas *uint64) *status.Status {
 	if cas != nil && *cas == 0 {
-		return s.errorHandler.NewZeroCasStatus()
+		return s.errorHandler.NewZeroCasStatus(ctx)
 	}
 
 	return nil
