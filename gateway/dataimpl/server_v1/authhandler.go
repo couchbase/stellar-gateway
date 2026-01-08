@@ -28,7 +28,7 @@ func (a AuthHandler) MaybeGetUserPassFromContext(ctx context.Context) (string, s
 	authValues := metadata.ValueFromIncomingContext(ctx, "Authorization")
 	if len(authValues) > 1 {
 		a.Logger.Debug("more than a single authorization header was found")
-		return "", "", a.ErrorHandler.NewInvalidAuthHeaderStatus(
+		return "", "", a.ErrorHandler.NewInvalidAuthHeaderStatus(ctx,
 			errors.New("more than a single authorization header was found"))
 	}
 
@@ -41,7 +41,7 @@ func (a AuthHandler) MaybeGetUserPassFromContext(ctx context.Context) (string, s
 	username, password, ok := authhdr.DecodeBasicAuth(authValue)
 	if !ok {
 		a.Logger.Debug("failed to parse authorization header")
-		return "", "", a.ErrorHandler.NewInvalidAuthHeaderStatus(
+		return "", "", a.ErrorHandler.NewInvalidAuthHeaderStatus(ctx,
 			errors.New("failed to parse authorization header"))
 	}
 
@@ -57,7 +57,7 @@ func (a AuthHandler) MaybeGetConnStateFromContext(ctx context.Context) (*tls.Con
 	tlsInfo, ok := p.AuthInfo.(credentials.TLSInfo)
 	if !ok {
 		a.Logger.Debug("unexpected auth type", zap.String("authType", p.AuthInfo.AuthType()))
-		return nil, a.ErrorHandler.NewUnexpectedAuthTypeStatus()
+		return nil, a.ErrorHandler.NewUnexpectedAuthTypeStatus(ctx)
 	}
 
 	return &tlsInfo.State, nil
@@ -79,7 +79,7 @@ func (a AuthHandler) MaybeGetOboUserFromContext(ctx context.Context) (string, st
 
 	switch {
 	case !credsFound && !certFound:
-		return "", "", a.ErrorHandler.NewNoAuthStatus()
+		return "", "", a.ErrorHandler.NewNoAuthStatus(ctx)
 	case credsFound && certFound:
 		a.Logger.Debug("username/password taking priority over client cert auth as both were given.")
 	case credsFound:
@@ -87,13 +87,13 @@ func (a AuthHandler) MaybeGetOboUserFromContext(ctx context.Context) (string, st
 		oboUser, oboDomain, err := a.Authenticator.ValidateConnStateForObo(ctx, connState)
 		if err != nil {
 			if errors.Is(err, auth.ErrInvalidCertificate) {
-				return "", "", a.ErrorHandler.NewInvalidCertificateStatus()
+				return "", "", a.ErrorHandler.NewInvalidCertificateStatus(ctx)
 			} else if errors.Is(err, auth.ErrCertAuthDisabled) {
-				return "", "", a.ErrorHandler.NewCertAuthDisabledStatus()
+				return "", "", a.ErrorHandler.NewCertAuthDisabledStatus(ctx)
 			}
 
 			a.Logger.Error("received an unexpected cert authentication error", zap.Error(err))
-			return "", "", a.ErrorHandler.NewInternalStatus()
+			return "", "", a.ErrorHandler.NewInternalStatus(ctx)
 		}
 
 		return oboUser, oboDomain, nil
@@ -106,11 +106,11 @@ func (a AuthHandler) MaybeGetOboUserFromContext(ctx context.Context) (string, st
 		}
 
 		if errors.Is(err, auth.ErrInvalidCredentials) {
-			return "", "", a.ErrorHandler.NewInvalidCredentialsStatus()
+			return "", "", a.ErrorHandler.NewInvalidCredentialsStatus(ctx)
 		}
 
 		a.Logger.Error("received an unexpected authentication error", zap.Error(err))
-		return "", "", a.ErrorHandler.NewInternalStatus()
+		return "", "", a.ErrorHandler.NewInternalStatus(ctx)
 	}
 
 	return oboUser, oboDomain, nil
@@ -141,7 +141,7 @@ func (a AuthHandler) GetHttpOboInfoFromContext(ctx context.Context) (*cbhttpx.On
 
 	switch {
 	case !credsFound && !certFound:
-		return nil, a.ErrorHandler.NewNoAuthStatus()
+		return nil, a.ErrorHandler.NewNoAuthStatus(ctx)
 	case credsFound && certFound:
 		a.Logger.Debug("username/password taking priority over client cert auth as both were given.")
 	case credsFound:
@@ -149,11 +149,11 @@ func (a AuthHandler) GetHttpOboInfoFromContext(ctx context.Context) (*cbhttpx.On
 		oboUser, oboDomain, err := a.Authenticator.ValidateConnStateForObo(ctx, connState)
 		if err != nil {
 			if errors.Is(err, auth.ErrInvalidCertificate) {
-				return nil, a.ErrorHandler.NewInvalidCertificateStatus()
+				return nil, a.ErrorHandler.NewInvalidCertificateStatus(ctx)
 			}
 
 			a.Logger.Error("received an unexpected cert authentication error", zap.Error(err))
-			return nil, a.ErrorHandler.NewInternalStatus()
+			return nil, a.ErrorHandler.NewInternalStatus(ctx)
 		}
 
 		return &cbhttpx.OnBehalfOfInfo{
@@ -171,7 +171,7 @@ func (a AuthHandler) GetHttpOboInfoFromContext(ctx context.Context) (*cbhttpx.On
 func (a AuthHandler) getClusterAgent(ctx context.Context) (*gocbcorex.Agent, *status.Status) {
 	agent, err := a.CbClient.GetClusterAgent(ctx)
 	if err != nil {
-		return nil, a.ErrorHandler.NewGenericStatus(err)
+		return nil, a.ErrorHandler.NewGenericStatus(ctx, err)
 	}
 
 	return agent, nil
@@ -181,10 +181,10 @@ func (a AuthHandler) getBucketAgent(ctx context.Context, bucketName string) (*go
 	bucketAgent, err := a.CbClient.GetBucketAgent(ctx, bucketName)
 	if err != nil {
 		if errors.Is(err, cbmgmtx.ErrBucketNotFound) {
-			return nil, a.ErrorHandler.NewBucketMissingStatus(err, bucketName)
+			return nil, a.ErrorHandler.NewBucketMissingStatus(ctx, err, bucketName)
 		}
 
-		return nil, a.ErrorHandler.NewGenericStatus(err)
+		return nil, a.ErrorHandler.NewGenericStatus(ctx, err)
 	}
 
 	return bucketAgent, nil

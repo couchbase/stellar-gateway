@@ -7,6 +7,8 @@ import (
 	"net"
 	"strings"
 
+	"google.golang.org/grpc/metadata"
+
 	"github.com/couchbase/gocbcorex/cbmgmtx"
 	"github.com/couchbase/gocbcorex/cbqueryx"
 	"github.com/couchbase/gocbcorex/cbsearchx"
@@ -77,15 +79,25 @@ func (e ErrorHandler) tryAttachExtraContext(st *status.Status, baseErr error) *s
 	return st
 }
 
-func (e ErrorHandler) NewInternalStatus() *status.Status {
-	st := status.New(codes.Internal, "An internal error occurred.")
+func (e ErrorHandler) newStatus(ctx context.Context, code codes.Code, msg string) *status.Status {
+	optimizedErrors := metadata.ValueFromIncomingContext(ctx, "X-CB-Optimized-Errors")
+
+	if len(optimizedErrors) == 0 {
+		return status.New(code, msg)
+	}
+
+	return status.New(code, "")
+}
+
+func (e ErrorHandler) NewInternalStatus(ctx context.Context) *status.Status {
+	st := e.newStatus(ctx, codes.Internal, "An internal error occurred.")
 	return st
 }
 
-func (e ErrorHandler) NewUnknownStatus(baseErr error) *status.Status {
+func (e ErrorHandler) NewUnknownStatus(ctx context.Context, baseErr error) *status.Status {
 	var memdErr *memdx.ServerError
 	if errors.As(baseErr, &memdErr) {
-		st := status.New(codes.Unknown, fmt.Sprintf("An unknown memcached error occurred (status: %d).", memdErr.Status))
+		st := e.newStatus(ctx, codes.Unknown, fmt.Sprintf("An unknown memcached error occurred (status: %d).", memdErr.Status))
 		st = e.tryAttachExtraContext(st, baseErr)
 		return st
 	}
@@ -97,7 +109,7 @@ func (e ErrorHandler) NewUnknownStatus(baseErr error) *status.Status {
 			queryErrDescs = append(queryErrDescs, fmt.Sprintf("%d - %s", querySubErr.Code, querySubErr.Msg))
 		}
 
-		st := status.New(codes.Unknown,
+		st := e.newStatus(ctx, codes.Unknown,
 			fmt.Sprintf("An unknown query error occurred (descs: %s).", strings.Join(queryErrDescs, "; ")))
 		st = e.tryAttachExtraContext(st, baseErr)
 		return st
@@ -105,7 +117,7 @@ func (e ErrorHandler) NewUnknownStatus(baseErr error) *status.Status {
 
 	var searchErr *cbsearchx.ServerError
 	if errors.As(baseErr, &searchErr) {
-		st := status.New(codes.Unknown,
+		st := e.newStatus(ctx, codes.Unknown,
 			fmt.Sprintf("An unknown search error occurred (status: %d).", searchErr.StatusCode))
 		st = e.tryAttachExtraContext(st, baseErr)
 		return st
@@ -113,19 +125,19 @@ func (e ErrorHandler) NewUnknownStatus(baseErr error) *status.Status {
 
 	var serverErr *cbmgmtx.ServerError
 	if errors.As(baseErr, &serverErr) {
-		st := status.New(codes.Unknown,
+		st := e.newStatus(ctx, codes.Unknown,
 			fmt.Sprintf("An unknown server error occurred (status: %d).", serverErr.StatusCode))
 		st = e.tryAttachExtraContext(st, baseErr)
 		return st
 	}
 
-	st := status.New(codes.Unknown, "An unknown error occurred.")
+	st := e.newStatus(ctx, codes.Unknown, "An unknown error occurred.")
 	st = e.tryAttachExtraContext(st, baseErr)
 	return st
 }
 
-func (e ErrorHandler) NewBucketMissingStatus(baseErr error, bucketName string) *status.Status {
-	st := status.New(codes.NotFound,
+func (e ErrorHandler) NewBucketMissingStatus(ctx context.Context, baseErr error, bucketName string) *status.Status {
+	st := e.newStatus(ctx, codes.NotFound,
 		fmt.Sprintf("Bucket '%s' was not found.",
 			bucketName))
 	st = e.tryAttachStatusDetails(st, &epb.ResourceInfo{
@@ -137,8 +149,8 @@ func (e ErrorHandler) NewBucketMissingStatus(baseErr error, bucketName string) *
 	return st
 }
 
-func (e ErrorHandler) NewBucketExistsStatus(baseErr error, bucketName string) *status.Status {
-	st := status.New(codes.AlreadyExists,
+func (e ErrorHandler) NewBucketExistsStatus(ctx context.Context, baseErr error, bucketName string) *status.Status {
+	st := e.newStatus(ctx, codes.AlreadyExists,
 		fmt.Sprintf("Bucket '%s' already existed.",
 			bucketName))
 	st = e.tryAttachStatusDetails(st, &epb.ResourceInfo{
@@ -150,8 +162,8 @@ func (e ErrorHandler) NewBucketExistsStatus(baseErr error, bucketName string) *s
 	return st
 }
 
-func (e ErrorHandler) NewBucketFlushDisabledStatus(baseErr error, bucketName string) *status.Status {
-	st := status.New(codes.FailedPrecondition,
+func (e ErrorHandler) NewBucketFlushDisabledStatus(ctx context.Context, baseErr error, bucketName string) *status.Status {
+	st := e.newStatus(ctx, codes.FailedPrecondition,
 		fmt.Sprintf("Flush is disabled for bucket '%s'.",
 			bucketName))
 	st = e.tryAttachStatusDetails(st, &epb.PreconditionFailure{
@@ -165,15 +177,15 @@ func (e ErrorHandler) NewBucketFlushDisabledStatus(baseErr error, bucketName str
 	return st
 }
 
-func (e ErrorHandler) NewBucketInvalidArgStatus(baseErr error, msg string, bucketName string) *status.Status {
+func (e ErrorHandler) NewBucketInvalidArgStatus(ctx context.Context, baseErr error, msg string, bucketName string) *status.Status {
 	if msg == "" {
 		msg = "invalid argument"
 	}
-	st := status.New(codes.InvalidArgument, msg)
+	st := e.newStatus(ctx, codes.InvalidArgument, msg)
 
 	var sErr *cbmgmtx.ServerInvalidArgError
 	if errors.As(baseErr, &sErr) {
-		st = status.New(codes.InvalidArgument, fmt.Sprintf("invalid argument: %s - %s", sErr.Argument, sErr.Reason))
+		st = e.newStatus(ctx, codes.InvalidArgument, fmt.Sprintf("invalid argument: %s - %s", sErr.Argument, sErr.Reason))
 	}
 
 	if baseErr != nil {
@@ -188,9 +200,9 @@ func (e ErrorHandler) NewBucketInvalidArgStatus(baseErr error, msg string, bucke
 	return st
 }
 
-func (e ErrorHandler) NewBucketAccessDeniedStatus(baseErr error, bucketName string) *status.Status {
+func (e ErrorHandler) NewBucketAccessDeniedStatus(ctx context.Context, baseErr error, bucketName string) *status.Status {
 	msg := "No permissions to perform bucket management operation."
-	st := status.New(codes.PermissionDenied, msg)
+	st := e.newStatus(ctx, codes.PermissionDenied, msg)
 
 	st = e.tryAttachStatusDetails(
 		st, &epb.ResourceInfo{
@@ -201,15 +213,15 @@ func (e ErrorHandler) NewBucketAccessDeniedStatus(baseErr error, bucketName stri
 	return st
 }
 
-func (e ErrorHandler) NewCollectionInvalidArgStatus(baseErr error, msg string, bucket, scope, collection string) *status.Status {
+func (e ErrorHandler) NewCollectionInvalidArgStatus(ctx context.Context, baseErr error, msg string, bucket, scope, collection string) *status.Status {
 	if msg == "" {
 		msg = "invalid argument"
 	}
-	st := status.New(codes.InvalidArgument, msg)
+	st := e.newStatus(ctx, codes.InvalidArgument, msg)
 
 	var sErr *cbmgmtx.ServerInvalidArgError
 	if errors.As(baseErr, &sErr) {
-		st = status.New(codes.InvalidArgument, fmt.Sprintf("invalid argument: %s - %s", sErr.Argument, sErr.Reason))
+		st = e.newStatus(ctx, codes.InvalidArgument, fmt.Sprintf("invalid argument: %s - %s", sErr.Argument, sErr.Reason))
 	}
 
 	if baseErr != nil {
@@ -224,8 +236,8 @@ func (e ErrorHandler) NewCollectionInvalidArgStatus(baseErr error, msg string, b
 	return st
 }
 
-func (e ErrorHandler) NewScopeMissingStatus(baseErr error, bucketName, scopeName string) *status.Status {
-	st := status.New(codes.NotFound,
+func (e ErrorHandler) NewScopeMissingStatus(ctx context.Context, baseErr error, bucketName, scopeName string) *status.Status {
+	st := e.newStatus(ctx, codes.NotFound,
 		fmt.Sprintf("Scope '%s' not found in '%s'.",
 			scopeName, bucketName))
 	st = e.tryAttachStatusDetails(st, &epb.ResourceInfo{
@@ -237,8 +249,8 @@ func (e ErrorHandler) NewScopeMissingStatus(baseErr error, bucketName, scopeName
 	return st
 }
 
-func (e ErrorHandler) NewCollectionMissingStatus(baseErr error, bucketName, scopeName, collectionName string) *status.Status {
-	st := status.New(codes.NotFound,
+func (e ErrorHandler) NewCollectionMissingStatus(ctx context.Context, baseErr error, bucketName, scopeName, collectionName string) *status.Status {
+	st := e.newStatus(ctx, codes.NotFound,
 		fmt.Sprintf("Collection '%s' not found in '%s/%s'.",
 			collectionName, bucketName, scopeName))
 	st = e.tryAttachStatusDetails(st, &epb.ResourceInfo{
@@ -250,8 +262,8 @@ func (e ErrorHandler) NewCollectionMissingStatus(baseErr error, bucketName, scop
 	return st
 }
 
-func (e ErrorHandler) NewScopeExistsStatus(baseErr error, bucketName, scopeName string) *status.Status {
-	st := status.New(codes.AlreadyExists,
+func (e ErrorHandler) NewScopeExistsStatus(ctx context.Context, baseErr error, bucketName, scopeName string) *status.Status {
+	st := e.newStatus(ctx, codes.AlreadyExists,
 		fmt.Sprintf("Scope '%s' already existed in '%s'.",
 			scopeName, bucketName))
 	st = e.tryAttachStatusDetails(st, &epb.ResourceInfo{
@@ -263,8 +275,8 @@ func (e ErrorHandler) NewScopeExistsStatus(baseErr error, bucketName, scopeName 
 	return st
 }
 
-func (e ErrorHandler) NewCollectionExistsStatus(baseErr error, bucketName, scopeName, collectionName string) *status.Status {
-	st := status.New(codes.AlreadyExists,
+func (e ErrorHandler) NewCollectionExistsStatus(ctx context.Context, baseErr error, bucketName, scopeName, collectionName string) *status.Status {
+	st := e.newStatus(ctx, codes.AlreadyExists,
 		fmt.Sprintf("Collection '%s' already existed in '%s/%s'.",
 			collectionName, bucketName, scopeName))
 	st = e.tryAttachStatusDetails(st, &epb.ResourceInfo{
@@ -276,7 +288,7 @@ func (e ErrorHandler) NewCollectionExistsStatus(baseErr error, bucketName, scope
 	return st
 }
 
-func (e ErrorHandler) NewQueryIndexMissingStatus(baseErr error, indexName, bucketName, scopeName, collectionName string) *status.Status {
+func (e ErrorHandler) NewQueryIndexMissingStatus(ctx context.Context, baseErr error, indexName, bucketName, scopeName, collectionName string) *status.Status {
 	var path string
 	if bucketName != "" {
 		path = bucketName
@@ -294,7 +306,7 @@ func (e ErrorHandler) NewQueryIndexMissingStatus(baseErr error, indexName, bucke
 	} else {
 		msg = fmt.Sprintf("Query index '%s' not found in '%s'.", indexName, path)
 	}
-	st := status.New(codes.NotFound, msg)
+	st := e.newStatus(ctx, codes.NotFound, msg)
 	st = e.tryAttachStatusDetails(st, &epb.ResourceInfo{
 		ResourceType: "queryindex",
 		ResourceName: indexName,
@@ -304,7 +316,7 @@ func (e ErrorHandler) NewQueryIndexMissingStatus(baseErr error, indexName, bucke
 	return st
 }
 
-func (e ErrorHandler) NewQueryIndexExistsStatus(baseErr error, indexName, bucketName, scopeName, collectionName string) *status.Status {
+func (e ErrorHandler) NewQueryIndexExistsStatus(ctx context.Context, baseErr error, indexName, bucketName, scopeName, collectionName string) *status.Status {
 	var path string
 	if bucketName != "" {
 		path = bucketName
@@ -322,7 +334,7 @@ func (e ErrorHandler) NewQueryIndexExistsStatus(baseErr error, indexName, bucket
 	} else {
 		msg = fmt.Sprintf("Query index '%s' already existed in  '%s'.", indexName, path)
 	}
-	st := status.New(codes.AlreadyExists, msg)
+	st := e.newStatus(ctx, codes.AlreadyExists, msg)
 	st = e.tryAttachStatusDetails(st, &epb.ResourceInfo{
 		ResourceType: "queryindex",
 		ResourceName: indexName,
@@ -332,8 +344,8 @@ func (e ErrorHandler) NewQueryIndexExistsStatus(baseErr error, indexName, bucket
 	return st
 }
 
-func (e ErrorHandler) NewQueryIndexNotBuildingStatus(baseErr error, bucketName, scopeName, collectionName, indexName string) *status.Status {
-	st := status.New(codes.FailedPrecondition,
+func (e ErrorHandler) NewQueryIndexNotBuildingStatus(ctx context.Context, baseErr error, bucketName, scopeName, collectionName, indexName string) *status.Status {
+	st := e.newStatus(ctx, codes.FailedPrecondition,
 		fmt.Sprintf("Cannot wait for index '%s' in '%s/%s/%s' to be ready as it is still deferred.",
 			indexName, bucketName, scopeName, collectionName))
 	st = e.tryAttachStatusDetails(st, &epb.PreconditionFailure{
@@ -347,7 +359,7 @@ func (e ErrorHandler) NewQueryIndexNotBuildingStatus(baseErr error, bucketName, 
 	return st
 }
 
-func (e ErrorHandler) NewQueryIndexAuthenticationFailureStatus(baseErr error, bucketName, scopeName, collectionName string) *status.Status {
+func (e ErrorHandler) NewQueryIndexAuthenticationFailureStatus(ctx context.Context, baseErr error, bucketName, scopeName, collectionName string) *status.Status {
 	var path string
 	var resource string
 	if bucketName != "" {
@@ -364,7 +376,7 @@ func (e ErrorHandler) NewQueryIndexAuthenticationFailureStatus(baseErr error, bu
 	}
 
 	msg := fmt.Sprintf("Insufficient permissions to perform query index operation against %s.", path)
-	st := status.New(codes.PermissionDenied, msg)
+	st := e.newStatus(ctx, codes.PermissionDenied, msg)
 	st = e.tryAttachStatusDetails(st, &epb.ResourceInfo{
 		ResourceType: resource,
 		ResourceName: path,
@@ -374,8 +386,8 @@ func (e ErrorHandler) NewQueryIndexAuthenticationFailureStatus(baseErr error, bu
 	return st
 }
 
-func (e ErrorHandler) NewQueryIndexInvalidArgumentStatus(baseErr error, indexName, msg string) *status.Status {
-	st := status.New(codes.InvalidArgument, msg)
+func (e ErrorHandler) NewQueryIndexInvalidArgumentStatus(ctx context.Context, baseErr error, indexName, msg string) *status.Status {
+	st := e.newStatus(ctx, codes.InvalidArgument, msg)
 	st = e.tryAttachStatusDetails(st, &epb.ResourceInfo{
 		ResourceType: "queryindex",
 		ResourceName: indexName,
@@ -389,8 +401,8 @@ func (e ErrorHandler) NewQueryIndexInvalidArgumentStatus(baseErr error, indexNam
 	return st
 }
 
-func (e ErrorHandler) NewSearchServiceNotAvailableStatus(baseErr error, indexName string) *status.Status {
-	st := status.New(codes.Unimplemented, "Search service is not available.")
+func (e ErrorHandler) NewSearchServiceNotAvailableStatus(ctx context.Context, baseErr error, indexName string) *status.Status {
+	st := e.newStatus(ctx, codes.Unimplemented, "Search service is not available.")
 	st = e.tryAttachStatusDetails(st, &epb.ResourceInfo{
 		ResourceType: "searchIndex",
 		ResourceName: indexName,
@@ -401,8 +413,8 @@ func (e ErrorHandler) NewSearchServiceNotAvailableStatus(baseErr error, indexNam
 	return st
 }
 
-func (e ErrorHandler) NewSearchIndexMissingStatus(baseErr error, indexName string) *status.Status {
-	st := status.New(codes.NotFound,
+func (e ErrorHandler) NewSearchIndexMissingStatus(ctx context.Context, baseErr error, indexName string) *status.Status {
+	st := e.newStatus(ctx, codes.NotFound,
 		fmt.Sprintf("Search index '%s' not found.",
 			indexName))
 	st = e.tryAttachStatusDetails(st, &epb.ResourceInfo{
@@ -414,8 +426,8 @@ func (e ErrorHandler) NewSearchIndexMissingStatus(baseErr error, indexName strin
 	return st
 }
 
-func (e ErrorHandler) NewSearchIndexExistsStatus(baseErr error, indexName string) *status.Status {
-	st := status.New(codes.AlreadyExists,
+func (e ErrorHandler) NewSearchIndexExistsStatus(ctx context.Context, baseErr error, indexName string) *status.Status {
+	st := e.newStatus(ctx, codes.AlreadyExists,
 		fmt.Sprintf("Search index '%s' already existed.",
 			indexName))
 	st = e.tryAttachStatusDetails(st, &epb.ResourceInfo{
@@ -427,8 +439,8 @@ func (e ErrorHandler) NewSearchIndexExistsStatus(baseErr error, indexName string
 	return st
 }
 
-func (e ErrorHandler) NewSearchIndexNameInvalidStatus(baseErr error, indexName string) *status.Status {
-	st := status.New(codes.InvalidArgument,
+func (e ErrorHandler) NewSearchIndexNameInvalidStatus(ctx context.Context, baseErr error, indexName string) *status.Status {
+	st := e.newStatus(ctx, codes.InvalidArgument,
 		fmt.Sprintf("Name for search index '%s' is invalid.",
 			indexName))
 	st = e.tryAttachStatusDetails(st, &epb.ResourceInfo{
@@ -440,8 +452,8 @@ func (e ErrorHandler) NewSearchIndexNameInvalidStatus(baseErr error, indexName s
 	return st
 }
 
-func (e ErrorHandler) NewSearchIndexNameTooLongStatus(baseErr error, indexName string) *status.Status {
-	st := status.New(codes.InvalidArgument,
+func (e ErrorHandler) NewSearchIndexNameTooLongStatus(ctx context.Context, baseErr error, indexName string) *status.Status {
+	st := e.newStatus(ctx, codes.InvalidArgument,
 		fmt.Sprintf("Search index name '%s' is too long.",
 			indexName))
 	st = e.tryAttachStatusDetails(st, &epb.ResourceInfo{
@@ -453,8 +465,8 @@ func (e ErrorHandler) NewSearchIndexNameTooLongStatus(baseErr error, indexName s
 	return st
 }
 
-func (e ErrorHandler) NewSearchIndexNameEmptyStatus(baseErr error) *status.Status {
-	st := status.New(codes.InvalidArgument, "Must specify an index name when performing this operation.")
+func (e ErrorHandler) NewSearchIndexNameEmptyStatus(ctx context.Context, baseErr error) *status.Status {
+	st := e.newStatus(ctx, codes.InvalidArgument, "Must specify an index name when performing this operation.")
 	st = e.tryAttachStatusDetails(st, &epb.ResourceInfo{
 		ResourceType: "searchindex",
 		ResourceName: "",
@@ -464,8 +476,8 @@ func (e ErrorHandler) NewSearchIndexNameEmptyStatus(baseErr error) *status.Statu
 	return st
 }
 
-func (e ErrorHandler) NewUnknownSearchIndexTypeStatus(baseErr error, indexName string, indexType string) *status.Status {
-	st := status.New(codes.InvalidArgument,
+func (e ErrorHandler) NewUnknownSearchIndexTypeStatus(ctx context.Context, baseErr error, indexName string, indexType string) *status.Status {
+	st := e.newStatus(ctx, codes.InvalidArgument,
 		fmt.Sprintf("Search index type '%s' is unknown.",
 			indexType))
 	st = e.tryAttachStatusDetails(st, &epb.ResourceInfo{
@@ -477,8 +489,8 @@ func (e ErrorHandler) NewUnknownSearchIndexTypeStatus(baseErr error, indexName s
 	return st
 }
 
-func (e ErrorHandler) NewSearchUUIDMismatchStatus(baseErr error, indexName string) *status.Status {
-	st := status.New(codes.Aborted,
+func (e ErrorHandler) NewSearchUUIDMismatchStatus(ctx context.Context, baseErr error, indexName string) *status.Status {
+	st := e.newStatus(ctx, codes.Aborted,
 		fmt.Sprintf("Search index '%s' already existed with a different UUID.",
 			indexName))
 	st = e.tryAttachStatusDetails(st, &epb.ResourceInfo{
@@ -490,8 +502,8 @@ func (e ErrorHandler) NewSearchUUIDMismatchStatus(baseErr error, indexName strin
 	return st
 }
 
-func (e ErrorHandler) NewOnlyBucketOrScopeSetStatus(baseErr error, indexName string) *status.Status {
-	st := status.New(codes.InvalidArgument, "Must specify both or neither of scope and bucket names.")
+func (e ErrorHandler) NewOnlyBucketOrScopeSetStatus(ctx context.Context, baseErr error, indexName string) *status.Status {
+	st := e.newStatus(ctx, codes.InvalidArgument, "Must specify both or neither of scope and bucket names.")
 	st = e.tryAttachStatusDetails(st, &epb.ResourceInfo{
 		ResourceType: "searchindex",
 		ResourceName: indexName,
@@ -501,8 +513,8 @@ func (e ErrorHandler) NewOnlyBucketOrScopeSetStatus(baseErr error, indexName str
 	return st
 }
 
-func (e ErrorHandler) NewSearchIndexNotReadyStatus(baseErr error, indexName string) *status.Status {
-	st := status.New(codes.Unavailable, "Search index is still being built, try again later.")
+func (e ErrorHandler) NewSearchIndexNotReadyStatus(ctx context.Context, baseErr error, indexName string) *status.Status {
+	st := e.newStatus(ctx, codes.Unavailable, "Search index is still being built, try again later.")
 	st = e.tryAttachStatusDetails(st, &epb.ResourceInfo{
 		ResourceType: "searchindex",
 		ResourceName: indexName,
@@ -512,12 +524,12 @@ func (e ErrorHandler) NewSearchIndexNotReadyStatus(baseErr error, indexName stri
 	return st
 }
 
-func (e ErrorHandler) NewIncorrectSearchSourceTypeStatus(baseErr error, indexName string, sourceType *string) *status.Status {
+func (e ErrorHandler) NewIncorrectSearchSourceTypeStatus(ctx context.Context, baseErr error, indexName string, sourceType *string) *status.Status {
 	var sT string
 	if sourceType != nil {
 		sT = *sourceType
 	}
-	st := status.New(codes.InvalidArgument, fmt.Sprintf("'%s' is not a valid source type.", sT))
+	st := e.newStatus(ctx, codes.InvalidArgument, fmt.Sprintf("'%s' is not a valid source type.", sT))
 	st = e.tryAttachStatusDetails(st, &epb.ResourceInfo{
 		ResourceType: "searchindex",
 		ResourceName: indexName,
@@ -527,12 +539,12 @@ func (e ErrorHandler) NewIncorrectSearchSourceTypeStatus(baseErr error, indexNam
 	return st
 }
 
-func (e ErrorHandler) NewSearchSourceNotFoundStatus(baseErr error, indexName string, sourceName *string) *status.Status {
+func (e ErrorHandler) NewSearchSourceNotFoundStatus(ctx context.Context, baseErr error, indexName string, sourceName *string) *status.Status {
 	var sN string
 	if sourceName != nil {
 		sN = *sourceName
 	}
-	st := status.New(codes.NotFound, fmt.Sprintf("Source bucket '%s' for search index was not found.", sN))
+	st := e.newStatus(ctx, codes.NotFound, fmt.Sprintf("Source bucket '%s' for search index was not found.", sN))
 	st = e.tryAttachStatusDetails(st, &epb.ResourceInfo{
 		ResourceType: "bucket",
 		ResourceName: indexName,
@@ -542,7 +554,7 @@ func (e ErrorHandler) NewSearchSourceNotFoundStatus(baseErr error, indexName str
 	return st
 }
 
-func (e ErrorHandler) NewSearchIndexAuthenticationFailureStatus(baseErr error, bucketName, scopeName *string) *status.Status {
+func (e ErrorHandler) NewSearchIndexAuthenticationFailureStatus(ctx context.Context, baseErr error, bucketName, scopeName *string) *status.Status {
 	var path string
 	var resource string
 	if bucketName != nil {
@@ -555,7 +567,7 @@ func (e ErrorHandler) NewSearchIndexAuthenticationFailureStatus(baseErr error, b
 	}
 
 	msg := fmt.Sprintf("Insufficient permissions to perform search index operation against %s.", path)
-	st := status.New(codes.PermissionDenied, msg)
+	st := e.newStatus(ctx, codes.PermissionDenied, msg)
 	st = e.tryAttachStatusDetails(st, &epb.ResourceInfo{
 		ResourceType: resource,
 		ResourceName: path,
@@ -565,8 +577,8 @@ func (e ErrorHandler) NewSearchIndexAuthenticationFailureStatus(baseErr error, b
 	return st
 }
 
-func (e ErrorHandler) NewDocMissingStatus(baseErr error, bucketName, scopeName, collectionName, docId string) *status.Status {
-	st := status.New(codes.NotFound,
+func (e ErrorHandler) NewDocMissingStatus(ctx context.Context, baseErr error, bucketName, scopeName, collectionName, docId string) *status.Status {
+	st := e.newStatus(ctx, codes.NotFound,
 		fmt.Sprintf("Document '%s' not found in '%s/%s/%s'.",
 			docId, bucketName, scopeName, collectionName))
 	st = e.tryAttachStatusDetails(st, &epb.ResourceInfo{
@@ -578,8 +590,8 @@ func (e ErrorHandler) NewDocMissingStatus(baseErr error, bucketName, scopeName, 
 	return st
 }
 
-func (e ErrorHandler) NewDocExistsStatus(baseErr error, bucketName, scopeName, collectionName, docId string) *status.Status {
-	st := status.New(codes.AlreadyExists,
+func (e ErrorHandler) NewDocExistsStatus(ctx context.Context, baseErr error, bucketName, scopeName, collectionName, docId string) *status.Status {
+	st := e.newStatus(ctx, codes.AlreadyExists,
 		fmt.Sprintf("Document '%s' already existed in '%s/%s/%s'.",
 			docId, bucketName, scopeName, collectionName))
 	st = e.tryAttachStatusDetails(st, &epb.ResourceInfo{
@@ -591,8 +603,8 @@ func (e ErrorHandler) NewDocExistsStatus(baseErr error, bucketName, scopeName, c
 	return st
 }
 
-func (e ErrorHandler) NewDocCasMismatchStatus(baseErr error, bucketName, scopeName, collectionName, docId string) *status.Status {
-	st := status.New(codes.Aborted,
+func (e ErrorHandler) NewDocCasMismatchStatus(ctx context.Context, baseErr error, bucketName, scopeName, collectionName, docId string) *status.Status {
+	st := e.newStatus(ctx, codes.Aborted,
 		fmt.Sprintf("The specified CAS for '%s' in '%s/%s/%s' did not match.",
 			docId, bucketName, scopeName, collectionName))
 	st = e.tryAttachStatusDetails(st, &epb.ErrorInfo{
@@ -602,8 +614,8 @@ func (e ErrorHandler) NewDocCasMismatchStatus(baseErr error, bucketName, scopeNa
 	return st
 }
 
-func (e ErrorHandler) NewDocConflictStatus(baseErr error, bucketName, scopeName, collectionName, docId string) *status.Status {
-	st := status.New(codes.Aborted,
+func (e ErrorHandler) NewDocConflictStatus(ctx context.Context, baseErr error, bucketName, scopeName, collectionName, docId string) *status.Status {
+	st := e.newStatus(ctx, codes.Aborted,
 		fmt.Sprintf("Conflict resolution rejected '%s' in '%s/%s/%s'.",
 			docId, bucketName, scopeName, collectionName))
 	st = e.tryAttachStatusDetails(st, &epb.ErrorInfo{
@@ -613,13 +625,13 @@ func (e ErrorHandler) NewDocConflictStatus(baseErr error, bucketName, scopeName,
 	return st
 }
 
-func (e ErrorHandler) NewZeroCasStatus() *status.Status {
-	st := status.New(codes.InvalidArgument, "CAS value cannot be zero.")
+func (e ErrorHandler) NewZeroCasStatus(ctx context.Context) *status.Status {
+	st := e.newStatus(ctx, codes.InvalidArgument, "CAS value cannot be zero.")
 	return st
 }
 
-func (e ErrorHandler) NewDocLockedStatus(baseErr error, bucketName, scopeName, collectionName, docId string) *status.Status {
-	st := status.New(codes.FailedPrecondition,
+func (e ErrorHandler) NewDocLockedStatus(ctx context.Context, baseErr error, bucketName, scopeName, collectionName, docId string) *status.Status {
+	st := e.newStatus(ctx, codes.FailedPrecondition,
 		fmt.Sprintf("Cannot perform a write operation against locked document '%s' in '%s/%s/%s'.",
 			docId, bucketName, scopeName, collectionName))
 	st = e.tryAttachStatusDetails(st, &epb.PreconditionFailure{
@@ -633,8 +645,8 @@ func (e ErrorHandler) NewDocLockedStatus(baseErr error, bucketName, scopeName, c
 	return st
 }
 
-func (e ErrorHandler) NewDocNotLockedStatus(baseErr error, bucketName, scopeName, collectionName, docId string) *status.Status {
-	st := status.New(codes.FailedPrecondition,
+func (e ErrorHandler) NewDocNotLockedStatus(ctx context.Context, baseErr error, bucketName, scopeName, collectionName, docId string) *status.Status {
+	st := e.newStatus(ctx, codes.FailedPrecondition,
 		fmt.Sprintf("Cannot unlock an unlocked document '%s' in '%s/%s/%s'.",
 			docId, bucketName, scopeName, collectionName))
 	st = e.tryAttachStatusDetails(st, &epb.PreconditionFailure{
@@ -648,9 +660,9 @@ func (e ErrorHandler) NewDocNotLockedStatus(baseErr error, bucketName, scopeName
 	return st
 }
 
-func (e ErrorHandler) NewDocNotNumericStatus(baseErr error, bucketName, scopeName, collectionName, docId string) *status.Status {
+func (e ErrorHandler) NewDocNotNumericStatus(ctx context.Context, baseErr error, bucketName, scopeName, collectionName, docId string) *status.Status {
 	var st *status.Status
-	st = status.New(codes.FailedPrecondition,
+	st = e.newStatus(ctx, codes.FailedPrecondition,
 		fmt.Sprintf("Cannot perform counter operation on non-numeric document '%s' in '%s/%s/%s'.",
 			docId, bucketName, scopeName, collectionName))
 	st = e.tryAttachStatusDetails(st, &epb.PreconditionFailure{
@@ -665,11 +677,11 @@ func (e ErrorHandler) NewDocNotNumericStatus(baseErr error, bucketName, scopeNam
 	return st
 }
 
-func (e ErrorHandler) NewValueTooLargeStatus(baseErr error, bucketName, scopeName, collectionName, docId string,
+func (e ErrorHandler) NewValueTooLargeStatus(ctx context.Context, baseErr error, bucketName, scopeName, collectionName, docId string,
 	isExpandingValue bool) *status.Status {
 	var st *status.Status
 	if isExpandingValue {
-		st = status.New(codes.FailedPrecondition,
+		st = e.newStatus(ctx, codes.FailedPrecondition,
 			fmt.Sprintf("Updated value '%s' made value too large in '%s/%s/%s'.",
 				docId, bucketName, scopeName, collectionName))
 		st = e.tryAttachStatusDetails(st, &epb.PreconditionFailure{
@@ -680,7 +692,7 @@ func (e ErrorHandler) NewValueTooLargeStatus(baseErr error, bucketName, scopeNam
 			}},
 		})
 	} else {
-		st = status.New(codes.InvalidArgument,
+		st = e.newStatus(ctx, codes.InvalidArgument,
 			fmt.Sprintf("Value '%s' for new document was too large in '%s/%s/%s'.",
 				docId, bucketName, scopeName, collectionName))
 	}
@@ -688,9 +700,9 @@ func (e ErrorHandler) NewValueTooLargeStatus(baseErr error, bucketName, scopeNam
 	return st
 }
 
-func (e ErrorHandler) NewDurabilityImpossibleStatus(baseErr error, bucketName string) *status.Status {
+func (e ErrorHandler) NewDurabilityImpossibleStatus(ctx context.Context, baseErr error, bucketName string) *status.Status {
 	var st *status.Status
-	st = status.New(codes.FailedPrecondition,
+	st = e.newStatus(ctx, codes.FailedPrecondition,
 		fmt.Sprintf("Not enough servers to use this durability level on '%s' bucket.",
 			bucketName))
 	st = e.tryAttachStatusDetails(st, &epb.PreconditionFailure{
@@ -705,14 +717,14 @@ func (e ErrorHandler) NewDurabilityImpossibleStatus(baseErr error, bucketName st
 	return st
 }
 
-func (e ErrorHandler) NewSyncWriteAmbiguousStatus(baseErr error, bucketName, scopeName, collectionName, docId string) *status.Status {
-	return status.New(codes.DeadlineExceeded,
+func (e ErrorHandler) NewSyncWriteAmbiguousStatus(ctx context.Context, baseErr error, bucketName, scopeName, collectionName, docId string) *status.Status {
+	return e.newStatus(ctx, codes.DeadlineExceeded,
 		fmt.Sprintf("Sync write operation on '%s' in '%s/%s/%s' timed out.",
 			docId, bucketName, scopeName, collectionName))
 }
 
-func (e ErrorHandler) NewCollectionNoReadAccessStatus(baseErr error, bucketName, scopeName, collectionName string) *status.Status {
-	st := status.New(codes.PermissionDenied,
+func (e ErrorHandler) NewCollectionNoReadAccessStatus(ctx context.Context, baseErr error, bucketName, scopeName, collectionName string) *status.Status {
+	st := e.newStatus(ctx, codes.PermissionDenied,
 		fmt.Sprintf("No permissions to read documents from '%s/%s/%s'.",
 			bucketName, scopeName, collectionName))
 	st = e.tryAttachStatusDetails(st, &epb.ResourceInfo{
@@ -724,8 +736,8 @@ func (e ErrorHandler) NewCollectionNoReadAccessStatus(baseErr error, bucketName,
 	return st
 }
 
-func (e ErrorHandler) NewCollectionNoWriteAccessStatus(baseErr error, bucketName, scopeName, collectionName string) *status.Status {
-	st := status.New(codes.PermissionDenied,
+func (e ErrorHandler) NewCollectionNoWriteAccessStatus(ctx context.Context, baseErr error, bucketName, scopeName, collectionName string) *status.Status {
+	st := e.newStatus(ctx, codes.PermissionDenied,
 		fmt.Sprintf("No permissions to write documents into '%s/%s/%s'.",
 			bucketName, scopeName, collectionName))
 	st = e.tryAttachStatusDetails(st, &epb.ResourceInfo{
@@ -737,9 +749,9 @@ func (e ErrorHandler) NewCollectionNoWriteAccessStatus(baseErr error, bucketName
 	return st
 }
 
-func (e ErrorHandler) NewScopeAccessDeniedStatus(baseErr error, scopeName string) *status.Status {
+func (e ErrorHandler) NewScopeAccessDeniedStatus(ctx context.Context, baseErr error, scopeName string) *status.Status {
 	msg := "No permissions to perform scope management operation."
-	st := status.New(codes.PermissionDenied, msg)
+	st := e.newStatus(ctx, codes.PermissionDenied, msg)
 
 	st = e.tryAttachStatusDetails(
 		st, &epb.ResourceInfo{
@@ -750,9 +762,9 @@ func (e ErrorHandler) NewScopeAccessDeniedStatus(baseErr error, scopeName string
 	return st
 }
 
-func (e ErrorHandler) NewCollectionAccessDeniedStatus(baseErr error, collectionName string) *status.Status {
+func (e ErrorHandler) NewCollectionAccessDeniedStatus(ctx context.Context, baseErr error, collectionName string) *status.Status {
 	msg := "No permissions to perform collection management operation."
-	st := status.New(codes.PermissionDenied, msg)
+	st := e.newStatus(ctx, codes.PermissionDenied, msg)
 
 	st = e.tryAttachStatusDetails(
 		st, &epb.ResourceInfo{
@@ -763,8 +775,8 @@ func (e ErrorHandler) NewCollectionAccessDeniedStatus(baseErr error, collectionN
 	return st
 }
 
-func (e ErrorHandler) NewSdDocTooDeepStatus(baseErr error, bucketName, scopeName, collectionName, docId string) *status.Status {
-	st := status.New(codes.FailedPrecondition,
+func (e ErrorHandler) NewSdDocTooDeepStatus(ctx context.Context, baseErr error, bucketName, scopeName, collectionName, docId string) *status.Status {
+	st := e.newStatus(ctx, codes.FailedPrecondition,
 		fmt.Sprintf("Document '%s' JSON was too deep to parse in '%s/%s/%s'.",
 			docId, bucketName, scopeName, collectionName))
 	st = e.tryAttachStatusDetails(st, &epb.PreconditionFailure{
@@ -778,8 +790,8 @@ func (e ErrorHandler) NewSdDocTooDeepStatus(baseErr error, bucketName, scopeName
 	return st
 }
 
-func (e ErrorHandler) NewSdDocNotJsonStatus(baseErr error, bucketName, scopeName, collectionName, docId string) *status.Status {
-	st := status.New(codes.FailedPrecondition,
+func (e ErrorHandler) NewSdDocNotJsonStatus(ctx context.Context, baseErr error, bucketName, scopeName, collectionName, docId string) *status.Status {
+	st := e.newStatus(ctx, codes.FailedPrecondition,
 		fmt.Sprintf("Document '%s' was not JSON in '%s/%s/%s'.",
 			docId, bucketName, scopeName, collectionName))
 	st = e.tryAttachStatusDetails(st, &epb.PreconditionFailure{
@@ -793,8 +805,8 @@ func (e ErrorHandler) NewSdDocNotJsonStatus(baseErr error, bucketName, scopeName
 	return st
 }
 
-func (e ErrorHandler) NewSdPathNotFoundStatus(baseErr error, bucketName, scopeName, collectionName, docId, sdPath string) *status.Status {
-	st := status.New(codes.NotFound,
+func (e ErrorHandler) NewSdPathNotFoundStatus(ctx context.Context, baseErr error, bucketName, scopeName, collectionName, docId, sdPath string) *status.Status {
+	st := e.newStatus(ctx, codes.NotFound,
 		fmt.Sprintf("Subdocument path '%s' was not found in '%s' in '%s/%s/%s'.",
 			sdPath, docId, bucketName, scopeName, collectionName))
 	st = e.tryAttachStatusDetails(st, &epb.ResourceInfo{
@@ -806,8 +818,8 @@ func (e ErrorHandler) NewSdPathNotFoundStatus(baseErr error, bucketName, scopeNa
 	return st
 }
 
-func (e ErrorHandler) NewSdPathExistsStatus(baseErr error, bucketName, scopeName, collectionName, docId, sdPath string) *status.Status {
-	st := status.New(codes.AlreadyExists,
+func (e ErrorHandler) NewSdPathExistsStatus(ctx context.Context, baseErr error, bucketName, scopeName, collectionName, docId, sdPath string) *status.Status {
+	st := e.newStatus(ctx, codes.AlreadyExists,
 		fmt.Sprintf("Subdocument path '%s' already existed in '%s' in '%s/%s/%s'.",
 			sdPath, docId, bucketName, scopeName, collectionName))
 	st = e.tryAttachStatusDetails(st, &epb.ResourceInfo{
@@ -819,8 +831,8 @@ func (e ErrorHandler) NewSdPathExistsStatus(baseErr error, bucketName, scopeName
 	return st
 }
 
-func (e ErrorHandler) NewSdPathMismatchStatus(baseErr error, bucketName, scopeName, collectionName, docId, sdPath string) *status.Status {
-	st := status.New(codes.FailedPrecondition,
+func (e ErrorHandler) NewSdPathMismatchStatus(ctx context.Context, baseErr error, bucketName, scopeName, collectionName, docId, sdPath string) *status.Status {
+	st := e.newStatus(ctx, codes.FailedPrecondition,
 		fmt.Sprintf("Document structure implied by path '%s' did not match document '%s' in '%s/%s/%s'.",
 			sdPath, docId, bucketName, scopeName, collectionName))
 	st = e.tryAttachStatusDetails(st, &epb.PreconditionFailure{
@@ -834,23 +846,23 @@ func (e ErrorHandler) NewSdPathMismatchStatus(baseErr error, bucketName, scopeNa
 	return st
 }
 
-func (e ErrorHandler) NewSdPathTooBigStatus(baseErr error, sdPath string) *status.Status {
-	st := status.New(codes.InvalidArgument,
+func (e ErrorHandler) NewSdPathTooBigStatus(ctx context.Context, baseErr error, sdPath string) *status.Status {
+	st := e.newStatus(ctx, codes.InvalidArgument,
 		fmt.Sprintf("Subdocument path '%s' is too long", sdPath))
 	st = e.tryAttachExtraContext(st, baseErr)
 	return st
 }
 
-func (e ErrorHandler) NewSdBadValueStatus(baseErr error, sdPath string) *status.Status {
-	st := status.New(codes.InvalidArgument,
+func (e ErrorHandler) NewSdBadValueStatus(ctx context.Context, baseErr error, sdPath string) *status.Status {
+	st := e.newStatus(ctx, codes.InvalidArgument,
 		fmt.Sprintf("Subdocument operation content for path '%s' would invalidate the JSON if added to the document.",
 			sdPath))
 	st = e.tryAttachExtraContext(st, baseErr)
 	return st
 }
 
-func (e ErrorHandler) NewSdValueOutOfRangeStatus(baseErr error, bucketName, scopeName, collectionName, docId, sdPath string) *status.Status {
-	st := status.New(codes.FailedPrecondition,
+func (e ErrorHandler) NewSdValueOutOfRangeStatus(ctx context.Context, baseErr error, bucketName, scopeName, collectionName, docId, sdPath string) *status.Status {
+	st := e.newStatus(ctx, codes.FailedPrecondition,
 		fmt.Sprintf("Counter operation content for path '%s' would put the JSON value out of range.",
 			sdPath))
 	st = e.tryAttachStatusDetails(st, &epb.PreconditionFailure{
@@ -864,8 +876,8 @@ func (e ErrorHandler) NewSdValueOutOfRangeStatus(baseErr error, bucketName, scop
 	return st
 }
 
-func (e ErrorHandler) NewSdBadRangeStatus(baseErr error, bucketName, scopeName, collectionName, docId, sdPath string) *status.Status {
-	st := status.New(codes.FailedPrecondition,
+func (e ErrorHandler) NewSdBadRangeStatus(ctx context.Context, baseErr error, bucketName, scopeName, collectionName, docId, sdPath string) *status.Status {
+	st := e.newStatus(ctx, codes.FailedPrecondition,
 		fmt.Sprintf("The value at path '%s' is out of the valid range in document '%s' in '%s/%s/%s'.",
 			sdPath, docId, bucketName, scopeName, collectionName))
 	st = e.tryAttachStatusDetails(st, &epb.PreconditionFailure{
@@ -879,72 +891,72 @@ func (e ErrorHandler) NewSdBadRangeStatus(baseErr error, bucketName, scopeName, 
 	return st
 }
 
-func (e ErrorHandler) NewSdBadDeltaStatus(baseErr error, sdPath string) *status.Status {
-	st := status.New(codes.InvalidArgument,
+func (e ErrorHandler) NewSdBadDeltaStatus(ctx context.Context, baseErr error, sdPath string) *status.Status {
+	st := e.newStatus(ctx, codes.InvalidArgument,
 		fmt.Sprintf("Subdocument counter delta for path '%s' was invalid.  Delta must be a non-zero number within the range of an 64-bit signed integer.",
 			sdPath))
 	st = e.tryAttachExtraContext(st, baseErr)
 	return st
 }
 
-func (e ErrorHandler) NewSdValueTooDeepStatus(baseErr error, sdPath string) *status.Status {
-	st := status.New(codes.InvalidArgument,
+func (e ErrorHandler) NewSdValueTooDeepStatus(ctx context.Context, baseErr error, sdPath string) *status.Status {
+	st := e.newStatus(ctx, codes.InvalidArgument,
 		fmt.Sprintf("Subdocument operation content for path '%s' was too deep to parse.",
 			sdPath))
 	st = e.tryAttachExtraContext(st, baseErr)
 	return st
 }
 
-func (e ErrorHandler) NewSdXattrUnknownVattrStatus(baseErr error, sdPath string) *status.Status {
-	st := status.New(codes.InvalidArgument,
+func (e ErrorHandler) NewSdXattrUnknownVattrStatus(ctx context.Context, baseErr error, sdPath string) *status.Status {
+	st := e.newStatus(ctx, codes.InvalidArgument,
 		fmt.Sprintf("Subdocument path '%s' references an invalid virtual attribute.", sdPath))
 	st = e.tryAttachExtraContext(st, baseErr)
 	return st
 }
 
-func (e ErrorHandler) NewSdBadCombo(baseErr error) *status.Status {
-	st := status.New(codes.InvalidArgument, "Invalid subdocument combination specified.")
+func (e ErrorHandler) NewSdBadCombo(ctx context.Context, baseErr error) *status.Status {
+	st := e.newStatus(ctx, codes.InvalidArgument, "Invalid subdocument combination specified.")
 	st = e.tryAttachExtraContext(st, baseErr)
 	return st
 }
 
-func (e ErrorHandler) NewSdPathInvalidStatus(baseErr error, sdPath string) *status.Status {
-	st := status.New(codes.InvalidArgument,
+func (e ErrorHandler) NewSdPathInvalidStatus(ctx context.Context, baseErr error, sdPath string) *status.Status {
+	st := e.newStatus(ctx, codes.InvalidArgument,
 		fmt.Sprintf("Invalid subdocument path syntax '%s'.", sdPath))
 	st = e.tryAttachExtraContext(st, baseErr)
 	return st
 }
 
-func (e ErrorHandler) NewInvalidSnappyValueError() *status.Status {
-	st := status.New(codes.InvalidArgument, "Failed to snappy inflate value.")
+func (e ErrorHandler) NewInvalidSnappyValueError(ctx context.Context) *status.Status {
+	st := e.newStatus(ctx, codes.InvalidArgument, "Failed to snappy inflate value.")
 	return st
 }
 
-func (e ErrorHandler) NewIllogicalCounterExpiry() *status.Status {
-	st := status.New(codes.InvalidArgument,
+func (e ErrorHandler) NewIllogicalCounterExpiry(ctx context.Context) *status.Status {
+	st := e.newStatus(ctx, codes.InvalidArgument,
 		"Expiry cannot be set when the document does not exist and Initial is not set.  Expiry is only applied to new documents that are created.")
 	return st
 }
 
-func (e ErrorHandler) NewUnsupportedFieldStatus(fieldPath string) *status.Status {
-	st := status.New(codes.Unimplemented,
+func (e ErrorHandler) NewUnsupportedFieldStatus(ctx context.Context, fieldPath string) *status.Status {
+	st := e.newStatus(ctx, codes.Unimplemented,
 		fmt.Sprintf("The '%s' field is not currently supported", fieldPath))
 	return st
 }
 
-func (e ErrorHandler) NewInvalidAuthHeaderStatus(baseErr error) *status.Status {
-	st := status.New(codes.InvalidArgument, "Invalid authorization header format.")
+func (e ErrorHandler) NewInvalidAuthHeaderStatus(ctx context.Context, baseErr error) *status.Status {
+	st := e.newStatus(ctx, codes.InvalidArgument, "Invalid authorization header format.")
 	st = e.tryAttachExtraContext(st, baseErr)
 	return st
 }
 
-func (e ErrorHandler) NewNoAuthStatus() *status.Status {
-	st := status.New(codes.Unauthenticated, "You must send authentication to use this endpoint.")
+func (e ErrorHandler) NewNoAuthStatus(ctx context.Context) *status.Status {
+	st := e.newStatus(ctx, codes.Unauthenticated, "You must send authentication to use this endpoint.")
 	return st
 }
 
-func (e ErrorHandler) NewInvalidCredentialsStatus() *status.Status {
-	st := status.New(codes.PermissionDenied, "Your username or password is invalid.")
+func (e ErrorHandler) NewInvalidCredentialsStatus(ctx context.Context) *status.Status {
+	st := e.newStatus(ctx, codes.PermissionDenied, "Your username or password is invalid.")
 	st = e.tryAttachStatusDetails(st, &epb.ResourceInfo{
 		ResourceType: "user",
 		ResourceName: "",
@@ -953,8 +965,8 @@ func (e ErrorHandler) NewInvalidCredentialsStatus() *status.Status {
 	return st
 }
 
-func (e ErrorHandler) NewInvalidCertificateStatus() *status.Status {
-	st := status.New(codes.PermissionDenied, "Your certificate is invalid.")
+func (e ErrorHandler) NewInvalidCertificateStatus(ctx context.Context) *status.Status {
+	st := e.newStatus(ctx, codes.PermissionDenied, "Your certificate is invalid.")
 	st = e.tryAttachStatusDetails(st, &epb.ResourceInfo{
 		ResourceType: "user",
 		ResourceName: "",
@@ -963,8 +975,8 @@ func (e ErrorHandler) NewInvalidCertificateStatus() *status.Status {
 	return st
 }
 
-func (e ErrorHandler) NewCertAuthDisabledStatus() *status.Status {
-	st := status.New(codes.Unauthenticated, "Client cert auth disabled on the cluster.")
+func (e ErrorHandler) NewCertAuthDisabledStatus(ctx context.Context) *status.Status {
+	st := e.newStatus(ctx, codes.Unauthenticated, "Client cert auth disabled on the cluster.")
 	st = e.tryAttachStatusDetails(st, &epb.ResourceInfo{
 		ResourceType: "user",
 		ResourceName: "",
@@ -973,27 +985,27 @@ func (e ErrorHandler) NewCertAuthDisabledStatus() *status.Status {
 	return st
 }
 
-func (e ErrorHandler) NewUnexpectedAuthTypeStatus() *status.Status {
-	st := status.New(codes.InvalidArgument, "Unexpected auth type.")
+func (e ErrorHandler) NewUnexpectedAuthTypeStatus(ctx context.Context) *status.Status {
+	st := e.newStatus(ctx, codes.InvalidArgument, "Unexpected auth type.")
 	return st
 }
 
-func (e ErrorHandler) NewInvalidQueryStatus(baseErr error, queryErrStr string) *status.Status {
-	st := status.New(codes.InvalidArgument,
+func (e ErrorHandler) NewInvalidQueryStatus(ctx context.Context, baseErr error, queryErrStr string) *status.Status {
+	st := e.newStatus(ctx, codes.InvalidArgument,
 		fmt.Sprintf("Query parsing failed: %s", queryErrStr))
 	st = e.tryAttachExtraContext(st, baseErr)
 	return st
 }
 
-func (e ErrorHandler) NewWriteInReadOnlyQueryStatus(baseErr error) *status.Status {
-	st := status.New(codes.InvalidArgument,
+func (e ErrorHandler) NewWriteInReadOnlyQueryStatus(ctx context.Context, baseErr error) *status.Status {
+	st := e.newStatus(ctx, codes.InvalidArgument,
 		"Write statements cannot be used in a read-only query")
 	st = e.tryAttachExtraContext(st, baseErr)
 	return st
 }
 
-func (e ErrorHandler) NewQueryNoAccessStatus(baseErr error) *status.Status {
-	st := status.New(codes.PermissionDenied,
+func (e ErrorHandler) NewQueryNoAccessStatus(ctx context.Context, baseErr error) *status.Status {
+	st := e.newStatus(ctx, codes.PermissionDenied,
 		"No permissions to query documents.")
 	st = e.tryAttachStatusDetails(st, &epb.ResourceInfo{
 		ResourceType: "user",
@@ -1004,30 +1016,30 @@ func (e ErrorHandler) NewQueryNoAccessStatus(baseErr error) *status.Status {
 	return st
 }
 
-func (e ErrorHandler) NewNeedIndexFieldsStatus() *status.Status {
-	st := status.New(codes.InvalidArgument,
+func (e ErrorHandler) NewNeedIndexFieldsStatus(ctx context.Context) *status.Status {
+	st := e.newStatus(ctx, codes.InvalidArgument,
 		"You must specify fields when creating a new index.")
 	return st
 }
 
-func (e ErrorHandler) NewUnavailableStatus(err error) *status.Status {
-	st := status.New(codes.Unavailable,
+func (e ErrorHandler) NewUnavailableStatus(ctx context.Context, err error) *status.Status {
+	st := e.newStatus(ctx, codes.Unavailable,
 		"One of the underlying services were not available.")
 	e.tryAttachExtraContext(st, err)
 	return st
 }
 
-func (e ErrorHandler) NewGenericStatus(err error) *status.Status {
+func (e ErrorHandler) NewGenericStatus(ctx context.Context, err error) *status.Status {
 	// we do not attach context in these cases, since they almost always don't actually
 	// make it back to the client to be processed anyways.
 	if errors.Is(err, context.Canceled) {
 		e.Logger.Debug("handling canceled operation error", zap.Error(err))
 
-		return status.New(codes.Canceled, "The request was cancelled.")
+		return e.newStatus(ctx, codes.Canceled, "The request was cancelled.")
 	} else if errors.Is(err, context.DeadlineExceeded) {
 		e.Logger.Debug("handling deadline exceeded operation error", zap.Error(err))
 
-		return status.New(codes.DeadlineExceeded, "The request deadline was exceeded.")
+		return e.newStatus(ctx, codes.DeadlineExceeded, "The request deadline was exceeded.")
 	}
 
 	// if this is a network dial error, we make the assumption that one of the underlying
@@ -1035,23 +1047,23 @@ func (e ErrorHandler) NewGenericStatus(err error) *status.Status {
 	var netOpError *net.OpError
 	if errors.As(err, &netOpError) && netOpError.Op == "dial" {
 		e.Logger.Debug("handling network dial error", zap.Error(err))
-		return e.NewUnavailableStatus(err)
+		return e.NewUnavailableStatus(ctx, err)
 	}
 
 	// if we still don't know what kind of error this is, we return 'UNKNOWN'
 	e.Logger.Debug("handling unknown error", zap.Error(err))
-	return e.NewUnknownStatus(err)
+	return e.NewUnknownStatus(ctx, err)
 }
 
-func (e ErrorHandler) NewInvalidKeyLengthStatus(key string) *status.Status {
-	st := status.New(
+func (e ErrorHandler) NewInvalidKeyLengthStatus(ctx context.Context, key string) *status.Status {
+	st := e.newStatus(ctx,
 		codes.InvalidArgument,
 		fmt.Sprintf("Length of document key '%s' must be between 1 and 251 characters.", key))
 	return st
 }
 
-func (e ErrorHandler) NewVbUuidDivergenceStatus(baseErr error, bucketName, scopeName, collectionName, docId string) *status.Status {
-	st := status.New(codes.Aborted,
+func (e ErrorHandler) NewVbUuidDivergenceStatus(ctx context.Context, baseErr error, bucketName, scopeName, collectionName, docId string) *status.Status {
+	st := e.newStatus(ctx, codes.Aborted,
 		fmt.Sprintf("The specified vbuuid for '%s' in '%s/%s/%s' did not match.",
 			docId, bucketName, scopeName, collectionName))
 	st = e.tryAttachStatusDetails(st, &epb.ErrorInfo{
@@ -1061,15 +1073,15 @@ func (e ErrorHandler) NewVbUuidDivergenceStatus(baseErr error, bucketName, scope
 	return st
 }
 
-func (e ErrorHandler) NewUnimplementedServerVersionStatus() *status.Status {
-	st := status.New(
+func (e ErrorHandler) NewUnimplementedServerVersionStatus(ctx context.Context) *status.Status {
+	st := e.newStatus(ctx,
 		codes.Unimplemented,
 		"The requested feature is not available on this server version.")
 	return st
 }
 
-func (e ErrorHandler) NewServerRoutingUnimplementedError() *status.Status {
-	st := status.New(
+func (e ErrorHandler) NewServerRoutingUnimplementedError(ctx context.Context) *status.Status {
+	st := e.newStatus(ctx,
 		codes.Unimplemented,
 		"Bucket name required because Cluster-level server routing is not implemented")
 	return st

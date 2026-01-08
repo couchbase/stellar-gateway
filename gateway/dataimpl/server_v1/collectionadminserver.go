@@ -59,12 +59,12 @@ func (s *CollectionAdminServer) ListCollections(
 	})
 	if err != nil {
 		if errors.Is(err, cbmgmtx.ErrBucketNotFound) {
-			return nil, s.errorHandler.NewBucketMissingStatus(err, in.BucketName).Err()
+			return nil, s.errorHandler.NewBucketMissingStatus(ctx, err, in.BucketName).Err()
 		} else if errors.Is(err, cbmgmtx.ErrAccessDenied) {
-			return nil, s.errorHandler.NewCollectionAccessDeniedStatus(err, "").Err()
+			return nil, s.errorHandler.NewCollectionAccessDeniedStatus(ctx, err, "").Err()
 		}
 
-		return nil, s.errorHandler.NewGenericStatus(err).Err()
+		return nil, s.errorHandler.NewGenericStatus(ctx, err).Err()
 	}
 
 	var scopes []*admin_collection_v1.ListCollectionsResponse_Scope
@@ -117,19 +117,19 @@ func (s *CollectionAdminServer) CreateScope(
 	})
 	if err != nil {
 		if errors.Is(err, cbmgmtx.ErrBucketNotFound) {
-			return nil, s.errorHandler.NewBucketMissingStatus(err, in.BucketName).Err()
+			return nil, s.errorHandler.NewBucketMissingStatus(ctx, err, in.BucketName).Err()
 		} else if errors.Is(err, cbmgmtx.ErrScopeExists) {
-			return nil, s.errorHandler.NewScopeExistsStatus(err, in.BucketName, in.ScopeName).Err()
+			return nil, s.errorHandler.NewScopeExistsStatus(ctx, err, in.BucketName, in.ScopeName).Err()
 		} else if errors.Is(err, cbmgmtx.ErrAccessDenied) {
-			return nil, s.errorHandler.NewScopeAccessDeniedStatus(err, in.ScopeName).Err()
+			return nil, s.errorHandler.NewScopeAccessDeniedStatus(ctx, err, in.ScopeName).Err()
 		}
 
-		return nil, s.errorHandler.NewGenericStatus(err).Err()
+		return nil, s.errorHandler.NewGenericStatus(ctx, err).Err()
 	}
 
 	manifestUid, err := strconv.ParseUint(resp.ManifestUid, 16, 64)
 	if err != nil {
-		return nil, s.errorHandler.NewGenericStatus(err).Err()
+		return nil, s.errorHandler.NewGenericStatus(ctx, err).Err()
 	}
 
 	opts := gocbcorex.EnsureManifestOptions{
@@ -138,7 +138,7 @@ func (s *CollectionAdminServer) CreateScope(
 	}
 	err = bucketAgent.EnsureManifest(ctx, &opts)
 	if err != nil {
-		return nil, s.errorHandler.NewGenericStatus(err).Err()
+		return nil, s.errorHandler.NewGenericStatus(ctx, err).Err()
 	}
 
 	return &admin_collection_v1.CreateScopeResponse{}, nil
@@ -160,19 +160,19 @@ func (s *CollectionAdminServer) DeleteScope(
 	})
 	if err != nil {
 		if errors.Is(err, cbmgmtx.ErrBucketNotFound) {
-			return nil, s.errorHandler.NewBucketMissingStatus(err, in.BucketName).Err()
+			return nil, s.errorHandler.NewBucketMissingStatus(ctx, err, in.BucketName).Err()
 		} else if errors.Is(err, cbmgmtx.ErrScopeNotFound) {
-			return nil, s.errorHandler.NewScopeMissingStatus(err, in.BucketName, in.ScopeName).Err()
+			return nil, s.errorHandler.NewScopeMissingStatus(ctx, err, in.BucketName, in.ScopeName).Err()
 		} else if errors.Is(err, cbmgmtx.ErrAccessDenied) {
-			return nil, s.errorHandler.NewScopeAccessDeniedStatus(err, in.ScopeName).Err()
+			return nil, s.errorHandler.NewScopeAccessDeniedStatus(ctx, err, in.ScopeName).Err()
 		}
 
-		return nil, s.errorHandler.NewGenericStatus(err).Err()
+		return nil, s.errorHandler.NewGenericStatus(ctx, err).Err()
 	}
 
 	manifestUid, err := strconv.ParseUint(resp.ManifestUid, 16, 64)
 	if err != nil {
-		return nil, s.errorHandler.NewGenericStatus(err).Err()
+		return nil, s.errorHandler.NewGenericStatus(ctx, err).Err()
 	}
 
 	opts := gocbcorex.EnsureManifestOptions{
@@ -181,7 +181,7 @@ func (s *CollectionAdminServer) DeleteScope(
 	}
 	err = bucketAgent.EnsureManifest(ctx, &opts)
 	if err != nil {
-		return nil, s.errorHandler.NewGenericStatus(err).Err()
+		return nil, s.errorHandler.NewGenericStatus(ctx, err).Err()
 	}
 
 	return &admin_collection_v1.DeleteScopeResponse{}, nil
@@ -225,20 +225,20 @@ func (s *CollectionAdminServer) CreateCollection(
 	})
 	if err != nil {
 		if errors.Is(err, cbmgmtx.ErrBucketNotFound) {
-			return nil, s.errorHandler.NewBucketMissingStatus(err, in.BucketName).Err()
+			return nil, s.errorHandler.NewBucketMissingStatus(ctx, err, in.BucketName).Err()
 		} else if errors.Is(err, cbmgmtx.ErrCollectionExists) {
-			return nil, s.errorHandler.NewCollectionExistsStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+			return nil, s.errorHandler.NewCollectionExistsStatus(ctx, err, in.BucketName, in.ScopeName, in.CollectionName).Err()
 		} else if errors.Is(err, cbmgmtx.ErrScopeNotFound) {
-			return nil, s.errorHandler.NewScopeMissingStatus(err, in.BucketName, in.ScopeName).Err()
+			return nil, s.errorHandler.NewScopeMissingStatus(ctx, err, in.BucketName, in.ScopeName).Err()
 		} else if errors.Is(err, cbmgmtx.ErrAccessDenied) {
-			return nil, s.errorHandler.NewCollectionAccessDeniedStatus(err, in.CollectionName).Err()
+			return nil, s.errorHandler.NewCollectionAccessDeniedStatus(ctx, err, in.CollectionName).Err()
 		}
-		return nil, s.errorHandler.NewGenericStatus(err).Err()
+		return nil, s.errorHandler.NewGenericStatus(ctx, err).Err()
 	}
 
 	manifestUid, err := strconv.ParseUint(resp.ManifestUid, 16, 64)
 	if err != nil {
-		return nil, s.errorHandler.NewGenericStatus(err).Err()
+		return nil, s.errorHandler.NewGenericStatus(ctx, err).Err()
 	}
 
 	opts := gocbcorex.EnsureManifestOptions{
@@ -247,7 +247,7 @@ func (s *CollectionAdminServer) CreateCollection(
 	}
 	err = bucketAgent.EnsureManifest(ctx, &opts)
 	if err != nil {
-		return nil, s.errorHandler.NewGenericStatus(err).Err()
+		return nil, s.errorHandler.NewGenericStatus(ctx, err).Err()
 	}
 
 	return &admin_collection_v1.CreateCollectionResponse{}, nil
@@ -270,21 +270,21 @@ func (s *CollectionAdminServer) DeleteCollection(
 	})
 	if err != nil {
 		if errors.Is(err, cbmgmtx.ErrBucketNotFound) {
-			return nil, s.errorHandler.NewBucketMissingStatus(err, in.BucketName).Err()
+			return nil, s.errorHandler.NewBucketMissingStatus(ctx, err, in.BucketName).Err()
 		} else if errors.Is(err, cbmgmtx.ErrCollectionNotFound) {
-			return nil, s.errorHandler.NewCollectionMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+			return nil, s.errorHandler.NewCollectionMissingStatus(ctx, err, in.BucketName, in.ScopeName, in.CollectionName).Err()
 		} else if errors.Is(err, cbmgmtx.ErrScopeNotFound) {
-			return nil, s.errorHandler.NewScopeMissingStatus(err, in.BucketName, in.ScopeName).Err()
+			return nil, s.errorHandler.NewScopeMissingStatus(ctx, err, in.BucketName, in.ScopeName).Err()
 		} else if errors.Is(err, cbmgmtx.ErrAccessDenied) {
-			return nil, s.errorHandler.NewCollectionAccessDeniedStatus(err, in.CollectionName).Err()
+			return nil, s.errorHandler.NewCollectionAccessDeniedStatus(ctx, err, in.CollectionName).Err()
 		}
 
-		return nil, s.errorHandler.NewGenericStatus(err).Err()
+		return nil, s.errorHandler.NewGenericStatus(ctx, err).Err()
 	}
 
 	manifestUid, err := strconv.ParseUint(resp.ManifestUid, 16, 64)
 	if err != nil {
-		return nil, s.errorHandler.NewGenericStatus(err).Err()
+		return nil, s.errorHandler.NewGenericStatus(ctx, err).Err()
 	}
 
 	opts := gocbcorex.EnsureManifestOptions{
@@ -293,7 +293,7 @@ func (s *CollectionAdminServer) DeleteCollection(
 	}
 	err = bucketAgent.EnsureManifest(ctx, &opts)
 	if err != nil {
-		return nil, s.errorHandler.NewGenericStatus(err).Err()
+		return nil, s.errorHandler.NewGenericStatus(ctx, err).Err()
 	}
 
 	return &admin_collection_v1.DeleteCollectionResponse{}, nil
@@ -337,22 +337,22 @@ func (s *CollectionAdminServer) UpdateCollection(
 	})
 	if err != nil {
 		if errors.Is(err, cbmgmtx.ErrBucketNotFound) {
-			return nil, s.errorHandler.NewBucketMissingStatus(err, in.BucketName).Err()
+			return nil, s.errorHandler.NewBucketMissingStatus(ctx, err, in.BucketName).Err()
 		} else if errors.Is(err, cbmgmtx.ErrCollectionNotFound) {
-			return nil, s.errorHandler.NewCollectionMissingStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+			return nil, s.errorHandler.NewCollectionMissingStatus(ctx, err, in.BucketName, in.ScopeName, in.CollectionName).Err()
 		} else if errors.Is(err, cbmgmtx.ErrScopeNotFound) {
-			return nil, s.errorHandler.NewScopeMissingStatus(err, in.BucketName, in.ScopeName).Err()
+			return nil, s.errorHandler.NewScopeMissingStatus(ctx, err, in.BucketName, in.ScopeName).Err()
 		} else if errors.Is(err, cbmgmtx.ErrServerInvalidArg) {
-			return nil, s.errorHandler.NewCollectionInvalidArgStatus(err, "", in.BucketName, in.ScopeName, in.CollectionName).Err()
+			return nil, s.errorHandler.NewCollectionInvalidArgStatus(ctx, err, "", in.BucketName, in.ScopeName, in.CollectionName).Err()
 		} else if errors.Is(err, cbmgmtx.ErrAccessDenied) {
-			return nil, s.errorHandler.NewCollectionAccessDeniedStatus(err, in.CollectionName).Err()
+			return nil, s.errorHandler.NewCollectionAccessDeniedStatus(ctx, err, in.CollectionName).Err()
 		}
-		return nil, s.errorHandler.NewGenericStatus(err).Err()
+		return nil, s.errorHandler.NewGenericStatus(ctx, err).Err()
 	}
 
 	manifestUid, err := strconv.ParseUint(resp.ManifestUid, 16, 64)
 	if err != nil {
-		return nil, s.errorHandler.NewGenericStatus(err).Err()
+		return nil, s.errorHandler.NewGenericStatus(ctx, err).Err()
 	}
 
 	opts := gocbcorex.EnsureManifestOptions{
@@ -361,7 +361,7 @@ func (s *CollectionAdminServer) UpdateCollection(
 	}
 	err = bucketAgent.EnsureManifest(ctx, &opts)
 	if err != nil {
-		return nil, s.errorHandler.NewGenericStatus(err).Err()
+		return nil, s.errorHandler.NewGenericStatus(ctx, err).Err()
 	}
 
 	return &admin_collection_v1.UpdateCollectionResponse{}, nil

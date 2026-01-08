@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"google.golang.org/grpc/status"
+
 	"github.com/couchbase/gocbcorex/cbhttpx"
 	"github.com/couchbase/gocbcorex/cbmgmtx"
 
@@ -45,6 +47,32 @@ func (s *GatewayOpsTestSuite) RunCommonErrorCases(
 	}
 
 	ctx := context.Background()
+
+	s.Run("OptimizedHeaders", func() {
+		md := metadata.New(map[string]string{
+			"X-CB-Optimized-Errors": "true",
+		})
+
+		ctx = metadata.NewOutgoingContext(ctx, md)
+
+		_, err := fn(ctx, &commonErrorTestData{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: "invalid-collection",
+			CallOptions: []grpc.CallOption{
+				grpc.PerRPCCredentials(s.basicRpcCreds),
+			},
+			Key: s.randomDocId(),
+		})
+		assertRpcStatus(s.T(), err, codes.NotFound)
+
+		errSt, ok := status.FromError(err)
+		if !ok {
+			s.T().Fatalf("expected rpc error status, but got non-status error")
+		}
+
+		assert.Empty(s.T(), errSt.Message())
+	})
 
 	s.Run("CollectionMissing", func() {
 		_, err := fn(ctx, &commonErrorTestData{

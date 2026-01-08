@@ -47,10 +47,10 @@ func (s *BucketAdminServer) ListBuckets(
 	})
 	if err != nil {
 		if errors.Is(err, cbmgmtx.ErrAccessDenied) {
-			return nil, s.errorHandler.NewBucketAccessDeniedStatus(err, "").Err()
+			return nil, s.errorHandler.NewBucketAccessDeniedStatus(ctx, err, "").Err()
 		}
 
-		return nil, s.errorHandler.NewGenericStatus(err).Err()
+		return nil, s.errorHandler.NewGenericStatus(ctx, err).Err()
 	}
 
 	var buckets []*admin_bucket_v1.ListBucketsResponse_Bucket
@@ -113,6 +113,7 @@ func (s *BucketAdminServer) ListBuckets(
 }
 
 func (s *BucketAdminServer) validateHistorySettings(
+	ctx context.Context,
 	storageBackend cbmgmtx.StorageBackend,
 	name string,
 	historyRetentionCollectionDefault *bool,
@@ -122,6 +123,7 @@ func (s *BucketAdminServer) validateHistorySettings(
 	if storageBackend != cbmgmtx.StorageBackendMagma {
 		if historyRetentionCollectionDefault != nil || historyRetentionBytes != nil || historyRetentionDurationSecs != nil {
 			return s.errorHandler.NewBucketInvalidArgStatus(
+				ctx,
 				nil,
 				"Only magma buckets support history retention.",
 				name,
@@ -133,6 +135,7 @@ func (s *BucketAdminServer) validateHistorySettings(
 	if historyRetentionBytes != nil {
 		if *historyRetentionBytes < 2048*1024*1024 {
 			return s.errorHandler.NewBucketInvalidArgStatus(
+				ctx,
 				nil,
 				"HistoryRetentionBytes must be at least 2048MB.",
 				name,
@@ -223,6 +226,7 @@ func (s *BucketAdminServer) CreateBucket(
 	}
 
 	errSt = s.validateHistorySettings(
+		ctx,
 		storageBackend,
 		in.BucketName,
 		in.HistoryRetentionCollectionDefault,
@@ -256,7 +260,7 @@ func (s *BucketAdminServer) CreateBucket(
 		if *in.RamQuotaMb < ramQuotaMb {
 			msg := fmt.Sprintf(
 				"RAMQuotaMB cannot be less than %d for %s bucket %s.", ramQuotaMb, storageBackend, in.BucketName)
-			return nil, s.errorHandler.NewBucketInvalidArgStatus(nil, msg, in.BucketName).Err()
+			return nil, s.errorHandler.NewBucketInvalidArgStatus(ctx, nil, msg, in.BucketName).Err()
 		}
 		ramQuotaMb = *in.RamQuotaMb
 	}
@@ -285,13 +289,13 @@ func (s *BucketAdminServer) CreateBucket(
 	})
 	if err != nil {
 		if errors.Is(err, cbmgmtx.ErrBucketExists) {
-			return nil, s.errorHandler.NewBucketExistsStatus(err, in.BucketName).Err()
+			return nil, s.errorHandler.NewBucketExistsStatus(ctx, err, in.BucketName).Err()
 		} else if errors.Is(err, cbmgmtx.ErrServerInvalidArg) {
-			return nil, s.errorHandler.NewBucketInvalidArgStatus(err, "", in.BucketName).Err()
+			return nil, s.errorHandler.NewBucketInvalidArgStatus(ctx, err, "", in.BucketName).Err()
 		} else if errors.Is(err, cbmgmtx.ErrAccessDenied) {
-			return nil, s.errorHandler.NewBucketAccessDeniedStatus(err, in.BucketName).Err()
+			return nil, s.errorHandler.NewBucketAccessDeniedStatus(ctx, err, in.BucketName).Err()
 		}
-		return nil, s.errorHandler.NewGenericStatus(err).Err()
+		return nil, s.errorHandler.NewGenericStatus(ctx, err).Err()
 	}
 
 	err = agent.EnsureBucket(ctx, &gocbcorex.EnsureBucketOptions{
@@ -299,7 +303,7 @@ func (s *BucketAdminServer) CreateBucket(
 		WantMissing: false,
 	})
 	if err != nil {
-		return nil, s.errorHandler.NewGenericStatus(err).Err()
+		return nil, s.errorHandler.NewGenericStatus(ctx, err).Err()
 	}
 
 	return &admin_bucket_v1.CreateBucketResponse{}, nil
@@ -320,13 +324,13 @@ func (s *BucketAdminServer) UpdateBucket(
 	})
 	if err != nil {
 		if errors.Is(err, cbmgmtx.ErrBucketNotFound) {
-			return nil, s.errorHandler.NewBucketMissingStatus(err, in.BucketName).Err()
+			return nil, s.errorHandler.NewBucketMissingStatus(ctx, err, in.BucketName).Err()
 		} else if errors.Is(err, cbmgmtx.ErrServerInvalidArg) {
-			return nil, s.errorHandler.NewBucketInvalidArgStatus(err, "", in.BucketName).Err()
+			return nil, s.errorHandler.NewBucketInvalidArgStatus(ctx, err, "", in.BucketName).Err()
 		} else if errors.Is(err, cbmgmtx.ErrAccessDenied) {
-			return nil, s.errorHandler.NewBucketAccessDeniedStatus(err, in.BucketName).Err()
+			return nil, s.errorHandler.NewBucketAccessDeniedStatus(ctx, err, in.BucketName).Err()
 		}
-		return nil, s.errorHandler.NewGenericStatus(err).Err()
+		return nil, s.errorHandler.NewGenericStatus(ctx, err).Err()
 	}
 
 	newBucket := bucket.MutableBucketSettings
@@ -369,6 +373,7 @@ func (s *BucketAdminServer) UpdateBucket(
 	}
 
 	errSt = s.validateHistorySettings(
+		ctx,
 		bucket.StorageBackend,
 		in.BucketName,
 		in.HistoryRetentionCollectionDefault,
@@ -397,13 +402,13 @@ func (s *BucketAdminServer) UpdateBucket(
 	})
 	if err != nil {
 		if errors.Is(err, cbmgmtx.ErrBucketNotFound) {
-			return nil, s.errorHandler.NewBucketMissingStatus(err, in.BucketName).Err()
+			return nil, s.errorHandler.NewBucketMissingStatus(ctx, err, in.BucketName).Err()
 		} else if errors.Is(err, cbmgmtx.ErrServerInvalidArg) {
-			return nil, s.errorHandler.NewBucketInvalidArgStatus(err, "", in.BucketName).Err()
+			return nil, s.errorHandler.NewBucketInvalidArgStatus(ctx, err, "", in.BucketName).Err()
 		} else if errors.Is(err, cbmgmtx.ErrAccessDenied) {
-			return nil, s.errorHandler.NewBucketAccessDeniedStatus(err, in.BucketName).Err()
+			return nil, s.errorHandler.NewBucketAccessDeniedStatus(ctx, err, in.BucketName).Err()
 		}
-		return nil, s.errorHandler.NewGenericStatus(err).Err()
+		return nil, s.errorHandler.NewGenericStatus(ctx, err).Err()
 	}
 
 	err = agent.EnsureBucket(ctx, &gocbcorex.EnsureBucketOptions{
@@ -411,7 +416,7 @@ func (s *BucketAdminServer) UpdateBucket(
 		WantSettings: &newBucket,
 	})
 	if err != nil {
-		return nil, s.errorHandler.NewGenericStatus(err).Err()
+		return nil, s.errorHandler.NewGenericStatus(ctx, err).Err()
 	}
 
 	return &admin_bucket_v1.UpdateBucketResponse{}, nil
@@ -432,13 +437,13 @@ func (s *BucketAdminServer) DeleteBucket(
 	})
 	if err != nil {
 		if errors.Is(err, cbmgmtx.ErrBucketNotFound) {
-			return nil, s.errorHandler.NewBucketMissingStatus(err, in.BucketName).Err()
+			return nil, s.errorHandler.NewBucketMissingStatus(ctx, err, in.BucketName).Err()
 		} else if errors.Is(err, cbmgmtx.ErrAccessDenied) {
-			return nil, s.errorHandler.NewBucketAccessDeniedStatus(err, in.BucketName).Err()
+			return nil, s.errorHandler.NewBucketAccessDeniedStatus(ctx, err, in.BucketName).Err()
 		} else if errors.Is(err, cbmgmtx.ErrServerInvalidArg) {
-			return nil, s.errorHandler.NewBucketInvalidArgStatus(err, "", in.BucketName).Err()
+			return nil, s.errorHandler.NewBucketInvalidArgStatus(ctx, err, "", in.BucketName).Err()
 		}
-		return nil, s.errorHandler.NewGenericStatus(err).Err()
+		return nil, s.errorHandler.NewGenericStatus(ctx, err).Err()
 	}
 
 	err = agent.EnsureBucket(ctx, &gocbcorex.EnsureBucketOptions{
@@ -446,7 +451,7 @@ func (s *BucketAdminServer) DeleteBucket(
 		WantMissing: true,
 	})
 	if err != nil {
-		return nil, s.errorHandler.NewGenericStatus(err).Err()
+		return nil, s.errorHandler.NewGenericStatus(ctx, err).Err()
 	}
 
 	return &admin_bucket_v1.DeleteBucketResponse{}, nil
@@ -467,15 +472,15 @@ func (s *BucketAdminServer) FlushBucket(
 	})
 	if err != nil {
 		if errors.Is(err, cbmgmtx.ErrBucketNotFound) {
-			return nil, s.errorHandler.NewBucketMissingStatus(err, in.BucketName).Err()
+			return nil, s.errorHandler.NewBucketMissingStatus(ctx, err, in.BucketName).Err()
 		} else if errors.Is(err, cbmgmtx.ErrFlushDisabled) {
-			return nil, s.errorHandler.NewBucketFlushDisabledStatus(err, in.BucketName).Err()
+			return nil, s.errorHandler.NewBucketFlushDisabledStatus(ctx, err, in.BucketName).Err()
 		} else if errors.Is(err, cbmgmtx.ErrAccessDenied) {
-			return nil, s.errorHandler.NewBucketAccessDeniedStatus(err, in.BucketName).Err()
+			return nil, s.errorHandler.NewBucketAccessDeniedStatus(ctx, err, in.BucketName).Err()
 		} else if errors.Is(err, cbmgmtx.ErrServerInvalidArg) {
-			return nil, s.errorHandler.NewBucketInvalidArgStatus(err, "", in.BucketName).Err()
+			return nil, s.errorHandler.NewBucketInvalidArgStatus(ctx, err, "", in.BucketName).Err()
 		}
-		return nil, s.errorHandler.NewGenericStatus(err).Err()
+		return nil, s.errorHandler.NewGenericStatus(ctx, err).Err()
 	}
 
 	return &admin_bucket_v1.FlushBucketResponse{}, nil

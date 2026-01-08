@@ -94,27 +94,27 @@ func (s *SearchIndexAdminServer) CreateIndex(ctx context.Context, in *admin_sear
 	res, err := agent.UpsertSearchIndex(ctx, opts)
 	if err != nil {
 		if errors.Is(err, gocbcorex.ErrServiceNotAvailable) {
-			return nil, s.errorHandler.NewSearchServiceNotAvailableStatus(err, in.Name).Err()
+			return nil, s.errorHandler.NewSearchServiceNotAvailableStatus(ctx, err, in.Name).Err()
 		} else if errors.Is(err, cbsearchx.ErrIndexExists) {
-			return nil, s.errorHandler.NewSearchIndexExistsStatus(err, in.Name).Err()
+			return nil, s.errorHandler.NewSearchIndexExistsStatus(ctx, err, in.Name).Err()
 		} else if errors.Is(err, cbsearchx.ErrIndexNameInvalid) {
-			return nil, s.errorHandler.NewSearchIndexNameInvalidStatus(err, in.Name).Err()
+			return nil, s.errorHandler.NewSearchIndexNameInvalidStatus(ctx, err, in.Name).Err()
 		} else if errors.Is(err, cbsearchx.ErrIndexNameTooLong) {
-			return nil, s.errorHandler.NewSearchIndexNameTooLongStatus(err, in.Name).Err()
+			return nil, s.errorHandler.NewSearchIndexNameTooLongStatus(ctx, err, in.Name).Err()
 		} else if errors.Is(err, cbsearchx.ErrIndexNameEmpty) {
-			return nil, s.errorHandler.NewSearchIndexNameEmptyStatus(err).Err()
+			return nil, s.errorHandler.NewSearchIndexNameEmptyStatus(ctx, err).Err()
 		} else if errors.Is(err, cbsearchx.ErrUnknownIndexType) {
-			return nil, s.errorHandler.NewUnknownSearchIndexTypeStatus(err, in.Name, in.Type).Err()
+			return nil, s.errorHandler.NewUnknownSearchIndexTypeStatus(ctx, err, in.Name, in.Type).Err()
 		} else if errors.Is(err, cbsearchx.ErrOnlyBucketOrScopeSet) {
-			return nil, s.errorHandler.NewOnlyBucketOrScopeSetStatus(err, in.Name).Err()
+			return nil, s.errorHandler.NewOnlyBucketOrScopeSetStatus(ctx, err, in.Name).Err()
 		} else if errors.Is(err, cbsearchx.ErrSourceTypeIncorrect) {
-			return nil, s.errorHandler.NewIncorrectSearchSourceTypeStatus(err, in.Name, in.SourceType).Err()
+			return nil, s.errorHandler.NewIncorrectSearchSourceTypeStatus(ctx, err, in.Name, in.SourceType).Err()
 		} else if errors.Is(err, cbsearchx.ErrSourceNotFound) {
-			return nil, s.errorHandler.NewSearchSourceNotFoundStatus(err, in.Name, in.SourceName).Err()
+			return nil, s.errorHandler.NewSearchSourceNotFoundStatus(ctx, err, in.Name, in.SourceName).Err()
 		} else if errors.Is(err, cbsearchx.ErrAuthenticationFailure) {
-			return nil, s.errorHandler.NewSearchIndexAuthenticationFailureStatus(err, in.BucketName, in.ScopeName).Err()
+			return nil, s.errorHandler.NewSearchIndexAuthenticationFailureStatus(ctx, err, in.BucketName, in.ScopeName).Err()
 		}
-		return nil, s.errorHandler.NewGenericStatus(err).Err()
+		return nil, s.errorHandler.NewGenericStatus(ctx, err).Err()
 	}
 
 	err = agent.EnsureSearchIndex(ctx, &gocbcorex.EnsureSearchIndexOptions{
@@ -125,7 +125,7 @@ func (s *SearchIndexAdminServer) CreateIndex(ctx context.Context, in *admin_sear
 		OnBehalfOf: oboInfo,
 	})
 	if err != nil {
-		return nil, s.errorHandler.NewGenericStatus(err).Err()
+		return nil, s.errorHandler.NewGenericStatus(ctx, err).Err()
 	}
 
 	return &admin_search_v1.CreateIndexResponse{}, nil
@@ -200,29 +200,29 @@ func (s *SearchIndexAdminServer) UpdateIndex(ctx context.Context, in *admin_sear
 	res, err := agent.UpsertSearchIndex(ctx, opts)
 	if err != nil {
 		if errors.Is(err, gocbcorex.ErrServiceNotAvailable) {
-			return nil, s.errorHandler.NewSearchServiceNotAvailableStatus(err, in.Index.Name).Err()
+			return nil, s.errorHandler.NewSearchServiceNotAvailableStatus(ctx, err, in.Index.Name).Err()
 		} else if errors.Is(err, cbsearchx.ErrIndexNotFound) {
-			return nil, s.errorHandler.NewSearchIndexMissingStatus(err, in.Index.Name).Err()
+			return nil, s.errorHandler.NewSearchIndexMissingStatus(ctx, err, in.Index.Name).Err()
 		} else if errors.Is(err, cbsearchx.ErrIndexExists) {
-			return nil, s.errorHandler.NewSearchUUIDMismatchStatus(err, in.Index.Name).Err()
+			return nil, s.errorHandler.NewSearchUUIDMismatchStatus(ctx, err, in.Index.Name).Err()
 		} else if errors.Is(err, cbsearchx.ErrIndexNameInvalid) {
-			return nil, s.errorHandler.NewSearchIndexNameInvalidStatus(err, in.Index.Name).Err()
+			return nil, s.errorHandler.NewSearchIndexNameInvalidStatus(ctx, err, in.Index.Name).Err()
 		} else if errors.Is(err, cbsearchx.ErrIndexNameTooLong) {
-			return nil, s.errorHandler.NewSearchIndexNameTooLongStatus(err, in.Index.Name).Err()
+			return nil, s.errorHandler.NewSearchIndexNameTooLongStatus(ctx, err, in.Index.Name).Err()
 		} else if errors.Is(err, cbsearchx.ErrIndexNameEmpty) {
-			return nil, s.errorHandler.NewSearchIndexNameEmptyStatus(err).Err()
+			return nil, s.errorHandler.NewSearchIndexNameEmptyStatus(ctx, err).Err()
 		} else if errors.Is(err, cbsearchx.ErrOnlyBucketOrScopeSet) {
-			return nil, s.errorHandler.NewOnlyBucketOrScopeSetStatus(err, in.Index.Name).Err()
+			return nil, s.errorHandler.NewOnlyBucketOrScopeSetStatus(ctx, err, in.Index.Name).Err()
 		} else if errors.Is(err, cbsearchx.ErrUnknownIndexType) {
-			return nil, s.errorHandler.NewUnknownSearchIndexTypeStatus(err, in.Index.Name, in.Index.Type).Err()
+			return nil, s.errorHandler.NewUnknownSearchIndexTypeStatus(ctx, err, in.Index.Name, in.Index.Type).Err()
 		} else if errors.Is(err, cbsearchx.ErrSourceTypeIncorrect) {
-			return nil, s.errorHandler.NewIncorrectSearchSourceTypeStatus(err, in.Index.Name, in.Index.SourceType).Err()
+			return nil, s.errorHandler.NewIncorrectSearchSourceTypeStatus(ctx, err, in.Index.Name, in.Index.SourceType).Err()
 		} else if errors.Is(err, cbsearchx.ErrSourceNotFound) {
-			return nil, s.errorHandler.NewSearchSourceNotFoundStatus(err, in.Index.Name, in.Index.SourceName).Err()
+			return nil, s.errorHandler.NewSearchSourceNotFoundStatus(ctx, err, in.Index.Name, in.Index.SourceName).Err()
 		} else if errors.Is(err, cbsearchx.ErrAuthenticationFailure) {
-			return nil, s.errorHandler.NewSearchIndexAuthenticationFailureStatus(err, in.BucketName, in.ScopeName).Err()
+			return nil, s.errorHandler.NewSearchIndexAuthenticationFailureStatus(ctx, err, in.BucketName, in.ScopeName).Err()
 		}
-		return nil, s.errorHandler.NewGenericStatus(err).Err()
+		return nil, s.errorHandler.NewGenericStatus(ctx, err).Err()
 	}
 
 	err = agent.EnsureSearchIndex(ctx, &gocbcorex.EnsureSearchIndexOptions{
@@ -233,7 +233,7 @@ func (s *SearchIndexAdminServer) UpdateIndex(ctx context.Context, in *admin_sear
 		OnBehalfOf: oboInfo,
 	})
 	if err != nil {
-		return nil, s.errorHandler.NewGenericStatus(err).Err()
+		return nil, s.errorHandler.NewGenericStatus(ctx, err).Err()
 	}
 
 	return &admin_search_v1.UpdateIndexResponse{}, nil
@@ -261,17 +261,17 @@ func (s *SearchIndexAdminServer) DeleteIndex(ctx context.Context, in *admin_sear
 	err := agent.DeleteSearchIndex(ctx, opts)
 	if err != nil {
 		if errors.Is(err, gocbcorex.ErrServiceNotAvailable) {
-			return nil, s.errorHandler.NewSearchServiceNotAvailableStatus(err, in.Name).Err()
+			return nil, s.errorHandler.NewSearchServiceNotAvailableStatus(ctx, err, in.Name).Err()
 		} else if errors.Is(err, cbsearchx.ErrIndexNotFound) {
-			return nil, s.errorHandler.NewSearchIndexMissingStatus(err, in.Name).Err()
+			return nil, s.errorHandler.NewSearchIndexMissingStatus(ctx, err, in.Name).Err()
 		} else if errors.Is(err, cbsearchx.ErrIndexNameEmpty) {
-			return nil, s.errorHandler.NewSearchIndexNameEmptyStatus(err).Err()
+			return nil, s.errorHandler.NewSearchIndexNameEmptyStatus(ctx, err).Err()
 		} else if errors.Is(err, cbsearchx.ErrOnlyBucketOrScopeSet) {
-			return nil, s.errorHandler.NewOnlyBucketOrScopeSetStatus(err, in.Name).Err()
+			return nil, s.errorHandler.NewOnlyBucketOrScopeSetStatus(ctx, err, in.Name).Err()
 		} else if errors.Is(err, cbsearchx.ErrAuthenticationFailure) {
-			return nil, s.errorHandler.NewSearchIndexAuthenticationFailureStatus(err, in.BucketName, in.ScopeName).Err()
+			return nil, s.errorHandler.NewSearchIndexAuthenticationFailureStatus(ctx, err, in.BucketName, in.ScopeName).Err()
 		}
-		return nil, s.errorHandler.NewGenericStatus(err).Err()
+		return nil, s.errorHandler.NewGenericStatus(ctx, err).Err()
 	}
 
 	err = agent.EnsureSearchIndex(ctx, &gocbcorex.EnsureSearchIndexOptions{
@@ -282,7 +282,7 @@ func (s *SearchIndexAdminServer) DeleteIndex(ctx context.Context, in *admin_sear
 		OnBehalfOf:  oboInfo,
 	})
 	if err != nil {
-		return nil, s.errorHandler.NewGenericStatus(err).Err()
+		return nil, s.errorHandler.NewGenericStatus(ctx, err).Err()
 	}
 
 	return &admin_search_v1.DeleteIndexResponse{}, nil
@@ -310,17 +310,17 @@ func (s *SearchIndexAdminServer) GetIndex(ctx context.Context, in *admin_search_
 	index, err := agent.GetSearchIndex(ctx, opts)
 	if err != nil {
 		if errors.Is(err, gocbcorex.ErrServiceNotAvailable) {
-			return nil, s.errorHandler.NewSearchServiceNotAvailableStatus(err, in.Name).Err()
+			return nil, s.errorHandler.NewSearchServiceNotAvailableStatus(ctx, err, in.Name).Err()
 		} else if errors.Is(err, cbsearchx.ErrIndexNotFound) {
-			return nil, s.errorHandler.NewSearchIndexMissingStatus(err, in.Name).Err()
+			return nil, s.errorHandler.NewSearchIndexMissingStatus(ctx, err, in.Name).Err()
 		} else if errors.Is(err, cbsearchx.ErrIndexNameEmpty) {
-			return nil, s.errorHandler.NewSearchIndexNameEmptyStatus(err).Err()
+			return nil, s.errorHandler.NewSearchIndexNameEmptyStatus(ctx, err).Err()
 		} else if errors.Is(err, cbsearchx.ErrOnlyBucketOrScopeSet) {
-			return nil, s.errorHandler.NewOnlyBucketOrScopeSetStatus(err, in.Name).Err()
+			return nil, s.errorHandler.NewOnlyBucketOrScopeSetStatus(ctx, err, in.Name).Err()
 		} else if errors.Is(err, cbsearchx.ErrAuthenticationFailure) {
-			return nil, s.errorHandler.NewSearchIndexAuthenticationFailureStatus(err, in.BucketName, in.ScopeName).Err()
+			return nil, s.errorHandler.NewSearchIndexAuthenticationFailureStatus(ctx, err, in.BucketName, in.ScopeName).Err()
 		}
-		return nil, s.errorHandler.NewGenericStatus(err).Err()
+		return nil, s.errorHandler.NewGenericStatus(ctx, err).Err()
 	}
 
 	adminIndex := cbsearchxIndexToPS(index)
@@ -351,13 +351,13 @@ func (s *SearchIndexAdminServer) ListIndexes(ctx context.Context, in *admin_sear
 	indexes, err := agent.GetAllSearchIndexes(ctx, opts)
 	if err != nil {
 		if errors.Is(err, gocbcorex.ErrServiceNotAvailable) {
-			return nil, s.errorHandler.NewSearchServiceNotAvailableStatus(err, "").Err()
+			return nil, s.errorHandler.NewSearchServiceNotAvailableStatus(ctx, err, "").Err()
 		} else if errors.Is(err, cbsearchx.ErrOnlyBucketOrScopeSet) {
-			return nil, s.errorHandler.NewOnlyBucketOrScopeSetStatus(err, "").Err()
+			return nil, s.errorHandler.NewOnlyBucketOrScopeSetStatus(ctx, err, "").Err()
 		} else if errors.Is(err, cbsearchx.ErrAuthenticationFailure) {
-			return nil, s.errorHandler.NewSearchIndexAuthenticationFailureStatus(err, in.BucketName, in.ScopeName).Err()
+			return nil, s.errorHandler.NewSearchIndexAuthenticationFailureStatus(ctx, err, in.BucketName, in.ScopeName).Err()
 		}
-		return nil, s.errorHandler.NewGenericStatus(err).Err()
+		return nil, s.errorHandler.NewGenericStatus(ctx, err).Err()
 	}
 
 	adminIndexes := make([]*admin_search_v1.Index, len(indexes))
@@ -394,19 +394,19 @@ func (s *SearchIndexAdminServer) AnalyzeDocument(ctx context.Context, in *admin_
 	analysis, err := agent.AnalyzeDocument(ctx, opts)
 	if err != nil {
 		if errors.Is(err, gocbcorex.ErrServiceNotAvailable) {
-			return nil, s.errorHandler.NewSearchServiceNotAvailableStatus(err, in.Name).Err()
+			return nil, s.errorHandler.NewSearchServiceNotAvailableStatus(ctx, err, in.Name).Err()
 		} else if errors.Is(err, cbsearchx.ErrIndexNotFound) {
-			return nil, s.errorHandler.NewSearchIndexMissingStatus(err, in.Name).Err()
+			return nil, s.errorHandler.NewSearchIndexMissingStatus(ctx, err, in.Name).Err()
 		} else if errors.Is(err, cbsearchx.ErrIndexNameEmpty) {
-			return nil, s.errorHandler.NewSearchIndexNameEmptyStatus(err).Err()
+			return nil, s.errorHandler.NewSearchIndexNameEmptyStatus(ctx, err).Err()
 		} else if errors.Is(err, cbsearchx.ErrOnlyBucketOrScopeSet) {
-			return nil, s.errorHandler.NewOnlyBucketOrScopeSetStatus(err, in.Name).Err()
+			return nil, s.errorHandler.NewOnlyBucketOrScopeSetStatus(ctx, err, in.Name).Err()
 		} else if errors.Is(err, cbsearchx.ErrNoIndexPartitionsFound) {
-			return nil, s.errorHandler.NewSearchIndexNotReadyStatus(err, in.Name).Err()
+			return nil, s.errorHandler.NewSearchIndexNotReadyStatus(ctx, err, in.Name).Err()
 		} else if errors.Is(err, cbsearchx.ErrAuthenticationFailure) {
-			return nil, s.errorHandler.NewSearchIndexAuthenticationFailureStatus(err, in.BucketName, in.ScopeName).Err()
+			return nil, s.errorHandler.NewSearchIndexAuthenticationFailureStatus(ctx, err, in.BucketName, in.ScopeName).Err()
 		}
-		return nil, s.errorHandler.NewGenericStatus(err).Err()
+		return nil, s.errorHandler.NewGenericStatus(ctx, err).Err()
 	}
 
 	return &admin_search_v1.AnalyzeDocumentResponse{
@@ -437,17 +437,17 @@ func (s *SearchIndexAdminServer) GetIndexedDocumentsCount(ctx context.Context, i
 	count, err := agent.GetSearchIndexedDocumentsCount(ctx, opts)
 	if err != nil {
 		if errors.Is(err, gocbcorex.ErrServiceNotAvailable) {
-			return nil, s.errorHandler.NewSearchServiceNotAvailableStatus(err, in.Name).Err()
+			return nil, s.errorHandler.NewSearchServiceNotAvailableStatus(ctx, err, in.Name).Err()
 		} else if errors.Is(err, cbsearchx.ErrIndexNotFound) {
-			return nil, s.errorHandler.NewSearchIndexMissingStatus(err, in.Name).Err()
+			return nil, s.errorHandler.NewSearchIndexMissingStatus(ctx, err, in.Name).Err()
 		} else if errors.Is(err, cbsearchx.ErrIndexNameEmpty) {
-			return nil, s.errorHandler.NewSearchIndexNameEmptyStatus(err).Err()
+			return nil, s.errorHandler.NewSearchIndexNameEmptyStatus(ctx, err).Err()
 		} else if errors.Is(err, cbsearchx.ErrOnlyBucketOrScopeSet) {
-			return nil, s.errorHandler.NewOnlyBucketOrScopeSetStatus(err, in.Name).Err()
+			return nil, s.errorHandler.NewOnlyBucketOrScopeSetStatus(ctx, err, in.Name).Err()
 		} else if errors.Is(err, cbsearchx.ErrAuthenticationFailure) {
-			return nil, s.errorHandler.NewSearchIndexAuthenticationFailureStatus(err, in.BucketName, in.ScopeName).Err()
+			return nil, s.errorHandler.NewSearchIndexAuthenticationFailureStatus(ctx, err, in.BucketName, in.ScopeName).Err()
 		}
-		return nil, s.errorHandler.NewGenericStatus(err).Err()
+		return nil, s.errorHandler.NewGenericStatus(ctx, err).Err()
 	}
 
 	return &admin_search_v1.GetIndexedDocumentsCountResponse{
@@ -477,17 +477,17 @@ func (s *SearchIndexAdminServer) PauseIndexIngest(ctx context.Context, in *admin
 	err := agent.PauseSearchIndexIngest(ctx, opts)
 	if err != nil {
 		if errors.Is(err, gocbcorex.ErrServiceNotAvailable) {
-			return nil, s.errorHandler.NewSearchServiceNotAvailableStatus(err, in.Name).Err()
+			return nil, s.errorHandler.NewSearchServiceNotAvailableStatus(ctx, err, in.Name).Err()
 		} else if errors.Is(err, cbsearchx.ErrIndexNotFound) {
-			return nil, s.errorHandler.NewSearchIndexMissingStatus(err, in.Name).Err()
+			return nil, s.errorHandler.NewSearchIndexMissingStatus(ctx, err, in.Name).Err()
 		} else if errors.Is(err, cbsearchx.ErrIndexNameEmpty) {
-			return nil, s.errorHandler.NewSearchIndexNameEmptyStatus(err).Err()
+			return nil, s.errorHandler.NewSearchIndexNameEmptyStatus(ctx, err).Err()
 		} else if errors.Is(err, cbsearchx.ErrOnlyBucketOrScopeSet) {
-			return nil, s.errorHandler.NewOnlyBucketOrScopeSetStatus(err, in.Name).Err()
+			return nil, s.errorHandler.NewOnlyBucketOrScopeSetStatus(ctx, err, in.Name).Err()
 		} else if errors.Is(err, cbsearchx.ErrAuthenticationFailure) {
-			return nil, s.errorHandler.NewSearchIndexAuthenticationFailureStatus(err, in.BucketName, in.ScopeName).Err()
+			return nil, s.errorHandler.NewSearchIndexAuthenticationFailureStatus(ctx, err, in.BucketName, in.ScopeName).Err()
 		}
-		return nil, s.errorHandler.NewGenericStatus(err).Err()
+		return nil, s.errorHandler.NewGenericStatus(ctx, err).Err()
 	}
 
 	return &admin_search_v1.PauseIndexIngestResponse{}, nil
@@ -515,17 +515,17 @@ func (s *SearchIndexAdminServer) ResumeIndexIngest(ctx context.Context, in *admi
 	err := agent.ResumeSearchIndexIngest(ctx, opts)
 	if err != nil {
 		if errors.Is(err, gocbcorex.ErrServiceNotAvailable) {
-			return nil, s.errorHandler.NewSearchServiceNotAvailableStatus(err, in.Name).Err()
+			return nil, s.errorHandler.NewSearchServiceNotAvailableStatus(ctx, err, in.Name).Err()
 		} else if errors.Is(err, cbsearchx.ErrIndexNotFound) {
-			return nil, s.errorHandler.NewSearchIndexMissingStatus(err, in.Name).Err()
+			return nil, s.errorHandler.NewSearchIndexMissingStatus(ctx, err, in.Name).Err()
 		} else if errors.Is(err, cbsearchx.ErrIndexNameEmpty) {
-			return nil, s.errorHandler.NewSearchIndexNameEmptyStatus(err).Err()
+			return nil, s.errorHandler.NewSearchIndexNameEmptyStatus(ctx, err).Err()
 		} else if errors.Is(err, cbsearchx.ErrOnlyBucketOrScopeSet) {
-			return nil, s.errorHandler.NewOnlyBucketOrScopeSetStatus(err, in.Name).Err()
+			return nil, s.errorHandler.NewOnlyBucketOrScopeSetStatus(ctx, err, in.Name).Err()
 		} else if errors.Is(err, cbsearchx.ErrAuthenticationFailure) {
-			return nil, s.errorHandler.NewSearchIndexAuthenticationFailureStatus(err, in.BucketName, in.ScopeName).Err()
+			return nil, s.errorHandler.NewSearchIndexAuthenticationFailureStatus(ctx, err, in.BucketName, in.ScopeName).Err()
 		}
-		return nil, s.errorHandler.NewGenericStatus(err).Err()
+		return nil, s.errorHandler.NewGenericStatus(ctx, err).Err()
 	}
 
 	return &admin_search_v1.ResumeIndexIngestResponse{}, nil
@@ -553,17 +553,17 @@ func (s *SearchIndexAdminServer) AllowIndexQuerying(ctx context.Context, in *adm
 	err := agent.AllowSearchIndexQuerying(ctx, opts)
 	if err != nil {
 		if errors.Is(err, gocbcorex.ErrServiceNotAvailable) {
-			return nil, s.errorHandler.NewSearchServiceNotAvailableStatus(err, in.Name).Err()
+			return nil, s.errorHandler.NewSearchServiceNotAvailableStatus(ctx, err, in.Name).Err()
 		} else if errors.Is(err, cbsearchx.ErrIndexNotFound) {
-			return nil, s.errorHandler.NewSearchIndexMissingStatus(err, in.Name).Err()
+			return nil, s.errorHandler.NewSearchIndexMissingStatus(ctx, err, in.Name).Err()
 		} else if errors.Is(err, cbsearchx.ErrIndexNameEmpty) {
-			return nil, s.errorHandler.NewSearchIndexNameEmptyStatus(err).Err()
+			return nil, s.errorHandler.NewSearchIndexNameEmptyStatus(ctx, err).Err()
 		} else if errors.Is(err, cbsearchx.ErrOnlyBucketOrScopeSet) {
-			return nil, s.errorHandler.NewOnlyBucketOrScopeSetStatus(err, in.Name).Err()
+			return nil, s.errorHandler.NewOnlyBucketOrScopeSetStatus(ctx, err, in.Name).Err()
 		} else if errors.Is(err, cbsearchx.ErrAuthenticationFailure) {
-			return nil, s.errorHandler.NewSearchIndexAuthenticationFailureStatus(err, in.BucketName, in.ScopeName).Err()
+			return nil, s.errorHandler.NewSearchIndexAuthenticationFailureStatus(ctx, err, in.BucketName, in.ScopeName).Err()
 		}
-		return nil, s.errorHandler.NewGenericStatus(err).Err()
+		return nil, s.errorHandler.NewGenericStatus(ctx, err).Err()
 	}
 
 	return &admin_search_v1.AllowIndexQueryingResponse{}, nil
@@ -591,17 +591,17 @@ func (s *SearchIndexAdminServer) DisallowIndexQuerying(ctx context.Context, in *
 	err := agent.DisallowSearchIndexQuerying(ctx, opts)
 	if err != nil {
 		if errors.Is(err, gocbcorex.ErrServiceNotAvailable) {
-			return nil, s.errorHandler.NewSearchServiceNotAvailableStatus(err, in.Name).Err()
+			return nil, s.errorHandler.NewSearchServiceNotAvailableStatus(ctx, err, in.Name).Err()
 		} else if errors.Is(err, cbsearchx.ErrIndexNotFound) {
-			return nil, s.errorHandler.NewSearchIndexMissingStatus(err, in.Name).Err()
+			return nil, s.errorHandler.NewSearchIndexMissingStatus(ctx, err, in.Name).Err()
 		} else if errors.Is(err, cbsearchx.ErrIndexNameEmpty) {
-			return nil, s.errorHandler.NewSearchIndexNameEmptyStatus(err).Err()
+			return nil, s.errorHandler.NewSearchIndexNameEmptyStatus(ctx, err).Err()
 		} else if errors.Is(err, cbsearchx.ErrOnlyBucketOrScopeSet) {
-			return nil, s.errorHandler.NewOnlyBucketOrScopeSetStatus(err, in.Name).Err()
+			return nil, s.errorHandler.NewOnlyBucketOrScopeSetStatus(ctx, err, in.Name).Err()
 		} else if errors.Is(err, cbsearchx.ErrAuthenticationFailure) {
-			return nil, s.errorHandler.NewSearchIndexAuthenticationFailureStatus(err, in.BucketName, in.ScopeName).Err()
+			return nil, s.errorHandler.NewSearchIndexAuthenticationFailureStatus(ctx, err, in.BucketName, in.ScopeName).Err()
 		}
-		return nil, s.errorHandler.NewGenericStatus(err).Err()
+		return nil, s.errorHandler.NewGenericStatus(ctx, err).Err()
 	}
 
 	return &admin_search_v1.DisallowIndexQueryingResponse{}, nil
@@ -629,17 +629,17 @@ func (s *SearchIndexAdminServer) FreezeIndexPlan(ctx context.Context, in *admin_
 	err := agent.FreezeSearchIndexPlan(ctx, opts)
 	if err != nil {
 		if errors.Is(err, gocbcorex.ErrServiceNotAvailable) {
-			return nil, s.errorHandler.NewSearchServiceNotAvailableStatus(err, in.Name).Err()
+			return nil, s.errorHandler.NewSearchServiceNotAvailableStatus(ctx, err, in.Name).Err()
 		} else if errors.Is(err, cbsearchx.ErrIndexNotFound) {
-			return nil, s.errorHandler.NewSearchIndexMissingStatus(err, in.Name).Err()
+			return nil, s.errorHandler.NewSearchIndexMissingStatus(ctx, err, in.Name).Err()
 		} else if errors.Is(err, cbsearchx.ErrIndexNameEmpty) {
-			return nil, s.errorHandler.NewSearchIndexNameEmptyStatus(err).Err()
+			return nil, s.errorHandler.NewSearchIndexNameEmptyStatus(ctx, err).Err()
 		} else if errors.Is(err, cbsearchx.ErrOnlyBucketOrScopeSet) {
-			return nil, s.errorHandler.NewOnlyBucketOrScopeSetStatus(err, in.Name).Err()
+			return nil, s.errorHandler.NewOnlyBucketOrScopeSetStatus(ctx, err, in.Name).Err()
 		} else if errors.Is(err, cbsearchx.ErrAuthenticationFailure) {
-			return nil, s.errorHandler.NewSearchIndexAuthenticationFailureStatus(err, in.BucketName, in.ScopeName).Err()
+			return nil, s.errorHandler.NewSearchIndexAuthenticationFailureStatus(ctx, err, in.BucketName, in.ScopeName).Err()
 		}
-		return nil, s.errorHandler.NewGenericStatus(err).Err()
+		return nil, s.errorHandler.NewGenericStatus(ctx, err).Err()
 	}
 
 	return &admin_search_v1.FreezeIndexPlanResponse{}, nil
@@ -667,17 +667,17 @@ func (s *SearchIndexAdminServer) UnfreezeIndexPlan(ctx context.Context, in *admi
 	err := agent.UnfreezeSearchIndexPlan(ctx, opts)
 	if err != nil {
 		if errors.Is(err, gocbcorex.ErrServiceNotAvailable) {
-			return nil, s.errorHandler.NewSearchServiceNotAvailableStatus(err, in.Name).Err()
+			return nil, s.errorHandler.NewSearchServiceNotAvailableStatus(ctx, err, in.Name).Err()
 		} else if errors.Is(err, cbsearchx.ErrIndexNotFound) {
-			return nil, s.errorHandler.NewSearchIndexMissingStatus(err, in.Name).Err()
+			return nil, s.errorHandler.NewSearchIndexMissingStatus(ctx, err, in.Name).Err()
 		} else if errors.Is(err, cbsearchx.ErrIndexNameEmpty) {
-			return nil, s.errorHandler.NewSearchIndexNameEmptyStatus(err).Err()
+			return nil, s.errorHandler.NewSearchIndexNameEmptyStatus(ctx, err).Err()
 		} else if errors.Is(err, cbsearchx.ErrOnlyBucketOrScopeSet) {
-			return nil, s.errorHandler.NewOnlyBucketOrScopeSetStatus(err, in.Name).Err()
+			return nil, s.errorHandler.NewOnlyBucketOrScopeSetStatus(ctx, err, in.Name).Err()
 		} else if errors.Is(err, cbsearchx.ErrAuthenticationFailure) {
-			return nil, s.errorHandler.NewSearchIndexAuthenticationFailureStatus(err, in.BucketName, in.ScopeName).Err()
+			return nil, s.errorHandler.NewSearchIndexAuthenticationFailureStatus(ctx, err, in.BucketName, in.ScopeName).Err()
 		}
-		return nil, s.errorHandler.NewGenericStatus(err).Err()
+		return nil, s.errorHandler.NewGenericStatus(ctx, err).Err()
 	}
 
 	return &admin_search_v1.UnfreezeIndexPlanResponse{}, nil

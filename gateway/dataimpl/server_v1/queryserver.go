@@ -1,6 +1,7 @@
 package server_v1
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -35,33 +36,33 @@ func NewQueryServer(
 	}
 }
 
-func (s *QueryServer) translateError(err error) *status.Status {
+func (s *QueryServer) translateError(ctx context.Context, err error) *status.Status {
 	var queryErrs *cbqueryx.ServerErrors
 	if errors.As(err, &queryErrs) {
 		if len(queryErrs.Errors) == 0 {
-			return s.errorHandler.NewInternalStatus()
+			return s.errorHandler.NewInternalStatus(ctx)
 		}
 
 		firstErr := queryErrs.Errors[0]
 		if errors.Is(firstErr, cbqueryx.ErrParsingFailure) {
-			return s.errorHandler.NewInvalidQueryStatus(err, firstErr.Msg)
+			return s.errorHandler.NewInvalidQueryStatus(ctx, err, firstErr.Msg)
 		} else if errors.Is(firstErr, cbqueryx.ErrAuthenticationFailure) {
-			return s.errorHandler.NewQueryNoAccessStatus(err)
+			return s.errorHandler.NewQueryNoAccessStatus(ctx, err)
 		} else if errors.Is(err, cbqueryx.ErrWriteInReadOnlyQuery) {
-			return s.errorHandler.NewWriteInReadOnlyQueryStatus(err)
+			return s.errorHandler.NewWriteInReadOnlyQueryStatus(ctx, err)
 		}
 
 		var rErr *cbqueryx.ResourceError
 		if errors.As(firstErr, &rErr) {
 			if errors.Is(err, cbqueryx.ErrIndexExists) {
-				return s.errorHandler.NewQueryIndexExistsStatus(err, rErr.IndexName, "", "", "")
+				return s.errorHandler.NewQueryIndexExistsStatus(ctx, err, rErr.IndexName, "", "", "")
 			} else if errors.Is(err, cbqueryx.ErrIndexNotFound) {
-				return s.errorHandler.NewQueryIndexMissingStatus(err, rErr.IndexName, "", "", "")
+				return s.errorHandler.NewQueryIndexMissingStatus(ctx, err, rErr.IndexName, "", "", "")
 			}
 		}
 	}
 
-	return s.errorHandler.NewGenericStatus(err)
+	return s.errorHandler.NewGenericStatus(ctx, err)
 }
 
 func (s *QueryServer) Query(in *query_v1.QueryRequest, out query_v1.QueryService_QueryServer) error {
@@ -212,7 +213,7 @@ func (s *QueryServer) Query(in *query_v1.QueryRequest, out query_v1.QueryService
 		result, err = agent.Query(out.Context(), &opts)
 	}
 	if err != nil {
-		return s.translateError(err).Err()
+		return s.translateError(out.Context(), err).Err()
 	}
 
 	var rowCache [][]byte
@@ -222,7 +223,7 @@ func (s *QueryServer) Query(in *query_v1.QueryRequest, out query_v1.QueryService
 	for result.HasMoreRows() {
 		rowBytes, err := result.ReadRow()
 		if err != nil {
-			return s.translateError(err).Err()
+			return s.translateError(out.Context(), err).Err()
 		}
 
 		rowNumBytes := len(rowBytes)
@@ -235,7 +236,7 @@ func (s *QueryServer) Query(in *query_v1.QueryRequest, out query_v1.QueryService
 				MetaData: nil,
 			})
 			if err != nil {
-				return s.errorHandler.NewGenericStatus(err).Err()
+				return s.errorHandler.NewGenericStatus(out.Context(), err).Err()
 			}
 
 			rowCache = nil
@@ -323,7 +324,7 @@ func (s *QueryServer) Query(in *query_v1.QueryRequest, out query_v1.QueryService
 			MetaData: psMetaData,
 		})
 		if err != nil {
-			return s.errorHandler.NewGenericStatus(err).Err()
+			return s.errorHandler.NewGenericStatus(out.Context(), err).Err()
 		}
 	}
 
