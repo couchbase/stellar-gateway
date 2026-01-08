@@ -222,7 +222,12 @@ func (s *XdcrServer) GetVbucketInfo(in *internal_xdcr_v1.GetVbucketInfoRequest, 
 		}
 	}
 
-	waitCh := make(chan error, len(fetchVbs))
+	type vbStateResult struct {
+		Result *internal_xdcr_v1.GetVbucketInfoResponse_VbucketState
+		Err    error
+	}
+
+	resultsCh := make(chan vbStateResult, len(fetchVbs))
 	for _, vbId := range fetchVbs {
 		go func(vbId uint16) {
 			vbState, err := getOneVbucketState(vbId)
@@ -233,24 +238,32 @@ func (s *XdcrServer) GetVbucketInfo(in *internal_xdcr_v1.GetVbucketInfoRequest, 
 					zap.Error(err),
 				)
 
-				waitCh <- err
+				resultsCh <- vbStateResult{Err: err}
 				return
 			}
 
-			// we ignore send errors here as there isn't much point in trying to cancel
-			// the running operation anyways, so we just let them all fail.
-			_ = out.Send(&internal_xdcr_v1.GetVbucketInfoResponse{
-				Vbuckets: []*internal_xdcr_v1.GetVbucketInfoResponse_VbucketState{vbState},
-			})
-			waitCh <- nil
+			resultsCh <- vbStateResult{Result: vbState}
 		}(vbId)
 	}
 
+	var finalErr error
 	for range fetchVbs {
-		err := <-waitCh
-		if err != nil {
-			return s.errorHandler.NewGenericStatus(err).Err()
+		result := <-resultsCh
+		if result.Err != nil {
+			// we only capture the first error that occurs, the remaining errors get
+			// thrown away as we cannot return more than one error anyways.
+			if finalErr == nil {
+				finalErr = result.Err
+			}
+			continue
 		}
+
+		_ = out.Send(&internal_xdcr_v1.GetVbucketInfoResponse{
+			Vbuckets: []*internal_xdcr_v1.GetVbucketInfoResponse_VbucketState{result.Result},
+		})
+	}
+	if finalErr != nil {
+		return s.errorHandler.NewGenericStatus(finalErr).Err()
 	}
 
 	return nil
