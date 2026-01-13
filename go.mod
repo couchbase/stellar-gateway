@@ -1,8 +1,6 @@
 module github.com/couchbase/stellar-gateway
 
-go 1.24.0
-
-toolchain go1.24.5
+go 1.25.5
 
 require (
 	cloud.google.com/go/secretmanager v1.14.3
