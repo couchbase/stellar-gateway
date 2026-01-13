@@ -35,7 +35,7 @@ jobs:
         uses: ./.github/actions/start-couchbase-cluster
       - uses: actions/setup-go@v5
         with:
-          go-version: 1.24
+          go-version: 1.25
       - uses: arduino/setup-protoc@v3
         with:
           version: 31.1
@@ -53,7 +53,7 @@ jobs:
       - name: Run Tests
         timeout-minutes: 10
         env:
-          SGTEST_CBCONNSTR:  ${{ steps.start-cluster.outputs.node-ip }}
+          SGTEST_CBCONNSTR: ${{ steps.start-cluster.outputs.node-ip }}
         run: go test -v $(go list ./... | grep -v /contrib/)
 
       - name: Collect couchbase logs

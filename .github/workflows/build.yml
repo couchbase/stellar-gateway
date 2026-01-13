@@ -23,7 +23,7 @@ jobs:
           submodules: recursive
       - uses: actions/setup-go@v5
         with:
-          go-version: 1.24
+          go-version: 1.25
       - uses: arduino/setup-protoc@v3
         with:
           version: 31.1
@@ -51,7 +51,7 @@ jobs:
           context: .
           push: true
           tags: localhost:5000/cloud-native-gateway:v99.99.99
-          build-args:  |
+          build-args: |
             PROD_VERSION=99.99.99
             OS_BUILD=99999
       - name: Print Standard Image Details
@@ -65,7 +65,7 @@ jobs:
           file: Dockerfile.rhel
           push: true
           tags: localhost:5000/cloud-native-gateway-rhel:v99.99.99
-          build-args:  |
+          build-args: |
             PROD_VERSION=99.99.99
             OS_BUILD=99999
       - name: Print RHEL Image Details
@@ -75,8 +75,8 @@ jobs:
       - name: Download RHEL Preflight
         uses: robinraju/release-downloader@v1
         with:
-          repository: 'redhat-openshift-ecosystem/openshift-preflight'
-          tag: '1.14.1'
+          repository: "redhat-openshift-ecosystem/openshift-preflight"
+          tag: "1.14.1"
           fileName: preflight-linux-amd64
           token: ${{ secrets.GITHUB_TOKEN }}
       - name: Install RHEL Preflight
