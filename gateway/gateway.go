@@ -167,10 +167,10 @@ func pingCouchbaseCluster(
 	ctx context.Context,
 	mgmt *cbmgmtx.Management,
 	logger *zap.Logger,
-) (string, string, error) {
+) (string, string, string, error) {
 	clusterConfig, err := mgmt.GetClusterConfig(ctx, &cbmgmtx.GetClusterConfigOptions{})
 	if err != nil {
-		return "", "", errors.Wrap(err, "failed to get cluster config")
+		return "", "", "", errors.Wrap(err, "failed to get cluster config")
 	}
 
 	var thisNode *cbconfigx.FullNodeJson
@@ -181,11 +181,11 @@ func pingCouchbaseCluster(
 	}
 
 	if thisNode == nil {
-		return "", "", errors.New("failed to find local bootstrap node in node list")
+		return "", "", "", errors.New("failed to find local bootstrap node in node list")
 	}
 
 	if thisNode.ClusterMembership != "active" {
-		return "", "", errors.New("bootstrap node is not part of a cluster yet")
+		return "", "", "", errors.New("bootstrap node is not part of a cluster yet")
 	}
 
 	serverVersion := strings.Split(thisNode.Version, "-")[0]
@@ -197,10 +197,10 @@ func pingCouchbaseCluster(
 
 	clusterInfo, err := mgmt.GetTerseClusterConfig(ctx, &cbmgmtx.GetTerseClusterConfigOptions{})
 	if err != nil {
-		return "", "", errors.Wrap(err, "failed to get cluster info")
+		return "", "", "", errors.Wrap(err, "failed to get cluster info")
 	}
 
-	return clusterInfo.UUID, thisNode.Hostname, nil
+	return clusterInfo.UUID, thisNode.Hostname, thisNode.ServerGroup, nil
 }
 
 func (g *Gateway) Run(ctx context.Context) error {
@@ -239,8 +239,9 @@ func (g *Gateway) Run(ctx context.Context) error {
 
 	var clusterUUID string
 	var bootstrapNodeAddr string
+	var bootstrapNodeSrvGroup string
 	for {
-		currentUUID, nodeAddr, err := pingCouchbaseCluster(ctx, mgmt, config.Logger)
+		currentUUID, nodeAddr, nodeSrvGroup, err := pingCouchbaseCluster(ctx, mgmt, config.Logger)
 		if err != nil {
 			config.Logger.Warn("failed to ping cluster", zap.Error(err))
 
@@ -264,6 +265,7 @@ func (g *Gateway) Run(ctx context.Context) error {
 		// once we successfully ping the cluster, we can stop polling
 		clusterUUID = currentUUID
 		bootstrapNodeAddr = nodeAddr
+		bootstrapNodeSrvGroup = nodeSrvGroup
 		break
 	}
 
@@ -301,6 +303,16 @@ func (g *Gateway) Run(ctx context.Context) error {
 		}
 	}
 
+	boostrapNodeIsLocal := strings.Contains(mgmtHostPort, "localhost") || config.BoostrapNodeIsLocal
+	var localNodeAddr string
+	if boostrapNodeIsLocal {
+		localNodeAddr = bootstrapNodeAddr
+
+		if serverGroup == "" {
+			serverGroup = bootstrapNodeSrvGroup
+		}
+	}
+
 	// try to establish a client connection to the cluster
 	agentMgr, err := gocbcorex.CreateBucketsTrackingAgentManager(ctx, gocbcorex.BucketsTrackingAgentManagerOptions{
 		Logger:    config.Logger.Named("gocbcorex"),
@@ -310,7 +322,9 @@ func (g *Gateway) Run(ctx context.Context) error {
 			Password: config.Password,
 		},
 		SeedConfig: gocbcorex.SeedConfig{
-			HTTPAddrs: []string{mgmtHostPort},
+			HTTPAddrs:     []string{mgmtHostPort},
+			LocalNodeAddr: localNodeAddr,
+			ServerGroup:   serverGroup,
 		},
 	})
 	if err != nil {
