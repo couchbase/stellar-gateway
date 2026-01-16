@@ -3,6 +3,9 @@ package main
 import (
 	"flag"
 	"log"
+	"os"
+	"runtime"
+	"runtime/pprof"
 	"sync/atomic"
 	"time"
 )
@@ -11,6 +14,9 @@ var mode = flag.String("mode", "protostellar", "whether to use protostellar or d
 var username = flag.String("username", "Administrator", "the username to connect with")
 var password = flag.String("password", "password", "the password to connect with")
 var addr = flag.String("addr", "localhost", "the address to connect to")
+var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
+var memprofile = flag.String("memprofile", "", "write memory profile to file")
+var mutexprofile = flag.String("mutexprofile", "", "write mutex profile to file")
 
 func main() {
 	flag.Parse()
@@ -58,11 +64,75 @@ func main() {
 		log.Fatalf("op connect failed: %s", err)
 	}
 
+	TEST_VALUE := []byte(`{"str": "hello world, I am a string that is some unknown number of bytes long!"}`)
+
+	log.Printf("warming up...")
+
+	// warm up
+	WARMUP_COUNT := 20000
+	for i := 0; i < WARMUP_COUNT; i++ {
+		err := wrapper.Upsert("test-key", TEST_VALUE)
+		if err != nil {
+			log.Fatalf("warmup upsert failed: %s", err)
+		}
+	}
+
 	log.Printf("testing time for operations...")
 
-	TEST_VALUE := []byte(`{"str": "hello world, I am a string that is some unknown number of bytes long!"}`)
-	NUM_OPS_TEST := 100000
-	NUM_THREADS := 64
+	if cpuprofile != nil && *cpuprofile != "" {
+		f, err := os.Create(*cpuprofile)
+		if err != nil {
+			log.Printf("failed to create cpu profile file: %v", err)
+			os.Exit(1)
+		}
+
+		err = pprof.StartCPUProfile(f)
+		if err != nil {
+			log.Printf("failed to start cpu profiling: %v", err)
+			os.Exit(1)
+		}
+
+		defer pprof.StopCPUProfile()
+	}
+
+	if memprofile != nil && *memprofile != "" {
+		defer func() {
+			f, err := os.Create(*memprofile)
+			if err != nil {
+				log.Printf("failed to create memory profile file: %v", err)
+				os.Exit(1)
+			}
+
+			runtime.GC() // get up-to-date statistics
+
+			err = pprof.Lookup("heap").WriteTo(f, 0)
+			if err != nil {
+				log.Printf("failed to write memory profile: %v", err)
+				os.Exit(1)
+			}
+		}()
+	}
+
+	if mutexprofile != nil && *mutexprofile != "" {
+		runtime.SetMutexProfileFraction(1)
+
+		defer func() {
+			f, err := os.Create(*mutexprofile)
+			if err != nil {
+				log.Printf("failed to create mutex profile file: %v", err)
+				os.Exit(1)
+			}
+
+			err = pprof.Lookup("mutex").WriteTo(f, 0)
+			if err != nil {
+				log.Printf("failed to write mutex profile: %v", err)
+				os.Exit(1)
+			}
+		}()
+	}
+
+	NUM_OPS_TEST := 1000000
+	NUM_THREADS := 1024
 
 	var numOpsLeft = int64(NUM_OPS_TEST)
 	var numOps int64
@@ -112,9 +182,9 @@ func main() {
 	realTotalOpTime := tetime.Sub(tstime)
 
 	totalOpTime := time.Duration(totalOpTimeInt)
-	opsPerSec := float64(numOps) / float64(realTotalOpTime/time.Second)
+	opsPerSec := float64(numOps) / (float64(realTotalOpTime) / float64(time.Second))
 
-	avgOpTime := time.Duration(int64(totalOpTime) / numOps)
+	avgOpTime := time.Duration(float64(totalOpTime) / float64(numOps))
 	log.Printf("performing %d operations", numOps)
 	log.Printf("  took %v", realTotalOpTime)
 	log.Printf("  average of %v per op", avgOpTime)

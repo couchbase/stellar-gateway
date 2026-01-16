@@ -45,6 +45,7 @@ func (w *directWrapper) Connect(addr, username, password string) error {
 			HTTPAddrs: httpHosts,
 			MemdAddrs: memdHosts,
 		},
+		BucketName: "default",
 	})
 	if err != nil {
 		return err

@@ -4,6 +4,8 @@ package webapi
 
 import (
 	"net/http"
+	"net/http/pprof"
+	_ "net/http/pprof"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -17,6 +19,7 @@ type WebServerOptions struct {
 	Logger        *zap.Logger
 	LogLevel      *zap.AtomicLevel
 	ListenAddress string
+	EnablePprof   bool
 }
 
 type WebServer struct {
@@ -25,6 +28,7 @@ type WebServer struct {
 	listenAddress string
 	httpServer    *http.Server
 	isHealthy     atomic.Bool
+	enablePprof   bool
 }
 
 func newWebServer(opts WebServerOptions) *WebServer {
@@ -32,6 +36,7 @@ func newWebServer(opts WebServerOptions) *WebServer {
 		logger:        opts.Logger,
 		logLevel:      opts.LogLevel,
 		listenAddress: opts.ListenAddress,
+		enablePprof:   opts.EnablePprof,
 	}
 }
 
@@ -77,6 +82,20 @@ func (w *WebServer) ListenAndServe() error {
 	r.HandleFunc("/live", w.handleLive)
 	r.HandleFunc("/ready", w.handleReady)
 	r.HandleFunc("/", w.handleRoot)
+
+	if w.enablePprof {
+		r.HandleFunc("/debug/pprof/", pprof.Index)
+		r.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+		r.HandleFunc("/debug/pprof/profile", pprof.Profile)
+		r.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+		r.HandleFunc("/debug/pprof/trace", pprof.Trace)
+		r.Handle("/debug/pprof/allocs", pprof.Handler("allocs"))
+		r.Handle("/debug/pprof/goroutine", pprof.Handler("goroutine"))
+		r.Handle("/debug/pprof/heap", pprof.Handler("heap"))
+		r.Handle("/debug/pprof/threadcreate", pprof.Handler("threadcreate"))
+		r.Handle("/debug/pprof/block", pprof.Handler("block"))
+		r.Handle("/debug/pprof/mutex", pprof.Handler("mutex"))
+	}
 
 	w.httpServer = &http.Server{
 		Handler:      r,
