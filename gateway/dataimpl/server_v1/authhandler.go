@@ -193,13 +193,10 @@ func (a AuthHandler) getBucketAgent(ctx context.Context, bucketName string) (*go
 func (a AuthHandler) GetMemdOboAgent(
 	ctx context.Context, bucketName string,
 ) (*gocbcorex.Agent, string, *status.Status) {
-	/*
-		oboUser, _, errSt := a.GetOboUserFromContext(ctx)
-		if errSt != nil {
-			return nil, "", errSt
-		}
-	*/
-	oboUser := "Administrator"
+	oboUser, _, errSt := a.GetOboUserFromContext(ctx)
+	if errSt != nil {
+		return nil, "", errSt
+	}
 
 	bucketAgent, errSt := a.getBucketAgent(ctx, bucketName)
 	if errSt != nil {
