@@ -65,7 +65,11 @@ func main() {
 		log.Fatalf("op connect failed: %s", err)
 	}
 
-	TEST_VALUE := []byte(`{"str": "hello world, I am a string that is some unknown number of bytes long!"}`)
+	TEST_VALUE_SIZE := 1024
+	TEST_VALUE := make([]byte, TEST_VALUE_SIZE)
+	for i := 0; i < TEST_VALUE_SIZE; i++ {
+		TEST_VALUE[i] = byte(i % 256)
+	}
 
 	log.Printf("warming up...")
 
