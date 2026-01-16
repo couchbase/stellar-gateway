@@ -10,6 +10,9 @@ import (
 	"sync"
 	"time"
 
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/metric/noop"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -106,23 +109,20 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 	))
 
 	serverOpts := []grpc.ServerOption{
-		//grpc.ChainUnaryInterceptor(unaryInterceptors...),
-		//grpc.ChainStreamInterceptor(streamInterceptors...),
+		grpc.ChainUnaryInterceptor(unaryInterceptors...),
+		grpc.ChainStreamInterceptor(streamInterceptors...),
 		grpc.Creds(credentials.NewTLS(opts.GrpcTlsConfig)),
 		grpc.MaxRecvMsgSize(maxMsgSize),
 		grpc.MaxConcurrentStreams(1024),
 		grpc.ReadBufferSize(1 * 1024 * 1024),
 		grpc.WriteBufferSize(1 * 1024 * 1024),
-		//grpc.NumStreamWorkers(256),
 	}
 
-	/*
-		switch otel.GetMeterProvider().(type) {
-		case noop.MeterProvider:
-		default:
-			serverOpts = append(serverOpts, grpc.StatsHandler(otelgrpc.NewServerHandler()))
-		}
-	*/
+	switch otel.GetMeterProvider().(type) {
+	case noop.MeterProvider:
+	default:
+		serverOpts = append(serverOpts, grpc.StatsHandler(otelgrpc.NewServerHandler()))
+	}
 
 	dataSrv := grpc.NewServer(serverOpts...)
 
