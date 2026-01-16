@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"os"
 	"runtime"
@@ -150,14 +151,17 @@ func main() {
 					break
 				}
 
+				keyIter := prevNumOpsLeft % 2048
+				keyName := fmt.Sprintf("test-key-%d", keyIter)
+
 				stime := time.Now()
 
-				err := wrapper.Upsert("test-key", TEST_VALUE)
+				err := wrapper.Upsert(keyName, TEST_VALUE)
 				if err != nil {
 					log.Fatalf("upsert failed: %s", err)
 				}
 
-				_, err = wrapper.Get("test-key")
+				_, err = wrapper.Get(keyName)
 				if err != nil {
 					log.Fatalf("get failed: %s", err)
 				}
