@@ -116,6 +116,7 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 		grpc.MaxConcurrentStreams(1024),
 		grpc.ReadBufferSize(1 * 1024 * 1024),
 		grpc.WriteBufferSize(1 * 1024 * 1024),
+		grpc.NumStreamWorkers(2048),
 	}
 
 	switch otel.GetMeterProvider().(type) {
