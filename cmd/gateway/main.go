@@ -105,6 +105,7 @@ func init() {
 	configFlags.Bool("dapi-no-proxy-admin", false, "disables admin endpoints through proxies")
 	configFlags.Bool("alpha-endpoints", false, "enables alpha endpoints")
 	configFlags.Bool("debug", false, "enable debug mode")
+	configFlags.Bool("pprof", false, "enable pprof endpoints")
 	configFlags.String("cpuprofile", "", "write cpu profile to a file")
 	configFlags.String("cb-creds-aws-id", "", "id of secret in aws sm storing couchbase server credentials")
 	configFlags.String("cb-creds-aws-region", "", "region of cb-creds-aws-id secret")
@@ -279,6 +280,7 @@ type config struct {
 	dapiNoProxyAdmin      bool
 	alphaEndpoints        bool
 	debug                 bool
+	pprof                 bool
 	cpuprofile            string
 	cbCredsAwsId          string
 	cbCredsAwsRegion      string
@@ -321,6 +323,7 @@ func readConfig(logger *zap.Logger) *config {
 		dapiNoProxyAdmin:      viper.GetBool("dapi-no-proxy-admin"),
 		alphaEndpoints:        viper.GetBool("alpha-endpoints"),
 		debug:                 viper.GetBool("debug"),
+		pprof:                 viper.GetBool("pprof"),
 		cpuprofile:            viper.GetString("cpuprofile"),
 		cbCredsAwsId:          viper.GetString("cb-creds-aws-id"),
 		cbCredsAwsRegion:      viper.GetString("cb-creds-aws-region"),
@@ -362,6 +365,7 @@ func readConfig(logger *zap.Logger) *config {
 		zap.Bool("dapiNoProxyAdmin", config.dapiNoProxyAdmin),
 		zap.Bool("alphaEndpoints", config.alphaEndpoints),
 		zap.Bool("debug", config.debug),
+		zap.Bool("pprof", config.pprof),
 		zap.String("cpuprofile", config.cpuprofile),
 		zap.String("cbCredsAwsId", config.cbCredsAwsId),
 		zap.String("cbCredsAwsRegion", config.cbCredsAwsRegion),
@@ -450,6 +454,7 @@ func startGateway() {
 		Logger:        logger,
 		LogLevel:      &logLevel,
 		ListenAddress: webListenAddress,
+		EnablePprof:   config.pprof,
 	})
 
 	var selfSignedCert *tls.Certificate
@@ -690,6 +695,9 @@ func startGateway() {
 
 		if newConfig.debug != config.debug {
 			logger.Warn("config changes for debug require a restart")
+		}
+		if newConfig.pprof != config.pprof {
+			logger.Warn("config changes for pprof require a restart")
 		}
 
 		if newConfig.cpuprofile != config.cpuprofile {
