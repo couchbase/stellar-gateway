@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"runtime"
 	"sync"
 	"time"
 
@@ -114,7 +113,8 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 		grpc.ChainStreamInterceptor(streamInterceptors...),
 		grpc.Creds(credentials.NewTLS(opts.GrpcTlsConfig)),
 		grpc.MaxRecvMsgSize(maxMsgSize),
-		grpc.NumStreamWorkers(uint32(runtime.NumCPU()) * 12),
+		grpc.MaxConcurrentStreams(512),
+		grpc.NumStreamWorkers(8192),
 	}
 
 	switch otel.GetMeterProvider().(type) {
