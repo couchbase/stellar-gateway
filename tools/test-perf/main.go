@@ -2,7 +2,11 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
+	"os"
+	"runtime"
+	"runtime/pprof"
 	"sync/atomic"
 	"time"
 )
@@ -11,6 +15,13 @@ var mode = flag.String("mode", "protostellar", "whether to use protostellar or d
 var username = flag.String("username", "Administrator", "the username to connect with")
 var password = flag.String("password", "password", "the password to connect with")
 var addr = flag.String("addr", "localhost", "the address to connect to")
+var numWarmupOps = flag.Int("num-warmup-ops", 20000, "the number of warmup operations to run")
+var numOps = flag.Int("num-ops", 1000000, "the number of operations to run")
+var numThreads = flag.Int("num-threads", 1024, "the number of concurrent threads to run")
+var numConnections = flag.Uint("num-connections", 16, "the number of connections to open for the test")
+var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
+var memprofile = flag.String("memprofile", "", "write memory profile to file")
+var mutexprofile = flag.String("mutexprofile", "", "write mutex profile to file")
 
 func main() {
 	flag.Parse()
@@ -19,10 +30,14 @@ func main() {
 	switch *mode {
 	case "protostellar":
 		log.Printf("testing in protostellar mode")
-		wrapper = &protostellarWrapper{}
+		wrapper = &protostellarWrapper{
+			NumClients: *numConnections,
+		}
 	case "direct":
 		log.Printf("testing in direct mode")
-		wrapper = &directWrapper{}
+		wrapper = &directWrapper{
+			NumConnections: *numConnections,
+		}
 	default:
 		log.Fatalf("mode must be specified as `protostellar` or `direct`")
 	}
@@ -58,11 +73,86 @@ func main() {
 		log.Fatalf("op connect failed: %s", err)
 	}
 
+	TEST_VALUE_SIZE := 1024
+	TEST_VALUE := make([]byte, TEST_VALUE_SIZE)
+	for i := 0; i < TEST_VALUE_SIZE; i++ {
+		TEST_VALUE[i] = byte(i % 256)
+	}
+
+	log.Printf("warming up...")
+
+	// warm up
+	WARMUP_COUNT := *numWarmupOps
+	waitCh := make(chan struct{}, WARMUP_COUNT)
+	for i := 0; i < WARMUP_COUNT; i++ {
+		go func() {
+			err := wrapper.Upsert("test-key", TEST_VALUE)
+			if err != nil {
+				log.Fatalf("warmup upsert failed: %s", err)
+			}
+			waitCh <- struct{}{}
+		}()
+	}
+	for i := 0; i < WARMUP_COUNT; i++ {
+		<-waitCh
+	}
+
 	log.Printf("testing time for operations...")
 
-	TEST_VALUE := []byte(`{"str": "hello world, I am a string that is some unknown number of bytes long!"}`)
-	NUM_OPS_TEST := 100000
-	NUM_THREADS := 64
+	if cpuprofile != nil && *cpuprofile != "" {
+		f, err := os.Create(*cpuprofile)
+		if err != nil {
+			log.Printf("failed to create cpu profile file: %v", err)
+			os.Exit(1)
+		}
+
+		err = pprof.StartCPUProfile(f)
+		if err != nil {
+			log.Printf("failed to start cpu profiling: %v", err)
+			os.Exit(1)
+		}
+
+		defer pprof.StopCPUProfile()
+	}
+
+	if memprofile != nil && *memprofile != "" {
+		defer func() {
+			f, err := os.Create(*memprofile)
+			if err != nil {
+				log.Printf("failed to create memory profile file: %v", err)
+				os.Exit(1)
+			}
+
+			runtime.GC() // get up-to-date statistics
+
+			err = pprof.Lookup("heap").WriteTo(f, 0)
+			if err != nil {
+				log.Printf("failed to write memory profile: %v", err)
+				os.Exit(1)
+			}
+		}()
+	}
+
+	if mutexprofile != nil && *mutexprofile != "" {
+		runtime.SetMutexProfileFraction(1)
+
+		defer func() {
+			f, err := os.Create(*mutexprofile)
+			if err != nil {
+				log.Printf("failed to create mutex profile file: %v", err)
+				os.Exit(1)
+			}
+
+			err = pprof.Lookup("mutex").WriteTo(f, 0)
+			if err != nil {
+				log.Printf("failed to write mutex profile: %v", err)
+				os.Exit(1)
+			}
+		}()
+	}
+
+	NUM_OPS_TEST := *numOps
+	NUM_THREADS := *numThreads
 
 	var numOpsLeft = int64(NUM_OPS_TEST)
 	var numOps int64
@@ -80,14 +170,17 @@ func main() {
 					break
 				}
 
+				keyIter := prevNumOpsLeft % 2048
+				keyName := fmt.Sprintf("test-key-%d", keyIter)
+
 				stime := time.Now()
 
-				err := wrapper.Upsert("test-key", TEST_VALUE)
+				err := wrapper.Upsert(keyName, TEST_VALUE)
 				if err != nil {
 					log.Fatalf("upsert failed: %s", err)
 				}
 
-				_, err = wrapper.Get("test-key")
+				_, err = wrapper.Get(keyName)
 				if err != nil {
 					log.Fatalf("get failed: %s", err)
 				}
@@ -112,9 +205,9 @@ func main() {
 	realTotalOpTime := tetime.Sub(tstime)
 
 	totalOpTime := time.Duration(totalOpTimeInt)
-	opsPerSec := float64(numOps) / float64(realTotalOpTime/time.Second)
+	opsPerSec := float64(numOps) / (float64(realTotalOpTime) / float64(time.Second))
 
-	avgOpTime := time.Duration(int64(totalOpTime) / numOps)
+	avgOpTime := time.Duration(float64(totalOpTime) / float64(numOps))
 	log.Printf("performing %d operations", numOps)
 	log.Printf("  took %v", realTotalOpTime)
 	log.Printf("  average of %v per op", avgOpTime)
