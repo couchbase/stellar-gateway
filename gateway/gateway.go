@@ -312,6 +312,9 @@ func (g *Gateway) Run(ctx context.Context) error {
 		SeedConfig: gocbcorex.SeedConfig{
 			HTTPAddrs: []string{mgmtHostPort},
 		},
+		IoConfig: gocbcorex.IoConfig{
+			ConnectionPoolSize: 8,
+		},
 	})
 	if err != nil {
 		config.Logger.Error("failed to connect to couchbase cluster",
