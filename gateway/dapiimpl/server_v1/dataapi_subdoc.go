@@ -90,7 +90,7 @@ func (s *DataApiServer) LookupInDocument(
 	inSpecs := *in.Body.Operations
 	for opIdx, op := range result.Ops {
 		var errOut *dataapiv1.SubdocError
-		var valueOut *interface{}
+		var valueOut interface{}
 
 		if op.Err != nil {
 			if errors.Is(op.Err, memdx.ErrSubDocPathNotFound) {
@@ -135,20 +135,17 @@ func (s *DataApiServer) LookupInDocument(
 			}
 		} else {
 			if op.Value != nil {
-				var jsonValue interface{} = json.RawMessage(op.Value)
-				valueOut = &jsonValue
+				valueOut = json.RawMessage(op.Value)
 			}
 		}
 
 		if *inSpecs[opIdx].Operation == dataapiv1.LookupInOperationTypeExists {
 			if op.Err == nil {
 				errOut = nil
-				var jsonValue interface{} = json.RawMessage("true")
-				valueOut = &jsonValue
+				valueOut = json.RawMessage("true")
 			} else if errors.Is(op.Err, memdx.ErrSubDocPathNotFound) {
 				errOut = nil
-				var jsonValue interface{} = json.RawMessage("false")
-				valueOut = &jsonValue
+				valueOut = json.RawMessage("false")
 			}
 		}
 
