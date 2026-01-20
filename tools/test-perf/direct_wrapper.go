@@ -10,6 +10,8 @@ import (
 )
 
 type directWrapper struct {
+	NumConnections uint
+
 	client *gocbcorex.Agent
 }
 
@@ -45,6 +47,10 @@ func (w *directWrapper) Connect(addr, username, password string) error {
 			HTTPAddrs: httpHosts,
 			MemdAddrs: memdHosts,
 		},
+		IoConfig: gocbcorex.IoConfig{
+			ConnectionPoolSize: w.NumConnections,
+		},
+		BucketName: "default",
 	})
 	if err != nil {
 		return err
