@@ -85,8 +85,8 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 	unaryInterceptors = append(unaryInterceptors, metricsInterceptor.UnaryInterceptor())
 	if opts.Debug {
 		unaryInterceptors = append(unaryInterceptors, debugInterceptor.UnaryInterceptor())
+		unaryInterceptors = append(unaryInterceptors, hooksManager.UnaryInterceptor())
 	}
-	unaryInterceptors = append(unaryInterceptors, hooksManager.UnaryInterceptor())
 	if opts.RateLimiter != nil {
 		unaryInterceptors = append(unaryInterceptors, opts.RateLimiter.GrpcUnaryInterceptor())
 	}
