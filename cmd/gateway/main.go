@@ -413,12 +413,14 @@ func startGateway() {
 		if err != nil {
 			logger.Error("failed to create cpu profile file", zap.Error(err))
 			os.Exit(1)
+			return
 		}
 
 		err = pprof.StartCPUProfile(f)
 		if err != nil {
 			logger.Error("failed to start cpu profiling", zap.Error(err))
 			os.Exit(1)
+			return
 		}
 
 		defer pprof.StopCPUProfile()
@@ -438,6 +440,7 @@ func startGateway() {
 	if err != nil {
 		logger.Error("failed to initialize opentelemetry tracing", zap.Error(err))
 		os.Exit(1)
+		return
 	}
 
 	if otlpTracerProvider != nil {
@@ -463,6 +466,7 @@ func startGateway() {
 		if err != nil {
 			logger.Error("failed to generate a self-signed certificate")
 			os.Exit(1)
+			return
 		}
 
 		selfSignedCert = generatedCert
@@ -485,6 +489,7 @@ func startGateway() {
 			if selfSignedCert == nil {
 				logger.Error("must specify both grpc-cert/grpc-key or cert/key unless self-sign is specified")
 				os.Exit(1)
+				return
 			}
 
 			grpcCertificate = *selfSignedCert
@@ -493,6 +498,7 @@ func startGateway() {
 			if err != nil {
 				logger.Error("failed to load tls certificate", zap.Error(err))
 				os.Exit(1)
+				return
 			}
 
 			grpcCertificate = loadedTlsCertificate
@@ -516,6 +522,7 @@ func startGateway() {
 			if selfSignedCert == nil {
 				logger.Error("must specify both dapi-cert/dapi-key or cert/key unless self-sign is specified")
 				os.Exit(1)
+				return
 			}
 
 			dapiCertificate = *selfSignedCert
@@ -524,6 +531,7 @@ func startGateway() {
 			if err != nil {
 				logger.Error("failed to load tls certificate", zap.Error(err))
 				os.Exit(1)
+				return
 			}
 
 			dapiCertificate = loadedTlsCertificate
@@ -556,11 +564,13 @@ func startGateway() {
 		if config.cbUser != "Administrator" || config.cbPass != "password" {
 			logger.Error("cannot use cb-pass or cb-user when fetching creds from cloud provider")
 			os.Exit(1)
+			return
 		}
 
 		if config.cbCredsAwsRegion == "" {
 			logger.Error("must specify region and id when fetching secrets from aws")
 			os.Exit(1)
+			return
 		}
 
 		logger.Info("fetching server credentials from aws secrets manager")
@@ -569,6 +579,7 @@ func startGateway() {
 		if err != nil {
 			logger.Error("failed to fetch couchbase server password from aws", zap.Error(err))
 			os.Exit(1)
+			return
 		}
 	}
 
@@ -576,11 +587,13 @@ func startGateway() {
 		if config.cbUser != "Administrator" || config.cbPass != "password" {
 			logger.Error("cannot use cb-pass or cb-user when fetching creds from cloud provider")
 			os.Exit(1)
+			return
 		}
 
 		if config.cbCredsAzureVaultName == "" {
 			logger.Error("must specify key vault name and id when fetching secrets from azure")
 			os.Exit(1)
+			return
 		}
 
 		logger.Info("fetching server credentials from azure key vault")
@@ -589,6 +602,7 @@ func startGateway() {
 		if err != nil {
 			logger.Error("failed to fetch couchbase server password from azure", zap.Error(err))
 			os.Exit(1)
+			return
 		}
 	}
 
@@ -596,11 +610,13 @@ func startGateway() {
 		if config.cbUser != "Administrator" || config.cbPass != "password" {
 			logger.Error("cannot use cb-pass or cb-user when fetching creds from cloud provider")
 			os.Exit(1)
+			return
 		}
 
 		if config.cbCredsGcpProjectId == "" {
 			logger.Error("must specify project and secret ids when fetching secrets from gcp")
 			os.Exit(1)
+			return
 		}
 
 		logger.Info("fetching server credentials from gcp secrets manager")
@@ -609,6 +625,7 @@ func startGateway() {
 		if err != nil {
 			logger.Error("failed to fetch couchbase server password from gcp", zap.Error(err))
 			os.Exit(1)
+			return
 		}
 	}
 
@@ -642,6 +659,7 @@ func startGateway() {
 	if err != nil {
 		logger.Error("failed to initialize the gateway", zap.Error(err))
 		os.Exit(1)
+		return
 	}
 
 	var configLock sync.Mutex
@@ -773,6 +791,7 @@ func startGateway() {
 				if hasReceivedSigInt {
 					logger.Info("Received SIGINT a second time, terminating...")
 					os.Exit(1)
+					return
 				} else {
 					logger.Info("Received SIGINT, attempting graceful shutdown...")
 					hasReceivedSigInt = true
@@ -792,6 +811,7 @@ func startGateway() {
 	if err != nil {
 		logger.Error("failed to run the gateway", zap.Error(err))
 		os.Exit(1)
+		return
 	}
 
 	logger.Info("gateway shutdown gracefully")
@@ -815,6 +835,7 @@ func startGatewayWatchdog() {
 				if hasReceivedSigInt {
 					logger.Info("received sigint a second time, terminating...")
 					os.Exit(1)
+					return
 				} else {
 					logger.Info("received sigint, waiting for graceful shutdown...")
 					hasReceivedSigInt = true
