@@ -113,7 +113,7 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 		grpc.Creds(credentials.NewTLS(opts.GrpcTlsConfig)),
 		grpc.MaxRecvMsgSize(maxMsgSize),
 		grpc.MaxConcurrentStreams(512),
-		grpc.NumStreamWorkers(8192),
+		//grpc.NumStreamWorkers(8192),
 	}
 
 	switch otel.GetMeterProvider().(type) {
