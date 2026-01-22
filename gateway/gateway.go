@@ -377,7 +377,16 @@ func (g *Gateway) Run(ctx context.Context) error {
 	}
 
 	startInstance := func(ctx context.Context, instanceIdx int) error {
-		rateLimiter := ratelimiting.NewGlobalRateLimiter(uint64(config.RateLimit), time.Second)
+		var rateLimiter ratelimiting.RateLimiter
+		if config.RateLimit > 0 {
+			rateLimiterImpl := ratelimiting.NewGlobalRateLimiter(uint64(config.RateLimit), time.Second)
+
+			g.reconfigureLock.Lock()
+			g.rateLimiters = append(g.rateLimiters, rateLimiterImpl)
+			g.reconfigureLock.Unlock()
+
+			rateLimiter = rateLimiterImpl
+		}
 
 		dataImpl := dataimpl.New(&dataimpl.NewOptions{
 			Logger:           config.Logger.Named("data-impl"),
@@ -465,10 +474,6 @@ func (g *Gateway) Run(ctx context.Context) error {
 			gatewaySys.Shutdown()
 		}()
 
-		g.reconfigureLock.Lock()
-		g.rateLimiters = append(g.rateLimiters, rateLimiter)
-		g.reconfigureLock.Unlock()
-
 		config.Logger.Info("starting to run protostellar system",
 			zap.Int("boundPsPort", boundPsPort),
 			zap.Int("boundDapiPort", boundDapiPort))
@@ -540,6 +545,10 @@ type ReconfigureOptions struct {
 func (g *Gateway) Reconfigure(opts *ReconfigureOptions) error {
 	g.reconfigureLock.Lock()
 	defer g.reconfigureLock.Unlock()
+
+	if len(g.rateLimiters) == 0 {
+		return errors.New("cannot enable rate limiting when rate limiting was initially disabled")
+	}
 
 	for _, rateLimiter := range g.rateLimiters {
 		rateLimiter.ResetAndUpdateRateLimit(uint64(opts.RateLimit), time.Second)
