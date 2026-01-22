@@ -85,8 +85,8 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 	unaryInterceptors = append(unaryInterceptors, metricsInterceptor.UnaryInterceptor())
 	if opts.Debug {
 		unaryInterceptors = append(unaryInterceptors, debugInterceptor.UnaryInterceptor())
+		unaryInterceptors = append(unaryInterceptors, hooksManager.UnaryInterceptor())
 	}
-	unaryInterceptors = append(unaryInterceptors, hooksManager.UnaryInterceptor())
 	if opts.RateLimiter != nil {
 		unaryInterceptors = append(unaryInterceptors, opts.RateLimiter.GrpcUnaryInterceptor())
 	}
@@ -124,7 +124,9 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 
 	dataSrv := grpc.NewServer(serverOpts...)
 
-	internal_hooks_v1.RegisterHooksServiceServer(dataSrv, hooksManager.Server())
+	if opts.Debug {
+		internal_hooks_v1.RegisterHooksServiceServer(dataSrv, hooksManager.Server())
+	}
 	kv_v1.RegisterKvServiceServer(dataSrv, dataImpl.KvV1Server)
 	query_v1.RegisterQueryServiceServer(dataSrv, dataImpl.QueryV1Server)
 	search_v1.RegisterSearchServiceServer(dataSrv, dataImpl.SearchV1Server)
