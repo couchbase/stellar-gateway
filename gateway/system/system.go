@@ -74,7 +74,7 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 
 	hooksManager := hooks.NewHooksManager(opts.Logger.Named("hooks-manager"))
 	debugInterceptor := interceptors.NewDebugInterceptor(opts.Logger.Named("grpc-debug"))
-	metricsInterceptor := interceptors.NewMetricsInterceptor(opts.Metrics)
+	//metricsInterceptor := interceptors.NewMetricsInterceptor(opts.Metrics)
 
 	recoveryHandler := func(p any) (err error) {
 		opts.Logger.Error("a panic has been triggered", zap.Any("error: ", p))
@@ -82,7 +82,7 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 	}
 
 	var unaryInterceptors []grpc.UnaryServerInterceptor
-	unaryInterceptors = append(unaryInterceptors, metricsInterceptor.UnaryInterceptor())
+	//unaryInterceptors = append(unaryInterceptors, metricsInterceptor.UnaryInterceptor())
 	if opts.Debug {
 		unaryInterceptors = append(unaryInterceptors, debugInterceptor.UnaryInterceptor())
 		unaryInterceptors = append(unaryInterceptors, hooksManager.UnaryInterceptor())
@@ -96,7 +96,7 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 	))
 
 	var streamInterceptors []grpc.StreamServerInterceptor
-	streamInterceptors = append(streamInterceptors, metricsInterceptor.StreamInterceptor())
+	//streamInterceptors = append(streamInterceptors, metricsInterceptor.StreamInterceptor())
 	if opts.Debug {
 		streamInterceptors = append(streamInterceptors, debugInterceptor.StreamInterceptor())
 	}
