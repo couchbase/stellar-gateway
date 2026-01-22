@@ -33,7 +33,6 @@ import (
 	"github.com/couchbase/goprotostellar/genproto/search_v1"
 	"github.com/couchbase/stellar-gateway/contrib/oapimetrics"
 	"github.com/couchbase/stellar-gateway/dataapiv1"
-	"github.com/couchbase/stellar-gateway/gateway/apiversion"
 	"github.com/couchbase/stellar-gateway/gateway/dapiimpl"
 	"github.com/couchbase/stellar-gateway/gateway/dataimpl"
 	"github.com/couchbase/stellar-gateway/gateway/hooks"
@@ -90,7 +89,7 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 	if opts.RateLimiter != nil {
 		unaryInterceptors = append(unaryInterceptors, opts.RateLimiter.GrpcUnaryInterceptor())
 	}
-	unaryInterceptors = append(unaryInterceptors, apiversion.GrpcUnaryInterceptor(opts.Logger))
+	//unaryInterceptors = append(unaryInterceptors, apiversion.GrpcUnaryInterceptor(opts.Logger))
 	unaryInterceptors = append(unaryInterceptors, recovery.UnaryServerInterceptor(
 		recovery.WithRecoveryHandler(recoveryHandler),
 	))
@@ -103,7 +102,7 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 	if opts.RateLimiter != nil {
 		streamInterceptors = append(streamInterceptors, opts.RateLimiter.GrpcStreamInterceptor())
 	}
-	streamInterceptors = append(streamInterceptors, apiversion.GrpcStreamInterceptor(opts.Logger))
+	//streamInterceptors = append(streamInterceptors, apiversion.GrpcStreamInterceptor(opts.Logger))
 	streamInterceptors = append(streamInterceptors, recovery.StreamServerInterceptor(
 		recovery.WithRecoveryHandler(recoveryHandler),
 	))
