@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"time"
 
@@ -38,6 +39,13 @@ func (w *directWrapper) Connect(addr, username, password string) error {
 		memdHosts = append(memdHosts, fmt.Sprintf("%s:%d", specHost.Host, specHost.Port))
 	}
 
+	var tlsConfig *tls.Config
+	if spec.UseSsl {
+		tlsConfig = &tls.Config{
+			InsecureSkipVerify: true,
+		}
+	}
+
 	agent, err := gocbcorex.CreateAgent(context.Background(), gocbcorex.AgentOptions{
 		Authenticator: &gocbcorex.PasswordAuthenticator{
 			Username: username,
@@ -50,6 +58,7 @@ func (w *directWrapper) Connect(addr, username, password string) error {
 		IoConfig: gocbcorex.IoConfig{
 			ConnectionPoolSize: w.NumConnections,
 		},
+		TLSConfig:  tlsConfig,
 		BucketName: "default",
 	})
 	if err != nil {
