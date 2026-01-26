@@ -8,7 +8,7 @@ require (
 	github.com/Azure/azure-sdk-for-go/sdk/keyvault/azsecrets v0.12.0
 	github.com/aws/aws-sdk-go-v2/config v1.32.7
 	github.com/aws/aws-sdk-go-v2/service/secretsmanager v1.41.1
-	github.com/couchbase/gocbcorex v0.0.0-20260120221522-f7c37bb509ff
+	github.com/couchbase/gocbcorex v0.0.0-20260203184430-c106ff8c6a9e
 	github.com/couchbase/goprotostellar v1.0.3-0.20251126093204-a7d8eefcab84
 	github.com/couchbaselabs/gocbconnstr v1.0.5
 	github.com/couchbaselabs/gocbconnstr/v2 v2.0.0
