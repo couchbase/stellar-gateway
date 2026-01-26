@@ -938,6 +938,18 @@ func (e ErrorHandler) NewIllogicalCounterExpiry(ctx context.Context) *status.Sta
 	return st
 }
 
+func (e ErrorHandler) NewPoisonedCasStatus(ctx context.Context, baseErr error) *status.Status {
+	st := e.newStatus(ctx, codes.FailedPrecondition, "CAS value is too far in the future.")
+	st = e.tryAttachStatusDetails(st, &epb.PreconditionFailure{
+		Violations: []*epb.PreconditionFailure_Violation{{
+			Type:        "POISONED_CAS",
+			Description: "",
+		}},
+	})
+	st = e.tryAttachExtraContext(st, baseErr)
+	return st
+}
+
 func (e ErrorHandler) NewUnsupportedFieldStatus(ctx context.Context, fieldPath string) *status.Status {
 	st := e.newStatus(ctx, codes.Unimplemented,
 		fmt.Sprintf("The '%s' field is not currently supported", fieldPath))

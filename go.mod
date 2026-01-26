@@ -133,4 +133,6 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
+replace github.com/couchbase/gocbcorex => ../gocbcorex
+
 replace github.com/couchbase/goprotostellar => ../goprotostellar
