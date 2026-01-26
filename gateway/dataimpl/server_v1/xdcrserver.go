@@ -716,6 +716,8 @@ func (s *XdcrServer) PushDocument(
 
 				// we skip conflict resolution for sets with a checked CAS, so this must be a CAS mismatch
 				return nil, s.errorHandler.NewDocCasMismatchStatus(ctx, err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+			} else if errors.Is(err, memdx.ErrCasValueInvalid) {
+				return nil, s.errorHandler.NewPoisonedCasStatus(ctx, err).Err()
 			} else if errors.Is(err, memdx.ErrDocLocked) {
 				return nil, s.errorHandler.NewDocLockedStatus(ctx, err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
 			} else if errors.Is(err, memdx.ErrDocNotFound) {
@@ -761,7 +763,9 @@ func (s *XdcrServer) PushDocument(
 
 		result, err := bucketAgent.AddWithMeta(ctx, &opts)
 		if err != nil {
-			if errors.Is(err, memdx.ErrDocExists) {
+			if errors.Is(err, memdx.ErrCasValueInvalid) {
+				return nil, s.errorHandler.NewPoisonedCasStatus(ctx, err).Err()
+			} else if errors.Is(err, memdx.ErrDocExists) {
 				return nil, s.errorHandler.NewDocExistsStatus(ctx, err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
 			} else if errors.Is(err, memdx.ErrUnknownCollectionName) {
 				return nil, s.errorHandler.NewCollectionMissingStatus(ctx, err, in.BucketName, in.ScopeName, in.CollectionName).Err()
@@ -826,6 +830,8 @@ func (s *XdcrServer) PushDocument(
 
 				// we skip conflict resolution for sets with a checked CAS, so this must be a CAS mismatch
 				return nil, s.errorHandler.NewDocCasMismatchStatus(ctx, err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+			} else if errors.Is(err, memdx.ErrCasValueInvalid) {
+				return nil, s.errorHandler.NewPoisonedCasStatus(ctx, err).Err()
 			} else if errors.Is(err, memdx.ErrDocExists) {
 				return nil, s.errorHandler.NewDocExistsStatus(ctx, err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
 			} else if errors.Is(err, memdx.ErrUnknownCollectionName) {

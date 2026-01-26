@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"time"
 
 	"github.com/couchbase/gocbcorex/contrib/ptr"
 	"github.com/couchbase/goprotostellar/genproto/internal_xdcr_v1"
@@ -761,6 +762,36 @@ func (s *GatewayOpsTestSuite) TestXdcrPushDocument() {
 				assert.Equal(s.T(), "VBUUID_MISMATCH", d.Reason)
 			})
 		})
+
+		s.Run("PoisonedCas", func() {
+			docId := s.randomDocId()
+
+			// we pass a CAS of 0 to indicate that we want to create the document
+			var docCheckCas uint64 = 0
+
+			var poisonedCas = uint64(time.Now().Add(2 * time.Hour).UnixNano())
+
+			_, err := xdcrClient.PushDocument(context.Background(), &internal_xdcr_v1.PushDocumentRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+				CheckCas:       &docCheckCas,
+				StoreCas:       poisonedCas,
+				ContentFlags:   TEST_CONTENT_FLAGS,
+				ContentType:    internal_xdcr_v1.ContentType_CONTENT_TYPE_JSON,
+				Content: &internal_xdcr_v1.PushDocumentRequest_ContentUncompressed{
+					ContentUncompressed: TEST_CONTENT,
+				},
+				ExpiryTime: nil, // no expiry
+				Revno:      1,
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			assertRpcStatus(s.T(), err, codes.FailedPrecondition)
+			assertRpcErrorDetails(s.T(), err, func(d *epb.PreconditionFailure) {
+				assert.Len(s.T(), d.Violations, 1)
+				assert.Equal(s.T(), "POISONED_CAS", d.Violations[0].Type)
+			})
+		})
 	})
 
 	s.Run("Set", func() {
@@ -1046,6 +1077,41 @@ func (s *GatewayOpsTestSuite) TestXdcrPushDocument() {
 				assert.Equal(s.T(), "VBUUID_MISMATCH", d.Reason)
 			})
 		})
+
+		s.Run("PoisonedCas", func() {
+			docId := s.testDocId()
+
+			getResp, err := xdcrClient.GetDocument(context.Background(), &internal_xdcr_v1.GetDocumentRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			requireRpcSuccess(s.T(), getResp, err)
+
+			var poisonedCas = uint64(time.Now().Add(2 * time.Hour).UnixNano())
+
+			_, err = xdcrClient.PushDocument(context.Background(), &internal_xdcr_v1.PushDocumentRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+				CheckCas:       &getResp.Cas,
+				StoreCas:       poisonedCas,
+				ContentFlags:   TEST_CONTENT_FLAGS,
+				ContentType:    internal_xdcr_v1.ContentType_CONTENT_TYPE_JSON,
+				Content: &internal_xdcr_v1.PushDocumentRequest_ContentUncompressed{
+					ContentUncompressed: TEST_CONTENT,
+				},
+				ExpiryTime: nil, // no expiry
+				Revno:      getResp.Revno + 1,
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			assertRpcStatus(s.T(), err, codes.FailedPrecondition)
+			assertRpcErrorDetails(s.T(), err, func(d *epb.PreconditionFailure) {
+				assert.Len(s.T(), d.Violations, 1)
+				assert.Equal(s.T(), "POISONED_CAS", d.Violations[0].Type)
+			})
+		})
 	})
 
 	s.Run("Delete", func() {
@@ -1153,6 +1219,36 @@ func (s *GatewayOpsTestSuite) TestXdcrPushDocument() {
 			assertRpcStatus(s.T(), err, codes.Aborted)
 			assertRpcErrorDetails(s.T(), err, func(d *epb.ErrorInfo) {
 				assert.Equal(s.T(), "VBUUID_MISMATCH", d.Reason)
+			})
+		})
+
+		s.Run("PoisonedCas", func() {
+			docId := s.testDocId()
+
+			getResp, err := xdcrClient.GetDocument(context.Background(), &internal_xdcr_v1.GetDocumentRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+				IncludeContent: false,
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			requireRpcSuccess(s.T(), getResp, err)
+
+			var poisonedCas = uint64(time.Now().Add(2 * time.Hour).UnixNano())
+
+			_, err = xdcrClient.PushDocument(context.Background(), &internal_xdcr_v1.PushDocumentRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+				CheckCas:       &getResp.Cas,
+				StoreCas:       poisonedCas,
+				IsDeleted:      true,
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			assertRpcStatus(s.T(), err, codes.FailedPrecondition)
+			assertRpcErrorDetails(s.T(), err, func(d *epb.PreconditionFailure) {
+				assert.Len(s.T(), d.Violations, 1)
+				assert.Equal(s.T(), "POISONED_CAS", d.Violations[0].Type)
 			})
 		})
 	})
