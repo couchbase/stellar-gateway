@@ -849,6 +849,70 @@ func (s *XdcrServer) PushDocument(
 	}
 }
 
+func (s *XdcrServer) PushDocuments(
+	ctx context.Context,
+	in *internal_xdcr_v1.PushDocumentsRequest,
+) (*internal_xdcr_v1.PushDocumentsResponse, error) {
+	processOne := func(msg *internal_xdcr_v1.PushDocumentsOp) (*internal_xdcr_v1.PushDocumentsResult, error) {
+		switch msg := msg.Op.(type) {
+		case *internal_xdcr_v1.PushDocumentsOp_Check:
+			res, err := s.CheckDocument(ctx, msg.Check)
+			if err != nil {
+				if status, ok := status.FromError(err); ok {
+					return &internal_xdcr_v1.PushDocumentsResult{
+						Result: &internal_xdcr_v1.PushDocumentsResult_Status{
+							Status: status.Proto(),
+						},
+					}, nil
+				}
+
+				return nil, err
+			}
+
+			return &internal_xdcr_v1.PushDocumentsResult{
+				Result: &internal_xdcr_v1.PushDocumentsResult_CheckResponse{
+					CheckResponse: res,
+				},
+			}, nil
+		case *internal_xdcr_v1.PushDocumentsOp_Push:
+			res, err := s.PushDocument(ctx, msg.Push)
+			if err != nil {
+				if status, ok := status.FromError(err); ok {
+					return &internal_xdcr_v1.PushDocumentsResult{
+						Result: &internal_xdcr_v1.PushDocumentsResult_Status{
+							Status: status.Proto(),
+						},
+					}, nil
+				}
+
+				return nil, err
+			}
+
+			return &internal_xdcr_v1.PushDocumentsResult{
+				Result: &internal_xdcr_v1.PushDocumentsResult_PushResponse{
+					PushResponse: res,
+				},
+			}, nil
+		default:
+			return nil, status.Errorf(codes.Unimplemented, "unknown operation in PushDocuments request")
+		}
+	}
+
+	results := make([]*internal_xdcr_v1.PushDocumentsResult, 0, len(in.Ops))
+	for _, msg := range in.Ops {
+		res, err := processOne(msg)
+		if err != nil {
+			return nil, err
+		}
+
+		results = append(results, res)
+	}
+
+	return &internal_xdcr_v1.PushDocumentsResponse{
+		Results: results,
+	}, nil
+}
+
 func (s *XdcrServer) checkKey(ctx context.Context, key string) *status.Status {
 	if len(key) > 250 || len(key) < 1 {
 		return s.errorHandler.NewInvalidKeyLengthStatus(ctx, key)

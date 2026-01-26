@@ -12,6 +12,7 @@ import (
 	epb "google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func (s *GatewayOpsTestSuite) TestXdcrHeartbeat() {
@@ -1156,4 +1157,142 @@ func (s *GatewayOpsTestSuite) TestXdcrPushDocument() {
 			})
 		})
 	})
+}
+
+func (s *GatewayOpsTestSuite) TestXdcrPushDocuments() {
+	xdcrClient := internal_xdcr_v1.NewXdcrServiceClient(s.gatewayConn)
+
+	s.Run("Basic", func() {
+		docIdA := s.testDocId()
+		docIdB := s.testDocId()
+		docIdC := s.testDocId()
+
+		getRespA, err := xdcrClient.GetDocument(context.Background(), &internal_xdcr_v1.GetDocumentRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            docIdA,
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		requireRpcSuccess(s.T(), getRespA, err)
+
+		getRespB, err := xdcrClient.GetDocument(context.Background(), &internal_xdcr_v1.GetDocumentRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            docIdB,
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		requireRpcSuccess(s.T(), getRespB, err)
+
+		getRespC, err := xdcrClient.GetDocument(context.Background(), &internal_xdcr_v1.GetDocumentRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            docIdC,
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		requireRpcSuccess(s.T(), getRespC, err)
+
+		var wrongCasC = getRespC.Cas + 1
+
+		pushResp, err := xdcrClient.PushDocuments(context.Background(), &internal_xdcr_v1.PushDocumentsRequest{
+			Ops: []*internal_xdcr_v1.PushDocumentsOp{
+				{
+					Op: &internal_xdcr_v1.PushDocumentsOp_Push{
+						Push: &internal_xdcr_v1.PushDocumentRequest{
+							BucketName:     s.bucketName,
+							ScopeName:      s.scopeName,
+							CollectionName: s.collectionName,
+							Key:            docIdA,
+							CheckCas:       &getRespA.Cas,
+							StoreCas:       getRespA.Cas + 1,
+							ContentFlags:   TEST_CONTENT_FLAGS,
+							ContentType:    internal_xdcr_v1.ContentType_CONTENT_TYPE_JSON,
+							Content: &internal_xdcr_v1.PushDocumentRequest_ContentUncompressed{
+								ContentUncompressed: TEST_CONTENT,
+							},
+							ExpiryTime: nil, // no expiry
+							Revno:      getRespA.Revno + 1,
+						},
+					},
+				},
+				{
+					Op: &internal_xdcr_v1.PushDocumentsOp_Push{
+						Push: &internal_xdcr_v1.PushDocumentRequest{
+							BucketName:     s.bucketName,
+							ScopeName:      s.scopeName,
+							CollectionName: s.collectionName,
+							Key:            docIdB,
+							CheckCas:       &getRespB.Cas,
+							StoreCas:       getRespB.Cas + 1,
+							ContentFlags:   TEST_CONTENT_FLAGS,
+							ContentType:    internal_xdcr_v1.ContentType_CONTENT_TYPE_JSON,
+							Content: &internal_xdcr_v1.PushDocumentRequest_ContentUncompressed{
+								ContentUncompressed: TEST_CONTENT,
+							},
+							ExpiryTime: nil, // no expiry
+							Revno:      getRespB.Revno + 1,
+						},
+					},
+				},
+				{
+					Op: &internal_xdcr_v1.PushDocumentsOp_Push{
+						Push: &internal_xdcr_v1.PushDocumentRequest{
+							BucketName:     s.bucketName,
+							ScopeName:      s.scopeName,
+							CollectionName: s.collectionName,
+							Key:            docIdC,
+							CheckCas:       &wrongCasC,
+							StoreCas:       getRespC.Cas + 1,
+							ContentFlags:   TEST_CONTENT_FLAGS,
+							ContentType:    internal_xdcr_v1.ContentType_CONTENT_TYPE_JSON,
+							Content: &internal_xdcr_v1.PushDocumentRequest_ContentUncompressed{
+								ContentUncompressed: TEST_CONTENT,
+							},
+							ExpiryTime: nil, // no expiry
+							Revno:      getRespC.Revno + 1,
+						},
+					},
+				},
+			},
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		requireRpcSuccess(s.T(), pushResp, err)
+
+		assert.Len(s.T(), pushResp.Results, 3)
+
+		respA := pushResp.Results[0].GetPushResponse()
+		require.NotNil(s.T(), respA)
+		assertValidCas(s.T(), respA.Cas)
+
+		s.checkDocument(s.T(), checkDocumentOptions{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			DocId:          docIdA,
+			Content:        TEST_CONTENT,
+			ContentFlags:   TEST_CONTENT_FLAGS,
+			Cas:            getRespA.Cas + 1,
+		})
+
+		respB := pushResp.Results[1].GetPushResponse()
+		require.NotNil(s.T(), respB)
+		assertValidCas(s.T(), respB.Cas)
+
+		s.checkDocument(s.T(), checkDocumentOptions{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			DocId:          docIdB,
+			Content:        TEST_CONTENT,
+			ContentFlags:   TEST_CONTENT_FLAGS,
+			Cas:            getRespB.Cas + 1,
+		})
+
+		respC := pushResp.Results[2].GetStatus()
+		require.NotNil(s.T(), respC)
+		assert.Equal(s.T(), int32(codes.Aborted), respC.Code)
+		errC := status.FromProto(respC).Err()
+		assertRpcErrorDetails(s.T(), errC, func(d *epb.ErrorInfo) {
+			assert.Equal(s.T(), "CAS_MISMATCH", d.Reason)
+		})
+	})
+
 }
