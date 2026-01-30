@@ -12,6 +12,9 @@ import (
 func (s *DataApiServer) IncrementDocument(
 	ctx context.Context, in dataapiv1.IncrementDocumentRequestObject,
 ) (dataapiv1.IncrementDocumentResponseObject, error) {
+	ctx, cancel := s.withKvTimeout(ctx)
+	defer cancel()
+
 	bucketAgent, oboUser, errSt := s.authHandler.GetMemdOboAgent(ctx, in.Params.Authorization, in.BucketName)
 	if errSt != nil {
 		return nil, errSt.Err()
@@ -106,6 +109,9 @@ func (s *DataApiServer) IncrementDocument(
 func (s *DataApiServer) DecrementDocument(
 	ctx context.Context, in dataapiv1.DecrementDocumentRequestObject,
 ) (dataapiv1.DecrementDocumentResponseObject, error) {
+	ctx, cancel := s.withKvTimeout(ctx)
+	defer cancel()
+
 	bucketAgent, oboUser, errSt := s.authHandler.GetMemdOboAgent(ctx, in.Params.Authorization, in.BucketName)
 	if errSt != nil {
 		return nil, errSt.Err()
