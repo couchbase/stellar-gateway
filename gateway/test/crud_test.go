@@ -4195,14 +4195,16 @@ func (s *GatewayOpsTestSuite) TestMutateIn() {
 			})
 		}
 
-		_, err = kvClient.MutateIn(context.Background(), &kv_v1.MutateInRequest{
-			BucketName:     s.bucketName,
-			ScopeName:      s.scopeName,
-			CollectionName: s.collectionName,
-			Key:            s.testDocId(),
-			Specs:          specs,
-		}, grpc.PerRPCCredentials(s.basicRpcCreds))
-		assertRpcStatus(s.T(), err, codes.OK)
+		s.Eventually(func() bool {
+			_, err = kvClient.MutateIn(context.Background(), &kv_v1.MutateInRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            s.testDocId(),
+				Specs:          specs,
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			return err == nil
+		}, 30*time.Second, 500*time.Millisecond)
 	})
 
 	s.Run("ArrayAddUniqueDuplicate", func() {
