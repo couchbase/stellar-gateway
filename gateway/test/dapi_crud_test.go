@@ -2955,47 +2955,25 @@ func (s *GatewayOpsTestSuite) TestDapiLookupIn() {
 		requireRestError(s.T(), resp, http.StatusBadRequest, nil)
 	})
 
-	// // ING-1102
-	// s.Run("Empty Path", func() {
-	// 	resp := s.sendTestHttpRequest(&testHttpRequest{
-	// 		Method: http.MethodPost,
-	// 		Path: fmt.Sprintf(
-	// 			"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/lookup",
-	// 			s.bucketName, s.scopeName, s.collectionName, s.testDocId(),
-	// 		),
-	// 		Headers: map[string]string{
-	// 			"Authorization": s.basicRestCreds,
-	// 		},
-	// 		Body: []byte(`{"operations":[
-	// 			{"operation":"Get","path":""}
-	// 		]}`),
-	// 	})
-	// 	requireRestSuccess(s.T(), resp)
-	// 	assertRestValidEtag(s.T(), resp)
-	// 	assert.Equal(s.T(), "application/json", resp.Headers.Get("Content-Type"))
-	// 	assert.JSONEq(s.T(), string(TEST_CONTENT), string(resp.Body))
-	// })
-
-	// ING-1102
-	// s.Run("No Path", func() {
-	// 	resp := s.sendTestHttpRequest(&testHttpRequest{
-	// 		Method: http.MethodPost,
-	// 		Path: fmt.Sprintf(
-	// 			"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/lookup",
-	// 			s.bucketName, s.scopeName, s.collectionName, s.testDocId(),
-	// 		),
-	// 		Headers: map[string]string{
-	// 			"Authorization": s.basicRestCreds,
-	// 		},
-	// 		Body: []byte(`{"operations":[
-	// 			{"operation":"Get","path":""}
-	// 		]}`),
-	// 	})
-	// 	requireRestSuccess(s.T(), resp)
-	// 	assertRestValidEtag(s.T(), resp)
-	// 	assert.Equal(s.T(), "application/json", resp.Headers.Get("Content-Type"))
-	// 	assert.JSONEq(s.T(), string(TEST_CONTENT), string(resp.Body))
-	// })
+	s.Run("EmptyPath", func() {
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/lookup",
+				s.bucketName, s.scopeName, s.collectionName, s.testDocId(),
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+			},
+			Body: []byte(`{"operations":[
+				{"operation":"Get","path":""}
+			]}`),
+		})
+		requireRestError(s.T(), resp, http.StatusBadRequest, &testRestError{
+			Code:    "InvalidArgument",
+			Message: "Subdocument path cannot be empty.",
+		})
+	})
 
 	s.Run("Too Many Operations", func() {
 		docId := s.testDocId()
@@ -3632,45 +3610,25 @@ func (s *GatewayOpsTestSuite) TestDapiMutateIn() {
 		requireRestError(s.T(), resp, http.StatusBadRequest, nil)
 	})
 
-	// ING-1102
-	// s.Run("Empty Path", func() {
-	// 	resp := s.sendTestHttpRequest(&testHttpRequest{
-	// 		Method: http.MethodPost,
-	// 		Path: fmt.Sprintf(
-	// 			"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/mutate",
-	// 			s.bucketName, s.scopeName, s.collectionName, s.testDocId(),
-	// 		),
-	// 		Headers: map[string]string{
-	// 			"Authorization": s.basicRestCreds,
-	// 		},
-	// 		Body: []byte(`{"operations":[
-	// 				{"operation":"DictSet","path":"","value": 43}
-	// 		]}`),
-	// 	})
-	// 	requireRestError(s.T(), resp, http.StatusBadRequest, &testRestError{
-	// 		Code: "InvalidArgument",
-	// 	})
-	// })
-
-	// ING-1102
-	// s.Run("No Path", func() {
-	// 	resp := s.sendTestHttpRequest(&testHttpRequest{
-	// 		Method: http.MethodPost,
-	// 		Path: fmt.Sprintf(
-	// 			"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/mutate",
-	// 			s.bucketName, s.scopeName, s.collectionName, s.testDocId(),
-	// 		),
-	// 		Headers: map[string]string{
-	// 			"Authorization": s.basicRestCreds,
-	// 		},
-	// 		Body: []byte(`{"operations":[
-	// 				{"operation":"DictSet","value": 43}
-	// 		]}`),
-	// 	})
-	// requireRestError(s.T(), resp, http.StatusBadRequest, &testRestError{
-	// 	Code: "InvalidArgument",
-	// })
-	// })
+	s.Run("EmptyPath", func() {
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/mutate",
+				s.bucketName, s.scopeName, s.collectionName, s.testDocId(),
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+			},
+			Body: []byte(`{"operations":[
+					{"operation":"DictSet","path":"","value": 43}
+			]}`),
+		})
+		requireRestError(s.T(), resp, http.StatusBadRequest, &testRestError{
+			Code:    "InvalidArgument",
+			Message: "Subdocument path cannot be empty.",
+		})
+	})
 
 	// ING-1105
 	// s.Run("No Value", func() {

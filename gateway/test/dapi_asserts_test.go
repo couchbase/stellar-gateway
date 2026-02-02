@@ -24,11 +24,13 @@ func requireRestSuccessNoContent(t *testing.T, resp *testHttpResponse) {
 type testRestError struct {
 	Code     string
 	Resource string
+	Message  string
 }
 
 type restErrorJson struct {
 	Code     string `json:"code,omitempty"`
 	Resource string `json:"resource,omitempty"`
+	Message  string `json:"message,omitempty"`
 }
 
 func requireRestError(t *testing.T, resp *testHttpResponse, expectedCode int, expectedError *testRestError) {
@@ -48,6 +50,9 @@ func requireRestError(t *testing.T, resp *testHttpResponse, expectedCode int, ex
 		}
 		if expectedError.Resource != "" {
 			require.Equal(t, expectedError.Resource, restErr.Resource)
+		}
+		if expectedError.Message != "" {
+			require.Equal(t, expectedError.Message, restErr.Message)
 		}
 	}
 }

@@ -271,6 +271,23 @@ func (e ErrorHandler) NewGenericStatus(err error) *Status {
 	return e.NewUnknownStatus(err)
 }
 
+func (e ErrorHandler) NewSubdocInvalidArgStatus(err error) *Status {
+	var srvErr *memdx.ServerErrorWithContext
+	if errors.As(err, &srvErr) {
+		context := srvErr.ParseContext().Text
+		if strings.Contains(context, "Request must include path") {
+			return e.NewSdPathEmptyStatus(err)
+		}
+	}
+
+	st := &Status{
+		StatusCode: http.StatusBadRequest,
+		Code:       dataapiv1.ErrorCodeInvalidArgument,
+		Message:    "Subdocument operation returned invalid argument error.",
+	}
+	return e.tryAttachExtraContext(st, err)
+}
+
 func (e ErrorHandler) NewBucketMissingStatus(baseErr error, bucketName string) *Status {
 	st := &Status{
 		StatusCode: http.StatusNotFound,
@@ -553,6 +570,16 @@ func (e ErrorHandler) NewSdPathTooBigStatus(baseErr error, sdPath string) *Statu
 		StatusCode: http.StatusBadRequest,
 		Code:       dataapiv1.ErrorCodeInvalidArgument,
 		Message:    fmt.Sprintf("Subdocument path '%s' is too long", sdPath),
+	}
+	st = e.tryAttachExtraContext(st, baseErr)
+	return st
+}
+
+func (e ErrorHandler) NewSdPathEmptyStatus(baseErr error) *Status {
+	st := &Status{
+		StatusCode: http.StatusBadRequest,
+		Code:       dataapiv1.ErrorCodeInvalidArgument,
+		Message:    "Subdocument path cannot be empty.",
 	}
 	st = e.tryAttachExtraContext(st, baseErr)
 	return st
