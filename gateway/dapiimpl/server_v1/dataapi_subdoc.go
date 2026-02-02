@@ -66,6 +66,8 @@ func (s *DataApiServer) LookupInDocument(
 			return nil, s.errorHandler.NewCollectionNoReadAccessStatus(err, in.BucketName, in.ScopeName, in.CollectionName).Err()
 		} else if errors.Is(err, memdx.ErrSubDocInvalidCombo) {
 			return nil, s.errorHandler.NewSdBadCombo(err).Err()
+		} else if errors.Is(err, memdx.ErrInvalidArgument) {
+			return nil, s.errorHandler.NewSubdocInvalidArgStatus(err).Err()
 		}
 
 		return nil, s.errorHandler.NewGenericStatus(err).Err()
@@ -260,6 +262,8 @@ func (s *DataApiServer) MutateInDocument(
 			return nil, s.errorHandler.NewDocExistsStatus(err, in.BucketName, in.ScopeName, in.CollectionName, in.DocumentKey).Err()
 		} else if errors.Is(err, memdx.ErrDurabilityImpossible) {
 			return nil, s.errorHandler.NewDurabilityImpossibleStatus(err, in.BucketName).Err()
+		} else if errors.Is(err, memdx.ErrInvalidArgument) {
+			return nil, s.errorHandler.NewSubdocInvalidArgStatus(err).Err()
 		} else {
 			var subdocErr *memdx.SubDocError
 			if errors.As(err, &subdocErr) {
