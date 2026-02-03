@@ -35,6 +35,7 @@ func (s *DataApiServer) LookupInDocument(
 	if in.Body.Operations == nil {
 		return nil, s.errorHandler.NewTooFewOperationsError().Err()
 	}
+
 	for opIdx, op := range *in.Body.Operations {
 		var path []byte
 		if op.Path != nil {
@@ -50,6 +51,10 @@ func (s *DataApiServer) LookupInDocument(
 			Op:   opType,
 			Path: path,
 		})
+	}
+
+	if len(opts.Ops) == 0 {
+		return nil, s.errorHandler.NewTooFewOperationsError().Err()
 	}
 
 	result, err := bucketAgent.LookupIn(ctx, &opts)
