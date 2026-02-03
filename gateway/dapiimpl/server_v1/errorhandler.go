@@ -277,6 +277,8 @@ func (e ErrorHandler) NewSubdocInvalidArgStatus(err error) *Status {
 		context := srvErr.ParseContext().Text
 		if strings.Contains(context, "Request must include path") {
 			return e.NewSdPathEmptyStatus(err)
+		} else if strings.Contains(context, "Request must include value") {
+			return e.NewSdValueEmptyStatus(err)
 		}
 	}
 
@@ -580,6 +582,16 @@ func (e ErrorHandler) NewSdPathEmptyStatus(baseErr error) *Status {
 		StatusCode: http.StatusBadRequest,
 		Code:       dataapiv1.ErrorCodeInvalidArgument,
 		Message:    "Subdocument path cannot be empty.",
+	}
+	st = e.tryAttachExtraContext(st, baseErr)
+	return st
+}
+
+func (e ErrorHandler) NewSdValueEmptyStatus(baseErr error) *Status {
+	st := &Status{
+		StatusCode: http.StatusBadRequest,
+		Code:       dataapiv1.ErrorCodeInvalidArgument,
+		Message:    "Subdocument value cannot be empty.",
 	}
 	st = e.tryAttachExtraContext(st, baseErr)
 	return st
