@@ -3630,25 +3630,25 @@ func (s *GatewayOpsTestSuite) TestDapiMutateIn() {
 		})
 	})
 
-	// ING-1105
-	// s.Run("No Value", func() {
-	// 	resp := s.sendTestHttpRequest(&testHttpRequest{
-	// 		Method: http.MethodPost,
-	// 		Path: fmt.Sprintf(
-	// 			"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/mutate",
-	// 			s.bucketName, s.scopeName, s.collectionName, s.testDocId(),
-	// 		),
-	// 		Headers: map[string]string{
-	// 			"Authorization": s.basicRestCreds,
-	// 		},
-	// 		Body: []byte(`{"operations":[
-	// 				{"operation":"DictSet","path":"x"}
-	// 		]}`),
-	// 	})
-	// requireRestError(s.T(), resp, http.StatusBadRequest, &testRestError{
-	// 	Code: "InvalidArgument",
-	// })
-	// })
+	s.Run("NoValue", func() {
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/mutate",
+				s.bucketName, s.scopeName, s.collectionName, s.testDocId(),
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+			},
+			Body: []byte(`{"operations":[
+					{"operation":"DictSet","path":"x"}
+			]}`),
+		})
+		requireRestError(s.T(), resp, http.StatusBadRequest, &testRestError{
+			Code:    "InvalidArgument",
+			Message: "Subdocument value cannot be empty.",
+		})
+	})
 
 	s.Run("Too Many Operations", func() {
 		docId := s.testDocId()
