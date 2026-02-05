@@ -32,6 +32,8 @@ import (
 	cbconfigx "github.com/couchbase/gocbcorex/contrib/cbconfig"
 )
 
+const defaultDapiKvTimeout = 120 * time.Second
+
 type ServicePorts struct {
 	PS   int `json:"p,omitempty"`
 	DAPI int `json:"d,omitempty"`
@@ -67,6 +69,10 @@ type Config struct {
 	AdvertisePorts   ServicePorts
 
 	RateLimit int
+
+	// DapiKvTimeout is the timeout applied to Data API KV operations. If zero,
+	// a default of 120s is used.
+	DapiKvTimeout time.Duration
 
 	GrpcCertificate tls.Certificate
 	DapiCertificate tls.Certificate
@@ -389,6 +395,11 @@ func (g *Gateway) Run(ctx context.Context) error {
 			BootstrapNode:    bootstrapNodeAddr,
 		})
 
+		kvTimeout := config.DapiKvTimeout
+		if kvTimeout <= 0 {
+			kvTimeout = defaultDapiKvTimeout
+		}
+
 		dapiImpl := dapiimpl.New(&dapiimpl.NewOptions{
 			Logger:          config.Logger.Named("dapi-impl"),
 			Debug:           config.Debug,
@@ -398,6 +409,7 @@ func (g *Gateway) Run(ctx context.Context) error {
 			ProxyBlockAdmin: config.ProxyBlockAdmin,
 			Username:        config.Username,
 			Password:        config.Password,
+			DapiKvTimeout:   kvTimeout,
 		})
 
 		config.Logger.Info("initializing protostellar system")
@@ -534,7 +546,8 @@ func (g *Gateway) Run(ctx context.Context) error {
 }
 
 type ReconfigureOptions struct {
-	RateLimit int
+	RateLimit     int
+	DapiKvTimeout time.Duration
 }
 
 func (g *Gateway) Reconfigure(opts *ReconfigureOptions) error {
@@ -544,6 +557,10 @@ func (g *Gateway) Reconfigure(opts *ReconfigureOptions) error {
 	for _, rateLimiter := range g.rateLimiters {
 		rateLimiter.ResetAndUpdateRateLimit(uint64(opts.RateLimit), time.Second)
 	}
+
+	// Note: dynamic KvTimeout updates for Data API KV operations can be wired
+	// in here by tracking the dapiimpl servers created in Run and invoking
+	// their ReconfigureKvTimeout method when opts.DapiKvTimeout > 0.
 
 	return nil
 }
