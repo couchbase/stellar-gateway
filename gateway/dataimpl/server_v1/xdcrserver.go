@@ -96,6 +96,16 @@ func (s *XdcrServer) GetBucketInfo(ctx context.Context, in *internal_xdcr_v1.Get
 		numVbuckets = uint32(len(bucketInfo.RawConfig.VBucketServerMap.VBucketMap))
 	}
 
+	var bucketType internal_xdcr_v1.BucketType
+	switch bucketInfo.BucketType {
+	case cbmgmtx.BucketTypeCouchbase:
+		bucketType = internal_xdcr_v1.BucketType_BUCKET_TYPE_COUCHBASE
+	case cbmgmtx.BucketTypeEphemeral:
+		bucketType = internal_xdcr_v1.BucketType_BUCKET_TYPE_EPHEMERAL
+	default:
+		return nil, status.New(codes.InvalidArgument, "invalid bucket type encountered").Err()
+	}
+
 	var conflictResolutionType internal_xdcr_v1.ConflictResolutionType
 	switch bucketInfo.ConflictResolutionType {
 	case cbmgmtx.ConflictResolutionTypeSequenceNumber:
@@ -110,6 +120,7 @@ func (s *XdcrServer) GetBucketInfo(ctx context.Context, in *internal_xdcr_v1.Get
 		BucketUuid:             bucketInfo.UUID,
 		NumVbuckets:            numVbuckets,
 		ConflictResolutionType: conflictResolutionType,
+		BucketType:             &bucketType,
 	}, nil
 }
 
