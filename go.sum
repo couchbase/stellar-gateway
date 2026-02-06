@@ -70,8 +70,8 @@ github.com/cncf/xds/go v0.0.0-20251022180443-0feb69152e9f h1:Y8xYupdHxryycyPlc9Y
 github.com/cncf/xds/go v0.0.0-20251022180443-0feb69152e9f/go.mod h1:HlzOvOjVBOfTGSRXRyY0OiCS/3J1akRGQQpRO/7zyF4=
 github.com/couchbase/gocbcorex v0.0.0-20260203184430-c106ff8c6a9e h1:nz2Gt3/2e+8utLNkc0pCKJCs/9c80QVAYW/RtsLsBRs=
 github.com/couchbase/gocbcorex v0.0.0-20260203184430-c106ff8c6a9e/go.mod h1:yhzN/7UDbjYEYD9Ee7gOMD5f4ViYT4QjnnjrATiwcoQ=
-github.com/couchbase/goprotostellar v1.0.3-0.20251126093204-a7d8eefcab84 h1:K7thd+YLU/5SUdeoJ+zN7aEwbrWgG8+K70N4RmdOtNw=
-github.com/couchbase/goprotostellar v1.0.3-0.20251126093204-a7d8eefcab84/go.mod h1:X58ot5FRqlBTBkwG/oI4klunpu4MApjGktheqeRWQw0=
+github.com/couchbase/goprotostellar v1.0.6-0.20260206203314-84c1ca170f4a h1:Q78sebdGfhVcIMiPlMM6kJwQ6rMd5KdeHcpMGfl5e/g=
+github.com/couchbase/goprotostellar v1.0.6-0.20260206203314-84c1ca170f4a/go.mod h1:X58ot5FRqlBTBkwG/oI4klunpu4MApjGktheqeRWQw0=
 github.com/couchbaselabs/gocbconnstr v1.0.5 h1:e0JokB5qbcz7rfnxEhNRTKz8q1svoRvDoZihsiwNigA=
 github.com/couchbaselabs/gocbconnstr v1.0.5/go.mod h1:KV3fnIKMi8/AzX0O9zOrO9rofEqrRF1d2rG7qqjxC7o=
 github.com/couchbaselabs/gocbconnstr/v2 v2.0.0 h1:HU9DlAYYWR69jQnLN6cpg0fh0hxW/8d5hnglCXXjW78=
