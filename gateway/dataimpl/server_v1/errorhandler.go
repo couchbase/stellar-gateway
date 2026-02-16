@@ -625,8 +625,19 @@ func (e ErrorHandler) NewDocConflictStatus(ctx context.Context, baseErr error, b
 	return st
 }
 
-func (e ErrorHandler) NewZeroCasStatus(ctx context.Context) *status.Status {
-	st := e.newStatus(ctx, codes.InvalidArgument, "CAS value cannot be zero.")
+func (e ErrorHandler) NewZeroCasStatus(ctx context.Context, casField string) *status.Status {
+	var st *status.Status
+	if casField == "" {
+		st = e.newStatus(ctx, codes.InvalidArgument, "CAS value cannot be zero.")
+	} else {
+		st = e.newStatus(ctx, codes.InvalidArgument, fmt.Sprintf("CAS value for '%s' cannot be zero.", casField))
+	}
+	st = e.tryAttachStatusDetails(st, &epb.ErrorInfo{
+		Metadata: map[string]string{
+			"casField": casField,
+		},
+	})
+
 	return st
 }
 
@@ -805,10 +816,10 @@ func (e ErrorHandler) NewSdDocNotJsonStatus(ctx context.Context, baseErr error, 
 	return st
 }
 
-func (e ErrorHandler) NewSdPathNotFoundStatus(ctx context.Context, baseErr error, bucketName, scopeName, collectionName, docId, sdPath string) *status.Status {
+func (e ErrorHandler) NewSdPathNotFoundStatus(ctx context.Context, baseErr error, bucketName, scopeName, collectionName, docId, sdPath string, sdIndex int) *status.Status {
 	st := e.newStatus(ctx, codes.NotFound,
-		fmt.Sprintf("Subdocument path '%s' was not found in '%s' in '%s/%s/%s'.",
-			sdPath, docId, bucketName, scopeName, collectionName))
+		fmt.Sprintf("Subdocument path '%s' at index %d was not found in '%s' in '%s/%s/%s'.",
+			sdPath, sdIndex, docId, bucketName, scopeName, collectionName))
 	st = e.tryAttachStatusDetails(st, &epb.ResourceInfo{
 		ResourceType: "path",
 		ResourceName: fmt.Sprintf("%s/%s/%s/%s/%s", bucketName, scopeName, collectionName, docId, sdPath),
@@ -818,10 +829,10 @@ func (e ErrorHandler) NewSdPathNotFoundStatus(ctx context.Context, baseErr error
 	return st
 }
 
-func (e ErrorHandler) NewSdPathExistsStatus(ctx context.Context, baseErr error, bucketName, scopeName, collectionName, docId, sdPath string) *status.Status {
+func (e ErrorHandler) NewSdPathExistsStatus(ctx context.Context, baseErr error, bucketName, scopeName, collectionName, docId, sdPath string, sdIndex int) *status.Status {
 	st := e.newStatus(ctx, codes.AlreadyExists,
-		fmt.Sprintf("Subdocument path '%s' already existed in '%s' in '%s/%s/%s'.",
-			sdPath, docId, bucketName, scopeName, collectionName))
+		fmt.Sprintf("Subdocument path '%s' at index %d already existed in '%s' in '%s/%s/%s'.",
+			sdPath, sdIndex, docId, bucketName, scopeName, collectionName))
 	st = e.tryAttachStatusDetails(st, &epb.ResourceInfo{
 		ResourceType: "path",
 		ResourceName: fmt.Sprintf("%s/%s/%s/%s/%s", bucketName, scopeName, collectionName, docId, sdPath),
@@ -831,10 +842,10 @@ func (e ErrorHandler) NewSdPathExistsStatus(ctx context.Context, baseErr error, 
 	return st
 }
 
-func (e ErrorHandler) NewSdPathMismatchStatus(ctx context.Context, baseErr error, bucketName, scopeName, collectionName, docId, sdPath string) *status.Status {
+func (e ErrorHandler) NewSdPathMismatchStatus(ctx context.Context, baseErr error, bucketName, scopeName, collectionName, docId, sdPath string, sdIndex int) *status.Status {
 	st := e.newStatus(ctx, codes.FailedPrecondition,
-		fmt.Sprintf("Document structure implied by path '%s' did not match document '%s' in '%s/%s/%s'.",
-			sdPath, docId, bucketName, scopeName, collectionName))
+		fmt.Sprintf("Document structure implied by path '%s' at index %d did not match document '%s' in '%s/%s/%s'.",
+			sdPath, sdIndex, docId, bucketName, scopeName, collectionName))
 	st = e.tryAttachStatusDetails(st, &epb.PreconditionFailure{
 		Violations: []*epb.PreconditionFailure_Violation{{
 			Type:        "PATH_MISMATCH",
@@ -846,25 +857,25 @@ func (e ErrorHandler) NewSdPathMismatchStatus(ctx context.Context, baseErr error
 	return st
 }
 
-func (e ErrorHandler) NewSdPathTooBigStatus(ctx context.Context, baseErr error, sdPath string) *status.Status {
+func (e ErrorHandler) NewSdPathTooBigStatus(ctx context.Context, baseErr error, sdPath string, sdIndex int) *status.Status {
 	st := e.newStatus(ctx, codes.InvalidArgument,
-		fmt.Sprintf("Subdocument path '%s' is too long", sdPath))
+		fmt.Sprintf("Subdocument path '%s' at index %d is too long", sdPath, sdIndex))
 	st = e.tryAttachExtraContext(st, baseErr)
 	return st
 }
 
-func (e ErrorHandler) NewSdBadValueStatus(ctx context.Context, baseErr error, sdPath string) *status.Status {
+func (e ErrorHandler) NewSdBadValueStatus(ctx context.Context, baseErr error, sdPath string, sdIndex int) *status.Status {
 	st := e.newStatus(ctx, codes.InvalidArgument,
-		fmt.Sprintf("Subdocument operation content for path '%s' would invalidate the JSON if added to the document.",
-			sdPath))
+		fmt.Sprintf("Subdocument operation content for path '%s' at index %d would invalidate the JSON if added to the document.",
+			sdPath, sdIndex))
 	st = e.tryAttachExtraContext(st, baseErr)
 	return st
 }
 
-func (e ErrorHandler) NewSdValueOutOfRangeStatus(ctx context.Context, baseErr error, bucketName, scopeName, collectionName, docId, sdPath string) *status.Status {
+func (e ErrorHandler) NewSdValueOutOfRangeStatus(ctx context.Context, baseErr error, bucketName, scopeName, collectionName, docId, sdPath string, sdIndex int) *status.Status {
 	st := e.newStatus(ctx, codes.FailedPrecondition,
-		fmt.Sprintf("Counter operation content for path '%s' would put the JSON value out of range.",
-			sdPath))
+		fmt.Sprintf("Counter operation content for path '%s' at index %d would put the JSON value out of range.",
+			sdPath, sdIndex))
 	st = e.tryAttachStatusDetails(st, &epb.PreconditionFailure{
 		Violations: []*epb.PreconditionFailure_Violation{{
 			Type:        "VALUE_OUT_OF_RANGE",
@@ -876,10 +887,10 @@ func (e ErrorHandler) NewSdValueOutOfRangeStatus(ctx context.Context, baseErr er
 	return st
 }
 
-func (e ErrorHandler) NewSdBadRangeStatus(ctx context.Context, baseErr error, bucketName, scopeName, collectionName, docId, sdPath string) *status.Status {
+func (e ErrorHandler) NewSdBadRangeStatus(ctx context.Context, baseErr error, bucketName, scopeName, collectionName, docId, sdPath string, sdIndex int) *status.Status {
 	st := e.newStatus(ctx, codes.FailedPrecondition,
-		fmt.Sprintf("The value at path '%s' is out of the valid range in document '%s' in '%s/%s/%s'.",
-			sdPath, docId, bucketName, scopeName, collectionName))
+		fmt.Sprintf("The value at path '%s' at index %d is out of the valid range in document '%s' in '%s/%s/%s'.",
+			sdPath, sdIndex, docId, bucketName, scopeName, collectionName))
 	st = e.tryAttachStatusDetails(st, &epb.PreconditionFailure{
 		Violations: []*epb.PreconditionFailure_Violation{{
 			Type:        "PATH_VALUE_OUT_OF_RANGE",
@@ -891,25 +902,25 @@ func (e ErrorHandler) NewSdBadRangeStatus(ctx context.Context, baseErr error, bu
 	return st
 }
 
-func (e ErrorHandler) NewSdBadDeltaStatus(ctx context.Context, baseErr error, sdPath string) *status.Status {
+func (e ErrorHandler) NewSdBadDeltaStatus(ctx context.Context, baseErr error, sdPath string, sdIndex int) *status.Status {
 	st := e.newStatus(ctx, codes.InvalidArgument,
-		fmt.Sprintf("Subdocument counter delta for path '%s' was invalid.  Delta must be a non-zero number within the range of an 64-bit signed integer.",
-			sdPath))
+		fmt.Sprintf("Subdocument counter delta for path '%s' at index %d was invalid.  Delta must be a non-zero number within the range of an 64-bit signed integer.",
+			sdPath, sdIndex))
 	st = e.tryAttachExtraContext(st, baseErr)
 	return st
 }
 
-func (e ErrorHandler) NewSdValueTooDeepStatus(ctx context.Context, baseErr error, sdPath string) *status.Status {
+func (e ErrorHandler) NewSdValueTooDeepStatus(ctx context.Context, baseErr error, sdPath string, sdIndex int) *status.Status {
 	st := e.newStatus(ctx, codes.InvalidArgument,
-		fmt.Sprintf("Subdocument operation content for path '%s' was too deep to parse.",
-			sdPath))
+		fmt.Sprintf("Subdocument operation content for path '%s' at index %d was too deep to parse.",
+			sdPath, sdIndex))
 	st = e.tryAttachExtraContext(st, baseErr)
 	return st
 }
 
-func (e ErrorHandler) NewSdXattrUnknownVattrStatus(ctx context.Context, baseErr error, sdPath string) *status.Status {
+func (e ErrorHandler) NewSdXattrUnknownVattrStatus(ctx context.Context, baseErr error, sdPath string, sdIndex int) *status.Status {
 	st := e.newStatus(ctx, codes.InvalidArgument,
-		fmt.Sprintf("Subdocument path '%s' references an invalid virtual attribute.", sdPath))
+		fmt.Sprintf("Subdocument path '%s' at index %d references an invalid virtual attribute.", sdPath, sdIndex))
 	st = e.tryAttachExtraContext(st, baseErr)
 	return st
 }
@@ -920,9 +931,31 @@ func (e ErrorHandler) NewSdBadCombo(ctx context.Context, baseErr error) *status.
 	return st
 }
 
-func (e ErrorHandler) NewSdPathInvalidStatus(ctx context.Context, baseErr error, sdPath string) *status.Status {
+func (e ErrorHandler) NewSdPathInvalidStatus(ctx context.Context, baseErr error, sdPath string, sdIndex int) *status.Status {
+	st := e.newStatus(ctx, codes.InvalidArgument,
+		fmt.Sprintf("Invalid subdocument path syntax '%s' at index %d.", sdPath, sdIndex))
+	st = e.tryAttachExtraContext(st, baseErr)
+	return st
+}
+
+func (e ErrorHandler) NewProjectPathInvalidStatus(ctx context.Context, baseErr error, sdPath string) *status.Status {
 	st := e.newStatus(ctx, codes.InvalidArgument,
 		fmt.Sprintf("Invalid subdocument path syntax '%s'.", sdPath))
+	st = e.tryAttachExtraContext(st, baseErr)
+	return st
+}
+
+func (e ErrorHandler) NewProjectPathMismatchStatus(ctx context.Context, baseErr error, bucketName, scopeName, collectionName, docId, sdPath string) *status.Status {
+	st := e.newStatus(ctx, codes.FailedPrecondition,
+		fmt.Sprintf("Document structure implied by path '%s' did not match document '%s' in '%s/%s/%s'.",
+			sdPath, docId, bucketName, scopeName, collectionName))
+	st = e.tryAttachStatusDetails(st, &epb.PreconditionFailure{
+		Violations: []*epb.PreconditionFailure_Violation{{
+			Type:        "PATH_MISMATCH",
+			Subject:     fmt.Sprintf("document/%s/%s/%s/%s/%s", bucketName, scopeName, collectionName, docId, sdPath),
+			Description: "",
+		}},
+	})
 	st = e.tryAttachExtraContext(st, baseErr)
 	return st
 }

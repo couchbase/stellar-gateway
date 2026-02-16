@@ -618,7 +618,7 @@ func (s *XdcrServer) PushDocument(
 		return nil, errSt.Err()
 	}
 
-	errSt = s.checkCAS(ctx, &in.StoreCas)
+	errSt = s.checkCAS(ctx, &in.StoreCas, "StoreCas")
 	if errSt != nil {
 		return nil, errSt.Err()
 	}
@@ -679,7 +679,7 @@ func (s *XdcrServer) PushDocument(
 		var checkCas uint64
 		if in.CheckCas != nil {
 			if *in.CheckCas == 0 {
-				return nil, s.errorHandler.NewZeroCasStatus(ctx).Err()
+				return nil, s.errorHandler.NewZeroCasStatus(ctx, "CheckCas").Err()
 			}
 			checkCas = *in.CheckCas
 		} else {
@@ -863,9 +863,9 @@ func (s *XdcrServer) checkKey(ctx context.Context, key string) *status.Status {
 	return nil
 }
 
-func (s *XdcrServer) checkCAS(ctx context.Context, cas *uint64) *status.Status {
+func (s *XdcrServer) checkCAS(ctx context.Context, cas *uint64, casField string) *status.Status {
 	if cas != nil && *cas == 0 {
-		return s.errorHandler.NewZeroCasStatus(ctx)
+		return s.errorHandler.NewZeroCasStatus(ctx, casField)
 	}
 
 	return nil
