@@ -74,9 +74,9 @@ func (s *KvServer) Get(ctx context.Context, in *kv_v1.GetRequest) (*kv_v1.GetRes
 		} else if errors.Is(err, memdx.ErrSubDocNotJSON) {
 			return nil, s.errorHandler.NewSdDocNotJsonStatus(ctx, err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
 		} else if errors.Is(err, memdx.ErrSubDocPathInvalid) {
-			return nil, s.errorHandler.NewSdPathInvalidStatus(ctx, err, path).Err()
+			return nil, s.errorHandler.NewProjectPathInvalidStatus(ctx, err, path).Err()
 		} else if errors.Is(err, memdx.ErrSubDocPathMismatch) {
-			return nil, s.errorHandler.NewSdPathMismatchStatus(ctx, err, in.BucketName, in.ScopeName, in.CollectionName, in.Key, path).Err()
+			return nil, s.errorHandler.NewProjectPathMismatchStatus(ctx, err, in.BucketName, in.ScopeName, in.CollectionName, in.Key, path).Err()
 		}
 
 		return nil, s.errorHandler.NewGenericStatus(ctx, err).Err()
@@ -1078,15 +1078,15 @@ func (s *KvServer) LookupIn(ctx context.Context, in *kv_v1.LookupInRequest) (*kv
 			} else if errors.Is(op.Err, memdx.ErrSubDocNotJSON) {
 				spec.Status = s.errorHandler.NewSdDocNotJsonStatus(ctx, op.Err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Proto()
 			} else if errors.Is(op.Err, memdx.ErrSubDocPathNotFound) {
-				spec.Status = s.errorHandler.NewSdPathNotFoundStatus(ctx, op.Err, in.BucketName, in.ScopeName, in.CollectionName, in.Key, in.Specs[i].Path).Proto()
+				spec.Status = s.errorHandler.NewSdPathNotFoundStatus(ctx, op.Err, in.BucketName, in.ScopeName, in.CollectionName, in.Key, in.Specs[i].Path, i).Proto()
 			} else if errors.Is(op.Err, memdx.ErrSubDocPathInvalid) {
-				spec.Status = s.errorHandler.NewSdPathInvalidStatus(ctx, op.Err, in.Specs[i].Path).Proto()
+				spec.Status = s.errorHandler.NewSdPathInvalidStatus(ctx, op.Err, in.Specs[i].Path, i).Proto()
 			} else if errors.Is(op.Err, memdx.ErrSubDocPathMismatch) {
-				spec.Status = s.errorHandler.NewSdPathMismatchStatus(ctx, op.Err, in.BucketName, in.ScopeName, in.CollectionName, in.Key, in.Specs[i].Path).Proto()
+				spec.Status = s.errorHandler.NewSdPathMismatchStatus(ctx, op.Err, in.BucketName, in.ScopeName, in.CollectionName, in.Key, in.Specs[i].Path, i).Proto()
 			} else if errors.Is(op.Err, memdx.ErrSubDocPathTooBig) {
-				spec.Status = s.errorHandler.NewSdPathTooBigStatus(ctx, op.Err, in.Specs[i].Path).Proto()
+				spec.Status = s.errorHandler.NewSdPathTooBigStatus(ctx, op.Err, in.Specs[i].Path, i).Proto()
 			} else if errors.Is(op.Err, memdx.ErrSubDocXattrUnknownVAttr) {
-				spec.Status = s.errorHandler.NewSdXattrUnknownVattrStatus(ctx, op.Err, in.Specs[i].Path).Proto()
+				spec.Status = s.errorHandler.NewSdXattrUnknownVattrStatus(ctx, op.Err, in.Specs[i].Path, i).Proto()
 			} else {
 				spec.Status = s.errorHandler.NewGenericStatus(ctx, op.Err).Proto()
 			}
@@ -1291,28 +1291,28 @@ func (s *KvServer) MutateIn(ctx context.Context, in *kv_v1.MutateInRequest) (*kv
 				} else if errors.Is(err, memdx.ErrSubDocNotJSON) {
 					return nil, s.errorHandler.NewSdDocNotJsonStatus(ctx, err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
 				} else if errors.Is(err, memdx.ErrSubDocPathNotFound) {
-					return nil, s.errorHandler.NewSdPathNotFoundStatus(ctx, err, in.BucketName, in.ScopeName, in.CollectionName, in.Key, in.Specs[subdocErr.OpIndex].Path).Err()
+					return nil, s.errorHandler.NewSdPathNotFoundStatus(ctx, err, in.BucketName, in.ScopeName, in.CollectionName, in.Key, in.Specs[subdocErr.OpIndex].Path, subdocErr.OpIndex).Err()
 				} else if errors.Is(err, memdx.ErrSubDocPathExists) {
-					return nil, s.errorHandler.NewSdPathExistsStatus(ctx, err, in.BucketName, in.ScopeName, in.CollectionName, in.Key, in.Specs[subdocErr.OpIndex].Path).Err()
+					return nil, s.errorHandler.NewSdPathExistsStatus(ctx, err, in.BucketName, in.ScopeName, in.CollectionName, in.Key, in.Specs[subdocErr.OpIndex].Path, subdocErr.OpIndex).Err()
 				} else if errors.Is(err, memdx.ErrSubDocPathInvalid) {
-					return nil, s.errorHandler.NewSdPathInvalidStatus(ctx, err, in.Specs[subdocErr.OpIndex].Path).Err()
+					return nil, s.errorHandler.NewSdPathInvalidStatus(ctx, err, in.Specs[subdocErr.OpIndex].Path, subdocErr.OpIndex).Err()
 				} else if errors.Is(err, memdx.ErrSubDocPathMismatch) {
-					return nil, s.errorHandler.NewSdPathMismatchStatus(ctx, err, in.BucketName, in.ScopeName, in.CollectionName, in.Key, in.Specs[subdocErr.OpIndex].Path).Err()
+					return nil, s.errorHandler.NewSdPathMismatchStatus(ctx, err, in.BucketName, in.ScopeName, in.CollectionName, in.Key, in.Specs[subdocErr.OpIndex].Path, subdocErr.OpIndex).Err()
 				} else if errors.Is(err, memdx.ErrSubDocPathTooBig) {
-					return nil, s.errorHandler.NewSdPathTooBigStatus(ctx, err, in.Specs[subdocErr.OpIndex].Path).Err()
+					return nil, s.errorHandler.NewSdPathTooBigStatus(ctx, err, in.Specs[subdocErr.OpIndex].Path, subdocErr.OpIndex).Err()
 				} else if errors.Is(err, memdx.ErrSubDocCantInsert) {
 					opSpec := in.Specs[subdocErr.OpIndex]
 					if opSpec.Operation == kv_v1.MutateInRequest_Spec_OPERATION_COUNTER {
-						return nil, s.errorHandler.NewSdValueOutOfRangeStatus(ctx, err, in.BucketName, in.ScopeName, in.CollectionName, in.Key, in.Specs[subdocErr.OpIndex].Path).Err()
+						return nil, s.errorHandler.NewSdValueOutOfRangeStatus(ctx, err, in.BucketName, in.ScopeName, in.CollectionName, in.Key, in.Specs[subdocErr.OpIndex].Path, subdocErr.OpIndex).Err()
 					} else {
-						return nil, s.errorHandler.NewSdBadValueStatus(ctx, err, in.Specs[subdocErr.OpIndex].Path).Err()
+						return nil, s.errorHandler.NewSdBadValueStatus(ctx, err, in.Specs[subdocErr.OpIndex].Path, subdocErr.OpIndex).Err()
 					}
 				} else if errors.Is(err, memdx.ErrSubDocBadRange) {
-					return nil, s.errorHandler.NewSdBadRangeStatus(ctx, err, in.BucketName, in.ScopeName, in.CollectionName, in.Key, in.Specs[subdocErr.OpIndex].Path).Err()
+					return nil, s.errorHandler.NewSdBadRangeStatus(ctx, err, in.BucketName, in.ScopeName, in.CollectionName, in.Key, in.Specs[subdocErr.OpIndex].Path, subdocErr.OpIndex).Err()
 				} else if errors.Is(err, memdx.ErrSubDocBadDelta) {
-					return nil, s.errorHandler.NewSdBadDeltaStatus(ctx, err, in.Specs[subdocErr.OpIndex].Path).Err()
+					return nil, s.errorHandler.NewSdBadDeltaStatus(ctx, err, in.Specs[subdocErr.OpIndex].Path, subdocErr.OpIndex).Err()
 				} else if errors.Is(err, memdx.ErrSubDocValueTooDeep) {
-					return nil, s.errorHandler.NewSdValueTooDeepStatus(ctx, err, in.Specs[subdocErr.OpIndex].Path).Err()
+					return nil, s.errorHandler.NewSdValueTooDeepStatus(ctx, err, in.Specs[subdocErr.OpIndex].Path, subdocErr.OpIndex).Err()
 				}
 			}
 		}
@@ -1412,7 +1412,7 @@ func (s *KvServer) checkKey(ctx context.Context, key string) *status.Status {
 
 func (s *KvServer) checkCAS(ctx context.Context, cas *uint64) *status.Status {
 	if cas != nil && *cas == 0 {
-		return s.errorHandler.NewZeroCasStatus(ctx)
+		return s.errorHandler.NewZeroCasStatus(ctx, "")
 	}
 
 	return nil
