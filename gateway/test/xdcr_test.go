@@ -771,7 +771,7 @@ func (s *GatewayOpsTestSuite) TestXdcrPushDocument() {
 
 			var poisonedCas = uint64(time.Now().Add(2 * time.Hour).UnixNano())
 
-			_, err := xdcrClient.PushDocument(context.Background(), &internal_xdcr_v1.PushDocumentRequest{
+			resp, err := xdcrClient.PushDocument(context.Background(), &internal_xdcr_v1.PushDocumentRequest{
 				BucketName:     s.bucketName,
 				ScopeName:      s.scopeName,
 				CollectionName: s.collectionName,
@@ -786,6 +786,14 @@ func (s *GatewayOpsTestSuite) TestXdcrPushDocument() {
 				ExpiryTime: nil, // no expiry
 				Revno:      1,
 			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+
+			// Prior to 8.0 there is no validation performed by the server on
+			// the store cas
+			if s.IsOlderServerVersion("8.0.0") {
+				requireRpcSuccess(s.T(), resp, err)
+				return
+			}
+
 			assertRpcStatus(s.T(), err, codes.FailedPrecondition)
 			assertRpcErrorDetails(s.T(), err, func(d *epb.PreconditionFailure) {
 				assert.Len(s.T(), d.Violations, 1)
@@ -1091,7 +1099,7 @@ func (s *GatewayOpsTestSuite) TestXdcrPushDocument() {
 
 			var poisonedCas = uint64(time.Now().Add(2 * time.Hour).UnixNano())
 
-			_, err = xdcrClient.PushDocument(context.Background(), &internal_xdcr_v1.PushDocumentRequest{
+			resp, err := xdcrClient.PushDocument(context.Background(), &internal_xdcr_v1.PushDocumentRequest{
 				BucketName:     s.bucketName,
 				ScopeName:      s.scopeName,
 				CollectionName: s.collectionName,
@@ -1106,6 +1114,14 @@ func (s *GatewayOpsTestSuite) TestXdcrPushDocument() {
 				ExpiryTime: nil, // no expiry
 				Revno:      getResp.Revno + 1,
 			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+
+			// Prior to 8.0 there is no validation performed by the server on
+			// the store cas
+			if s.IsOlderServerVersion("8.0.0") {
+				requireRpcSuccess(s.T(), resp, err)
+				return
+			}
+
 			assertRpcStatus(s.T(), err, codes.FailedPrecondition)
 			assertRpcErrorDetails(s.T(), err, func(d *epb.PreconditionFailure) {
 				assert.Len(s.T(), d.Violations, 1)
@@ -1236,7 +1252,7 @@ func (s *GatewayOpsTestSuite) TestXdcrPushDocument() {
 
 			var poisonedCas = uint64(time.Now().Add(2 * time.Hour).UnixNano())
 
-			_, err = xdcrClient.PushDocument(context.Background(), &internal_xdcr_v1.PushDocumentRequest{
+			resp, err := xdcrClient.PushDocument(context.Background(), &internal_xdcr_v1.PushDocumentRequest{
 				BucketName:     s.bucketName,
 				ScopeName:      s.scopeName,
 				CollectionName: s.collectionName,
@@ -1245,6 +1261,14 @@ func (s *GatewayOpsTestSuite) TestXdcrPushDocument() {
 				StoreCas:       poisonedCas,
 				IsDeleted:      true,
 			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+
+			// Prior to 8.0 there is no validation performed by the server on
+			// the store cas
+			if s.IsOlderServerVersion("8.0.0") {
+				requireRpcSuccess(s.T(), resp, err)
+				return
+			}
+
 			assertRpcStatus(s.T(), err, codes.FailedPrecondition)
 			assertRpcErrorDetails(s.T(), err, func(d *epb.PreconditionFailure) {
 				assert.Len(s.T(), d.Violations, 1)
