@@ -50,6 +50,8 @@ func (s *GatewayOpsTestSuite) TestXdcrGetBucketInfo() {
 	requireRpcSuccess(s.T(), bucketInfoResp, err)
 	require.NotEmpty(s.T(), bucketInfoResp.BucketUuid)
 	require.Greater(s.T(), bucketInfoResp.NumVbuckets, uint32(0))
+	require.NotNil(s.T(), bucketInfoResp.BucketType)
+	require.Equal(s.T(), internal_xdcr_v1.BucketType_BUCKET_TYPE_COUCHBASE, *bucketInfoResp.BucketType)
 }
 
 func (s *GatewayOpsTestSuite) TestXdcrGetVbucketInfo() {

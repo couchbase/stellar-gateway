@@ -103,7 +103,7 @@ func (s *XdcrServer) GetBucketInfo(ctx context.Context, in *internal_xdcr_v1.Get
 	case cbmgmtx.BucketTypeEphemeral:
 		bucketType = internal_xdcr_v1.BucketType_BUCKET_TYPE_EPHEMERAL
 	default:
-		return nil, status.New(codes.InvalidArgument, "invalid bucket type encountered").Err()
+		return nil, status.New(codes.Internal, fmt.Sprintf("invalid bucket type received: %s", bucketInfo.BucketType)).Err()
 	}
 
 	var conflictResolutionType internal_xdcr_v1.ConflictResolutionType
