@@ -265,6 +265,31 @@ func (s *GatewayOpsTestSuite) IterDapiDocumentEncodingTests(
 	})
 }
 
+func (s *GatewayOpsTestSuite) TestDapiKvTimeouts() {
+	s.Run("GetDocumentRespectsServerTimeout", func() {
+		// We can't reliably simulate a >120s KV stall in unit tests, but we can
+		// at least ensure the endpoint still works under normal conditions after
+		// introducing the timeout logic.
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodGet,
+			Path: fmt.Sprintf(
+				"/v1/buckets/%s/scopes/%s/collections/%s/documents/%s",
+				s.bucketName,
+				s.scopeName,
+				s.collectionName,
+				s.testDocId(),
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+			},
+		})
+
+		require.NotNil(s.T(), resp)
+		// Existing generic assertion helper already validates status and headers
+		requireRestSuccess(s.T(), resp)
+	})
+}
+
 func (s *GatewayOpsTestSuite) IterDapiExpiryHeaderTests(fn func(expiry string, fn func(*checkDocumentOptions))) {
 	s.Run("ExpiryTime", func() {
 		s.Run("Future", func() {

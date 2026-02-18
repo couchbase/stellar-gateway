@@ -1,6 +1,8 @@
 package dapiimpl
 
 import (
+	"time"
+
 	"github.com/couchbase/gocbcorex"
 	"github.com/couchbase/stellar-gateway/dataapiv1"
 	"github.com/couchbase/stellar-gateway/gateway/auth"
@@ -18,6 +20,8 @@ type NewOptions struct {
 	ProxyServices   []proxy.ServiceType
 	ProxyBlockAdmin bool
 	Debug           bool
+
+	DapiKvTimeout time.Duration
 
 	Username string
 	Password string
@@ -41,7 +45,7 @@ func New(opts *NewOptions) *Servers {
 		CbClient:      opts.CbClient,
 	}
 
-	return &Servers{
+	servers := &Servers{
 		DataApiProxy: proxy.NewDataApiProxy(
 			opts.Logger.Named("dapi-proxy"),
 			opts.CbClient,
@@ -57,4 +61,12 @@ func New(opts *NewOptions) *Servers {
 			v1ErrHandler,
 			v1AuthHandler),
 	}
+
+	if opts.DapiKvTimeout > 0 {
+		if srv, ok := servers.DataApiV1Server.(*server_v1.DataApiServer); ok {
+			srv.ReconfigureKvTimeout(opts.DapiKvTimeout)
+		}
+	}
+
+	return servers
 }

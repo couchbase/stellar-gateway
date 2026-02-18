@@ -17,6 +17,9 @@ import (
 func (s *DataApiServer) TouchDocument(
 	ctx context.Context, in dataapiv1.TouchDocumentRequestObject,
 ) (dataapiv1.TouchDocumentResponseObject, error) {
+	ctx, cancel := s.withKvTimeout(ctx)
+	defer cancel()
+
 	bucketAgent, oboUser, errSt := s.authHandler.GetMemdOboAgent(ctx, in.Params.Authorization, in.BucketName)
 	if errSt != nil {
 		return nil, errSt.Err()

@@ -12,6 +12,9 @@ import (
 func (s *DataApiServer) AppendToDocument(
 	ctx context.Context, in dataapiv1.AppendToDocumentRequestObject,
 ) (dataapiv1.AppendToDocumentResponseObject, error) {
+	ctx, cancel := s.withKvTimeout(ctx)
+	defer cancel()
+
 	bucketAgent, oboUser, errSt := s.authHandler.GetMemdOboAgent(ctx, in.Params.Authorization, in.BucketName)
 	if errSt != nil {
 		return nil, errSt.Err()
@@ -90,6 +93,9 @@ func (s *DataApiServer) AppendToDocument(
 func (s *DataApiServer) PrependToDocument(
 	ctx context.Context, in dataapiv1.PrependToDocumentRequestObject,
 ) (dataapiv1.PrependToDocumentResponseObject, error) {
+	ctx, cancel := s.withKvTimeout(ctx)
+	defer cancel()
+
 	bucketAgent, oboUser, errSt := s.authHandler.GetMemdOboAgent(ctx, in.Params.Authorization, in.BucketName)
 	if errSt != nil {
 		return nil, errSt.Err()
