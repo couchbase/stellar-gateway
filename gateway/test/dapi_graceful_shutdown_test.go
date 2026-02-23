@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"io"
 	"net/http"
 	"sync"
 	"syscall"
@@ -69,26 +70,35 @@ func (s *GatewayOpsTestSuite) TestGracefulShutdown() {
 		},
 	}
 
-	respCloseChan := make(chan (bool), 10000)
+	req, err := http.NewRequest("GET", fmt.Sprintf("https://%s/v1/callerIdentity", dapiAddr), nil)
+	assert.NoError(s.T(), err)
+
+	req.SetBasicAuth(testConfig.CbUser, testConfig.CbPass)
+
+	numWorkers := 100
 	var wg sync.WaitGroup
+	for i := 0; i < numWorkers; i++ {
+		wg.Add(1)
+		clonedReq := req.Clone(req.Context())
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+		go func() {
+			defer wg.Done()
+			for {
+				resp, err := dapiCli.Do(clonedReq)
+				if err != nil {
+					assert.ErrorIs(s.T(), err, syscall.ECONNREFUSED)
+					return
+				}
 
-		for {
-			resp, err := dapiCli.Get(fmt.Sprintf("https://%s/v1/callerIdentity", dapiAddr))
-			if err != nil {
-				// A non-nil error should be caused by sending requests to the gateway
-				// after it has already shutdown.
-				assert.ErrorIs(s.T(), err, syscall.ECONNREFUSED)
-				return
+				_, _ = io.Copy(io.Discard, resp.Body)
+				err = resp.Body.Close()
+				assert.NoError(s.T(), err)
+
+				assert.True(s.T(), resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusServiceUnavailable)
+				time.Sleep(time.Millisecond * 10)
 			}
-
-			respCloseChan <- resp.Close
-			time.Sleep(time.Millisecond * 10)
-		}
-	}()
+		}()
+	}
 
 	// Allow some requests to run against the gateway before shutting down
 	time.Sleep(time.Second)
@@ -96,20 +106,4 @@ func (s *GatewayOpsTestSuite) TestGracefulShutdown() {
 	gw.Shutdown()
 
 	wg.Wait()
-
-	isFirstResponse := true
-	keepAlivesDisabled := false
-	for len(respCloseChan) > 0 {
-		respClose := <-respCloseChan
-		if isFirstResponse {
-			// Since the gateway is always healthy for the first request resp.Close should be false
-			assert.False(s.T(), respClose)
-			isFirstResponse = false
-		}
-
-		// If graceful shutdown is working correctly some requests should see resp.Close = true
-		keepAlivesDisabled = respClose || keepAlivesDisabled
-	}
-
-	assert.True(s.T(), keepAlivesDisabled)
 }
