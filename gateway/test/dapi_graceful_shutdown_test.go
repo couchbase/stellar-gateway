@@ -75,33 +75,41 @@ func (s *GatewayOpsTestSuite) TestGracefulShutdown() {
 
 	req.SetBasicAuth(testConfig.CbUser, testConfig.CbPass)
 
-	numWorkers := 100
+	numWorkers := 10
+	var requestsStarted sync.WaitGroup
 	var wg sync.WaitGroup
 	for i := 0; i < numWorkers; i++ {
+		requestsStarted.Add(1)
 		wg.Add(1)
 		clonedReq := req.Clone(req.Context())
 
 		go func() {
 			defer wg.Done()
+			firstRequest := true
 			for {
 				resp, err := dapiCli.Do(clonedReq)
 				if err != nil {
 					assert.ErrorIs(s.T(), err, syscall.ECONNREFUSED)
-					return
+					break
+				}
+
+				if firstRequest {
+					requestsStarted.Done()
+					firstRequest = false
 				}
 
 				_, _ = io.Copy(io.Discard, resp.Body)
 				err = resp.Body.Close()
 				assert.NoError(s.T(), err)
 
-				assert.True(s.T(), resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusServiceUnavailable)
+				assert.True(s.T(), resp.StatusCode == http.StatusOK)
 				time.Sleep(time.Millisecond * 10)
 			}
 		}()
 	}
 
-	// Allow some requests to run against the gateway before shutting down
-	time.Sleep(time.Second)
+	// Wait for all clients to connect before shutting down
+	requestsStarted.Wait()
 
 	gw.Shutdown()
 

@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"net/http"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
@@ -65,9 +64,8 @@ type SystemOptions struct {
 type System struct {
 	logger *zap.Logger
 
-	dataServer   *grpc.Server
-	dapiServer   *http.Server
-	shuttingDown atomic.Bool
+	dataServer *grpc.Server
+	dapiServer *http.Server
 }
 
 func NewSystem(opts *SystemOptions) (*System, error) {
@@ -146,10 +144,6 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 	}
 	grpc_health_v1.RegisterHealthServer(dataSrv, healthServer)
 
-	s := &System{
-		logger: opts.Logger,
-	}
-
 	writeErrorResp := func(w http.ResponseWriter, statusCode int, code dataapiv1.ErrorCode, message string) {
 		encodedErr, _ := json.Marshal(&dataapiv1.Error{
 			Code:    code,
@@ -160,7 +154,6 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 
 	// data api
 	sh := dataapiv1.NewStrictHandlerWithOptions(dapiImpl.DataApiV1Server, []nethttp.StrictHTTPMiddlewareFunc{
-		dapiimpl.NewShutdownHandler(s.shuttingDown.Load),
 		dapiimpl.NewErrorHandler(opts.Logger),
 		dapiimpl.NewTlsConnStateHandler(),
 		dapiimpl.NewOtelTracingHandler(),
@@ -243,8 +236,11 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 		TLSConfig:         opts.DapiTlsConfig,
 	}
 
-	s.dataServer = dataSrv
-	s.dapiServer = dapiSrv
+	s := &System{
+		logger:     opts.Logger,
+		dataServer: dataSrv,
+		dapiServer: dapiSrv,
+	}
 
 	return s, nil
 }
@@ -285,9 +281,6 @@ func (s *System) Serve(ctx context.Context, l *Listeners) error {
 }
 
 func (s *System) Shutdown() {
-	// Signal shutdown middleware to start returning 503
-	s.shuttingDown.Store(true)
-
 	var wg sync.WaitGroup
 
 	if s.dataServer != nil {
@@ -302,11 +295,10 @@ func (s *System) Shutdown() {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			// Wait for clients to receive their 503s
-			time.Sleep(time.Second * 5)
 			ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 			defer cancel()
 			_ = s.dapiServer.Shutdown(ctx)
+			_ = s.dapiServer.Close()
 		}()
 	}
 
