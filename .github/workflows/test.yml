@@ -50,6 +50,12 @@ jobs:
       - name: Generate Files
         run: |
           go generate ./...
+      - name: Run TestGracefulShutdown (100x)
+        timeout-minutes: 40
+        env:
+          SGTEST_CBCONNSTR: ${{ steps.start-cluster.outputs.node-ip }}
+          SGTEST_SGCONNSTR: abcd
+        run: go test ./gateway/test -run TestGatewayOps -v -testify.m TestGracefulShutdown -count=100 -timeout=40m
       - name: Run Tests
         timeout-minutes: 10
         env:

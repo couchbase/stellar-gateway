@@ -295,9 +295,11 @@ func (s *System) Shutdown() {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
+			ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+			defer cancel()
 			s.dapiServer.SetKeepAlivesEnabled(false)
-			time.Sleep(time.Second * 5)
-			_ = s.dapiServer.Shutdown(context.Background())
+			_ = s.dapiServer.Shutdown(ctx)
+			_ = s.dapiServer.Close()
 		}()
 	}
 
