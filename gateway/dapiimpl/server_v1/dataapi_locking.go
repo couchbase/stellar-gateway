@@ -16,6 +16,9 @@ import (
 func (s *DataApiServer) LockDocument(
 	ctx context.Context, in dataapiv1.LockDocumentRequestObject,
 ) (dataapiv1.LockDocumentResponseObject, error) {
+	ctx, cancel := s.withKvTimeout(ctx)
+	defer cancel()
+
 	bucketAgent, oboUser, errSt := s.authHandler.GetMemdOboAgent(ctx, in.Params.Authorization, in.BucketName)
 	if errSt != nil {
 		return nil, errSt.Err()
@@ -99,6 +102,9 @@ func (s *DataApiServer) LockDocument(
 func (s *DataApiServer) UnlockDocument(
 	ctx context.Context, in dataapiv1.UnlockDocumentRequestObject,
 ) (dataapiv1.UnlockDocumentResponseObject, error) {
+	ctx, cancel := s.withKvTimeout(ctx)
+	defer cancel()
+
 	bucketAgent, oboUser, errSt := s.authHandler.GetMemdOboAgent(ctx, in.Params.Authorization, in.BucketName)
 	if errSt != nil {
 		return nil, errSt.Err()
