@@ -18,7 +18,7 @@ type Config struct {
 
 var globalTestConfig *Config
 
-func GetTestConfig(t *testing.T) *Config {
+func GetTestConfig(t testing.TB) *Config {
 	if globalTestConfig == nil {
 		testConfig := &Config{
 			CbConnStr: "127.0.0.1",

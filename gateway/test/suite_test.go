@@ -24,7 +24,6 @@ import (
 
 	"github.com/couchbase/goprotostellar/genproto/kv_v1"
 	"github.com/couchbase/stellar-gateway/contrib/grpcheaderauth"
-	"github.com/couchbase/stellar-gateway/gateway"
 	"github.com/couchbase/stellar-gateway/testutils"
 	"github.com/couchbase/stellar-gateway/utils/selfsignedcert"
 	"github.com/google/uuid"
@@ -311,89 +310,43 @@ func (s *GatewayOpsTestSuite) SetupSuite() {
 			s.initializeNoPermissionsUser()
 		}
 
-		gwStartInfoCh := make(chan *gateway.StartupInfo, 1)
-		gwCtx, gwCtxCancel := context.WithCancel(context.Background())
-		gw, err := gateway.NewGateway(&gateway.Config{
-			Logger:              logger.Named("gateway"),
-			CbConnStr:           testConfig.CbConnStr,
-			Username:            testConfig.CbUser,
-			Password:            testConfig.CbPass,
-			BoostrapNodeIsLocal: true,
-			BindDataPort:        0,
-			BindDapiPort:        0,
-			GrpcCertificate:     *gwCert,
-			DapiCertificate:     *gwCert,
-			ClientCaCert:        s.clientCaCertPool,
-			AlphaEndpoints:      true,
-			NumInstances:        1,
-			ProxyServices:       []string{"query", "analytics", "mgmt", "search"},
-			ProxyBlockAdmin:     true,
-			Debug:               true,
-
-			StartupCallback: func(m *gateway.StartupInfo) {
-				gwStartInfoCh <- m
-			},
-		})
+		started, err := startGatewayForTesting(
+			context.Background(),
+			testConfig,
+			logger.Named("gateway"),
+			*gwCert,
+			*gwCert,
+			s.clientCaCertPool,
+			"test-client",
+		)
 		if err != nil {
-			s.T().Fatalf("failed to initialize gateway: %s", err)
+			s.T().Fatalf("failed to start gateway: %s", err)
 		}
 
-		gwClosedCh := make(chan struct{})
-		go func() {
-			err := gw.Run(gwCtx)
-			if err != nil {
-				s.T().Errorf("gateway run failed: %s", err)
-			}
-
-			s.T().Logf("test gateway has shut down")
-			close(gwClosedCh)
-		}()
-
-		startInfo := <-gwStartInfoCh
-
-		connAddr := fmt.Sprintf("%s:%d", "127.0.0.1", startInfo.ServicePorts.PS)
-		conn, err := grpc.NewClient(connAddr,
-			grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{
-				InsecureSkipVerify: true,
-			})), grpc.WithUserAgent("test-client"))
-		if err != nil {
-			s.T().Fatalf("failed to connect to test gateway: %s", err)
-		}
-
-		dapiAddr := fmt.Sprintf("%s:%d", "127.0.0.1", startInfo.ServicePorts.DAPI)
-		dapiCli := &http.Client{
-			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-			},
-		}
-
-		s.gatewayConn = conn
-		s.gwConnAddr = connAddr
-		s.gatewayCloseFunc = gwCtxCancel
-		s.gatewayClosedCh = gwClosedCh
-		s.dapiCli = dapiCli
-		s.dapiAddr = dapiAddr
+		s.gatewayConn = started.gatewayConn
+		s.gwConnAddr = started.gwConnAddr
+		s.gatewayCloseFunc = started.gatewayCloseFunc
+		s.gatewayClosedCh = started.gatewayClosedCh
+		s.dapiCli = started.dapiCli
+		s.dapiAddr = started.dapiAddr
 	} else {
-		connAddr := fmt.Sprintf("%s:%d", testConfig.SgConnStr, testConfig.SgPort)
-		conn, err := grpc.NewClient(connAddr,
-			grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{
-				InsecureSkipVerify: true,
-			})), grpc.WithUserAgent("test-client"))
+		started, err := startGatewayForTesting(
+			context.Background(),
+			testConfig,
+			zap.NewNop(),
+			tls.Certificate{},
+			tls.Certificate{},
+			nil,
+			"test-client",
+		)
 		if err != nil {
 			s.T().Fatalf("failed to connect to test gateway: %s", err)
 		}
 
-		dapiAddr := fmt.Sprintf("%s:%d", testConfig.SgConnStr, testConfig.DapiPort)
-		dapiCli := &http.Client{
-			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-			},
-		}
-
-		s.gatewayConn = conn
-		s.gwConnAddr = connAddr
-		s.dapiCli = dapiCli
-		s.dapiAddr = dapiAddr
+		s.gatewayConn = started.gatewayConn
+		s.gwConnAddr = started.gwConnAddr
+		s.dapiCli = started.dapiCli
+		s.dapiAddr = started.dapiAddr
 	}
 }
 
