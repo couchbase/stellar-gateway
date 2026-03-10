@@ -46,6 +46,7 @@ import (
 )
 
 const maxMsgSize = 25 * 1024 * 1024 // 25MiB
+const defaultShutdownTimeout = time.Second * 30
 
 type SystemOptions struct {
 	Logger *zap.Logger
@@ -59,6 +60,8 @@ type SystemOptions struct {
 	DapiTlsConfig  *tls.Config
 	AlphaEndpoints bool
 	Debug          bool
+
+	ShutdownTimeout time.Duration
 }
 
 type System struct {
@@ -66,6 +69,8 @@ type System struct {
 
 	dataServer *grpc.Server
 	dapiServer *http.Server
+
+	shutdownTimeout time.Duration
 }
 
 func NewSystem(opts *SystemOptions) (*System, error) {
@@ -238,10 +243,16 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 		TLSConfig:         opts.DapiTlsConfig,
 	}
 
+	if opts.ShutdownTimeout == 0 {
+		opts.Logger.Info("no shutdown timeout configured using default", zap.Duration("shutdownTimeout", defaultShutdownTimeout))
+		opts.ShutdownTimeout = defaultShutdownTimeout
+	}
+
 	s := &System{
-		logger:     opts.Logger,
-		dataServer: dataSrv,
-		dapiServer: dapiSrv,
+		logger:          opts.Logger,
+		dataServer:      dataSrv,
+		dapiServer:      dapiSrv,
+		shutdownTimeout: opts.ShutdownTimeout,
 	}
 
 	return s, nil
@@ -289,7 +300,20 @@ func (s *System) Shutdown() {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			s.dataServer.GracefulStop()
+
+			// GracefulStop has no timeout mechanism so we need to take this approach
+			done := make(chan struct{})
+			go func() {
+				s.dataServer.GracefulStop()
+				close(done)
+			}()
+
+			select {
+			case <-done:
+			case <-time.After(s.shutdownTimeout):
+				s.logger.Warn("data server shutdown timed out, forcing stop")
+				s.dataServer.Stop()
+			}
 		}()
 	}
 
@@ -299,7 +323,13 @@ func (s *System) Shutdown() {
 			defer wg.Done()
 			s.dapiServer.SetKeepAlivesEnabled(false)
 			time.Sleep(time.Second * 5)
-			_ = s.dapiServer.Shutdown(context.Background())
+			ctx, cancel := context.WithTimeout(context.Background(), s.shutdownTimeout)
+			defer cancel()
+			err := s.dapiServer.Shutdown(ctx)
+			if err != nil {
+				s.logger.Warn("data api server shutdown failed", zap.Error(err))
+				_ = s.dapiServer.Close()
+			}
 		}()
 	}
 

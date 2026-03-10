@@ -66,7 +66,8 @@ type Config struct {
 	AdvertiseAddress string
 	AdvertisePorts   ServicePorts
 
-	RateLimit int
+	RateLimit       int
+	ShutdownTimeout time.Duration
 
 	GrpcCertificate tls.Certificate
 	DapiCertificate tls.Certificate
@@ -430,8 +431,9 @@ func (g *Gateway) Run(ctx context.Context) error {
 				ClientCAs:  config.ClientCaCert,
 				ClientAuth: tls.VerifyClientCertIfGiven,
 			},
-			AlphaEndpoints: config.AlphaEndpoints,
-			Debug:          config.Debug,
+			ShutdownTimeout: config.ShutdownTimeout,
+			AlphaEndpoints:  config.AlphaEndpoints,
+			Debug:           config.Debug,
 		})
 		if err != nil {
 			config.Logger.Error("error creating legacy proxy")
