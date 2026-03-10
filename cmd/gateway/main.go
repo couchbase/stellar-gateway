@@ -94,6 +94,7 @@ func init() {
 	configFlags.String("dapi-cert", "", "path to data api tls cert for Data API")
 	configFlags.String("dapi-key", "", "path to data api private tls key for Data API")
 	configFlags.Int("rate-limit", 0, "specifies the maximum requests per second to allow")
+	configFlags.Duration("shutdown-timeout", 30*time.Second, "the graceful shutdown timeout")
 	configFlags.String("otlp-endpoint", "", "opentelemetry endpoint to send telemetry to")
 	configFlags.Bool("disable-traces", false, "disable tracing")
 	configFlags.Bool("disable-metrics", false, "disable metrics")
@@ -269,6 +270,7 @@ type config struct {
 	clusterCaCertPath     string
 	clientCaCertPath      string
 	rateLimit             int
+	shutdownTimeout       time.Duration
 	otlpEndpoint          string
 	disableTraces         bool
 	disableMetrics        bool
@@ -312,6 +314,7 @@ func readConfig(logger *zap.Logger) *config {
 		clusterCaCertPath:     viper.GetString("cluster-cert"),
 		clientCaCertPath:      viper.GetString("client-ca-cert"),
 		rateLimit:             viper.GetInt("rate-limit"),
+		shutdownTimeout:       viper.GetDuration("shutdown-timeout"),
 		otlpEndpoint:          viper.GetString("otlp-endpoint"),
 		disableTraces:         viper.GetBool("disable-traces"),
 		disableMetrics:        viper.GetBool("disable-metrics"),
@@ -354,6 +357,7 @@ func readConfig(logger *zap.Logger) *config {
 		zap.String("dapiKeyPath", config.dapiKeyPath),
 		zap.String("clusterCaCertPath", config.clusterCaCertPath),
 		zap.Int("rateLimit", config.rateLimit),
+		zap.Duration("shutdownTimeout", config.shutdownTimeout),
 		zap.String("otlpEndpoint", config.otlpEndpoint),
 		zap.Bool("disableTraces", config.disableTraces),
 		zap.Bool("disableMetrics", config.disableMetrics),
@@ -645,6 +649,7 @@ func startGateway() {
 		BindDapiPort:        config.dapiPort,
 		BindAddress:         config.bindAddress,
 		RateLimit:           config.rateLimit,
+		ShutdownTimeout:     config.shutdownTimeout,
 		GrpcCertificate:     grpcCertificate,
 		DapiCertificate:     dapiCertificate,
 		ClusterCaCert:       caCertPool,
@@ -684,8 +689,9 @@ func startGateway() {
 
 		if newConfig.bindAddress != config.bindAddress ||
 			newConfig.dataPort != config.dataPort ||
-			newConfig.dapiPort != config.dapiPort {
-			logger.Warn("config changes for bindAddress, dataPort or dapiPort require a restart")
+			newConfig.dapiPort != config.dapiPort ||
+			newConfig.shutdownTimeout != config.shutdownTimeout {
+			logger.Warn("config changes for bindAddress, dataPort, dapiPort or shutdownTimeout require a restart")
 		}
 
 		if newConfig.selfSign != config.selfSign {
