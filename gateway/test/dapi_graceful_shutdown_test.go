@@ -3,9 +3,13 @@ package test
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"fmt"
+	"io"
 	"net/http"
+	"net/http/httptrace"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -69,19 +73,51 @@ func (s *GatewayOpsTestSuite) TestGracefulShutdown() {
 		},
 	}
 
+	var requestsWritten atomic.Int64
+	var responsesReceived atomic.Int64
+	trace := &httptrace.ClientTrace{
+		WroteRequest: func(info httptrace.WroteRequestInfo) {
+			requestsWritten.Add(1)
+		},
+		GotFirstResponseByte: func() {
+			responsesReceived.Add(1)
+		},
+	}
+
+	ctx := httptrace.WithClientTrace(context.Background(), trace)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("https://%s/v1/callerIdentity", dapiAddr), nil)
+	assert.NoError(s.T(), err)
+
 	respCloseChan := make(chan (bool), 10000)
 	var wg sync.WaitGroup
 
+	var eofs int
+	var unexpectedErr error
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 
 		for {
-			resp, err := dapiCli.Get(fmt.Sprintf("https://%s/v1/callerIdentity", dapiAddr))
+			resp, err := dapiCli.Do(req)
 			if err != nil {
-				// A non-nil error should be caused by sending requests to the gateway
-				// after it has already shutdown.
-				assert.ErrorIs(s.T(), err, syscall.ECONNREFUSED)
+				switch {
+				case errors.Is(err, io.EOF):
+					// There is a small window between the flushing the request bytes to the socket and the http handler receiving
+					// the bytes where the server sees the connection as idle and will close it. We record these errors and
+					// include them when checking all requests recieved responses.
+					eofs++
+				case errors.Is(err, syscall.ECONNREFUSED):
+					// This is what we expect to see once the listeners have closed
+				case errors.Is(err, syscall.ECONNRESET), errors.Is(err, syscall.EPIPE):
+					// Connection reset and broken pipe errors occur before the request is completely written, therefore the
+					// wroteRequest hook has not triggered. Such racy errors are unavoidable when running directly against an
+					// http server.
+				default:
+					// Any errors not mentinoned above are not expected and should cause a failure to be investigated.
+					unexpectedErr = err
+					return
+				}
+
 				return
 			}
 
@@ -96,6 +132,9 @@ func (s *GatewayOpsTestSuite) TestGracefulShutdown() {
 	gw.Shutdown()
 
 	wg.Wait()
+
+	assert.NoError(s.T(), unexpectedErr)
+	assert.Equal(s.T(), requestsWritten.Load(), responsesReceived.Load()+int64(eofs))
 
 	isFirstResponse := true
 	keepAlivesDisabled := false
