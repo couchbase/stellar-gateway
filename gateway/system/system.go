@@ -59,6 +59,8 @@ type SystemOptions struct {
 	DapiTlsConfig  *tls.Config
 	AlphaEndpoints bool
 	Debug          bool
+
+	Cancel context.CancelFunc
 }
 
 type System struct {
@@ -66,6 +68,8 @@ type System struct {
 
 	dataServer *grpc.Server
 	dapiServer *http.Server
+
+	cancelFunc context.CancelFunc
 }
 
 func NewSystem(opts *SystemOptions) (*System, error) {
@@ -242,6 +246,7 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 		logger:     opts.Logger,
 		dataServer: dataSrv,
 		dapiServer: dapiSrv,
+		cancelFunc: opts.Cancel,
 	}
 
 	return s, nil
@@ -299,9 +304,12 @@ func (s *System) Shutdown() {
 			defer wg.Done()
 			s.dapiServer.SetKeepAlivesEnabled(false)
 			time.Sleep(time.Second * 5)
-			_ = s.dapiServer.Shutdown(context.Background())
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+			defer cancel()
+			_ = s.dapiServer.Shutdown(ctx)
 		}()
 	}
 
 	wg.Wait()
+	s.cancelFunc()
 }
