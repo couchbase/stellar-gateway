@@ -409,6 +409,8 @@ func (g *Gateway) Run(ctx context.Context) error {
 			Password:        config.Password,
 		})
 
+		ctx, cancel := context.WithCancel(ctx)
+
 		config.Logger.Info("initializing protostellar system")
 		gatewaySys, err := system.NewSystem(&system.SystemOptions{
 			Logger:      config.Logger.Named("gateway-system"),
@@ -432,6 +434,7 @@ func (g *Gateway) Run(ctx context.Context) error {
 			},
 			AlphaEndpoints: config.AlphaEndpoints,
 			Debug:          config.Debug,
+			Cancel:         cancel,
 		})
 		if err != nil {
 			config.Logger.Error("error creating legacy proxy")
