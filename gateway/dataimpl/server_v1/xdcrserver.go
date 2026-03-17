@@ -69,8 +69,16 @@ func (s *XdcrServer) GetClusterInfo(ctx context.Context, in *internal_xdcr_v1.Ge
 		return nil, s.errorHandler.NewGenericStatus(ctx, err).Err()
 	}
 
+	var edition internal_xdcr_v1.ClusterEdition
+	if clusterInfo.IsEnterprise {
+		edition = internal_xdcr_v1.ClusterEdition_CLUSTER_EDITION_ENTERPRISE
+	} else {
+		edition = internal_xdcr_v1.ClusterEdition_CLUSTER_EDITION_COMMUNITY
+	}
+
 	return &internal_xdcr_v1.GetClusterInfoResponse{
 		ClusterUuid: clusterInfo.Uuid,
+		Edition:     &edition,
 	}, nil
 }
 

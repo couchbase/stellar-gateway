@@ -9,7 +9,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/config v1.32.8
 	github.com/aws/aws-sdk-go-v2/service/secretsmanager v1.41.1
 	github.com/couchbase/gocbcorex v0.0.0-20260302200007-00087f22161f
-	github.com/couchbase/goprotostellar v1.0.6-0.20260206203314-84c1ca170f4a
+	github.com/couchbase/goprotostellar v1.0.6-0.20260317184007-a27c5e150d66
 	github.com/couchbaselabs/gocbconnstr v1.0.5
 	github.com/couchbaselabs/gocbconnstr/v2 v2.0.0
 	github.com/fsnotify/fsnotify v1.9.0
