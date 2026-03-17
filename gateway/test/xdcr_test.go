@@ -39,6 +39,11 @@ func (s *GatewayOpsTestSuite) TestXdcrGetClusterInfo() {
 		grpc.PerRPCCredentials(s.basicRpcCreds))
 	requireRpcSuccess(s.T(), clusterInfoResp, err)
 	require.NotEmpty(s.T(), clusterInfoResp.ClusterUuid)
+	require.NotNil(s.T(), clusterInfoResp.Edition)
+	require.Contains(s.T(), []internal_xdcr_v1.ClusterEdition{
+		internal_xdcr_v1.ClusterEdition_CLUSTER_EDITION_COMMUNITY,
+		internal_xdcr_v1.ClusterEdition_CLUSTER_EDITION_ENTERPRISE,
+	}, *clusterInfoResp.Edition)
 }
 
 func (s *GatewayOpsTestSuite) TestXdcrGetBucketInfo() {
