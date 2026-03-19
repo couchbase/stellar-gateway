@@ -2,6 +2,7 @@ package hooks
 
 import (
 	"errors"
+	"net/http"
 	"sync"
 
 	"github.com/couchbase/goprotostellar/genproto/internal_hooks_v1"
@@ -66,4 +67,8 @@ func (m *HooksManager) Server() internal_hooks_v1.HooksServiceServer {
 
 func (m *HooksManager) UnaryInterceptor() grpc.UnaryServerInterceptor {
 	return makeGrpcUnaryInterceptor(m, m.logger)
+}
+
+func (m *HooksManager) HTTPMiddleware() func(http.Handler) http.Handler {
+	return makeHTTPMiddleware(m, m.logger)
 }
