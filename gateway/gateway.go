@@ -19,6 +19,7 @@ import (
 	"github.com/couchbase/stellar-gateway/gateway/dapiimpl"
 	"github.com/couchbase/stellar-gateway/gateway/dapiimpl/proxy"
 	"github.com/couchbase/stellar-gateway/gateway/dataimpl"
+	"github.com/couchbase/stellar-gateway/gateway/hooks"
 	"github.com/couchbase/stellar-gateway/gateway/ratelimiting"
 	"github.com/couchbase/stellar-gateway/gateway/system"
 	"github.com/couchbase/stellar-gateway/pkg/metrics"
@@ -42,6 +43,7 @@ type StartupInfo struct {
 	ServerGroup   string
 	AdvertiseAddr string
 	ServicePorts  ServicePorts
+	HooksManager  *hooks.HooksManager
 }
 
 type Config struct {
@@ -489,6 +491,7 @@ func (g *Gateway) Run(ctx context.Context) error {
 					PS:   boundPsPort,
 					DAPI: boundDapiPort,
 				},
+				HooksManager: gatewaySys.HooksManager(),
 			})
 		}
 

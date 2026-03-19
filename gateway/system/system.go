@@ -70,6 +70,7 @@ type System struct {
 	dataServer *grpc.Server
 	dapiServer *http.Server
 
+	hooksManager    *hooks.HooksManager
 	shutdownTimeout time.Duration
 }
 
@@ -231,6 +232,9 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 	})
 
 	var httpHandler http.Handler = mux
+	if opts.Debug {
+		httpHandler = hooksManager.HTTPMiddleware()(httpHandler)
+	}
 	if opts.RateLimiter != nil {
 		httpHandler = opts.RateLimiter.HttpMiddleware(httpHandler)
 	}
@@ -252,10 +256,15 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 		logger:          opts.Logger,
 		dataServer:      dataSrv,
 		dapiServer:      dapiSrv,
+		hooksManager:    hooksManager,
 		shutdownTimeout: opts.ShutdownTimeout,
 	}
 
 	return s, nil
+}
+
+func (s *System) HooksManager() *hooks.HooksManager {
+	return s.hooksManager
 }
 
 func (s *System) Serve(ctx context.Context, l *Listeners) error {
