@@ -104,6 +104,7 @@ func init() {
 	configFlags.String("otel-exporter-headers", "", "a comma seperated list of otlp expoter headers, e.g 'header1=value1,header2=value2'")
 	configFlags.String("dapi-proxy-services", "", "specifies services exposed via _p endpoint proxies")
 	configFlags.Bool("dapi-no-proxy-admin", false, "disables admin endpoints through proxies")
+	configFlags.String("server-group", "", "specifies the server group name")
 	configFlags.Bool("alpha-endpoints", false, "enables alpha endpoints")
 	configFlags.Bool("debug", false, "enable debug mode")
 	configFlags.Bool("pprof", false, "enable pprof endpoints")
@@ -280,6 +281,7 @@ type config struct {
 	otelExporterHeaders   string
 	dapiProxyServices     string
 	dapiNoProxyAdmin      bool
+	serverGroup           string
 	alphaEndpoints        bool
 	debug                 bool
 	pprof                 bool
@@ -324,6 +326,7 @@ func readConfig(logger *zap.Logger) *config {
 		otelExporterHeaders:   viper.GetString("otel-exporter-headers"),
 		dapiProxyServices:     viper.GetString("dapi-proxy-services"),
 		dapiNoProxyAdmin:      viper.GetBool("dapi-no-proxy-admin"),
+		serverGroup:           viper.GetString("server-group"),
 		alphaEndpoints:        viper.GetBool("alpha-endpoints"),
 		debug:                 viper.GetBool("debug"),
 		pprof:                 viper.GetBool("pprof"),
@@ -367,6 +370,7 @@ func readConfig(logger *zap.Logger) *config {
 		// zap.String("honeycombKey", config.honeycombKey),
 		zap.String("dapiProxyServices", config.dapiProxyServices),
 		zap.Bool("dapiNoProxyAdmin", config.dapiNoProxyAdmin),
+		zap.String("serverGroup", config.serverGroup),
 		zap.Bool("alphaEndpoints", config.alphaEndpoints),
 		zap.Bool("debug", config.debug),
 		zap.Bool("pprof", config.pprof),
@@ -644,6 +648,7 @@ func startGateway() {
 		Debug:               config.debug,
 		ProxyServices:       strings.Split(config.dapiProxyServices, ","),
 		ProxyBlockAdmin:     config.dapiNoProxyAdmin,
+		ServerGroup:         config.serverGroup,
 		AlphaEndpoints:      config.alphaEndpoints,
 		BindDataPort:        config.dataPort,
 		BindDapiPort:        config.dapiPort,
@@ -737,6 +742,9 @@ func startGateway() {
 
 		if newConfig.alphaEndpoints != config.alphaEndpoints {
 			logger.Warn("config changes for alphaEndpoints require a restart")
+		}
+		if newConfig.serverGroup != config.serverGroup {
+			logger.Warn("config changes for serverGroup require a restart")
 		}
 
 		if newConfig.logLevelStr != config.logLevelStr {
