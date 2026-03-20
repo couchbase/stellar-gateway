@@ -1,0 +1,114 @@
+name: Run Load Tests
+permissions:
+  contents: read
+  packages: read
+
+on:
+  push:
+    tags:
+      - v*
+    branches:
+      - master
+  pull_request:
+
+jobs:
+  load-test:
+    name: Load Test
+    strategy:
+      matrix:
+        server:
+          - 8.1.0-1262
+          - 8.0.0
+          - 7.6.8
+          - 7.2.8
+
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install cbdinocluster
+        uses: ./.github/actions/install-cbdinocluster
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Start couchbase cluster
+        id: start-cluster
+        uses: ./.github/actions/start-couchbase-cluster
+      - uses: actions/setup-go@v5
+        with:
+          go-version: 1.26
+
+      - uses: arduino/setup-protoc@v3
+        with:
+          version: 31.1
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install Tools
+        run: |
+          go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36
+          go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.5
+          go install github.com/matryer/moq@v0.5
+      - name: Install Dependencies
+        run: go get ./...
+      - name: Generate Files
+        run: go generate ./...
+      - name: Run Gateway
+        run: |
+          go run cmd/gateway/main.go --log-level debug --cb-host "couchbase://${{ steps.start-cluster.outputs.node-ip }}" --self-sign --disable-metrics=true > gateway.log 2>&1 &
+          sleep 5
+
+      - name: Print gateway logs
+        run: cat gateway.log
+
+      - name: Clone and Build spectroperf
+        run: |
+          git clone -b configure-artefact-file-name https://github.com/couchbaselabs/spectroperf.git
+          cd spectroperf
+          go build -o spectroperf spectroperf.go
+          mv spectroperf ../sp
+
+      - name: Write spectroperf config
+        run: |
+          cat > direct_config.toml << EOF
+          connstr = "couchbase://${{ steps.start-cluster.outputs.node-ip }}"
+          num-users = [250, 500, 1000, 2000]
+          ramp-time = "10s"
+          run-time = "30s"
+          workload = "user-profile"
+          sleep = "1s"
+          tls-skip-verify = true
+          bucket = "default"
+          scope = "_default"
+          collection = "_default"
+          EOF
+
+      - name: Run spectroperf directly
+        run: |
+          ls
+          ./sp --config-file="direct_config.toml" --results="direct" --connstr="couchbase://${{ steps.start-cluster.outputs.node-ip }}"
+
+      - name: Run spectroperf against gateway
+        run: |
+          ls
+          ./sp --config-file="direct_config.toml" --results="gateway" --connstr="couchbase2://localhost:18098"
+
+      - name: Print direct metrics
+        run: |
+          cat ./direct/metrics.json
+
+      - name: Print gateway metrics
+        run: |
+          cat ./gateway/metrics.json
+
+      - name: Collect couchbase logs
+        timeout-minutes: 10
+        if: failure()
+        run: |
+          mkdir -p ./logs
+          cbdinocluster -v collect-logs ${{ steps.start-cluster.outputs.dino-id }} ./logs
+      - name: Upload couchbase logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cbcollect-logs-${{ matrix.server }}
+          path: ./logs/*
+          retention-days: 5
