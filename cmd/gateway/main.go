@@ -842,8 +842,6 @@ func startGatewayWatchdog() {
 	execProc := os.Args[0]
 	execArgs := append([]string{"--auto-restart-proc"}, os.Args[1:]...)
 
-	interruptLock := sync.Mutex{}
-	shouldShutdown := false
 	interruptCh := make(chan os.Signal)
 
 	go func() {
@@ -864,26 +862,17 @@ func startGatewayWatchdog() {
 						firstSigIntTime = time.Now()
 					}
 
-					interruptLock.Lock()
-					if !shouldShutdown {
-						shouldShutdown = true
-						interruptLock.Unlock()
-						close(interruptCh)
-					} else {
-						interruptLock.Unlock()
-					}
+					interruptCh <- sig
 				}
 			case syscall.SIGTERM:
 				logger.Info("watchdog received sigterm, waiting for graceful shutdown...")
-				interruptLock.Lock()
-				if !shouldShutdown {
-					interruptCh <- sig
-				}
-				interruptLock.Unlock()
+
+				interruptCh <- sig
 			}
 		}
 	}()
 
+WatchdogLoop:
 	for {
 		logger.Info("starting sub-process")
 
@@ -909,11 +898,6 @@ func startGatewayWatchdog() {
 				logger.Info("sub-process exited with error", zap.Error(err))
 			}
 		case sig := <-interruptCh:
-			// if the channel is closed, we are shutting down which is SIGINT
-			if sig == nil {
-				sig = os.Interrupt
-			}
-
 			logger.Info("forwarding signal to sub-process", zap.String("signal", sig.String()))
 			_ = cmd.Process.Signal(sig)
 
@@ -921,14 +905,9 @@ func startGatewayWatchdog() {
 			if err != nil {
 				logger.Info("sub-process exited after signal with error", zap.Error(err))
 			}
-		}
 
-		interruptLock.Lock()
-		if shouldShutdown {
-			interruptLock.Unlock()
-			break
+			break WatchdogLoop
 		}
-		interruptLock.Unlock()
 
 		delayTime := 1 * time.Second
 		logger.Info("crash detected, restarting", zap.Duration("delay", delayTime))
