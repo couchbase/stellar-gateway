@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"net/http"
 
 	"github.com/couchbase/goprotostellar/genproto/internal_hooks_v1"
 	"github.com/couchbase/stellar-gateway/contrib/govalcmp"
@@ -12,7 +13,17 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/encoding/protojson"
 )
+
+type httpError struct {
+	Message    string
+	StatusCode int
+}
+
+func (e *httpError) Error() string {
+	return e.Message
+}
 
 // We encapsulate all the execution of actions into a runState to allow us to
 // potentially maintain stateful debugging information about how the hooks are
@@ -21,10 +32,13 @@ type runState struct {
 	ID           string
 	HooksContext *HooksContext
 	Handler      grpc.UnaryHandler
+	HTTPHandler  http.Handler
+	HTTPWriter   http.ResponseWriter
 	Hook         *internal_hooks_v1.Hook
 	Logger       *zap.Logger
 	ExecResult   interface{}
 	ExecError    error
+	executed     bool
 }
 
 func newRunState(
@@ -37,6 +51,23 @@ func newRunState(
 		ID:           uuid.NewString(),
 		HooksContext: hooksContext,
 		Handler:      handler,
+		Hook:         hook,
+		Logger:       logger,
+	}
+}
+
+func newHTTPRunState(
+	hooksContext *HooksContext,
+	writer http.ResponseWriter,
+	httpHandler http.Handler,
+	hook *internal_hooks_v1.Hook,
+	logger *zap.Logger,
+) *runState {
+	return &runState{
+		ID:           uuid.NewString(),
+		HooksContext: hooksContext,
+		HTTPHandler:  httpHandler,
+		HTTPWriter:   writer,
 		Hook:         hook,
 		Logger:       logger,
 	}
@@ -59,6 +90,14 @@ func (s *runState) Run(ctx context.Context, req interface{}) (interface{}, error
 	// if the actions directly produced a result or error, we can return that
 	if resp != nil || err != nil {
 		return resp, err
+	}
+
+	if s.HTTPHandler != nil {
+		// for HTTP: if Execute was not explicitly called, implicitly call the handler
+		if !s.executed {
+			s.HTTPHandler.ServeHTTP(s.HTTPWriter, req.(*http.Request).WithContext(ctx))
+		}
+		return nil, nil
 	}
 
 	// if the actions explicitly executed the underlying function, return its value
@@ -314,6 +353,16 @@ func (s *runState) runAction_ReturnResponse(
 	req interface{},
 	action *internal_hooks_v1.HookAction_ReturnResponse,
 ) (interface{}, error) {
+	if s.HTTPHandler != nil {
+		jsonBytes, err := protojson.Marshal(action.Value)
+		if err != nil {
+			return nil, err
+		}
+		s.HTTPWriter.Header().Set("Content-Type", "application/json")
+		s.HTTPWriter.Write(jsonBytes) //nolint:errcheck
+		s.executed = true
+		return nil, nil
+	}
 	return action.Value, nil
 }
 
@@ -322,12 +371,44 @@ func (s *runState) runAction_ReturnError(
 	req interface{},
 	action *internal_hooks_v1.HookAction_ReturnError,
 ) (interface{}, error) {
+	if s.HTTPHandler != nil {
+		return nil, &httpError{
+			Message:    action.Message,
+			StatusCode: grpcCodeToHTTPStatus(codes.Code(action.Code)),
+		}
+	}
 	st := status.New(codes.Code(action.Code), action.Message)
 	for _, detail := range action.Details {
 		st, _ = st.WithDetails(detail)
 	}
-
 	return nil, st.Err()
+}
+
+func grpcCodeToHTTPStatus(code codes.Code) int {
+	switch code {
+	case codes.OK:
+		return http.StatusOK
+	case codes.InvalidArgument:
+		return http.StatusBadRequest
+	case codes.NotFound:
+		return http.StatusNotFound
+	case codes.AlreadyExists:
+		return http.StatusConflict
+	case codes.PermissionDenied:
+		return http.StatusForbidden
+	case codes.Unauthenticated:
+		return http.StatusUnauthorized
+	case codes.ResourceExhausted:
+		return http.StatusTooManyRequests
+	case codes.Unimplemented:
+		return http.StatusNotImplemented
+	case codes.Unavailable:
+		return http.StatusServiceUnavailable
+	case codes.DeadlineExceeded:
+		return http.StatusGatewayTimeout
+	default:
+		return http.StatusInternalServerError
+	}
 }
 
 func (s *runState) runAction_Execute(
@@ -335,7 +416,11 @@ func (s *runState) runAction_Execute(
 	req interface{},
 	action *internal_hooks_v1.HookAction_Execute,
 ) (interface{}, error) {
+	if s.HTTPHandler != nil {
+		s.HTTPHandler.ServeHTTP(s.HTTPWriter, req.(*http.Request).WithContext(ctx))
+		s.executed = true
+		return nil, nil
+	}
 	s.ExecResult, s.ExecError = s.Handler(ctx, req)
-
 	return nil, nil
 }

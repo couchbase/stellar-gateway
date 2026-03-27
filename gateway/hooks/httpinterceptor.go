@@ -21,24 +21,14 @@ func makeHTTPMiddleware(manager *HooksManager, log *zap.Logger) func(http.Handle
 				return
 			}
 
-			barrierID := r.Header.Get("X-Barrier-ID")
-			if barrierID == "" {
-				next.ServeHTTP(w, r)
-				return
-			}
-
-			log.Info("http request waiting on barrier",
+			log.Info(
+				"calling registered hooks context",
 				zap.String("hooks-id", hooksID),
-				zap.String("barrier-id", barrierID))
-
-			barrier := hooksContext.GetBarrier(barrierID)
-			barrier.Wait(r.Context(), hooksID+":"+barrierID, nil)
-
-			log.Info("http request done waiting on barrier",
-				zap.String("hooks-id", hooksID),
-				zap.String("barrier-id", barrierID))
-
-			next.ServeHTTP(w, r)
+				zap.String("method", r.Method),
+				zap.String("path", r.URL.Path),
+				zap.String("remote_addr", r.RemoteAddr),
+			)
+			hooksContext.HandleHTTPRequest(w, r, next)
 		})
 	}
 }
