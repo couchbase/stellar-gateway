@@ -1,17 +1,16 @@
 package test
 
 import (
-	"bytes"
 	"context"
 	"crypto/tls"
 	"fmt"
 	"io"
 	"net/http"
 	"sync"
-	"syscall"
 	"time"
 
-	"github.com/couchbase/goprotostellar/genproto/query_v1"
+	"github.com/couchbase/goprotostellar/genproto/internal_hooks_v1"
+	"github.com/couchbase/goprotostellar/genproto/kv_v1"
 	"github.com/couchbase/stellar-gateway/gateway"
 	"github.com/couchbase/stellar-gateway/testutils"
 	"github.com/couchbase/stellar-gateway/utils/selfsignedcert"
@@ -21,11 +20,81 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 )
 
-// A query that takes a couple of minutes to complete
-const slowQuery = "SELECT SUM(t + t2) AS total FROM ARRAY_RANGE(0,8000) AS t, ARRAY_RANGE(0,4000) AS t2"
+const shutDownTimeout = 20 * time.Second
+
+func (s *GatewayOpsTestSuite) setupDapiKvGetBarrierHook(ctx context.Context, conn *grpc.ClientConn, hooksContextID, targetPath, barrierID string) {
+	hooksClient := internal_hooks_v1.NewHooksServiceClient(conn)
+
+	_, err := hooksClient.CreateHooksContext(ctx, &internal_hooks_v1.CreateHooksContextRequest{
+		Id: hooksContextID,
+	})
+	require.NoError(s.T(), err, "failed to create hooks context")
+
+	_, err = hooksClient.AddHooks(ctx, &internal_hooks_v1.AddHooksRequest{
+		HooksContextId: hooksContextID,
+		Hooks: []*internal_hooks_v1.Hook{
+			{
+				Name:         "block-dapi-kv-get",
+				Description:  "Block HTTP document GET on a barrier to simulate a long-running request",
+				TargetMethod: targetPath,
+				Actions: []*internal_hooks_v1.HookAction{
+					{
+						Action: &internal_hooks_v1.HookAction_WaitOnBarrier_{
+							WaitOnBarrier: &internal_hooks_v1.HookAction_WaitOnBarrier{
+								BarrierId: barrierID,
+							},
+						},
+					},
+					{
+						Action: &internal_hooks_v1.HookAction_Execute_{
+							Execute: &internal_hooks_v1.HookAction_Execute{},
+						},
+					},
+				},
+			},
+		},
+	})
+	require.NoError(s.T(), err, "failed to add hooks")
+}
+
+func (s *GatewayOpsTestSuite) setupKvGetBarrierHook(ctx context.Context, conn *grpc.ClientConn, hooksContextID, barrierID string) {
+	hooksClient := internal_hooks_v1.NewHooksServiceClient(conn)
+
+	_, err := hooksClient.CreateHooksContext(ctx, &internal_hooks_v1.CreateHooksContextRequest{
+		Id: hooksContextID,
+	})
+	require.NoError(s.T(), err, "failed to create hooks context")
+
+	_, err = hooksClient.AddHooks(ctx, &internal_hooks_v1.AddHooksRequest{
+		HooksContextId: hooksContextID,
+		Hooks: []*internal_hooks_v1.Hook{
+			{
+				Name:         "block-kv-get",
+				Description:  "Block KV Get on a barrier to simulate a long-running request",
+				TargetMethod: "/couchbase.kv.v1.KvService/Get",
+				Actions: []*internal_hooks_v1.HookAction{
+					{
+						Action: &internal_hooks_v1.HookAction_WaitOnBarrier_{
+							WaitOnBarrier: &internal_hooks_v1.HookAction_WaitOnBarrier{
+								BarrierId: barrierID,
+							},
+						},
+					},
+					{
+						Action: &internal_hooks_v1.HookAction_Execute_{
+							Execute: &internal_hooks_v1.HookAction_Execute{},
+						},
+					},
+				},
+			},
+		},
+	})
+	require.NoError(s.T(), err, "failed to add hooks")
+}
 
 func (s *GatewayOpsTestSuite) TestGracefulShutdown() {
 	s.T().Logf("setting up new instance of stellar gateway...")
@@ -40,6 +109,9 @@ func (s *GatewayOpsTestSuite) TestGracefulShutdown() {
 		s.T().Fatalf("failed to initialize test logging: %s", err)
 	}
 
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
 	testConfig := testutils.GetTestConfig(s.T())
 
 	gwStartInfoCh := make(chan *gateway.StartupInfo, 1)
@@ -52,28 +124,26 @@ func (s *GatewayOpsTestSuite) TestGracefulShutdown() {
 		DapiCertificate: *gwCert,
 		NumInstances:    1,
 		ProxyServices:   []string{"query"},
+		Debug:           true,
 		StartupCallback: func(m *gateway.StartupInfo) {
 			gwStartInfoCh <- m
 		},
-		ShutdownTimeout: time.Second * 10,
+		ShutdownTimeout: shutDownTimeout,
 	})
 	if err != nil {
 		s.T().Fatalf("failed to initialize graceful-shutdown-gateway: %s", err)
 	}
 
 	var wg sync.WaitGroup
-
-	gwClosedCh := make(chan struct{})
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		err := gw.Run(context.Background())
+		err := gw.Run(ctx)
 		if err != nil {
 			s.T().Errorf("graceful-shutdown-gateway run failed: %s", err)
 		}
 
 		s.T().Logf("graceful-shutdown-gateway has shut down")
-		close(gwClosedCh)
 	}()
 
 	startInfo := <-gwStartInfoCh
@@ -85,46 +155,47 @@ func (s *GatewayOpsTestSuite) TestGracefulShutdown() {
 		},
 	}
 
-	respCloseChan := make(chan (bool), 10000)
+	connAddr := fmt.Sprintf("%s:%d", "127.0.0.1", startInfo.ServicePorts.PS)
+	conn, err := grpc.NewClient(connAddr,
+		grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{InsecureSkipVerify: true})),
+		grpc.WithUserAgent("test-client"),
+	)
+	require.NoError(s.T(), err, "failed to create grpc client connection to gateway")
+	defer func() { _ = conn.Close() }()
 
-	// Test that a client attempting to do work against data API during shutdown will see keep alives disabled and then
-	// connection refused errors.
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	testKey := s.testDocId()
 
-		for {
-			resp, err := dapiCli.Get(fmt.Sprintf("https://%s/v1/callerIdentity", dapiAddr))
-			if err != nil {
-				// A non-nil error should be caused by sending requests to the gateway
-				// after it has already shutdown.
-				assert.ErrorIs(s.T(), err, syscall.ECONNREFUSED)
-				return
-			}
+	docPath := fmt.Sprintf("/v1/buckets/%s/scopes/%s/collections/%s/documents/%s", s.bucketName, s.scopeName, s.collectionName, testKey)
 
-			_, _ = io.Copy(io.Discard, resp.Body)
-			_ = resp.Body.Close()
-			respCloseChan <- resp.Close
-			time.Sleep(time.Millisecond * 10)
-		}
-	}()
+	eofDapiHooksContextID := fmt.Sprintf("http-eof-%s", testKey)
+	s.setupDapiKvGetBarrierHook(ctx, conn, eofDapiHooksContextID, docPath, "eof-barrier")
+
+	successDapiHooksContextID := fmt.Sprintf("http-success-%s", testKey)
+	s.setupDapiKvGetBarrierHook(ctx, conn, successDapiHooksContextID, docPath, "success-barrier")
+
+	eofGrpcHooksContextID := fmt.Sprintf("grpc-eof-%s", testKey)
+	s.setupKvGetBarrierHook(ctx, conn, eofGrpcHooksContextID, "eof-barrier")
+
+	successGrpcHooksContextID := fmt.Sprintf("grpc-success-%s", testKey)
+	s.setupKvGetBarrierHook(ctx, conn, successGrpcHooksContextID, "temp-barrier")
+
+	// Set up request watchers so we know when the server starts processing each request.
+	eofDapiWatch := startInfo.HooksManager.GetHooksContext(eofDapiHooksContextID).WatchRequests(ctx)
+	successDapiWatch := startInfo.HooksManager.GetHooksContext(successDapiHooksContextID).WatchRequests(ctx)
+	eofGrpcWatch := startInfo.HooksManager.GetHooksContext(eofGrpcHooksContextID).WatchRequests(ctx)
+	successGrpcWatch := startInfo.HooksManager.GetHooksContext(successGrpcHooksContextID).WatchRequests(ctx)
 
 	// Check that requests to Data API taking longer than the shutdown timeout will eventually be forcibly closed.
 	wg.Add(1)
-	slowHttpReqSent := make(chan any)
 	go func() {
 		defer wg.Done()
 
-		statement := []byte(fmt.Sprintf(`{"statement": "%s"}`, slowQuery))
-		reqBody := bytes.NewReader(statement)
-
-		req, err := http.NewRequestWithContext(context.Background(), "POST", fmt.Sprintf("https://%s/_p/query/query/service", dapiAddr), reqBody)
-		require.NoError(s.T(), err, "failed to create request with client trace")
+		req, err := http.NewRequest("GET", fmt.Sprintf("https://%s%s", dapiAddr, docPath), nil)
+		require.NoError(s.T(), err, "failed to create http eof request")
 
 		req.SetBasicAuth(testConfig.CbUser, testConfig.CbPass)
-		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("X-Hooks-ID", eofDapiHooksContextID)
 
-		slowHttpReqSent <- struct{}{}
 		_, err = dapiCli.Do(req)
 
 		// After the shutdown timeout has elapsed the gateway should forcibly close connections, causing the client to see an
@@ -132,61 +203,87 @@ func (s *GatewayOpsTestSuite) TestGracefulShutdown() {
 		assert.ErrorIs(s.T(), err, io.EOF)
 	}()
 
-	// Check that grpc requests that take longer than the shutdown timeout will eventually be forcibly closed.
-	slowGrpcReqSent := make(chan any)
+	// Check that requests that start before shutdown is called but take less than the shutdown timeout complete successfully.
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		connAddr := fmt.Sprintf("%s:%d", "127.0.0.1", startInfo.ServicePorts.PS)
-		conn, err := grpc.NewClient(connAddr,
-			grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{InsecureSkipVerify: true})),
-			grpc.WithUserAgent("test-client"),
-		)
-		defer func() { _ = conn.Close() }()
-		assert.NoError(s.T(), err, "failed to create grpc client connection to gateway")
 
-		queryClient := query_v1.NewQueryServiceClient(conn)
+		req, err := http.NewRequest("GET", fmt.Sprintf("https://%s%s", dapiAddr, docPath), nil)
+		require.NoError(s.T(), err, "failed to create http success request")
 
-		slowGrpcReqSent <- struct{}{}
-		client, err := queryClient.Query(context.Background(), &query_v1.QueryRequest{
-			BucketName: &s.bucketName,
-			Statement:  slowQuery,
+		req.SetBasicAuth(testConfig.CbUser, testConfig.CbPass)
+		req.Header.Set("X-Hooks-ID", successDapiHooksContextID)
+
+		resp, err := dapiCli.Do(req)
+
+		assert.NoError(s.T(), err, "expected request to complete successfully before shutdown timeout")
+		if err != nil {
+			return
+		}
+
+		_, _ = io.Copy(io.Discard, resp.Body)
+		_ = resp.Body.Close()
+	}()
+
+	// Check that grpc requests that take longer than the shutdown timeout will eventually be forcibly closed.
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+
+		kvClient := kv_v1.NewKvServiceClient(conn)
+
+		grpcCtx := metadata.AppendToOutgoingContext(ctx, "X-Hooks-ID", eofGrpcHooksContextID)
+		_, err := kvClient.Get(grpcCtx, &kv_v1.GetRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            testKey,
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
-		assert.NoError(s.T(), err, "failed to send grpc query request")
 
-		_, err = client.Recv()
-		assert.Error(s.T(), err, "expected error receiving from grpc stream after shutdown")
+		assert.Error(s.T(), err, "expected error from grpc request after forcible shutdown")
 
 		st, ok := status.FromError(err)
 		assert.True(s.T(), ok)
 		assert.Equal(s.T(), codes.Unavailable, st.Code())
-		assert.Contains(s.T(), st.Message(), "EOF")
 	}()
 
-	// Wait for the slow running request to be sent before starting shutdown
-	<-slowHttpReqSent
-	<-slowGrpcReqSent
+	// Signal the barriers after a delay to allow requests to be in-flight when shutdown is called, but unblock them
+	// before the shutdown timeout elapses so that they can complete successfully.
+	time.AfterFunc(shutDownTimeout-time.Second*5, func() {
+		hooksCtx := startInfo.HooksManager.GetHooksContext(successGrpcHooksContextID)
+		if hooksCtx != nil {
+			hooksCtx.GetBarrier("temp-barrier").SignalAll(nil)
+		}
 
-	// Allow the server to start processing the requests
-	time.Sleep(time.Second * 5)
+		httpHooksCtx := startInfo.HooksManager.GetHooksContext(successDapiHooksContextID)
+		if httpHooksCtx != nil {
+			httpHooksCtx.GetBarrier("success-barrier").SignalAll(nil)
+		}
+	})
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+
+		kvClient := kv_v1.NewKvServiceClient(conn)
+
+		grpcCtx := metadata.AppendToOutgoingContext(ctx, "X-Hooks-ID", successGrpcHooksContextID)
+		_, err := kvClient.Get(grpcCtx, &kv_v1.GetRequest{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			Key:            testKey,
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		assert.NoError(s.T(), err, "expected grpc request that starts before shutdown to complete successfully")
+	}()
+
+	// Wait for the server to start processing all four requests before initiating shutdown.
+	<-eofDapiWatch
+	<-successDapiWatch
+	<-eofGrpcWatch
+	<-successGrpcWatch
 
 	gw.Shutdown()
 
 	wg.Wait()
-
-	isFirstResponse := true
-	keepAlivesDisabled := false
-	for len(respCloseChan) > 0 {
-		respClose := <-respCloseChan
-		if isFirstResponse {
-			// Since the gateway is always healthy for the first request resp.Close should be false
-			assert.False(s.T(), respClose)
-			isFirstResponse = false
-		}
-
-		// If graceful shutdown is working correctly some requests should see resp.Close = true
-		keepAlivesDisabled = respClose || keepAlivesDisabled
-	}
-
-	assert.True(s.T(), keepAlivesDisabled)
 }
