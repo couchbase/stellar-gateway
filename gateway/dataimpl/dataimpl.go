@@ -52,6 +52,8 @@ func New(opts *NewOptions) *Servers {
 			opts.Logger.Named("kv"),
 			v1ErrHandler,
 			v1AuthHandler,
+			opts.LocalhostConnstr,
+			opts.BootstrapNode,
 		),
 		QueryV1Server: server_v1.NewQueryServer(
 			opts.Logger.Named("query"),
