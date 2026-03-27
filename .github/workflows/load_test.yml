@@ -1,7 +1,7 @@
 name: Run Load Tests
 permissions:
   pull-requests: write
-  contents: read
+  contents: write
   packages: read
 
 on:
@@ -71,12 +71,11 @@ jobs:
         run: |
           cat > direct_config.toml << EOF
           connstr = "couchbase://${{ steps.start-cluster.outputs.node-ip }}"
-          num-users = [25, 50, 100, 200, 400]
-          sleep = "100ms"
+          num-users = [25, 50, 100, 200, 400, 600, 800]
+          sleep = "1s"
           ramp-time = "10s"
           run-time = "30s"
           workload = "user-profile"
-          sleep = "1s"
           tls-skip-verify = true
           bucket = "default"
           scope = "_default"
@@ -127,14 +126,41 @@ jobs:
             metrics_p50.png
             metrics_p95.png
 
+      - name: Push Graphs to Branch
+        if: github.event_name == 'pull_request'
+        id: push-graphs
+        run: |
+          SERVER="${{ matrix.server }}"
+          BRANCH="ci-load-test-pr-${{ github.event.pull_request.number }}-${SERVER//./-}"
+          REPO="${{ github.repository }}"
+
+          mkdir -p /tmp/graph-upload
+          cp metrics_p50.png metrics_p95.png /tmp/graph-upload/
+
+          cd /tmp/graph-upload
+          git init
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git add .
+          git commit -m "Load test graphs for $SERVER"
+          git push "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/$REPO.git" HEAD:refs/heads/$BRANCH --force
+
+          echo "p50-url=https://raw.githubusercontent.com/$REPO/$BRANCH/metrics_p50.png" >> $GITHUB_OUTPUT
+          echo "p95-url=https://raw.githubusercontent.com/$REPO/$BRANCH/metrics_p95.png" >> $GITHUB_OUTPUT
+
       - name: Post Graphs to PR
         uses: thollander/actions-comment-pull-request@v2
         if: github.event_name == 'pull_request'
         with:
           comment_tag: perf-report-${{ matrix.server }}
           message: |
-            ### 📊 Performance Metrics Report ${{ matrix.server }}
-            [View Performance Graphs](${{ steps.upload-graphs.outputs.artifact-url }})
+            ### Performance Metrics Report ${{ matrix.server }}
+
+            **P50 Latency:**
+            ![${{ matrix.server }} P50](${{ steps.push-graphs.outputs.p50-url }})
+
+            **P95 Latency:**
+            ![${{ matrix.server }} P95](${{ steps.push-graphs.outputs.p95-url }})
 
       - name: Collect couchbase logs
         timeout-minutes: 10
