@@ -2,6 +2,8 @@ package hooks
 
 import (
 	"context"
+	"errors"
+	"net/http"
 	"sync"
 
 	"github.com/couchbase/goprotostellar/genproto/internal_hooks_v1"
@@ -137,4 +139,41 @@ func (i *HooksContext) acquireRunLock(ctx context.Context) error {
 
 func (i *HooksContext) releaseRunLock() {
 	i.lock.Unlock()
+}
+
+func (i *HooksContext) dispatchHTTPReqToWatchers(r *http.Request) {
+	headers := make(map[string][]string)
+	for key, values := range r.Header {
+		headers[key] = values
+	}
+
+	reqInfo := &RequestInfo{
+		MetaData:   headers,
+		FullMethod: r.URL.Path,
+	}
+
+	i.reqWatchers.Send(reqInfo)
+}
+
+func (i *HooksContext) HandleHTTPRequest(w http.ResponseWriter, r *http.Request, next http.Handler) {
+	i.dispatchHTTPReqToWatchers(r)
+
+	hook := i.findHook(r.URL.Path)
+	if hook == nil {
+		next.ServeHTTP(w, r)
+		return
+	}
+
+	i.logger.Info("calling registered http hook", zap.Any("hook", hook))
+
+	rs := newHTTPRunState(i, w, next, hook, i.logger.Named("run-state"))
+	_, err := rs.Run(r.Context(), r)
+	if err != nil {
+		var httpErr *httpError
+		if errors.As(err, &httpErr) {
+			http.Error(w, httpErr.Message, httpErr.StatusCode)
+		} else {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+	}
 }
