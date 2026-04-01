@@ -166,8 +166,9 @@ func (i *HooksContext) HandleHTTPRequest(w http.ResponseWriter, r *http.Request,
 
 	i.logger.Info("calling registered http hook", zap.Any("hook", hook))
 
-	rs := newHTTPRunState(i, w, next, hook, i.logger.Named("run-state"))
-	_, err := rs.Run(r.Context(), r)
+	// create the run state which will handle the interceptor internally
+	rs := newHTTPRunState(i, next, hook, i.logger.Named("run-state"))
+	resp, err := rs.Run(r.Context(), r)
 	if err != nil {
 		var httpErr *httpError
 		if errors.As(err, &httpErr) {
@@ -175,5 +176,22 @@ func (i *HooksContext) HandleHTTPRequest(w http.ResponseWriter, r *http.Request,
 		} else {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
+		return
+	}
+
+	// if we have an HTTP response, write it to the client
+	if httpResp, ok := resp.(*httpResponse); ok {
+		// copy headers
+		for key, values := range httpResp.Header {
+			for _, value := range values {
+				w.Header().Add(key, value)
+			}
+		}
+
+		// write status code
+		w.WriteHeader(httpResp.StatusCode)
+
+		// write body
+		w.Write(httpResp.Body) //nolint:errcheck
 	}
 }

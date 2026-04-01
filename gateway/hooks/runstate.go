@@ -1,6 +1,7 @@
 package hooks
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -25,20 +26,69 @@ func (e *httpError) Error() string {
 	return e.Message
 }
 
+// httpResponse represents the captured HTTP response data
+type httpResponse struct {
+	StatusCode int
+	Header     http.Header
+	Body       []byte
+}
+
+// responseInterceptor implements http.ResponseWriter to intercept HTTP responses
+type responseInterceptor struct {
+	statusCode int
+	body       *bytes.Buffer
+	header     http.Header
+}
+
+func newResponseInterceptor() *responseInterceptor {
+	return &responseInterceptor{
+		body:   &bytes.Buffer{},
+		header: make(http.Header),
+	}
+}
+
+func (ri *responseInterceptor) Header() http.Header {
+	return ri.header
+}
+
+func (ri *responseInterceptor) Write(data []byte) (int, error) {
+	if ri.statusCode == 0 {
+		ri.statusCode = http.StatusOK
+	}
+	return ri.body.Write(data)
+}
+
+func (ri *responseInterceptor) WriteHeader(statusCode int) {
+	ri.statusCode = statusCode
+}
+
+func (ri *responseInterceptor) toHTTPResponse() *httpResponse {
+	// always return the captured response data regardless of status code
+	// this preserves the original response body/headers for non-2xx responses
+	statusCode := ri.statusCode
+	if statusCode == 0 {
+		statusCode = http.StatusOK
+	}
+	return &httpResponse{
+		StatusCode: statusCode,
+		Header:     ri.header,
+		Body:       ri.body.Bytes(),
+	}
+}
+
 // We encapsulate all the execution of actions into a runState to allow us to
 // potentially maintain stateful debugging information about how the hooks are
 // being executed
 type runState struct {
-	ID           string
-	HooksContext *HooksContext
-	Handler      grpc.UnaryHandler
-	HTTPHandler  http.Handler
-	HTTPWriter   http.ResponseWriter
-	Hook         *internal_hooks_v1.Hook
-	Logger       *zap.Logger
-	ExecResult   interface{}
-	ExecError    error
-	executed     bool
+	ID              string
+	HooksContext    *HooksContext
+	Handler         grpc.UnaryHandler
+	HTTPHandler     http.Handler
+	HTTPInterceptor *responseInterceptor
+	Hook            *internal_hooks_v1.Hook
+	Logger          *zap.Logger
+	ExecResult      interface{}
+	ExecError       error
 }
 
 func newRunState(
@@ -58,18 +108,17 @@ func newRunState(
 
 func newHTTPRunState(
 	hooksContext *HooksContext,
-	writer http.ResponseWriter,
 	httpHandler http.Handler,
 	hook *internal_hooks_v1.Hook,
 	logger *zap.Logger,
 ) *runState {
 	return &runState{
-		ID:           uuid.NewString(),
-		HooksContext: hooksContext,
-		HTTPHandler:  httpHandler,
-		HTTPWriter:   writer,
-		Hook:         hook,
-		Logger:       logger,
+		ID:              uuid.NewString(),
+		HooksContext:    hooksContext,
+		HTTPHandler:     httpHandler,
+		HTTPInterceptor: newResponseInterceptor(),
+		Hook:            hook,
+		Logger:          logger,
 	}
 }
 
@@ -92,17 +141,17 @@ func (s *runState) Run(ctx context.Context, req interface{}) (interface{}, error
 		return resp, err
 	}
 
-	if s.HTTPHandler != nil {
-		// for HTTP: if Execute was not explicitly called, implicitly call the handler
-		if !s.executed {
-			s.HTTPHandler.ServeHTTP(s.HTTPWriter, req.(*http.Request).WithContext(ctx))
-		}
-		return nil, nil
-	}
-
 	// if the actions explicitly executed the underlying function, return its value
 	if s.ExecResult != nil || s.ExecError != nil {
 		return s.ExecResult, s.ExecError
+	}
+
+	if s.HTTPHandler != nil {
+		// for HTTP: implicitly call the handler
+		s.HTTPHandler.ServeHTTP(s.HTTPInterceptor, req.(*http.Request).WithContext(ctx))
+
+		// return the captured response
+		return s.HTTPInterceptor.toHTTPResponse(), nil
 	}
 
 	// otherwise we need to implicitly execute the underlying function and return that
@@ -358,10 +407,18 @@ func (s *runState) runAction_ReturnResponse(
 		if err != nil {
 			return nil, err
 		}
-		s.HTTPWriter.Header().Set("Content-Type", "application/json")
-		s.HTTPWriter.Write(jsonBytes) //nolint:errcheck
-		s.executed = true
-		return nil, nil
+
+		// create HTTP response with JSON content
+		headers := make(http.Header)
+		headers.Set("Content-Type", "application/json")
+
+		httpResp := &httpResponse{
+			StatusCode: http.StatusOK,
+			Header:     headers,
+			Body:       jsonBytes,
+		}
+
+		return httpResp, nil
 	}
 	return action.Value, nil
 }
@@ -417,8 +474,11 @@ func (s *runState) runAction_Execute(
 	action *internal_hooks_v1.HookAction_Execute,
 ) (interface{}, error) {
 	if s.HTTPHandler != nil {
-		s.HTTPHandler.ServeHTTP(s.HTTPWriter, req.(*http.Request).WithContext(ctx))
-		s.executed = true
+		// use the existing interceptor from runState
+		s.HTTPHandler.ServeHTTP(s.HTTPInterceptor, req.(*http.Request).WithContext(ctx))
+
+		// store the response for the caller to handle
+		s.ExecResult = s.HTTPInterceptor.toHTTPResponse()
 		return nil, nil
 	}
 	s.ExecResult, s.ExecError = s.Handler(ctx, req)
