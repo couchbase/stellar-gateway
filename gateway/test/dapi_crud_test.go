@@ -3813,36 +3813,35 @@ func (s *GatewayOpsTestSuite) TestDapiMutateIn() {
 				}`))
 	})
 
-	// BUG(ING-1283) - Data API mutate in ignores Expires header
-	// s.IterDapiExpiryHeaderTests(func(expiry string, modifyOpts func(*checkDocumentOptions)) {
-	// 	docId := s.binaryDocId([]byte(`{}`))
+	s.IterDapiExpiryHeaderTests(func(expiry string, modifyOpts func(*checkDocumentOptions)) {
+		docId := s.binaryDocId([]byte(`{}`))
 
-	// 	resp := s.sendTestHttpRequest(&testHttpRequest{
-	// 		Method: http.MethodPost,
-	// 		Path: fmt.Sprintf(
-	// 			"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/mutate",
-	// 			s.bucketName, s.scopeName, s.collectionName, docId,
-	// 		),
-	// 		Headers: map[string]string{
-	// 			"Authorization": s.basicRestCreds,
-	// 			"Expires":       expiry,
-	// 		},
-	// 		Body: []byte(`{"operations":[{"operation":"DictAdd","path":"add", "value": 43}]}`),
-	// 	})
-	// 	requireRestSuccess(s.T(), resp)
-	// 	assertRestValidEtag(s.T(), resp)
+		resp := s.sendTestHttpRequest(&testHttpRequest{
+			Method: http.MethodPost,
+			Path: fmt.Sprintf(
+				"/v1.alpha/buckets/%s/scopes/%s/collections/%s/documents/%s/mutate",
+				s.bucketName, s.scopeName, s.collectionName, docId,
+			),
+			Headers: map[string]string{
+				"Authorization": s.basicRestCreds,
+				"Expires":       expiry,
+			},
+			Body: []byte(`{"operations":[{"operation":"DictAdd","path":"add", "value": 43}]}`),
+		})
+		requireRestSuccess(s.T(), resp)
+		assertRestValidEtag(s.T(), resp)
 
-	// 	defaultOpts := checkDocumentOptions{
-	// 		BucketName:     s.bucketName,
-	// 		ScopeName:      s.scopeName,
-	// 		CollectionName: s.collectionName,
-	// 		DocId:          docId,
-	// 		Content:        []byte(`{"add":43}`),
-	// 	}
-	// 	modifyOpts(&defaultOpts)
+		defaultOpts := checkDocumentOptions{
+			BucketName:     s.bucketName,
+			ScopeName:      s.scopeName,
+			CollectionName: s.collectionName,
+			DocId:          docId,
+			Content:        []byte(`{"add":43}`),
+		}
+		modifyOpts(&defaultOpts)
 
-	// 	s.checkDocument(s.T(), defaultOpts)
-	// })
+		s.checkDocument(s.T(), defaultOpts)
+	})
 
 	s.RunCommonDapiErrorCases(func(opts *commonDapiTestData) *testHttpResponse {
 		return s.sendTestHttpRequest(&testHttpRequest{

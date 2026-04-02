@@ -184,6 +184,14 @@ func (s *DataApiServer) MutateInDocument(
 	opts.CollectionName = in.CollectionName
 	opts.Key = key
 
+	if in.Params.Expires != nil {
+		expiry, errSt := parseStringToGocbcorexExpiry(*in.Params.Expires)
+		if errSt != nil {
+			return nil, errSt.Err()
+		}
+		opts.Expiry = expiry
+	}
+
 	if in.Body.StoreSemantic != nil {
 		switch *in.Body.StoreSemantic {
 		case dataapiv1.StoreSemanticInsert:
