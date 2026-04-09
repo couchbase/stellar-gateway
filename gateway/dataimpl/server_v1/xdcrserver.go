@@ -553,6 +553,10 @@ func (s *XdcrServer) CheckDocument(
 	opts.Key = []byte(in.Key)
 	opts.FetchDatatype = true
 
+	if in.VbUuid != nil {
+		opts.VBUUID = *in.VbUuid
+	}
+
 	metaRes, err := bucketAgent.GetMeta(ctx, &opts)
 	if err != nil {
 		if errors.Is(err, memdx.ErrDocNotFound) {
@@ -569,6 +573,8 @@ func (s *XdcrServer) CheckDocument(
 			return nil, s.errorHandler.NewScopeMissingStatus(ctx, err, in.BucketName, in.ScopeName).Err()
 		} else if errors.Is(err, memdx.ErrAccessError) {
 			return nil, s.errorHandler.NewCollectionNoReadAccessStatus(ctx, err, in.BucketName, in.ScopeName, in.CollectionName).Err()
+		} else if errors.Is(err, gocbcorex.ErrVbucketUUIDMismatch) {
+			return nil, s.errorHandler.NewVbUuidDivergenceStatus(ctx, err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
 		}
 		return nil, s.errorHandler.NewGenericStatus(ctx, err).Err()
 	}

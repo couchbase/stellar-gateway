@@ -350,6 +350,32 @@ func (s *GatewayOpsTestSuite) TestXdcrCheckDocument() {
 			}, grpc.PerRPCCredentials(s.basicRpcCreds))
 			requireRpcSuccess(s.T(), resp, err)
 		})
+
+		s.Run("VbUuidMismatch", func() {
+			docId := s.randomDocId()
+
+			// we just make up a cas for testing purposes
+			var docCreateCas uint64 = 1234
+
+			// we just make up a vbuuid that won't match
+			var vbuuidMismatch uint64 = 99999
+
+			_, err := xdcrClient.CheckDocument(context.Background(), &internal_xdcr_v1.CheckDocumentRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+				StoreCas:       docCreateCas,
+				ContentFlags:   TEST_CONTENT_FLAGS,
+				ExpiryTime:     nil, // no expiry
+				Revno:          1,
+				VbUuid:         &vbuuidMismatch,
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			assertRpcStatus(s.T(), err, codes.Aborted)
+			assertRpcErrorDetails(s.T(), err, func(d *epb.ErrorInfo) {
+				assert.Equal(s.T(), "VBUUID_MISMATCH", d.Reason)
+			})
+		})
 	})
 
 	s.Run("Set", func() {
@@ -401,6 +427,36 @@ func (s *GatewayOpsTestSuite) TestXdcrCheckDocument() {
 			assertRpcStatus(s.T(), err, codes.Aborted)
 			assertRpcErrorDetails(s.T(), err, func(d *epb.ErrorInfo) {
 				assert.Equal(s.T(), "DOC_NEWER", d.Reason)
+			})
+		})
+
+		s.Run("VbUuidMismatch", func() {
+			docId := s.testDocId()
+			// we just make up a vbuuid that won't match
+			var vbuuidMismatch uint64 = 99999
+
+			getResp, err := xdcrClient.GetDocument(context.Background(), &internal_xdcr_v1.GetDocumentRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			requireRpcSuccess(s.T(), getResp, err)
+
+			_, err = xdcrClient.CheckDocument(context.Background(), &internal_xdcr_v1.CheckDocumentRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+				StoreCas:       getResp.Cas + 10,
+				ContentFlags:   TEST_CONTENT_FLAGS,
+				ExpiryTime:     nil, // no expiry
+				Revno:          getResp.Revno + 10,
+				VbUuid:         &vbuuidMismatch,
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			assertRpcStatus(s.T(), err, codes.Aborted)
+			assertRpcErrorDetails(s.T(), err, func(d *epb.ErrorInfo) {
+				assert.Equal(s.T(), "VBUUID_MISMATCH", d.Reason)
 			})
 		})
 
@@ -567,6 +623,36 @@ func (s *GatewayOpsTestSuite) TestXdcrCheckDocument() {
 				IsDeleted:      true,
 			}, grpc.PerRPCCredentials(s.basicRpcCreds))
 			requireRpcSuccess(s.T(), delResp, err)
+		})
+
+		s.Run("VbUuidMismatch", func() {
+			docId := s.testDocId()
+			// we just make up a vbuuid that won't match
+			var vbuuidMismatch uint64 = 99999
+
+			getResp, err := xdcrClient.GetDocument(context.Background(), &internal_xdcr_v1.GetDocumentRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+				IncludeContent: false,
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			requireRpcSuccess(s.T(), getResp, err)
+
+			_, err = xdcrClient.CheckDocument(context.Background(), &internal_xdcr_v1.CheckDocumentRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+				StoreCas:       getResp.Cas + 10,
+				Revno:          getResp.Revno + 10,
+				IsDeleted:      true,
+				VbUuid:         &vbuuidMismatch,
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			assertRpcStatus(s.T(), err, codes.Aborted)
+			assertRpcErrorDetails(s.T(), err, func(d *epb.ErrorInfo) {
+				assert.Equal(s.T(), "VBUUID_MISMATCH", d.Reason)
+			})
 		})
 
 		s.Run("LwwFail", func() {
