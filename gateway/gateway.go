@@ -240,15 +240,30 @@ func (g *Gateway) Run(ctx context.Context) error {
 
 	mgmt := initStartupMgmt(tlsConfig, mgmtHostPort, config.Username, config.Password)
 
+	// Use a startup-scoped context for the ping loop that is cancelled when
+	// the gateway is asked to shut down.  This ensures we don't hang during
+	// startup if a SIGTERM arrives before the cluster is reachable, while
+	// keeping the main ctx alive for cbauth, agent manager, and graceful
+	// shutdown paths.
+	startupCtx, startupCancel := context.WithCancel(ctx)
+	go func() {
+		select {
+		case <-g.shutdownSig:
+			startupCancel()
+		case <-startupCtx.Done():
+		}
+	}()
+
 	var clusterUUID string
 	var bootstrapNodeAddr string
 	for {
-		currentUUID, nodeAddr, err := pingCouchbaseCluster(ctx, mgmt, config.Logger)
+		currentUUID, nodeAddr, err := pingCouchbaseCluster(startupCtx, mgmt, config.Logger)
 		if err != nil {
 			config.Logger.Warn("failed to ping cluster", zap.Error(err))
 
 			// if we are not in daemon mode, we just immediately return the error to the user
 			if !config.Daemon {
+				startupCancel()
 				return err
 			}
 
@@ -257,8 +272,8 @@ func (g *Gateway) Run(ctx context.Context) error {
 			config.Logger.Info("sleeping before trying to ping cluster again", zap.Duration("period", waitTime))
 			select {
 			case <-time.After(waitTime):
-			case <-ctx.Done():
-				return ctx.Err()
+			case <-startupCtx.Done():
+				return startupCtx.Err()
 			}
 
 			continue
@@ -269,6 +284,9 @@ func (g *Gateway) Run(ctx context.Context) error {
 		bootstrapNodeAddr = nodeAddr
 		break
 	}
+
+	// Startup ping is done, clean up the scoped context.
+	startupCancel()
 
 	authHostPort, err := mgmtHostPortToAuthHostPort(mgmtHostPort)
 	if err != nil {
