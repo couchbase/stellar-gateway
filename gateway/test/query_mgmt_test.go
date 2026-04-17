@@ -47,6 +47,53 @@ func (s *GatewayOpsTestSuite) TestQueryManagement() {
 	}
 
 	s.Run("PrimaryIndex", func() {
+		s.Run("CreateAndDropWithUnsetName", func() {
+			creds := s.basicRpcCreds
+
+			// First let's attempt a drop in case the primary index exists already
+			{
+				resp, err := queryAdminClient.DropPrimaryIndex(context.Background(),
+					&admin_query_v1.DropPrimaryIndexRequest{
+						Name:            nil,
+						BucketName:      s.bucketName,
+						ScopeName:       &s.scopeName,
+						CollectionName:  &s.collectionName,
+						IgnoreIfMissing: &trueBool,
+					},
+					grpc.PerRPCCredentials(creds))
+
+				requireRpcSuccess(s.T(), resp, err)
+			}
+
+			// Create the index
+			{
+				resp, err := queryAdminClient.CreatePrimaryIndex(context.Background(),
+					&admin_query_v1.CreatePrimaryIndexRequest{
+						BucketName:     s.bucketName,
+						Name:           nil,
+						ScopeName:      &s.scopeName,
+						CollectionName: &s.collectionName,
+					},
+					grpc.PerRPCCredentials(creds))
+
+				requireRpcSuccess(s.T(), resp, err)
+			}
+
+			// Drop it again, this time without IgnoreIfMissing, it must exist.
+			{
+				resp, err := queryAdminClient.DropPrimaryIndex(context.Background(),
+					&admin_query_v1.DropPrimaryIndexRequest{
+						Name:           nil,
+						BucketName:     s.bucketName,
+						ScopeName:      &s.scopeName,
+						CollectionName: &s.collectionName,
+					},
+					grpc.PerRPCCredentials(creds))
+
+				requireRpcSuccess(s.T(), resp, err)
+			}
+		})
+
 		indexName := uuid.NewString()
 
 		s.Run("Create", func() {

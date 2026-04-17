@@ -270,7 +270,7 @@ func (s *QueryIndexAdminServer) CreatePrimaryIndex(
 		BucketName:     in.BucketName,
 		ScopeName:      scopeName,
 		CollectionName: collectionName,
-		IndexName:      in.GetName(),
+		IndexName:      indexName,
 		OnBehalfOf:     oboInfo,
 	})
 	if err != nil {
@@ -402,11 +402,18 @@ func (s *QueryIndexAdminServer) DropPrimaryIndex(
 		return nil, errSt.Err()
 	}
 
+	var indexName string
+	if in.Name == nil {
+		indexName = "#primary"
+	} else {
+		indexName = *in.Name
+	}
+
 	err := agent.DropPrimaryIndex(ctx, &cbqueryx.DropPrimaryIndexOptions{
 		BucketName:        in.BucketName,
 		ScopeName:         in.GetScopeName(),
 		CollectionName:    in.GetCollectionName(),
-		IndexName:         in.GetName(),
+		IndexName:         indexName,
 		IgnoreIfNotExists: in.GetIgnoreIfMissing(),
 		OnBehalfOf:        oboInfo,
 	})
@@ -465,7 +472,7 @@ func (s *QueryIndexAdminServer) DropPrimaryIndex(
 		BucketName:     in.BucketName,
 		ScopeName:      scopeName,
 		CollectionName: collectionName,
-		IndexName:      in.GetName(),
+		IndexName:      indexName,
 		OnBehalfOf:     oboInfo,
 	})
 	if err != nil {
