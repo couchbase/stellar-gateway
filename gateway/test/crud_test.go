@@ -4926,18 +4926,9 @@ func (s *GatewayOpsTestSuite) TestGetAllReplicas() {
 		}, grpc.PerRPCCredentials(s.basicRpcCreds))
 		requireRpcSuccess(s.T(), resp, err)
 
-		numResults := 0
-		for {
-			_, err := resp.Recv()
-			if err != nil {
-				break
-			}
-
-			numResults++
-		}
-
-		// This document does not exist on any node so resp.Recv should have immediately errored.
-		require.Zero(s.T(), numResults)
+		_, err = resp.Recv()
+		require.Error(s.T(), err)
+		assertRpcStatus(s.T(), err, codes.NotFound)
 	})
 
 	s.RunCommonErrorCases(func(ctx context.Context, opts *commonErrorTestData) (interface{}, error) {
