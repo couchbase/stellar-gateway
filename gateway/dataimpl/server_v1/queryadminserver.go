@@ -270,7 +270,7 @@ func (s *QueryIndexAdminServer) CreatePrimaryIndex(
 		BucketName:     in.BucketName,
 		ScopeName:      scopeName,
 		CollectionName: collectionName,
-		IndexName:      in.GetName(),
+		IndexName:      indexName,
 		OnBehalfOf:     oboInfo,
 	})
 	if err != nil {
