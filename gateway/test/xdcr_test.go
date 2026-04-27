@@ -43,6 +43,7 @@ func (s *GatewayOpsTestSuite) TestXdcrGetClusterInfo() {
 	require.Contains(s.T(), []internal_xdcr_v1.ClusterEdition{
 		internal_xdcr_v1.ClusterEdition_CLUSTER_EDITION_COMMUNITY,
 		internal_xdcr_v1.ClusterEdition_CLUSTER_EDITION_ENTERPRISE,
+		internal_xdcr_v1.ClusterEdition_CLUSTER_EDITION_MIXED,
 	}, *clusterInfoResp.Edition)
 }
 
