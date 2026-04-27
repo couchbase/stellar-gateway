@@ -62,7 +62,7 @@ func (s *XdcrServer) GetClusterInfo(ctx context.Context, in *internal_xdcr_v1.Ge
 		return nil, errSt.Err()
 	}
 
-	clusterInfo, err := clusterAgent.GetClusterInfo(ctx, &cbmgmtx.GetClusterInfoOptions{
+	clusterInfo, err := clusterAgent.GetAggregatedClusterInfo(ctx, &gocbcorex.GetAggregatedClusterInfoOptions{
 		OnBehalfOf: oboUser,
 	})
 	if err != nil {
@@ -70,10 +70,12 @@ func (s *XdcrServer) GetClusterInfo(ctx context.Context, in *internal_xdcr_v1.Ge
 	}
 
 	var edition internal_xdcr_v1.ClusterEdition
-	if clusterInfo.IsEnterprise {
+	if clusterInfo.AllEnterprise {
 		edition = internal_xdcr_v1.ClusterEdition_CLUSTER_EDITION_ENTERPRISE
-	} else {
+	} else if clusterInfo.AllCommunity {
 		edition = internal_xdcr_v1.ClusterEdition_CLUSTER_EDITION_COMMUNITY
+	} else {
+		edition = internal_xdcr_v1.ClusterEdition_CLUSTER_EDITION_MIXED
 	}
 
 	return &internal_xdcr_v1.GetClusterInfoResponse{
