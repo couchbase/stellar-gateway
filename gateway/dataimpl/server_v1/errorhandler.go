@@ -1000,6 +1000,12 @@ func (e ErrorHandler) NewNoAuthStatus(ctx context.Context) *status.Status {
 	return st
 }
 
+func (e ErrorHandler) NewUnauthenticatedStatus(ctx context.Context, baseErr error) *status.Status {
+	st := e.newStatus(ctx, codes.Unauthenticated, "An authentication error occured.")
+	st = e.tryAttachExtraContext(st, baseErr)
+	return st
+}
+
 func (e ErrorHandler) NewInvalidCredentialsStatus(ctx context.Context) *status.Status {
 	st := e.newStatus(ctx, codes.PermissionDenied, "Your username or password is invalid.")
 	st = e.tryAttachStatusDetails(st, &epb.ResourceInfo{
