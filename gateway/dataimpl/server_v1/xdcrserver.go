@@ -807,6 +807,12 @@ func (s *XdcrServer) PushDocument(
 				return nil, s.errorHandler.NewValueTooLargeStatus(ctx, err, in.BucketName, in.ScopeName, in.CollectionName, in.Key, false).Err()
 			} else if errors.Is(err, gocbcorex.ErrVbucketUUIDMismatch) {
 				return nil, s.errorHandler.NewVbUuidDivergenceStatus(ctx, err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+			} else if errors.Is(err, memdx.ErrRateLimitedBucketResidentRatioTooLow) {
+				return nil, s.errorHandler.NewRateLimitBucketResidentRatioTooLowStatus(ctx, err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+			} else if errors.Is(err, memdx.ErrRateLimitedBucketDataSizeTooBig) {
+				return nil, s.errorHandler.NewRateLimitBucketDataSizeTooBigStatus(ctx, err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+			} else if errors.Is(err, memdx.ErrRateLimitedBucketDiskSpaceTooLow) {
+				return nil, s.errorHandler.NewRateLimitBucketDiskSpaceTooLowStatus(ctx, err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
 			}
 			return nil, s.errorHandler.NewGenericStatus(ctx, err).Err()
 		}
@@ -874,6 +880,12 @@ func (s *XdcrServer) PushDocument(
 				return nil, s.errorHandler.NewValueTooLargeStatus(ctx, err, in.BucketName, in.ScopeName, in.CollectionName, in.Key, false).Err()
 			} else if errors.Is(err, gocbcorex.ErrVbucketUUIDMismatch) {
 				return nil, s.errorHandler.NewVbUuidDivergenceStatus(ctx, err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+			} else if errors.Is(err, memdx.ErrRateLimitedBucketResidentRatioTooLow) {
+				return nil, s.errorHandler.NewRateLimitBucketResidentRatioTooLowStatus(ctx, err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+			} else if errors.Is(err, memdx.ErrRateLimitedBucketDataSizeTooBig) {
+				return nil, s.errorHandler.NewRateLimitBucketDataSizeTooBigStatus(ctx, err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+			} else if errors.Is(err, memdx.ErrRateLimitedBucketDiskSpaceTooLow) {
+				return nil, s.errorHandler.NewRateLimitBucketDiskSpaceTooLowStatus(ctx, err, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
 			}
 			return nil, s.errorHandler.NewGenericStatus(ctx, err).Err()
 		}

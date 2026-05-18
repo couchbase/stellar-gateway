@@ -1124,6 +1124,39 @@ func (e ErrorHandler) NewVbUuidDivergenceStatus(ctx context.Context, baseErr err
 	return st
 }
 
+func (e ErrorHandler) NewRateLimitBucketResidentRatioTooLowStatus(ctx context.Context, baseErr error, bucketName, scopeName, collectionName, docId string) *status.Status {
+	st := e.newStatus(ctx, codes.ResourceExhausted,
+		fmt.Sprintf("The bucket resident ratio is too low to write '%s' to '%s/%s/%s'.",
+			docId, bucketName, scopeName, collectionName))
+	st = e.tryAttachStatusDetails(st, &epb.ErrorInfo{
+		Reason: "RATE_LIMIT_BUCKET_RESIDENT_RATIO_TOO_LOW",
+	})
+	st = e.tryAttachExtraContext(st, baseErr)
+	return st
+}
+
+func (e ErrorHandler) NewRateLimitBucketDataSizeTooBigStatus(ctx context.Context, baseErr error, bucketName, scopeName, collectionName, docId string) *status.Status {
+	st := e.newStatus(ctx, codes.ResourceExhausted,
+		fmt.Sprintf("The bucket data size is too big to write '%s' to '%s/%s/%s'.",
+			docId, bucketName, scopeName, collectionName))
+	st = e.tryAttachStatusDetails(st, &epb.ErrorInfo{
+		Reason: "RATE_LIMIT_BUCKET_DATA_SIZE_TOO_BIG",
+	})
+	st = e.tryAttachExtraContext(st, baseErr)
+	return st
+}
+
+func (e ErrorHandler) NewRateLimitBucketDiskSpaceTooLowStatus(ctx context.Context, baseErr error, bucketName, scopeName, collectionName, docId string) *status.Status {
+	st := e.newStatus(ctx, codes.ResourceExhausted,
+		fmt.Sprintf("Not enough bucket disk space to write '%s' to '%s/%s/%s'.",
+			docId, bucketName, scopeName, collectionName))
+	st = e.tryAttachStatusDetails(st, &epb.ErrorInfo{
+		Reason: "RATE_LIMIT_BUCKET_DISK_SPACE_TOO_LOW",
+	})
+	st = e.tryAttachExtraContext(st, baseErr)
+	return st
+}
+
 func (e ErrorHandler) NewUnimplementedServerVersionStatus(ctx context.Context) *status.Status {
 	st := e.newStatus(ctx,
 		codes.Unimplemented,
