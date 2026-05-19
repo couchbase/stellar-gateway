@@ -41,7 +41,6 @@ import (
 	"github.com/couchbase/stellar-gateway/pkg/interceptors"
 	"github.com/couchbase/stellar-gateway/pkg/metrics"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/recovery"
-	"github.com/oapi-codegen/runtime/strictmiddleware/nethttp"
 	"github.com/rs/cors"
 )
 
@@ -161,7 +160,7 @@ func NewSystem(opts *SystemOptions) (*System, error) {
 	}
 
 	// data api
-	sh := dataapiv1.NewStrictHandlerWithOptions(dapiImpl.DataApiV1Server, []nethttp.StrictHTTPMiddlewareFunc{
+	sh := dataapiv1.NewStrictHandlerWithOptions(dapiImpl.DataApiV1Server, []dataapiv1.StrictMiddlewareFunc{
 		dapiimpl.NewErrorHandler(opts.Logger),
 		dapiimpl.NewTlsConnStateHandler(),
 		dapiimpl.NewOtelTracingHandler(),

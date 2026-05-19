@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/couchbase/gocbcorex/contrib/buildversion"
-	"github.com/oapi-codegen/runtime/strictmiddleware/nethttp"
+	"github.com/couchbase/stellar-gateway/dataapiv1"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
@@ -39,7 +39,7 @@ func (w *statusCodeResponseWriter) WriteHeader(statusCode int) {
 	w.BaseResponseWriter.WriteHeader(statusCode)
 }
 
-func NewStatsHandler(logger *zap.Logger) func(f nethttp.StrictHTTPHandlerFunc, operationID string) nethttp.StrictHTTPHandlerFunc {
+func NewStatsHandler(logger *zap.Logger) dataapiv1.StrictMiddlewareFunc {
 	numRequests, err := meter.Int64Counter("oapi_server_requests")
 	if err != nil {
 		logger.Warn("failed to initialize request counter", zap.Error(err))
@@ -50,8 +50,8 @@ func NewStatsHandler(logger *zap.Logger) func(f nethttp.StrictHTTPHandlerFunc, o
 		logger.Warn("failed to initialize duration histogram", zap.Error(err))
 	}
 
-	return func(f nethttp.StrictHTTPHandlerFunc, operationID string) nethttp.StrictHTTPHandlerFunc {
-		return func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (response interface{}, err error) {
+	return func(f dataapiv1.StrictHandlerFunc, operationID string) dataapiv1.StrictHandlerFunc {
+		return func(ctx context.Context, w http.ResponseWriter, r *http.Request, request any) (any, error) {
 			statusW := &statusCodeResponseWriter{
 				BaseResponseWriter: w,
 				StatusCode:         0,

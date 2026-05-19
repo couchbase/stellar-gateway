@@ -10,6 +10,7 @@ import (
 
 	"github.com/couchbase/gocbcorex"
 	"github.com/couchbase/gocbcorex/commonflags"
+	"github.com/couchbase/gocbcorex/contrib/ptr"
 	"github.com/couchbase/gocbcorex/memdx"
 	"github.com/couchbase/stellar-gateway/dataapiv1"
 )
@@ -79,10 +80,12 @@ func (s *DataApiServer) GetDocument(
 	}
 
 	headers := dataapiv1.GetDocument200ResponseHeaders{
-		ETag:            casToHttpEtag(result.Cas),
-		Expires:         timeToHttpTime(expiryTime),
-		XCBFlags:        uint32(result.Flags),
-		ContentEncoding: contentEncoding,
+		ETag:     casToHttpEtag(result.Cas),
+		Expires:  timeToHttpTime(expiryTime),
+		XCBFlags: ptr.To(uint32(result.Flags)),
+	}
+	if contentEncoding != "" {
+		headers.ContentEncoding = &contentEncoding
 	}
 
 	var contentType string
