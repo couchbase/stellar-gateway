@@ -12,16 +12,18 @@ import (
 	"github.com/couchbase/stellar-gateway/dataapiv1"
 )
 
-func casToHttpEtag(cas uint64) string {
-	return fmt.Sprintf("%08x", cas)
+func casToHttpEtag(cas uint64) *string {
+	s := fmt.Sprintf("%08x", cas)
+	return &s
 }
 
-func timeToHttpTime(when time.Time) string {
+func timeToHttpTime(when time.Time) *string {
 	if when.IsZero() {
-		return ""
+		return nil
 	}
 
-	return when.Format(time.RFC1123)
+	s := when.Format(time.RFC1123)
+	return &s
 }
 
 func parseStringToGocbcorexExpiry(val string) (uint32, *Status) {
@@ -62,8 +64,9 @@ func isoTimeToGocbcorexExpiry(when string) (uint32, *Status) {
 	return uint32(t.Unix()), nil
 }
 
-func tokenFromGocbcorex(bucketName string, token gocbcorex.MutationToken) string {
-	return fmt.Sprintf("%s:%d:%08x:%d", bucketName, token.VbID, token.VbUuid, token.SeqNo)
+func tokenFromGocbcorex(bucketName string, token gocbcorex.MutationToken) *string {
+	s := fmt.Sprintf("%s:%d:%08x:%d", bucketName, token.VbID, token.VbUuid, token.SeqNo)
+	return &s
 }
 
 func durabilityLevelToMemdx(dl dataapiv1.DurabilityLevel) (memdx.DurabilityLevel, *Status) {

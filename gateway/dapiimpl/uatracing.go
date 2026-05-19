@@ -6,13 +6,13 @@ import (
 
 	"go.opentelemetry.io/otel/propagation"
 
-	"github.com/oapi-codegen/runtime/strictmiddleware/nethttp"
+	"github.com/couchbase/stellar-gateway/dataapiv1"
 	"go.opentelemetry.io/otel"
 )
 
-func NewOtelTracingHandler() func(f nethttp.StrictHTTPHandlerFunc, operationID string) nethttp.StrictHTTPHandlerFunc {
-	return func(f nethttp.StrictHTTPHandlerFunc, operationID string) nethttp.StrictHTTPHandlerFunc {
-		return func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (response interface{}, err error) {
+func NewOtelTracingHandler() dataapiv1.StrictMiddlewareFunc {
+	return func(f dataapiv1.StrictHandlerFunc, operationID string) dataapiv1.StrictHandlerFunc {
+		return func(ctx context.Context, w http.ResponseWriter, r *http.Request, request any) (any, error) {
 			tp := otel.GetTextMapPropagator()
 			ctx = tp.Extract(ctx, propagation.HeaderCarrier(r.Header))
 

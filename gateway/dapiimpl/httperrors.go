@@ -6,14 +6,14 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/couchbase/stellar-gateway/dataapiv1"
 	"github.com/couchbase/stellar-gateway/gateway/dapiimpl/server_v1"
-	"github.com/oapi-codegen/runtime/strictmiddleware/nethttp"
 	"go.uber.org/zap"
 )
 
-func NewErrorHandler(logger *zap.Logger) func(f nethttp.StrictHTTPHandlerFunc, operationID string) nethttp.StrictHTTPHandlerFunc {
-	return func(f nethttp.StrictHTTPHandlerFunc, operationID string) nethttp.StrictHTTPHandlerFunc {
-		return func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (response interface{}, err error) {
+func NewErrorHandler(logger *zap.Logger) dataapiv1.StrictMiddlewareFunc {
+	return func(f dataapiv1.StrictHandlerFunc, operationID string) dataapiv1.StrictHandlerFunc {
+		return func(ctx context.Context, w http.ResponseWriter, r *http.Request, request any) (any, error) {
 			resp, err := f(ctx, w, r, request)
 			if err != nil {
 				var errSt *server_v1.StatusError
