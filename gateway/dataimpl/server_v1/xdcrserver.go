@@ -584,6 +584,10 @@ func (s *XdcrServer) CheckDocument(
 		return nil, s.errorHandler.NewGenericStatus(ctx, err).Err()
 	}
 
+	if metaRes.Cas == 0xFFFFFFFFFFFFFFFF {
+		return nil, s.errorHandler.NewDocLockedStatus(ctx, memdx.ErrDocLocked, in.BucketName, in.ScopeName, in.CollectionName, in.Key).Err()
+	}
+
 	crMode, err := bucketAgent.GetConflictResolutionMode(ctx)
 	if err != nil {
 		return nil, s.errorHandler.NewGenericStatus(ctx, err).Err()

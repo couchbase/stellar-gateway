@@ -404,6 +404,26 @@ func (s *GatewayOpsTestSuite) TestXdcrCheckDocument() {
 			requireRpcSuccess(s.T(), setResp, err)
 		})
 
+		s.Run("DocLocked", func() {
+			docId := s.lockedDocId()
+
+			_, err := xdcrClient.CheckDocument(context.Background(), &internal_xdcr_v1.CheckDocumentRequest{
+				BucketName:     s.bucketName,
+				ScopeName:      s.scopeName,
+				CollectionName: s.collectionName,
+				Key:            docId,
+				StoreCas:       1234,
+				ContentFlags:   TEST_CONTENT_FLAGS,
+				ExpiryTime:     nil,
+				Revno:          1,
+			}, grpc.PerRPCCredentials(s.basicRpcCreds))
+			assertRpcStatus(s.T(), err, codes.FailedPrecondition)
+			assertRpcErrorDetails(s.T(), err, func(d *epb.PreconditionFailure) {
+				assert.Len(s.T(), d.Violations, 1)
+				assert.Equal(s.T(), "LOCKED", d.Violations[0].Type)
+			})
+		})
+
 		s.Run("LwwFail", func() {
 			docId := s.testDocId()
 
