@@ -16,6 +16,9 @@ import (
 func (s *DataApiServer) LookupInDocument(
 	ctx context.Context, in dataapiv1.LookupInDocumentRequestObject,
 ) (dataapiv1.LookupInDocumentResponseObject, error) {
+	ctx, cancel := s.withKvTimeout(ctx)
+	defer cancel()
+
 	bucketAgent, oboUser, errSt := s.authHandler.GetMemdOboAgent(ctx, in.Params.Authorization, in.BucketName)
 	if errSt != nil {
 		return nil, errSt.Err()
@@ -168,6 +171,9 @@ func (s *DataApiServer) LookupInDocument(
 func (s *DataApiServer) MutateInDocument(
 	ctx context.Context, in dataapiv1.MutateInDocumentRequestObject,
 ) (dataapiv1.MutateInDocumentResponseObject, error) {
+	ctx, cancel := s.withKvTimeout(ctx)
+	defer cancel()
+
 	bucketAgent, oboUser, errSt := s.authHandler.GetMemdOboAgent(ctx, in.Params.Authorization, in.BucketName)
 	if errSt != nil {
 		return nil, errSt.Err()

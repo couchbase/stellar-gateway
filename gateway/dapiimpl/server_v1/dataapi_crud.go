@@ -18,6 +18,9 @@ import (
 func (s *DataApiServer) GetDocument(
 	ctx context.Context, in dataapiv1.GetDocumentRequestObject,
 ) (dataapiv1.GetDocumentResponseObject, error) {
+	ctx, cancel := s.withKvTimeout(ctx)
+	defer cancel()
+
 	bucketAgent, oboUser, errSt := s.authHandler.GetMemdOboAgent(ctx, in.Params.Authorization, in.BucketName)
 	if errSt != nil {
 		return nil, errSt.Err()
@@ -123,6 +126,9 @@ func (s *DataApiServer) GetDocument(
 func (s *DataApiServer) CreateDocument(
 	ctx context.Context, in dataapiv1.CreateDocumentRequestObject,
 ) (dataapiv1.CreateDocumentResponseObject, error) {
+	ctx, cancel := s.withKvTimeout(ctx)
+	defer cancel()
+
 	bucketAgent, oboUser, errSt := s.authHandler.GetMemdOboAgent(ctx, in.Params.Authorization, in.BucketName)
 	if errSt != nil {
 		return nil, errSt.Err()
@@ -230,6 +236,9 @@ func (s *DataApiServer) CreateDocument(
 func (s *DataApiServer) UpdateDocument(
 	ctx context.Context, in dataapiv1.UpdateDocumentRequestObject,
 ) (dataapiv1.UpdateDocumentResponseObject, error) {
+	ctx, cancel := s.withKvTimeout(ctx)
+	defer cancel()
+
 	bucketAgent, oboUser, errSt := s.authHandler.GetMemdOboAgent(ctx, in.Params.Authorization, in.BucketName)
 	if errSt != nil {
 		return nil, errSt.Err()
@@ -419,6 +428,9 @@ func (s *DataApiServer) UpdateDocument(
 func (s *DataApiServer) DeleteDocument(
 	ctx context.Context, in dataapiv1.DeleteDocumentRequestObject,
 ) (dataapiv1.DeleteDocumentResponseObject, error) {
+	ctx, cancel := s.withKvTimeout(ctx)
+	defer cancel()
+
 	bucketAgent, oboUser, errSt := s.authHandler.GetMemdOboAgent(ctx, in.Params.Authorization, in.BucketName)
 	if errSt != nil {
 		return nil, errSt.Err()
