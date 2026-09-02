@@ -26,7 +26,7 @@ func (s *GatewayOpsTestSuite) RunCommonColMgmtErrorCases(
 ) {
 	s.Run("BucketNotFound", func() {
 		_, err := fn(&commonColMgmtErrorTestCaseData{
-			Creds:      s.badRpcCreds,
+			Creds:      s.basicRpcCreds,
 			BucketName: "missing-bucket",
 		})
 		assertRpcStatus(s.T(), err, codes.NotFound)
@@ -41,7 +41,7 @@ func (s *GatewayOpsTestSuite) RunCommonColMgmtErrorCases(
 		})
 		assertRpcStatus(s.T(), err, codes.PermissionDenied)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
-			assert.Equal(s.T(), resource, d.ResourceType)
+			assert.Equal(s.T(), "user", d.ResourceType)
 		})
 	})
 	s.Run("NoPermissions", func() {

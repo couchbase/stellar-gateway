@@ -66,7 +66,7 @@ func (s *GatewayOpsTestSuite) RunCommonIndexErrorCases(
 		})
 		assertRpcStatus(s.T(), err, codes.PermissionDenied)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
-			assert.Equal(s.T(), "", d.ResourceType)
+			assert.Equal(s.T(), "user", d.ResourceType)
 		})
 	})
 }

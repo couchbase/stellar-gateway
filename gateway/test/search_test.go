@@ -780,7 +780,7 @@ func (s *testSearchServiceHelper) TestSearchBadCredentials() {
 
 	_, err = queryResult.Recv()
 	assertRpcStatus(s.T(), err, codes.PermissionDenied)
-	assert.Contains(s.T(), err.Error(), "No permissions to query documents.")
+	assert.Contains(s.T(), err.Error(), "Your username or password is invalid.")
 }
 
 func (s *testSearchServiceHelper) TestSearchInsufficientPermissions() {
