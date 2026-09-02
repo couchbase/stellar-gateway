@@ -150,6 +150,8 @@ func (a AuthHandler) GetHttpOboInfoFromContext(ctx context.Context) (*cbhttpx.On
 		if err != nil {
 			if errors.Is(err, auth.ErrInvalidCertificate) {
 				return nil, a.ErrorHandler.NewInvalidCertificateStatus(ctx)
+			} else if errors.Is(err, auth.ErrCertAuthDisabled) {
+				return nil, a.ErrorHandler.NewCertAuthDisabledStatus(ctx)
 			}
 
 			a.Logger.Error("received an unexpected cert authentication error", zap.Error(err))
@@ -160,6 +162,22 @@ func (a AuthHandler) GetHttpOboInfoFromContext(ctx context.Context) (*cbhttpx.On
 			Username: oboUser,
 			Domain:   oboDomain,
 		}, nil
+	}
+
+	// We validate here to maintain symmetry with MaybeGetOboUserFromContext, returning the same
+	// credentials error if credentials are not valid.
+	_, _, err := a.Authenticator.ValidateUserForObo(ctx, username, password)
+	if err != nil {
+		if errors.Is(err, auth.ErrSingleUserAuthValid) {
+			return nil, nil
+		}
+
+		if errors.Is(err, auth.ErrInvalidCredentials) {
+			return nil, a.ErrorHandler.NewInvalidCredentialsStatus(ctx)
+		}
+
+		a.Logger.Error("received an unexpected authentication error", zap.Error(err))
+		return nil, a.ErrorHandler.NewInternalStatus(ctx)
 	}
 
 	return &cbhttpx.OnBehalfOfInfo{
