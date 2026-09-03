@@ -100,6 +100,8 @@ func (s *XdcrServer) GetBucketInfo(ctx context.Context, in *internal_xdcr_v1.Get
 	if err != nil {
 		if errors.Is(err, cbmgmtx.ErrBucketNotFound) {
 			return nil, s.errorHandler.NewBucketMissingStatus(ctx, err, in.BucketName).Err()
+		} else if errors.Is(err, cbmgmtx.ErrAccessDenied) {
+			return nil, s.errorHandler.NewBucketAccessDeniedStatus(ctx, err, in.BucketName).Err()
 		}
 		return nil, s.errorHandler.NewGenericStatus(ctx, err).Err()
 	}
@@ -310,6 +312,8 @@ func (s *XdcrServer) WatchCollections(in *internal_xdcr_v1.WatchCollectionsReque
 		if err != nil {
 			if errors.Is(err, cbmgmtx.ErrBucketNotFound) {
 				return s.errorHandler.NewBucketMissingStatus(ctx, err, in.BucketName).Err()
+			} else if errors.Is(err, cbmgmtx.ErrAccessDenied) {
+				return s.errorHandler.NewBucketAccessDeniedStatus(ctx, err, in.BucketName).Err()
 			}
 
 			return s.errorHandler.NewGenericStatus(ctx, err).Err()

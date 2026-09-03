@@ -50,14 +50,26 @@ func (s *GatewayOpsTestSuite) TestXdcrGetClusterInfo() {
 func (s *GatewayOpsTestSuite) TestXdcrGetBucketInfo() {
 	xdcrClient := internal_xdcr_v1.NewXdcrServiceClient(s.gatewayConn)
 
-	bucketInfoResp, err := xdcrClient.GetBucketInfo(context.Background(), &internal_xdcr_v1.GetBucketInfoRequest{
-		BucketName: s.bucketName,
-	}, grpc.PerRPCCredentials(s.basicRpcCreds))
-	requireRpcSuccess(s.T(), bucketInfoResp, err)
-	require.NotEmpty(s.T(), bucketInfoResp.BucketUuid)
-	require.Greater(s.T(), bucketInfoResp.NumVbuckets, uint32(0))
-	require.NotNil(s.T(), bucketInfoResp.BucketType)
-	require.Equal(s.T(), internal_xdcr_v1.BucketType_BUCKET_TYPE_COUCHBASE, *bucketInfoResp.BucketType)
+	s.Run("Basic", func() {
+		bucketInfoResp, err := xdcrClient.GetBucketInfo(context.Background(), &internal_xdcr_v1.GetBucketInfoRequest{
+			BucketName: s.bucketName,
+		}, grpc.PerRPCCredentials(s.basicRpcCreds))
+		requireRpcSuccess(s.T(), bucketInfoResp, err)
+		require.NotEmpty(s.T(), bucketInfoResp.BucketUuid)
+		require.Greater(s.T(), bucketInfoResp.NumVbuckets, uint32(0))
+		require.NotNil(s.T(), bucketInfoResp.BucketType)
+		require.Equal(s.T(), internal_xdcr_v1.BucketType_BUCKET_TYPE_COUCHBASE, *bucketInfoResp.BucketType)
+	})
+
+	s.Run("NoPermissions", func() {
+		_, err := xdcrClient.GetBucketInfo(context.Background(), &internal_xdcr_v1.GetBucketInfoRequest{
+			BucketName: s.bucketName,
+		}, grpc.PerRPCCredentials(s.getNoPermissionRpcCreds()))
+		assertRpcStatus(s.T(), err, codes.PermissionDenied)
+		assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
+			assert.Equal(s.T(), "bucket", d.ResourceType)
+		})
+	})
 }
 
 func (s *GatewayOpsTestSuite) TestXdcrGetVbucketInfo() {
@@ -259,6 +271,22 @@ func (s *GatewayOpsTestSuite) TestXdcrWatchCollections() {
 
 		_, err = resp.Recv()
 		assertRpcStatus(s.T(), err, codes.NotFound)
+		assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
+			assert.Equal(s.T(), "bucket", d.ResourceType)
+		})
+	})
+
+	s.Run("NoPermissions", func() {
+		opCtx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		resp, err := xdcrClient.WatchCollections(opCtx, &internal_xdcr_v1.WatchCollectionsRequest{
+			BucketName: s.bucketName,
+		}, grpc.PerRPCCredentials(s.getNoPermissionRpcCreds()))
+		requireRpcSuccess(s.T(), resp, err)
+
+		_, err = resp.Recv()
+		assertRpcStatus(s.T(), err, codes.PermissionDenied)
 		assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
 			assert.Equal(s.T(), "bucket", d.ResourceType)
 		})
@@ -1390,4 +1418,134 @@ func (s *GatewayOpsTestSuite) TestXdcrPushDocument() {
 			})
 		})
 	})
+}
+
+func (s *GatewayOpsTestSuite) TestXdcrBadCredentials() {
+	xdcrClient := internal_xdcr_v1.NewXdcrServiceClient(s.gatewayConn)
+
+	badCreds := grpc.PerRPCCredentials(s.getBadRpcCredentials())
+
+	tests := []struct {
+		description string
+		testFn      func() error
+	}{
+		{
+			description: "Heartbeat",
+			testFn: func() error {
+				_, err := xdcrClient.Heartbeat(context.Background(), &internal_xdcr_v1.HeartbeatRequest{
+					Payload: []byte(`{}`),
+				}, badCreds)
+				return err
+			},
+		},
+		{
+			description: "GetClusterInfo",
+			testFn: func() error {
+				_, err := xdcrClient.GetClusterInfo(context.Background(),
+					&internal_xdcr_v1.GetClusterInfoRequest{}, badCreds)
+				return err
+			},
+		},
+		{
+			description: "GetBucketInfo",
+			testFn: func() error {
+				_, err := xdcrClient.GetBucketInfo(context.Background(), &internal_xdcr_v1.GetBucketInfoRequest{
+					BucketName: s.bucketName,
+				}, badCreds)
+				return err
+			},
+		},
+		{
+			description: "GetVbucketInfo",
+			testFn: func() error {
+				client, err := xdcrClient.GetVbucketInfo(context.Background(), &internal_xdcr_v1.GetVbucketInfoRequest{
+					BucketName: s.bucketName,
+					VbucketIds: []uint32{0},
+				}, badCreds)
+				if err != nil {
+					return err
+				}
+
+				_, err = client.Recv()
+				return err
+			},
+		},
+		{
+			description: "WatchCollections",
+			testFn: func() error {
+				opCtx, cancel := context.WithCancel(context.Background())
+				defer cancel()
+
+				client, err := xdcrClient.WatchCollections(opCtx, &internal_xdcr_v1.WatchCollectionsRequest{
+					BucketName: s.bucketName,
+				}, badCreds)
+				if err != nil {
+					return err
+				}
+
+				_, err = client.Recv()
+				return err
+			},
+		},
+		{
+			description: "GetDocument",
+			testFn: func() error {
+				_, err := xdcrClient.GetDocument(context.Background(), &internal_xdcr_v1.GetDocumentRequest{
+					BucketName:     s.bucketName,
+					ScopeName:      s.scopeName,
+					CollectionName: s.collectionName,
+					Key:            s.randomDocId(),
+					IncludeContent: false,
+				}, badCreds)
+				return err
+			},
+		},
+		{
+			description: "CheckDocument",
+			testFn: func() error {
+				_, err := xdcrClient.CheckDocument(context.Background(), &internal_xdcr_v1.CheckDocumentRequest{
+					BucketName:     s.bucketName,
+					ScopeName:      s.scopeName,
+					CollectionName: s.collectionName,
+					Key:            s.randomDocId(),
+					StoreCas:       1234,
+					ContentFlags:   TEST_CONTENT_FLAGS,
+					Revno:          1,
+				}, badCreds)
+				return err
+			},
+		},
+		{
+			description: "PushDocument",
+			testFn: func() error {
+				var docCheckCas uint64 = 0
+
+				_, err := xdcrClient.PushDocument(context.Background(), &internal_xdcr_v1.PushDocumentRequest{
+					BucketName:     s.bucketName,
+					ScopeName:      s.scopeName,
+					CollectionName: s.collectionName,
+					Key:            s.randomDocId(),
+					CheckCas:       &docCheckCas,
+					StoreCas:       1234,
+					ContentFlags:   TEST_CONTENT_FLAGS,
+					ContentType:    internal_xdcr_v1.ContentType_CONTENT_TYPE_JSON,
+					Content: &internal_xdcr_v1.PushDocumentRequest_ContentUncompressed{
+						ContentUncompressed: TEST_CONTENT,
+					},
+					Revno: 1,
+				}, badCreds)
+				return err
+			},
+		},
+	}
+
+	for _, test := range tests {
+		s.Run(test.description, func() {
+			err := test.testFn()
+			assertRpcStatus(s.T(), err, codes.PermissionDenied)
+			assertRpcErrorDetails(s.T(), err, func(d *epb.ResourceInfo) {
+				assert.Equal(s.T(), "user", d.ResourceType)
+			})
+		})
+	}
 }
