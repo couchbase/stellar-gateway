@@ -67,7 +67,7 @@ func (s *XdcrServer) GetClusterInfo(ctx context.Context, in *internal_xdcr_v1.Ge
 	})
 	if err != nil {
 		if errors.Is(err, cbmgmtx.ErrAccessDenied) {
-			return nil, s.errorHandler.NewUnauthenticatedStatus(ctx, err).Err()
+			return nil, s.errorHandler.NewClusterAccessDeniedStatus(ctx, err).Err()
 		}
 		return nil, s.errorHandler.NewGenericStatus(ctx, err).Err()
 	}

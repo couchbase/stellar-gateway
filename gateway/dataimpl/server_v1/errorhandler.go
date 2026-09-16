@@ -200,6 +200,19 @@ func (e ErrorHandler) NewBucketInvalidArgStatus(ctx context.Context, baseErr err
 	return st
 }
 
+func (e ErrorHandler) NewClusterAccessDeniedStatus(ctx context.Context, baseErr error) *status.Status {
+	msg := "No permissions to perform cluster management operation."
+	st := e.newStatus(ctx, codes.PermissionDenied, msg)
+
+	st = e.tryAttachStatusDetails(
+		st, &epb.ResourceInfo{
+			ResourceType: "cluster",
+			ResourceName: "",
+			Description:  "",
+		})
+	return st
+}
+
 func (e ErrorHandler) NewBucketAccessDeniedStatus(ctx context.Context, baseErr error, bucketName string) *status.Status {
 	msg := "No permissions to perform bucket management operation."
 	st := e.newStatus(ctx, codes.PermissionDenied, msg)
