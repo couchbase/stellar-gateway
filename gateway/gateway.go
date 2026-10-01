@@ -562,19 +562,32 @@ func (g *Gateway) Run(ctx context.Context) error {
 }
 
 type ReconfigureOptions struct {
-	RateLimit int
+	RateLimit *int
+
+	GrpcCertificate *tls.Certificate
+	DapiCertificate *tls.Certificate
 }
 
 func (g *Gateway) Reconfigure(opts *ReconfigureOptions) error {
 	g.reconfigureLock.Lock()
 	defer g.reconfigureLock.Unlock()
 
-	if len(g.rateLimiters) == 0 {
-		return errors.New("cannot enable rate limiting when rate limiting was initially disabled")
+	if opts.RateLimit != nil {
+		if len(g.rateLimiters) == 0 {
+			return errors.New("cannot enable rate limiting when rate limiting was initially disabled")
+		}
+
+		for _, rateLimiter := range g.rateLimiters {
+			rateLimiter.ResetAndUpdateRateLimit(uint64(*opts.RateLimit), time.Second)
+		}
 	}
 
-	for _, rateLimiter := range g.rateLimiters {
-		rateLimiter.ResetAndUpdateRateLimit(uint64(opts.RateLimit), time.Second)
+	if opts.GrpcCertificate != nil {
+		g.atomicGrpcCert.Store(opts.GrpcCertificate)
+	}
+
+	if opts.DapiCertificate != nil {
+		g.atomicDapiCert.Store(opts.DapiCertificate)
 	}
 
 	return nil
