@@ -86,6 +86,7 @@ func init() {
 	configFlags.Int("dapi-port", -1, "the data api port")
 	configFlags.Int("web-port", 9091, "the web metrics/health port")
 	configFlags.Bool("self-sign", false, "specifies to allow a self-signed certificate")
+	configFlags.Bool("watch-tls-config", false, "indicates whether to watch the tls certificate and key files for changes")
 	configFlags.String("cert", "", "path to default tls cert")
 	configFlags.String("cluster-cert", "", "path to cluster tls ca cert")
 	configFlags.String("client-ca-cert", "", "path to tls ca cert for client certs for mtls")
@@ -263,6 +264,7 @@ type config struct {
 	webPort               int
 	dapiPort              int
 	selfSign              bool
+	watchTlsConfig        bool
 	certPath              string
 	keyPath               string
 	grpcCertPath          string
@@ -308,6 +310,7 @@ func readConfig(logger *zap.Logger) *config {
 		webPort:               viper.GetInt("web-port"),
 		dapiPort:              viper.GetInt("dapi-port"),
 		selfSign:              viper.GetBool("self-sign"),
+		watchTlsConfig:        viper.GetBool("watch-tls-config"),
 		certPath:              viper.GetString("cert"),
 		keyPath:               viper.GetString("key"),
 		grpcCertPath:          viper.GetString("grpc-cert"),
@@ -352,6 +355,7 @@ func readConfig(logger *zap.Logger) *config {
 		zap.Int("webPort", config.webPort),
 		zap.Int("dapiPort", config.dapiPort),
 		zap.Bool("selfSign", config.selfSign),
+		zap.Bool("watchTlsConfig", config.watchTlsConfig),
 		zap.String("certPath", config.certPath),
 		zap.String("clientCaCertPath", config.clientCaCertPath),
 		zap.String("keyPath", config.keyPath),
@@ -709,7 +713,7 @@ func startGateway() {
 		tlsWatchPaths[dapiKeyPath] = struct{}{}
 	}
 
-	if len(tlsWatchPaths) > 0 {
+	if config.watchTlsConfig && len(tlsWatchPaths) > 0 {
 		paths := make([]string, 0, len(tlsWatchPaths))
 		for path := range tlsWatchPaths {
 			paths = append(paths, path)
@@ -753,6 +757,10 @@ func startGateway() {
 
 		if newConfig.selfSign != config.selfSign {
 			logger.Warn("config changes for selfSign require a restart")
+		}
+
+		if newConfig.watchTlsConfig != config.watchTlsConfig {
+			logger.Warn("config changes for watchTlsConfig require a restart")
 		}
 
 		if newConfig.certPath != config.certPath ||
