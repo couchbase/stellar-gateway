@@ -1,106 +1,128 @@
 package certwatcher
 
 import (
-	"path/filepath"
+	"crypto/sha256"
+	"maps"
+	"os"
+	"slices"
+	"sync"
 	"time"
 
-	"github.com/fsnotify/fsnotify"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 )
 
-// debounceInterval coalesces the burst of events a single certificate
-// rotation produces (e.g. a Kubernetes Secret volume update swaps its
-// "..data" symlink, which shows up as several fsnotify events) into one
-// call to onChange.
-const debounceInterval = 10 * time.Second
+// DefaultPollInterval is how often the watched files are checked for changes.
+const DefaultPollInterval = 30 * time.Second
 
-// Watcher watches the directories containing a set of files and invokes
-// a callback whenever their contents change. It watches the containing
-// directories rather than the files themselves because Kubernetes
-// Secret/ConfigMap volume mounts update by atomically re-pointing a
-// symlink at a new versioned directory rather than writing the watched
-// files in place; a watch on the file itself would miss that.
+// Watcher periodically polls a set of files and invokes a callback whenever
+// the contents of any of them change.
+//
+// Changes are detected by hashing each file's contents rather than relying
+// on filesystem events or modification times. Files are read through any
+// symlinks, so this works regardless of how a file is replaced (written in
+// place, renamed over, or swapped via a symlink, as a Kubernetes Secret
+// volume does), wherever a symlink points, and on filesystems which don't
+// deliver change notifications, such as NFS. Rewriting a file with
+// identical contents does not count as a change.
 type Watcher struct {
-	logger  *zap.Logger
-	watcher *fsnotify.Watcher
+	logger   *zap.Logger
+	paths    []string
+	interval time.Duration
+	onChange func()
+
+	hashes  map[string][sha256.Size]byte
 	done    chan struct{}
+	stopped sync.WaitGroup
 }
 
-// New starts watching the directories containing paths and invokes onChange
-// whenever anything within one of those directories changes.
-func New(logger *zap.Logger, paths []string, onChange func()) (*Watcher, error) {
-	fsWatcher, err := fsnotify.NewWatcher()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to create fsnotify watcher")
-	}
-
-	dirs := make(map[string]struct{})
+// New records the current contents of paths and then polls them every
+// interval, invoking onChange whenever any of their contents differ from
+// the previous poll. It fails if any of the files cannot be read initially.
+func New(logger *zap.Logger, paths []string, interval time.Duration, onChange func()) (*Watcher, error) {
+	uniquePaths := make([]string, 0, len(paths))
 	for _, path := range paths {
-		if path == "" {
+		if path == "" || slices.Contains(uniquePaths, path) {
 			continue
 		}
 
-		dirs[filepath.Dir(path)] = struct{}{}
-	}
-
-	for dir := range dirs {
-		if err := fsWatcher.Add(dir); err != nil {
-			_ = fsWatcher.Close()
-			return nil, errors.Wrapf(err, "failed to watch directory %s", dir)
-		}
+		uniquePaths = append(uniquePaths, path)
 	}
 
 	w := &Watcher{
-		logger:  logger,
-		watcher: fsWatcher,
-		done:    make(chan struct{}),
+		logger:   logger,
+		paths:    uniquePaths,
+		interval: interval,
+		onChange: onChange,
+		done:     make(chan struct{}),
 	}
 
-	go w.run(onChange)
+	hashes, err := w.hashFiles()
+	if err != nil {
+		return nil, err
+	}
+	w.hashes = hashes
+
+	w.stopped.Add(1)
+	go w.run()
 
 	return w, nil
 }
 
-func (w *Watcher) run(onChange func()) {
-	var debounce *time.Timer
+func (w *Watcher) hashFiles() (map[string][sha256.Size]byte, error) {
+	hashes := make(map[string][sha256.Size]byte, len(w.paths))
+	for _, path := range w.paths {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to read %s", path)
+		}
+
+		hashes[path] = sha256.Sum256(data)
+	}
+
+	return hashes, nil
+}
+
+func (w *Watcher) run() {
+	defer w.stopped.Done()
+
+	ticker := time.NewTicker(w.interval)
+	defer ticker.Stop()
 
 	for {
 		select {
 		case <-w.done:
-			if debounce != nil {
-				debounce.Stop()
-			}
-
 			return
 
-		case event, ok := <-w.watcher.Events:
-			if !ok {
-				return
+		case <-ticker.C:
+			hashes, err := w.hashFiles()
+			if err != nil {
+				// A file may be briefly missing part way through being replaced,
+				// so keep the previous hashes and check again on the next poll.
+				w.logger.Warn("failed to read watched file", zap.Error(err))
+				continue
 			}
 
-			w.logger.Debug("detected tls file change",
-				zap.String("path", event.Name),
-				zap.String("op", event.Op.String()))
-
-			if debounce == nil {
-				debounce = time.AfterFunc(debounceInterval, onChange)
-			} else {
-				debounce.Reset(debounceInterval)
+			if maps.Equal(hashes, w.hashes) {
+				continue
 			}
 
-		case err, ok := <-w.watcher.Errors:
-			if !ok {
-				return
-			}
+			// The new hashes are recorded even if onChange fails to apply them.
+			// When a certificate and key are replaced non-atomically, a poll may
+			// observe only one of them updated; the other is then picked up as
+			// a further change on a later poll.
+			w.hashes = hashes
 
-			w.logger.Warn("error watching tls files", zap.Error(err))
+			w.logger.Debug("detected watched file change")
+
+			w.onChange()
 		}
 	}
 }
 
-// Close stops the watcher. It does not invoke a pending debounced onChange.
-func (w *Watcher) Close() error {
+// Close stops the watcher, waiting for any in-progress onChange to return.
+// onChange is not invoked after Close returns.
+func (w *Watcher) Close() {
 	close(w.done)
-	return w.watcher.Close()
+	w.stopped.Wait()
 }

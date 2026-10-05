@@ -719,13 +719,13 @@ func startGateway() {
 			paths = append(paths, path)
 		}
 
-		certWatcher, err := certwatcher.New(logger.Named("cert-watcher"), paths, reloadTlsCertificates)
+		certWatcher, err := certwatcher.New(logger.Named("cert-watcher"), paths, certwatcher.DefaultPollInterval, reloadTlsCertificates)
 		if err != nil {
 			logger.Error("failed to start tls certificate watcher", zap.Error(err))
 			os.Exit(1)
 			return
 		}
-		defer func() { _ = certWatcher.Close() }()
+		defer certWatcher.Close()
 	}
 
 	var configLock sync.Mutex
