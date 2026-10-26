@@ -1093,6 +1093,13 @@ func (e ErrorHandler) NewUnavailableStatus(ctx context.Context, err error) *stat
 	return st
 }
 
+func (e ErrorHandler) NewServerOutOfMemoryStatus(ctx context.Context, baseErr error) *status.Status {
+	st := e.newStatus(ctx, codes.ResourceExhausted,
+		fmt.Sprintf("The server is out of memory and cannot service the request (status: 0x%x).", uint16(memdx.StatusOutOfMemory)))
+	st = e.tryAttachExtraContext(st, baseErr)
+	return st
+}
+
 func (e ErrorHandler) NewGenericStatus(ctx context.Context, err error) *status.Status {
 	// we do not attach context in these cases, since they almost always don't actually
 	// make it back to the client to be processed anyways.
@@ -1112,6 +1119,14 @@ func (e ErrorHandler) NewGenericStatus(ctx context.Context, err error) *status.S
 	if errors.As(err, &netOpError) && netOpError.Op == "dial" {
 		e.Logger.Debug("handling network dial error", zap.Error(err))
 		return e.NewUnavailableStatus(ctx, err)
+	}
+
+	// the server being out of memory is a transient condition, so we report it as
+	// resource exhaustion rather than an unknown memcached error.
+	var memdErr *memdx.ServerError
+	if errors.As(err, &memdErr) && memdErr.Status == memdx.StatusOutOfMemory {
+		e.Logger.Debug("handling server out of memory error", zap.Error(err))
+		return e.NewServerOutOfMemoryStatus(ctx, err)
 	}
 
 	// if we still don't know what kind of error this is, we return 'UNKNOWN'
