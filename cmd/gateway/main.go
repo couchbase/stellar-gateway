@@ -17,6 +17,7 @@ import (
 	"github.com/couchbase/gocbcorex/contrib/buildversion"
 	"github.com/couchbase/stellar-gateway/gateway"
 	"github.com/couchbase/stellar-gateway/pkg/webapi"
+	"github.com/couchbase/stellar-gateway/utils/certwatcher"
 	"github.com/couchbase/stellar-gateway/utils/secretsmanager"
 	"github.com/couchbase/stellar-gateway/utils/selfsignedcert"
 	"github.com/fsnotify/fsnotify"
@@ -85,6 +86,7 @@ func init() {
 	configFlags.Int("dapi-port", -1, "the data api port")
 	configFlags.Int("web-port", 9091, "the web metrics/health port")
 	configFlags.Bool("self-sign", false, "specifies to allow a self-signed certificate")
+	configFlags.Bool("watch-tls-config", false, "indicates whether to watch the tls certificate and key files for changes")
 	configFlags.String("cert", "", "path to default tls cert")
 	configFlags.String("cluster-cert", "", "path to cluster tls ca cert")
 	configFlags.String("client-ca-cert", "", "path to tls ca cert for client certs for mtls")
@@ -262,6 +264,7 @@ type config struct {
 	webPort               int
 	dapiPort              int
 	selfSign              bool
+	watchTlsConfig        bool
 	certPath              string
 	keyPath               string
 	grpcCertPath          string
@@ -307,6 +310,7 @@ func readConfig(logger *zap.Logger) *config {
 		webPort:               viper.GetInt("web-port"),
 		dapiPort:              viper.GetInt("dapi-port"),
 		selfSign:              viper.GetBool("self-sign"),
+		watchTlsConfig:        viper.GetBool("watch-tls-config"),
 		certPath:              viper.GetString("cert"),
 		keyPath:               viper.GetString("key"),
 		grpcCertPath:          viper.GetString("grpc-cert"),
@@ -351,6 +355,7 @@ func readConfig(logger *zap.Logger) *config {
 		zap.Int("webPort", config.webPort),
 		zap.Int("dapiPort", config.dapiPort),
 		zap.Bool("selfSign", config.selfSign),
+		zap.Bool("watchTlsConfig", config.watchTlsConfig),
 		zap.String("certPath", config.certPath),
 		zap.String("clientCaCertPath", config.clientCaCertPath),
 		zap.String("keyPath", config.keyPath),
@@ -480,19 +485,19 @@ func startGateway() {
 		selfSignedCert = generatedCert
 	}
 
+	grpcCertPath := config.grpcCertPath
+	if grpcCertPath == "" {
+		grpcCertPath = config.certPath
+	}
+
+	grpcKeyPath := config.grpcKeyPath
+	if grpcKeyPath == "" {
+		grpcKeyPath = config.keyPath
+	}
+
 	var grpcCertificate tls.Certificate
 	if config.dataPort != -1 {
 		// GRPC services are enabled
-		grpcCertPath := config.grpcCertPath
-		if grpcCertPath == "" {
-			grpcCertPath = config.certPath
-		}
-
-		grpcKeyPath := config.grpcKeyPath
-		if grpcKeyPath == "" {
-			grpcKeyPath = config.keyPath
-		}
-
 		if grpcCertPath == "" || grpcKeyPath == "" {
 			if selfSignedCert == nil {
 				logger.Error("must specify both grpc-cert/grpc-key or cert/key unless self-sign is specified")
@@ -501,6 +506,7 @@ func startGateway() {
 			}
 
 			grpcCertificate = *selfSignedCert
+			grpcCertPath, grpcKeyPath = "", ""
 		} else {
 			loadedTlsCertificate, err := tls.LoadX509KeyPair(grpcCertPath, grpcKeyPath)
 			if err != nil {
@@ -513,19 +519,19 @@ func startGateway() {
 		}
 	}
 
+	dapiCertPath := config.dapiCertPath
+	if dapiCertPath == "" {
+		dapiCertPath = config.certPath
+	}
+
+	dapiKeyPath := config.dapiKeyPath
+	if dapiKeyPath == "" {
+		dapiKeyPath = config.keyPath
+	}
+
 	var dapiCertificate tls.Certificate
 	if config.dapiPort != -1 {
 		// Data API service is enabled
-		dapiCertPath := config.dapiCertPath
-		if dapiCertPath == "" {
-			dapiCertPath = config.certPath
-		}
-
-		dapiKeyPath := config.dapiKeyPath
-		if dapiKeyPath == "" {
-			dapiKeyPath = config.keyPath
-		}
-
 		if dapiCertPath == "" || dapiKeyPath == "" {
 			if selfSignedCert == nil {
 				logger.Error("must specify both dapi-cert/dapi-key or cert/key unless self-sign is specified")
@@ -534,6 +540,7 @@ func startGateway() {
 			}
 
 			dapiCertificate = *selfSignedCert
+			dapiCertPath, dapiKeyPath = "", ""
 		} else {
 			loadedTlsCertificate, err := tls.LoadX509KeyPair(dapiCertPath, dapiKeyPath)
 			if err != nil {
@@ -672,6 +679,55 @@ func startGateway() {
 		return
 	}
 
+	reloadTlsCertificates := func() {
+		if config.dataPort != -1 && grpcCertPath != "" && grpcKeyPath != "" {
+			newCert, err := tls.LoadX509KeyPair(grpcCertPath, grpcKeyPath)
+			if err != nil {
+				logger.Warn("failed to reload grpc tls certificate", zap.Error(err))
+			} else if err := gw.Reconfigure(&gateway.ReconfigureOptions{GrpcCertificate: &newCert}); err != nil {
+				logger.Warn("failed to apply reloaded grpc tls certificate", zap.Error(err))
+			} else {
+				logger.Info("reloaded grpc tls certificate")
+			}
+		}
+
+		if config.dapiPort != -1 && dapiCertPath != "" && dapiKeyPath != "" {
+			newCert, err := tls.LoadX509KeyPair(dapiCertPath, dapiKeyPath)
+			if err != nil {
+				logger.Warn("failed to reload data api tls certificate", zap.Error(err))
+			} else if err := gw.Reconfigure(&gateway.ReconfigureOptions{DapiCertificate: &newCert}); err != nil {
+				logger.Warn("failed to apply reloaded data api tls certificate", zap.Error(err))
+			} else {
+				logger.Info("reloaded data api tls certificate")
+			}
+		}
+	}
+
+	tlsWatchPaths := make(map[string]struct{})
+	if config.dataPort != -1 && grpcCertPath != "" && grpcKeyPath != "" {
+		tlsWatchPaths[grpcCertPath] = struct{}{}
+		tlsWatchPaths[grpcKeyPath] = struct{}{}
+	}
+	if config.dapiPort != -1 && dapiCertPath != "" && dapiKeyPath != "" {
+		tlsWatchPaths[dapiCertPath] = struct{}{}
+		tlsWatchPaths[dapiKeyPath] = struct{}{}
+	}
+
+	if config.watchTlsConfig && len(tlsWatchPaths) > 0 {
+		paths := make([]string, 0, len(tlsWatchPaths))
+		for path := range tlsWatchPaths {
+			paths = append(paths, path)
+		}
+
+		certWatcher, err := certwatcher.New(logger.Named("cert-watcher"), paths, certwatcher.DefaultPollInterval, reloadTlsCertificates)
+		if err != nil {
+			logger.Error("failed to start tls certificate watcher", zap.Error(err))
+			os.Exit(1)
+			return
+		}
+		defer certWatcher.Close()
+	}
+
 	var configLock sync.Mutex
 	reloadConfiguration := func() {
 		configLock.Lock()
@@ -701,6 +757,10 @@ func startGateway() {
 
 		if newConfig.selfSign != config.selfSign {
 			logger.Warn("config changes for selfSign require a restart")
+		}
+
+		if newConfig.watchTlsConfig != config.watchTlsConfig {
+			logger.Warn("config changes for watchTlsConfig require a restart")
 		}
 
 		if newConfig.certPath != config.certPath ||
@@ -761,8 +821,9 @@ func startGateway() {
 		}
 
 		if newConfig.rateLimit != config.rateLimit {
+			rateLimit := newConfig.rateLimit
 			err := gw.Reconfigure(&gateway.ReconfigureOptions{
-				RateLimit: newConfig.rateLimit,
+				RateLimit: &rateLimit,
 			})
 			if err != nil {
 				logger.Warn("failed to reconfigure system", zap.Error(err))
