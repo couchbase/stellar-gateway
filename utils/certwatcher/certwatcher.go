@@ -29,7 +29,7 @@ type Watcher struct {
 	logger   *zap.Logger
 	paths    []string
 	interval time.Duration
-	onChange func()
+	onChange func() error
 
 	hashes  map[string][sha256.Size]byte
 	done    chan struct{}
@@ -38,8 +38,10 @@ type Watcher struct {
 
 // New records the current contents of paths and then polls them every
 // interval, invoking onChange whenever any of their contents differ from
-// the previous poll. It fails if any of the files cannot be read initially.
-func New(logger *zap.Logger, paths []string, interval time.Duration, onChange func()) (*Watcher, error) {
+// the last contents onChange was successfully invoked for. If onChange
+// returns an error it is invoked again on the next poll. New fails if any
+// of the files cannot be read initially.
+func New(logger *zap.Logger, paths []string, interval time.Duration, onChange func() error) (*Watcher, error) {
 	uniquePaths := make([]string, 0, len(paths))
 	for _, path := range paths {
 		if path == "" || slices.Contains(uniquePaths, path) {
@@ -107,15 +109,17 @@ func (w *Watcher) run() {
 				continue
 			}
 
-			// The new hashes are recorded even if onChange fails to apply them.
-			// When a certificate and key are replaced non-atomically, a poll may
-			// observe only one of them updated; the other is then picked up as
-			// a further change on a later poll.
-			w.hashes = hashes
-
 			w.logger.Debug("detected watched file change")
 
-			w.onChange()
+			// The new hashes are only recorded once onChange succeeds, so a
+			// failed apply (for example, a certificate and key observed part way
+			// through a non-atomic replacement) is retried on the next poll.
+			if err := w.onChange(); err != nil {
+				w.logger.Warn("failed to apply watched file change, will retry", zap.Error(err))
+				continue
+			}
+
+			w.hashes = hashes
 		}
 	}
 }

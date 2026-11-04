@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -679,36 +680,52 @@ func startGateway() {
 		return
 	}
 
-	reloadTlsCertificates := func() {
-		if config.dataPort != -1 && grpcCertPath != "" && grpcKeyPath != "" {
+	// These are captured once at startup, rather than read from config when
+	// reloading, because config is replaced by reloadConfiguration on another
+	// goroutine, and listener changes only take effect after a restart.
+	watchGrpcCert := config.dataPort != -1 && grpcCertPath != "" && grpcKeyPath != ""
+	watchDapiCert := config.dapiPort != -1 && dapiCertPath != "" && dapiKeyPath != ""
+
+	// Reloads can run concurrently (the startup reload below and the watcher),
+	// so serialize them to ensure an older load never overwrites a newer one.
+	var reloadTlsLock sync.Mutex
+	reloadTlsCertificates := func() error {
+		reloadTlsLock.Lock()
+		defer reloadTlsLock.Unlock()
+
+		var errs []error
+
+		if watchGrpcCert {
 			newCert, err := tls.LoadX509KeyPair(grpcCertPath, grpcKeyPath)
 			if err != nil {
-				logger.Warn("failed to reload grpc tls certificate", zap.Error(err))
+				errs = append(errs, fmt.Errorf("failed to reload grpc tls certificate: %w", err))
 			} else if err := gw.Reconfigure(&gateway.ReconfigureOptions{GrpcCertificate: &newCert}); err != nil {
-				logger.Warn("failed to apply reloaded grpc tls certificate", zap.Error(err))
+				errs = append(errs, fmt.Errorf("failed to apply reloaded grpc tls certificate: %w", err))
 			} else {
 				logger.Info("reloaded grpc tls certificate")
 			}
 		}
 
-		if config.dapiPort != -1 && dapiCertPath != "" && dapiKeyPath != "" {
+		if watchDapiCert {
 			newCert, err := tls.LoadX509KeyPair(dapiCertPath, dapiKeyPath)
 			if err != nil {
-				logger.Warn("failed to reload data api tls certificate", zap.Error(err))
+				errs = append(errs, fmt.Errorf("failed to reload data api tls certificate: %w", err))
 			} else if err := gw.Reconfigure(&gateway.ReconfigureOptions{DapiCertificate: &newCert}); err != nil {
-				logger.Warn("failed to apply reloaded data api tls certificate", zap.Error(err))
+				errs = append(errs, fmt.Errorf("failed to apply reloaded data api tls certificate: %w", err))
 			} else {
 				logger.Info("reloaded data api tls certificate")
 			}
 		}
+
+		return errors.Join(errs...)
 	}
 
 	tlsWatchPaths := make(map[string]struct{})
-	if config.dataPort != -1 && grpcCertPath != "" && grpcKeyPath != "" {
+	if watchGrpcCert {
 		tlsWatchPaths[grpcCertPath] = struct{}{}
 		tlsWatchPaths[grpcKeyPath] = struct{}{}
 	}
-	if config.dapiPort != -1 && dapiCertPath != "" && dapiKeyPath != "" {
+	if watchDapiCert {
 		tlsWatchPaths[dapiCertPath] = struct{}{}
 		tlsWatchPaths[dapiKeyPath] = struct{}{}
 	}
@@ -726,6 +743,13 @@ func startGateway() {
 			return
 		}
 		defer certWatcher.Close()
+
+		// The certificates were loaded earlier in startup than the watcher
+		// recorded its initial file contents, so reload them once now in case
+		// they were replaced in between, which the watcher would not detect.
+		if err := reloadTlsCertificates(); err != nil {
+			logger.Warn("failed to reload tls certificates after starting watcher", zap.Error(err))
+		}
 	}
 
 	var configLock sync.Mutex

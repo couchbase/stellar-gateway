@@ -1,6 +1,7 @@
 package certwatcher_test
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -27,8 +28,9 @@ func startWatcher(t *testing.T, paths ...string) chan struct{} {
 	t.Helper()
 
 	changed := make(chan struct{}, 10)
-	w, err := certwatcher.New(zap.NewNop(), paths, testPollInterval, func() {
+	w, err := certwatcher.New(zap.NewNop(), paths, testPollInterval, func() error {
 		changed <- struct{}{}
+		return nil
 	})
 	if err != nil {
 		t.Fatalf("failed to start watcher: %v", err)
@@ -196,8 +198,51 @@ func TestWatcherRecoversFromTemporarilyMissingFile(t *testing.T) {
 	expectChange(t, changed)
 }
 
+func TestWatcherRetriesFailedChangeUntilSuccess(t *testing.T) {
+	dir := t.TempDir()
+	certPath := filepath.Join(dir, "tls.crt")
+	writeFile(t, certPath, "cert-1")
+
+	const failures = 2
+	calls := make(chan int, 10)
+	callCount := 0
+	w, err := certwatcher.New(zap.NewNop(), []string{certPath}, testPollInterval, func() error {
+		callCount++
+		calls <- callCount
+		if callCount <= failures {
+			return errors.New("simulated apply failure")
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("failed to start watcher: %v", err)
+	}
+	t.Cleanup(w.Close)
+
+	writeFile(t, certPath, "cert-2")
+
+	// The single file change is retried on each poll until onChange succeeds.
+	for want := 1; want <= failures+1; want++ {
+		select {
+		case got := <-calls:
+			if got != want {
+				t.Fatalf("expected call %d, got %d", want, got)
+			}
+		case <-time.After(2 * time.Second):
+			t.Fatalf("watcher did not invoke onChange attempt %d in time", want)
+		}
+	}
+
+	// Once applied successfully, the change is not reported again.
+	select {
+	case got := <-calls:
+		t.Fatalf("unexpected onChange call %d after a successful apply", got)
+	case <-time.After(10 * testPollInterval):
+	}
+}
+
 func TestNewFailsWhenFileMissing(t *testing.T) {
-	_, err := certwatcher.New(zap.NewNop(), []string{filepath.Join(t.TempDir(), "missing")}, testPollInterval, func() {})
+	_, err := certwatcher.New(zap.NewNop(), []string{filepath.Join(t.TempDir(), "missing")}, testPollInterval, func() error { return nil })
 	if err == nil {
 		t.Fatal("expected an error for a missing file")
 	}
@@ -209,8 +254,9 @@ func TestWatcherCloseStopsWatching(t *testing.T) {
 	writeFile(t, certPath, "cert-1")
 
 	changed := make(chan struct{}, 1)
-	w, err := certwatcher.New(zap.NewNop(), []string{certPath}, testPollInterval, func() {
+	w, err := certwatcher.New(zap.NewNop(), []string{certPath}, testPollInterval, func() error {
 		changed <- struct{}{}
+		return nil
 	})
 	if err != nil {
 		t.Fatalf("failed to start watcher: %v", err)
