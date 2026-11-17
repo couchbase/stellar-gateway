@@ -7,4 +7,4 @@ package dataapiv1
 //
 // Generated code depends on github.com/oapi-codegen/runtime, so when bumping
 // the version here, also bump the runtime in go.mod to a compatible release.
-//go:generate go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@v2.8.0 --config=./codegen.yaml ./spec.yaml
+//go:generate go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@v2.8.2 --config=./codegen.yaml ./spec.yaml
