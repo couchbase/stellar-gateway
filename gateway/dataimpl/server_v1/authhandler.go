@@ -208,17 +208,50 @@ func (a AuthHandler) getBucketAgent(ctx context.Context, bucketName string) (*go
 	return bucketAgent, nil
 }
 
+// GetMemdOboUserFromContext returns the user (including their domain) that memcached
+// requests should be executed on behalf of, or nil if no impersonation should
+// occur (single-user-auth mode). The domain must be preserved so that external
+// users are not resolved as same-named local users.
+func (a AuthHandler) GetMemdOboUserFromContext(ctx context.Context) (*gocbcorex.OnBehalfOfInfo, *status.Status) {
+	oboUser, oboDomain, errSt := a.GetOboUserFromContext(ctx)
+	if errSt != nil {
+		return nil, errSt
+	}
+
+	if oboUser == "" {
+		return nil, nil
+	}
+
+	oboInfo := &gocbcorex.OnBehalfOfInfo{
+		Username: oboUser,
+		Domain:   oboDomain,
+	}
+
+	// Validate up front that memcached can represent this identity, so that
+	// unrepresentable users (such as an unsupported domain, or a local user
+	// whose name begins with the external-user marker) are rejected with a
+	// clear log message rather than failing later inside the KV operation.
+	if _, err := gocbcorex.EncodeMemdOnBehalfOf(oboInfo); err != nil {
+		a.Logger.Warn("authenticated user cannot be impersonated on the data service",
+			zap.String("domain", oboDomain),
+			zap.Error(err))
+		return nil, a.ErrorHandler.NewInternalStatus(ctx)
+	}
+
+	return oboInfo, nil
+}
+
 func (a AuthHandler) GetMemdOboAgent(
 	ctx context.Context, bucketName string,
-) (*gocbcorex.Agent, string, *status.Status) {
-	oboUser, _, errSt := a.GetOboUserFromContext(ctx)
+) (*gocbcorex.Agent, *gocbcorex.OnBehalfOfInfo, *status.Status) {
+	oboUser, errSt := a.GetMemdOboUserFromContext(ctx)
 	if errSt != nil {
-		return nil, "", errSt
+		return nil, nil, errSt
 	}
 
 	bucketAgent, errSt := a.getBucketAgent(ctx, bucketName)
 	if errSt != nil {
-		return nil, "", errSt
+		return nil, nil, errSt
 	}
 
 	return bucketAgent, oboUser, nil
